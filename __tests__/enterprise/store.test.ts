@@ -100,3 +100,22 @@ describe('least privilege application role',()=>{
   }finally{await h.pg!.exec('reset role')}
  })
 })
+
+
+describe('inherited defaults and historical executive evidence',()=>{
+ it('removes inherited update/delete from append-only ledgers and delete from mutable records',async()=>{
+  const immutable=['enterprise_role_events','enterprise_audit','enterprise_artifacts','enterprise_decisions','enterprise_adapter_runs','enterprise_adapter_observations','enterprise_events']
+  const tables=(await h.pg!.query<{relname:string;can_update:boolean;can_delete:boolean}>("select c.relname,has_table_privilege('aeo_app',c.oid,'UPDATE') as can_update,has_table_privilege('aeo_app',c.oid,'DELETE') as can_delete from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname like 'enterprise_%' and c.relkind='r'")).rows
+  expect(tables.filter(row=>immutable.includes(row.relname)&&row.can_update)).toEqual([])
+  expect(tables.filter(row=>!['enterprise_api_nonces','enterprise_api_windows'].includes(row.relname)&&row.can_delete)).toEqual([])
+ })
+ it('generates reports from legacy competitor refs lacking domains without inventing missing-domain attribution',async()=>{
+  const date=new Date().toISOString().slice(0,10),brand={name:'Brand',domain:'example.com',competitorRefs:[{name:'Other',aliases:['Alias']}]}
+  await h.pg!.query("insert into ai_observations(id,account_id,client_id,finished_at,snapshot,classification,classification_status,platform,actual_model,raw_answer,provider_citations,brand) values($1,$2,$3,clock_timestamp(),$4,$5,'classified','gpt-4o','model','An answer',$6,$7)",[i.request,i.account,i.client,JSON.stringify({question:'Which?',language:'en',market:'HK'}),JSON.stringify({brandMentioned:true,competitorsMentioned:['Other']}),JSON.stringify([{url:'https://other.example/a'}]),JSON.stringify(brand)])
+  const report=await createExecutiveReport(scope,i.manager,{start:date,end:date},'en')
+  expect(report.payload).toMatchObject({visibility:{observations:1,citationShare:0,competitorShareOfVoice:[{name:'Other',mentions:1}]}})
+  await h.pg!.query("update ai_observations set brand=brand-'domain' where id=$1",[i.request])
+  const withoutDomain=await createExecutiveReport(scope,i.manager,{start:date,end:date},'en')
+  expect(withoutDomain.payload).toMatchObject({visibility:{answerPresence:1,citationShare:null,citationCoverage:0}})
+ })
+})

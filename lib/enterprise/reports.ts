@@ -2,10 +2,14 @@ import 'server-only'
 import { db } from '@/lib/db'
 import type { OutcomeScope } from '@/lib/outcome-integrations/store'
 import { loadBinding } from '@/lib/integrations/search-console/store'
-import { bindingMatchesDomain } from '@/lib/integrations/search-console/binding'
+import { normalizeBrandDomain,bindingMatchesDomain } from '@/lib/integrations/search-console/binding'
 import { readScanEvidence } from '@/lib/scan-evidence'
-import { projectVisibilityObservation,buildVisibilityReport } from '@/lib/visibility/report'
+import { projectVisibilityObservation,buildVisibilityReport,type VisibilityContext } from '@/lib/visibility/report'
 import { parsePortalConfig } from './input'
+function executiveContext(value:unknown):VisibilityContext{
+ const brand=value&&typeof value==='object'?value as Record<string,unknown>:{},strings=(v:unknown)=>Array.isArray(v)?v.filter((item):item is string=>typeof item==='string'):[]
+ return{domain:normalizeBrandDomain(typeof brand.domain==='string'?brand.domain:'')??'',competitors:(Array.isArray(brand.competitorRefs)?brand.competitorRefs:[]).flatMap(value=>{if(!value||typeof value!=='object')return[];const ref=value as Record<string,unknown>;if(typeof ref.name!=='string'||!ref.name.trim())return[];return[{id:typeof ref.id==='string'?ref.id:undefined,name:ref.name,domains:strings(ref.domains),aliases:strings(ref.aliases)}]})}
+}
 export type PortalConfig=ReturnType<typeof parsePortalConfig>
 export async function buildExecutiveSnapshot(scope:OutcomeScope,window:{start:string;end:string},branding:PortalConfig){
  const sql=db(),binding=await loadBinding(scope.accountId,scope.clientId),boundAt=binding&&bindingMatchesDomain(binding,binding.currentDomain)?binding.boundAt:null
@@ -22,7 +26,10 @@ export async function buildExecutiveSnapshot(scope:OutcomeScope,window:{start:st
   sql`select count(*)::int as observations,count(distinct run_id)::int as runs from enterprise_adapter_observations where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid and observed_at>=${window.start}::date and observed_at<${window.end}::date+1`,
  ])
  if(!clients[0])return null
- const projected=observations.map(row=>{const brand=row.brand as {domain?:string;competitorRefs?:{name:string;domains:string[];aliases:string[]}[]}|null;return projectVisibilityObservation(row,{domain:brand?.domain??String(clients[0].domain),competitors:brand?.competitorRefs??[]})})
+ const projected=observations.map(row=>{const context=executiveContext(row.brand);
+  // Older manifests omit domains. Missing identity cannot be attributed to a
+  // client's current domain after a rename; retain citation aggregates unknown.
+  return projectVisibilityObservation(context.domain?row:{...row,provider_citations:null},context)})
  const report=buildVisibilityReport(projected),scan=scans[0],evidence=readScanEvidence(scan?.evidence)
  return{version:'executive-report.v1',locale:branding.locale,generatedAt:new Date().toISOString(),window,client:{name:String(clients[0].brand_name??clients[0].domain),domain:String(clients[0].domain)},branding,
   technical:scan?{score:scan.score,recordedAt:scan.created_at,method:evidence?.headlineMethod??null,collection:evidence?.collection??'unknown',scope:evidence?.completedScope??'unknown'}:null,

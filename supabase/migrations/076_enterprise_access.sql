@@ -100,6 +100,8 @@ revoke all on public.enterprise_role_events,public.enterprise_roles,public.enter
 revoke execute on function public.enterprise_account_entitled(uuid),public.enterprise_active_member_role(uuid,uuid) from public;
 revoke execute on function public.enterprise_member_role(uuid,uuid),public.enterprise_set_role(uuid,uuid,uuid,text,integer,uuid,text),public.enterprise_consume_request(uuid,uuid,uuid,uuid,text) from public;
 do $$begin if to_regrole('aeo_app') is not null then
+ -- 037 default privileges grant role-specific DML; PUBLIC revocation is insufficient.
+ revoke all on public.enterprise_role_events,public.enterprise_roles,public.enterprise_audit,public.enterprise_keys,public.enterprise_api_nonces,public.enterprise_api_windows from aeo_app;
  grant select,insert on public.enterprise_role_events,public.enterprise_audit to aeo_app;
  grant select,insert,update on public.enterprise_roles,public.enterprise_keys to aeo_app;
  grant select,insert,update,delete on public.enterprise_api_nonces,public.enterprise_api_windows to aeo_app;

@@ -51,10 +51,15 @@ currency-separated analytics and accepted AI evidence aggregates. Provider
 observation coverage is capped at the latest 500 *within the chosen window*;
 connector-reported counts remain separate. No raw prompts, answers or visitor
 identifiers enter public snapshots. GSC data respects current binding generation.
+Legacy competitor references are normalized without requiring later domain fields.
+When a historical manifest lacks its owned domain, citation attribution remains
+unknown rather than being assigned to the current client domain.
 Technical score is the latest as of window end and retains its recorded time and
 known/unknown method. Query attribution and heuristics do not become causal claims.
 
-Snapshots and exact content hashes are immutable to `aeo_app`. The database
+Snapshots and exact content hashes are immutable to `aeo_app`. Migrations first
+revoke the broad role-specific default grants from migration 037, then grant
+only intended rights; tests reproduce those inherited defaults. The database
 computes SHA-256 over canonical PostgreSQL JSONB text at insert. Approval records
 bind that exact hash and the existing grant event/revision. Visibility drafts can
 be retained for approval without applying, modifying or deploying their content.

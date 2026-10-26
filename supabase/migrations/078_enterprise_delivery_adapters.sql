@@ -57,6 +57,8 @@ create table public.enterprise_attempts (
 );
 revoke all on public.enterprise_adapters,public.enterprise_adapter_runs,public.enterprise_adapter_observations,public.enterprise_webhooks,public.enterprise_events,public.enterprise_deliveries,public.enterprise_attempts from public;
 do $$begin if to_regrole('aeo_app') is not null then
+ -- 037 default privileges grant role-specific DML; PUBLIC revocation is insufficient.
+ revoke all on public.enterprise_adapters,public.enterprise_adapter_runs,public.enterprise_adapter_observations,public.enterprise_webhooks,public.enterprise_events,public.enterprise_deliveries,public.enterprise_attempts from aeo_app;
  grant select,insert,update on public.enterprise_adapters,public.enterprise_webhooks,public.enterprise_deliveries,public.enterprise_attempts to aeo_app;
  grant select,insert on public.enterprise_adapter_runs,public.enterprise_adapter_observations,public.enterprise_events to aeo_app;
 end if;end $$;

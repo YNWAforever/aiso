@@ -100,6 +100,8 @@ revoke all on public.enterprise_branding,public.enterprise_artifacts,public.ente
 revoke execute on function public.enterprise_hash_artifact() from public;
 revoke execute on function public.enterprise_decide(uuid,uuid,uuid,uuid,text,text,uuid),public.enterprise_publish_portal(uuid,uuid,uuid,uuid,text) from public;
 do $$begin if to_regrole('aeo_app') is not null then
+ -- 037 default privileges grant role-specific DML; PUBLIC revocation is insufficient.
+ revoke all on public.enterprise_branding,public.enterprise_artifacts,public.enterprise_decisions,public.enterprise_portals,public.enterprise_schedules,public.enterprise_schedule_periods from aeo_app;
  grant select,insert on public.enterprise_artifacts,public.enterprise_decisions to aeo_app;
  grant select,insert,update on public.enterprise_branding,public.enterprise_portals,public.enterprise_schedules,public.enterprise_schedule_periods to aeo_app;
  grant execute on function public.enterprise_decide(uuid,uuid,uuid,uuid,text,text,uuid),public.enterprise_publish_portal(uuid,uuid,uuid,uuid,text) to aeo_app;
