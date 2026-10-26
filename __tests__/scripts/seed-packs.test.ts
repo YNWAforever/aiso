@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 function run(args: string[], expectedProject = 'fixture-project') {
   return spawnSync(process.execPath, ['scripts/seed-packs.ts', ...args], {
     cwd: process.cwd(), encoding: 'utf8', timeout: 5000,
-    env: { PATH: process.env.PATH, DATABASE_URL: 'postgresql://fixture:synthetic@fixture.invalid/db', EXPECTED_NEON_PROJECT_ID: expectedProject },
+    env: { NODE_ENV: 'test', PATH: process.env.PATH, DATABASE_URL: 'postgresql://fixture:synthetic@fixture.invalid/db', EXPECTED_NEON_PROJECT_ID: expectedProject },
   })
 }
 
