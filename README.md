@@ -20,7 +20,9 @@ Live at [aiso-kappa.vercel.app](https://aiso-kappa.vercel.app).
 Stack: Next.js 16 (App Router) · TypeScript 5.9 · Neon Postgres + Neon Auth · Tailwind v4 ·
 shadcn/ui · Vitest · Playwright.
 
-Read [`CLAUDE.md`](./CLAUDE.md) before writing code. It is the real architecture document.
+Start with [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the system map, core-flow tests,
+risks and next three engineering investments. Read [`CLAUDE.md`](./CLAUDE.md) before
+writing code for detailed implementation rules.
 Current project state (migrations, fences, scheduler) is in
 [`docs/project-status.md`](./docs/project-status.md).
 
@@ -33,7 +35,7 @@ Current project state (migrations, fences, scheduler) is in
 ## Setup
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local   # then fill it in
 npm run dev                  # http://localhost:3000
 ```
@@ -44,12 +46,13 @@ missing. The highlights:
 | Variable | Notes |
 |---|---|
 | `DATABASE_URL` | Neon connection string |
+| `EXPECTED_NEON_PROJECT_ID` | Required runtime DB binding expectation; also pin branch/role/database for the intended target |
 | `NEON_AUTH_BASE_URL` | Neon Auth issuer (runtime) |
 | `NEON_AUTH_COOKIE_SECRET` | ≥32 chars. Required when Neon Auth is used at runtime; auth is initialized lazily, so a successful build does not prove it is configured |
 | `PUBLIC_SCAN_RATE_LIMIT_SECRET` | ≥32 chars. **Unset in production, every anonymous scan returns 503** — no local fallback is used there |
 | `REPORT_SHARE_SECRET` | ≥32 chars. Signs report share links **and** the scan-claim cookie |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | without the webhook secret every Stripe event 400s and no subscription provisions |
-| `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | checkout guards these and 500s per plan; the **webhook** does not, so tiers resolve wrongly |
+| `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | checkout guards these and 500s per plan; the webhook rejects unknown or ambiguous canonical prices with 400 |
 | `OPENROUTER_API_KEY` | LLM calls (`lib/openrouter.ts`) |
 | `NEXT_PUBLIC_APP_URL` | public origin; falls back to `https://aiso-kappa.vercel.app` (`lib/app-origin.ts`) |
 | `N8N_SCAN_WEBHOOK_URL` | n8n scan automation; unset = feature off |
@@ -67,15 +70,16 @@ npm run start       # serve the production build
 npm run lint        # ESLint
 npm run test        # unit + integration (see below)
 npm run test:unit   # unit only
-npm run test:integration  # integration only — always requires neonctl
+npm run test:integration  # default integration suite — requires neonctl
+npm run typecheck  # generated Next.js route types + TypeScript
 npm run test:watch  # Vitest watch mode
 npm run e2e         # Playwright E2E (needs a dev server, or START_DEV_SERVER=1)
 ```
 
 `npm run e2e:ui` and `npm run e2e:report` are also available. CI is
-`.github/workflows/pr-gate.yml` — a deterministic merge gate on every PR, running four jobs
-(`static`, `unit-contract`, `e2e-accessibility`, `build`) that a final `pr-gate` job aggregates,
-plus a separate `cloudflare-worker` job. Still run `build`, `lint`, and `test` locally first;
+`.github/workflows/pr-gate.yml` — a deterministic merge gate on every PR, running six job classes
+(`static`, `unit-contract`, `integration`, `e2e-accessibility`, `build`, `cloudflare-worker`)
+that a final `pr-gate` job aggregates. Still run `build`, `lint`, and `test` locally first;
 the gate is the backstop, not the first signal.
 
 ### Integration tests need `neonctl`
@@ -88,8 +92,8 @@ that says so — twice, the second time after the run, so it cannot scroll out o
 is not a pass. Two cases never skip:
 
 - naming an integration test explicitly (`npm run test __tests__/integration/x.test.ts`), and
-- `REQUIRE_INTEGRATION_TESTS=1 npm run test` — **this is the command that proves the full
-  suite ran**, and the one to use before merging anything with integration coverage.
+- `REQUIRE_INTEGRATION_TESTS=1 npm run test` — **this enforces execution of the default
+  integration suite**. Run the exact-target wrapper below as well for CI-equivalent SQL coverage.
 
 `SKIP_INTEGRATION_TESTS=1` opts out deliberately, with the same loud banner.
 
@@ -97,7 +101,15 @@ Database migrations live in `supabase/migrations/` (the directory name is legacy
 applied against Neon). Apply them with `npm run migrate` (`scripts/migrate.ts`), which tracks
 what has run in a `schema_migrations` ledger; `--dry-run` previews.
 
+The default integration config excludes suites with dedicated target contracts. CI also
+runs `node scripts/ci/run-exact-target-suites.mjs` to cover those on a disposable branch.
+See [`docs/development.md`](./docs/development.md) for target requirements, fixture/browser
+checks and the app/schema/Worker deployment sequence.
+
 ## Further reading
+
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — system boundaries, core-flow tests, risk map and investments
+- [`docs/development.md`](./docs/development.md) — runnable local checks and deployment procedure
 
 - [`CLAUDE.md`](./CLAUDE.md) — architecture, auth model, checks engine, DB notes, gotchas
 - [`docs/project-status.md`](./docs/project-status.md) — migration state, feature fences, scheduler
