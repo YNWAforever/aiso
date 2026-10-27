@@ -194,7 +194,7 @@ npm run test:unit -- __tests__/integrations/outcome-store.test.ts __tests__/visi
 ```
 
 These tests create fresh in-memory PostgreSQL fixtures, including the application
-role and migrations 071–078 as appropriate; they do not connect to the managed
+role and migrations 071–079 as appropriate; they do not connect to the managed
 `DATABASE_URL`. Hosted disposable-Neon integration and browser checks remain
 separate gates. The external adapter example imports without provider credentials
 or DB writes. No new Worker schedule, production allowlist edit, paid provider

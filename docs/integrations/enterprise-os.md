@@ -5,8 +5,9 @@ secret change, live provider call or merge is performed by this implementation.
 
 ## Release prerequisites
 
-Apply `076_enterprise_access.sql`, `077_enterprise_reports_workflows.sql` and
-`078_enterprise_delivery_adapters.sql`, after 071–075, with the established guarded
+Apply `076_enterprise_access.sql`, `077_enterprise_reports_workflows.sql`,
+`078_enterprise_delivery_adapters.sql` and `079_enterprise_role_delegation.sql`,
+after 071–075, with the established guarded
 migration workflow. `db()` and the existing Neon binding/role guards remain in
 force. Do not apply these to a persistent database for local acceptance tests.
 The SQL contract tests use fresh in-memory PGlite, including the `aeo_app` role.
@@ -25,16 +26,36 @@ previous key during an existing rotation), `REPORT_SHARE_SECRET`,
 account- and purpose-bound AES-GCM ciphertexts in the existing vault. There is no
 plaintext fallback. No rotation or live email test is implicit in release.
 
-A platform administrator must explicitly grant enterprise editor/manager roles
-through `/api/admin/accounts/{accountId}/enterprise-roles` or the admin control in
-an owned Enterprise workspace. Default is viewer. Role changes use optimistic
-revision, stable request ID, reason, account/profile locks and immutable events.
-Existing active approver grants, with event lineage, remain the sole approval
-boundary. Manager does not imply approver; approver does not imply manager.
-Authors and submitters cannot approve their own retained artifact. This preserves
-existing authority rather than inventing workspace-admin delegation or solo
-approval policy. The role-grant product question does not block this conservative
-implementation; changing that authority remains a separate product decision.
+Willy approved Enterprise workspace-admin role delegation. **Manager is the
+workspace-admin role**. Viewer is the default; active Managers may assign Viewer,
+Editor or Manager to other active members in the same account. Selecting Viewer
+revokes elevated access and keeps the person's membership. The acting Manager's
+own role is changed by another Manager or a platform administrator, preserving an
+administrator after each delegated change. Explicit assignments do not implicitly
+cascade when the issuer's role changes; their immutable lineage remains retained.
+
+The workspace role controls use `POST /api/account/enterprise-roles`, with JSON
+`{profileId, role, expectedRevision, requestId, reason}`. Account/actor are taken
+from the session. Caller-supplied account or authority fields are rejected. Current
+`enterprise_workflows` entitlement and `FEATURE_ENTERPRISE_OS=1` are required.
+Platform admins retain `/api/admin/accounts/{accountId}/enterprise-roles`, including
+provisioning the first Manager. SQL also requires the target account to have a
+current Enterprise entitlement; tenant Managers cannot use the global admin API.
+
+Migration 079 extends the existing role-event ledger and atomically records grants
+and revocations. Workspace-issued events retain the actor's exact Manager grant
+revision/event ID with an account/actor/role composite FK and non-null checks.
+Legacy events retain their platform-admin authority without rewriting history.
+Account/profile locks, fresh SQL authority checks, optimistic target revisions and
+request-ID replay protection prevent stale delegation and duplicate audit writes.
+Inactive actors/targets, foreign accounts and forged role authority are denied.
+
+Existing active **approver** grants remain platform-managed and independent.
+Manager does not imply approver, and approver does not imply Manager. Author and
+submitter separation still applies, including to delegated Managers who also hold
+an independently granted approver role. No role-delegation endpoint writes
+`profiles.is_admin`, `account_approver_state` or `account_approver_events`, and no
+single-person work-item approval bypass is introduced.
 
 ## Workspace, reports and portals
 
@@ -228,7 +249,7 @@ No cross-account benchmark dataset or data-sharing opt-in is invented.
 ## Acceptance boundaries
 
 Local synthetic tests cover ownership/foreign denial, application-role grants,
-immutable hashes and separation of duties, role CAS/replay, commercial parity,
+immutable hashes and separation of duties, role CAS/replay, workspace/platform authority and revocation lineage, commercial parity,
 nonce/rate/revocation, bounded input/output, signed exact bytes, safe rendering in
 both locales, durable report/outbox/attempt/lease repair, provider uncertainty,
 request-hash/idempotency fences, and connector import with unusable DB/no provider

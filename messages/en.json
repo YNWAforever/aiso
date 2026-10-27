@@ -3989,9 +3989,9 @@
     "retryHelp": "At most three attempts. Unknown webhook delivery requires receiver deduplication. Email retries stop after the conservative idempotency window.",
     "attempts": "Attempts",
     "audit": "Audit history",
-    "members": "Enterprise role administration",
-    "roleHelp": "Platform administrators grant viewer, editor or manager roles. Approver grants remain a separate existing control.",
-    "grant": "Record role change",
+    "members": "Workspace role delegation",
+    "roleHelp": "Managers are workspace admins and may delegate Viewer, Editor and Manager roles within this account. Select Viewer to revoke elevated access. Approver grants remain platform-managed; delegation does not permit self-approval.",
+    "grant": "Save role grant or revocation",
     "coverage": "Recent bounded evidence is shown. Saved reports remain accessible by their private links.",
     "executive": "Executive evidence report",
     "technical": "Technical readiness",
@@ -4065,6 +4065,14 @@
     "sampling": "Sampling and context",
     "backlog": "Pending automation records",
     "method": "Method / collection",
-    "utc": "UTC"
+    "utc": "UTC",
+    "roleSelfHelp": "Ask another Manager or a platform administrator to change your own workspace role.",
+    "assignedRole": "Assigned workspace role",
+    "roleGranted": "Role granted",
+    "roleRevoked": "Role revoked",
+    "roleGrantAuthority": "Granting authority",
+    "workspaceAdmin": "Workspace admin (Manager)",
+    "platformAdmin": "Platform administrator",
+    "assignmentRevision": "Role revision and immutable event"
   }
 }

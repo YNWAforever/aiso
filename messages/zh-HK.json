@@ -3989,9 +3989,9 @@
     "retryHelp": "最多嘗試三次。結果不確定的 Webhook 必須由接收端去除重複。電郵重試會在保守冪等時限後停止。",
     "attempts": "嘗試次數",
     "audit": "稽核紀錄",
-    "members": "企業角色管理",
-    "roleHelp": "平台管理員可授予檢視者、編輯者或管理者角色。審批授權仍由現有獨立機制管理。",
-    "grant": "記錄角色變更",
+    "members": "工作區角色委派",
+    "roleHelp": "Manager 角色是工作區管理員，可在本帳戶內委派 Viewer、Editor 及 Manager 角色。選擇 Viewer 可撤銷較高權限。審批授權仍由平台管理；角色委派不允許自行審批。",
+    "grant": "儲存角色授權或撤銷",
     "coverage": "此處顯示有數量限制的近期證據。已儲存報告仍可透過私人連結存取。",
     "executive": "行政證據報告",
     "technical": "技術準備度",
@@ -4065,6 +4065,14 @@
     "sampling": "抽樣及背景",
     "backlog": "待處理自動化紀錄",
     "method": "方法／收集狀態",
-    "utc": "UTC"
+    "utc": "UTC",
+    "roleSelfHelp": "請另一位 Manager 或平台管理員更改你自己的工作區角色。",
+    "assignedRole": "獲授工作區角色",
+    "roleGranted": "已授予角色",
+    "roleRevoked": "已撤銷角色",
+    "roleGrantAuthority": "授權身分",
+    "workspaceAdmin": "工作區管理員（Manager）",
+    "platformAdmin": "平台管理員",
+    "assignmentRevision": "角色修訂及不可變更紀錄"
   }
 }

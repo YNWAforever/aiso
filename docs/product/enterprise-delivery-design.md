@@ -12,11 +12,32 @@ webhooks, enterprise workflows, multi-market benchmarks and custom adapters.
 `FEATURE_ENTERPRISE_OS` is the dark-release boundary. Existing membership and
 legacy feature access remain unchanged.
 
-New enterprise roles are viewer (default), editor and manager. Platform admins
-manage grants; no workspace-admin delegation or new owner is invented. Approval
-continues to require the existing active platform-managed approver grant and its
-event lineage. Enterprise management roles do not themselves mint approval rights.
-Mutations append scoped audit events with actor/version references.
+Willy approved workspace-admin delegation for Phase 4. The existing Manager role
+is the Enterprise workspace administrator; Viewer remains the default and Editor
+retains editing access. Active Managers may grant Viewer, Editor or Manager to
+other active members of their own account. Platform administrators retain the
+existing endpoint for initial Manager provisioning and administrative changes.
+The feature flag and current Enterprise workflow entitlement gate both paths.
+
+Workspace delegation uses `POST /api/account/enterprise-roles`: account and actor
+come from the session, never the body or a target-account URL. The platform-admin
+endpoint remains separately gated. Delegation changes another member's assignment;
+a Manager's own role must be changed by another Manager or a platform admin. This
+preserves an acting workspace admin and avoids reciprocal-demotion lockout.
+Selecting Viewer revokes elevated access without removing account membership.
+
+Migration 079 adds retained actor-authority lineage to grant events and replaces
+the existing role mutation function without rewriting historical events. Mutations
+serialize on the account, recheck current membership/entitlement after locks, use
+revision CAS and request replay checks, and append immutable `role.granted` /
+`role.revoked` audits with the role event, reason and actor's Manager grant. Each
+explicit member assignment persists until changed; revoking its issuer does not
+silently rewrite another member's grant or its history.
+
+Approvals continue to require the existing active, platform-managed approver
+grant and its event lineage. Delegating Manager never grants `profiles.is_admin`
+or approver authority. Author/submitter separation and existing work-item approval
+rules stay enforced; there is no solo-approval exception.
 
 ## Reporting and publication
 
