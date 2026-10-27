@@ -22,11 +22,27 @@ export function parseBrandAssistInput(raw: unknown): BrandAssistInput {
 const fetchHomepage = createPublicUrlFetcher({ maxRedirects: 3, maxResponseBytes: 262144, timeoutMs: 8000 })
 async function generate(text: string, input: BrandAssistInput): Promise<string> {
   return callOpenRouter({
-    label: 'onboarding.brand_draft', model: 'anthropic/claude-haiku-4-5', maxTokens: 700,
+    label: 'onboarding.brand_draft', model: 'anthropic/claude-haiku-4.5', maxTokens: 700,
     signal: AbortSignal.timeout(15000),
     responseFormat: { name: 'brand_draft', schema: {
       type: 'object', additionalProperties: false,
-      properties: { brandName: { type: 'string' }, description: { type: 'string' }, industry: { type: ['string', 'null'], enum: [...INDUSTRY_CODES, null] }, evidence: { type: 'array', maxItems: 6, items: { type: 'object', additionalProperties: false, properties: { field: { type: 'string', enum: ['brandName','description','industry'] }, quote: { type: 'string', minLength: 1, maxLength: 240 } }, required: ['field','quote'] } } },
+      properties: {
+        brandName: { type: 'string' }, description: { type: 'string' },
+        industry: { type: ['string', 'null'], enum: [...INDUSTRY_CODES, null] },
+        // Anthropic rejects maxItems/minLength/maxLength in structured outputs.
+        // Keep these bounds in validateBrandEvidence, after generation.
+        evidence: {
+          type: 'array', description: 'At most 6 exact source excerpts.',
+          items: {
+            type: 'object', additionalProperties: false,
+            properties: {
+              field: { type: 'string', enum: ['brandName', 'description', 'industry'] },
+              quote: { type: 'string', description: 'An exact, non-empty source excerpt of at most 240 characters.' },
+            },
+            required: ['field', 'quote'],
+          },
+        },
+      },
       required: ['brandName', 'description', 'industry', 'evidence'],
     } },
     messages: [

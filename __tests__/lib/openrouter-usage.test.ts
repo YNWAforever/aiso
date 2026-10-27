@@ -199,22 +199,47 @@ describe('callOpenRouter failure logging', () => {
     expect(error).toHaveBeenCalledWith(failure({ reason: 'missing_api_key' }))
   })
 
-  it('logs the status and OpenRouter\'s own message for an HTTP error, and throws as before', async () => {
+  it('logs the status, code and capped message without putting the upstream body in the error', async () => {
     const body = JSON.stringify({ error: { message: 'No auth credentials found', code: 401 } })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 401 })))
 
-    await expect(call()).rejects.toThrow(`OpenRouter 401: ${body}`)
+    await expect(call()).rejects.toThrow(/^OpenRouter 401$/)
 
-    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 401, providerMessage: 'No auth credentials found' }))
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 401, providerCode: 401, providerMessage: 'No auth credentials found' }))
     expect(info).not.toHaveBeenCalled()
   })
 
   it('logs a null providerMessage when the error body is not OpenRouter JSON', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('upstream down', { status: 502 })))
 
-    await expect(call()).rejects.toThrow('OpenRouter 502: upstream down')
+    await expect(call()).rejects.toThrow(/^OpenRouter 502$/)
 
-    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 502, providerMessage: null }))
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 502, providerCode: null, providerMessage: null }))
+  })
+
+  it('bounds diagnostics and omits provider metadata that could echo credentials or page text', async () => {
+    const body = JSON.stringify({ error: {
+      code: 'invalid_schema', message: 'test-key ' + 'x'.repeat(300),
+      metadata: { raw: JSON.stringify({ error: { message: PROMPT, type: 'invalid_request_error' } }) },
+    } })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 400 })))
+    await expect(call()).rejects.toThrow(/^OpenRouter 400$/)
+    expect(error).toHaveBeenCalledWith(failure({
+      reason: 'http_error', status: 400, providerCode: 'invalid_schema',
+      providerMessage: ('[redacted] ' + 'x'.repeat(300)).slice(0, 200),
+    }))
+    expect(JSON.stringify(error.mock.calls)).not.toContain('test-key')
+    expect(JSON.stringify(error.mock.calls)).not.toContain(PROMPT)
+  })
+
+  it('ignores malformed error codes instead of logging arbitrary objects', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: { code: { request: PROMPT }, message: 'Provider returned error' },
+    }), { status: 400 })))
+    await expect(call()).rejects.toThrow(/^OpenRouter 400$/)
+    expect(error).toHaveBeenCalledWith(failure({
+      reason: 'http_error', status: 400, providerCode: null, providerMessage: 'Provider returned error',
+    }))
   })
 
   it('logs timeout and network failures apart', async () => {

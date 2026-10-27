@@ -120,8 +120,9 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
 
   if (!res.ok) {
     const text = await res.text()
-    fail({ reason: 'http_error', status: res.status, providerMessage: providerMessage(text) })
-    throw new Error(`OpenRouter ${res.status}: ${text}`)
+    fail({ reason: 'http_error', status: res.status, ...providerError(text, apiKey) })
+    // Provider bodies can echo page text or credentials; callers may log errors.
+    throw new Error(`OpenRouter ${res.status}`)
   }
 
   let data: CompletionMetadata & { choices?: Array<{ message?: { content?: unknown; annotations?: unknown } }> }
@@ -154,14 +155,18 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
  * OpenRouter's own error text (e.g. "No auth credentials found", or a routing
  * failure naming an unsupported parameter), which is what tells a bad key from a
  * provider problem. Only the parsed `error.message`, capped -- never the raw
- * body, which a provider could fill with an echo of the request.
+ * body/metadata, which a provider could fill with an echo of the request.
  */
-function providerMessage(body: string): string | null {
+function providerError(body: string, apiKey: string): { providerCode: string | number | null; providerMessage: string | null } {
   try {
-    const message = JSON.parse(body)?.error?.message
-    return typeof message === 'string' ? message.slice(0, 200) : null
+    const { code, message } = JSON.parse(body)?.error ?? {}
+    return {
+      providerCode: typeof code === 'number' && Number.isSafeInteger(code) ? code
+        : typeof code === 'string' && /^[\w.-]{1,64}$/.test(code) && code !== apiKey ? code : null,
+      providerMessage: typeof message === 'string' ? message.replaceAll(apiKey, '[redacted]').slice(0, 200) : null,
+    }
   } catch {
-    return null
+    return { providerCode: null, providerMessage: null }
   }
 }
 
