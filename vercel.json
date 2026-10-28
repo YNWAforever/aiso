@@ -1,5 +1,5 @@
 {
-  "git": { "deploymentEnabled": { "codex/aiso-full-remediation-20261003": false, "fix/onboarding-brand-draft-schema-20261027": false } },
+  "git": { "deploymentEnabled": { "codex/aiso-full-remediation-20261003": false, "fix/onboarding-brand-draft-schema-20261027": false, "feat/roadmap-phase3-visibility": false } },
   "regions": ["sin1"],
   "functions": {
     "app/api/scan/route.ts": { "maxDuration": 60 },
@@ -12,6 +12,7 @@
     "app/api/cron/trial-emails/route.ts": { "maxDuration": 60 },
     "app/api/cron/search-console/route.ts": { "maxDuration": 60 },
     "app/api/cron/outcomes/route.ts": { "maxDuration": 60 },
-    "app/api/clients/[clientId]/outcomes/[action]/route.ts": { "maxDuration": 30 }
+    "app/api/clients/[clientId]/outcomes/[action]/route.ts": { "maxDuration": 30 },
+    "app/api/clients/[clientId]/visibility/[action]/route.ts": { "maxDuration": 30 }
   }
 }

@@ -82,3 +82,17 @@ Provider facts: Search Console discovery revision `20260805` documents the
 documents `https://api.indexnow.org/indexnow` and explicitly says submission does
 not guarantee indexing. Thresholds, cluster matching and prioritisation remain
 labelled Fimmick heuristics.
+
+## Delivered Phase 2 / Phase 3 engineering decisions
+
+Phase 2 is PR #113 (`3ab93fb`), including connector protocol, retry and due-batch review fixes. See the PR for current hosted checks. Phase 3 extends the
+existing question identity through `monitored_queries` and reads accepted attempts
+through `ai_observations`; it does not duplicate raw answers. Request context and
+requested sampling are frozen. Human assessments append instead of fabricating
+recommendation/accuracy/risk measurements. Schema proposals are minimal identity
+records, and remote-site patches are review head fragments because a CMS
+integration location cannot be verified from a URL. Automation is explicit opt-in
+and future-events-only, within existing Pulse budgets and approved schedules.
+The minimum page-identity prerequisite retains exact owned canonical paths and
+compact metadata/hashes; historical origin-only scans and headline scoring remain
+unchanged. See [Phase 3 release and limits](../integrations/closed-loop-visibility.md).

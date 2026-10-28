@@ -29,6 +29,7 @@ export interface PlanFeatures {
   /** Google Search Console connector (Phase 2). Runtime entitlement only. */
   search_console: boolean
   outcome_integrations: boolean
+  closed_loop_visibility: boolean
 }
 
 /**
@@ -94,6 +95,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       local_trust_competitors: false, local_trust_export: false, client_reports_online: false,
       search_console: false,
       outcome_integrations: false,
+      closed_loop_visibility: false,
     },
   },
   basic: {
@@ -109,6 +111,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       local_trust_competitors: false, local_trust_export: false, client_reports_online: false,
       search_console: false,
       outcome_integrations: false,
+      closed_loop_visibility: false,
     },
   },
   pro: {
@@ -135,6 +138,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       local_trust_competitors: false, local_trust_export: false, client_reports_online: true,
       search_console: true,
       outcome_integrations: true,
+      closed_loop_visibility: true,
     },
   },
   enterprise: {
@@ -157,6 +161,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       local_trust_competitors: true, local_trust_export: true, client_reports_online: true,
       search_console: true,
       outcome_integrations: true,
+      closed_loop_visibility: true,
     },
   },
 }

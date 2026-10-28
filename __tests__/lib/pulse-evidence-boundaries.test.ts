@@ -65,7 +65,7 @@ beforeAll(async () => {
     create table clients(id uuid primary key,account_id uuid references accounts(id),brand_name text,
       domain text,industry text,status text,competitors text[],created_at timestamptz default now(),unique(id,account_id));
     create table prompt_bank(id uuid primary key,client_id uuid references clients(id),question text,
-      category text,language text,market text,is_active boolean default true);
+      category text,language text,market text,is_active boolean default true,monitoring jsonb);
     create table pulse_metrics(id uuid primary key default gen_random_uuid(),client_id uuid references clients(id),
       prompt_id uuid constraint pulse_metrics_prompt_id_fkey references prompt_bank(id),platform text,question text,
       raw_answer text,scan_week date,created_at timestamptz default now(),brand_mentioned boolean,
@@ -123,6 +123,20 @@ describe('compatibility Pulse target status', () => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe('Pulse dispatch respects the current target', () => {
+  it('freezes monitored intent and sampling for collection and exact-manifest retests',async()=>{
+    vi.stubEnv('FEATURE_CLOSED_LOOP_VISIBILITY','1')
+    const monitoring={locale:'en',market:'HK',persona:'Buyer',intent:'comparison',funnel:'consideration',topic:'Services',targetUrl:'https://example.com/a',priority:2,expectedAttributes:['Evidence'],competitorIds:[],sampling:{temperature:0.2,samplesPerRun:1,seed:null,version:'visibility-sampling.v1'}}
+    await state.pg!.query('update prompt_bank set monitoring=$1 where id=$2',[JSON.stringify(monitoring),PROMPT])
+    const original=await createOrResumeRun(scope,{scanWeek:WEEK,manifest:modelVariantsFor(['gemini-flash'])})
+    expect((original!.manifest.items as {monitoring:unknown;contextVersion:string}[])[0]).toMatchObject({monitoring,contextVersion:'2026-10-26.v1'})
+    await state.pg!.query('update prompt_bank set monitoring=$1 where id=$2',[JSON.stringify({...monitoring,persona:'Changed buyer'}),PROMPT])
+    await runPulseChunk(scope,{runId:original!.id,scanWeek:WEEK,platforms:['gemini-flash'],limit:1,deadlineAt:Date.now()+45000})
+    expect(state.provider.mock.calls[0][0]).toMatchObject({temperature:0.2})
+    expect(JSON.stringify(state.provider.mock.calls[0][0])).toContain('Buyer')
+    expect(JSON.stringify(state.provider.mock.calls[0][0])).not.toContain('Changed buyer')
+    const retest=await createOrResumeRun(scope,{scanWeek:WEEK,manifest:modelVariantsFor(['gemini-flash']),intent:{kind:'retest',intentKey:'visibility:retest',sourceRunId:original!.id}})
+    expect(retest!.manifest).toEqual(original!.manifest)
+  })
   it('blocks old Pro manifest variants after a Basic downgrade without rewriting the manifest', async () => {
     const run = await createOrResumeRun(scope, { scanWeek: WEEK, manifest: modelVariantsFor(['gpt-4o', 'gemini-flash']) })
     await state.pg!.query("update accounts set plan='basic' where id=$1", [ACCOUNT])

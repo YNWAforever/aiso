@@ -19,7 +19,7 @@ function collectWith(webSearchAllowed: boolean): CollectAnswer {
   const collector: CollectAnswer = async (item, signal) => {
     const grounding = groundingFor(item.platform, webSearchAllowed)
     const evidence = await callOpenRouterWithEvidence({ label:'pulse.platform',model:item.model,
-      messages:promptCollectionMessages(item.snapshot),maxTokens:pulseAnswerMaxTokens(item.platform),signal,webSearch:grounding === 'web' })
+      messages:promptCollectionMessages(item.snapshot),...(item.snapshot.contextVersion==='2026-10-26.v1'?{temperature:0.2}:{}),maxTokens:pulseAnswerMaxTokens(item.platform),signal,webSearch:grounding === 'web' })
     return { ...evidence, grounding }
   }
   defaultCollectors.add(collector)

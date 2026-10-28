@@ -1,4 +1,6 @@
 import 'server-only'
+import { isFeatureEnabled } from '@/lib/flags'
+import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { isoDate } from '@/lib/iso-date'
@@ -13,6 +15,8 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
   const purpose=input.intent?.kind==='retest'?'retest':'canonical'
   if(input.intent&&!/^[a-zA-Z0-9:_-]{8,128}$/.test(input.intent.intentKey))throw new Error('Invalid intent')
   if(input.intent?.kind==='repair'&&!input.dispatch){const [row]=await sql`select id,scan_week,manifest,purpose from pulse_runs where id=${input.intent.sourceRunId??null}::uuid and account_id=${scope.accountId} and client_id=${scope.clientId}::uuid`;return row?{id:String(row.id),scanWeek:isoDate(row.scan_week as string|Date,''),manifest:row.manifest as Record<string,unknown>,purpose:row.purpose as 'canonical'|'retest'}:null}
+  let includeMonitoring=false
+  if(isFeatureEnabled('closed_loop_visibility')){const [account]=await sql`select a.plan,a.status,a.stripe_subscription_id,a.trial_ends_at,a.override_plan,a.override_expires_at from accounts a join clients c on c.account_id=a.id where a.id=${scope.accountId} and c.id=${scope.clientId}::uuid`;includeMonitoring=resolveCommercialEntitlement(account as CommercialAccount).features.closed_loop_visibility}
   const results = await sql.transaction([
     ...(input.dispatch?[sql`select id from accounts where id=${scope.accountId} for update`]:[]),
     sql`select id from clients where account_id = ${scope.accountId} and id = ${scope.clientId}::uuid for no key update`,
@@ -20,19 +24,19 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
       select u.request_hash,r.* from pulse_user_intents u join pulse_runs r on r.id=u.run_id and r.account_id=u.account_id and r.client_id=u.client_id
       where ${!!input.dispatch} and u.account_id=${scope.accountId} and u.client_id=${scope.clientId}::uuid and u.intent_key=${input.intent?.intentKey??null}
     ), prompts as (
-      select pb.id, pb.question, pb.category, pb.language, to_jsonb(pb)->>'market' as market
+      select pb.id, pb.question, pb.category, pb.language, to_jsonb(pb)->>'market' as market,to_jsonb(pb)->'monitoring' as monitoring
       from prompt_bank pb join clients c on c.id = pb.client_id
       where c.account_id = ${scope.accountId} and c.id = ${scope.clientId}::uuid and pb.is_active
       order by pb.id limit ${MAX_PROMPTS}
     ), snapshot as (
-      select case when ${purpose}='retest' then (select source.manifest from pulse_runs source where source.id=${input.intent?.sourceRunId??null}::uuid and source.account_id=${scope.accountId} and source.client_id=${scope.clientId}::uuid) else jsonb_build_object('version','2026-10-03.v2','brand',jsonb_build_object(
+      select case when ${purpose}='retest' then (select source.manifest from pulse_runs source where source.id=${input.intent?.sourceRunId??null}::uuid and source.account_id=${scope.accountId} and source.client_id=${scope.clientId}::uuid) else jsonb_build_object('version',${includeMonitoring?'2026-10-26.v1':'2026-10-03.v2'}::text,'brand',jsonb_build_object(
         'name',c.brand_name,'competitors',coalesce(c.competitors,'{}'::text[]),'industry',c.industry,'domain',c.domain,
         -- 061: configured spellings, captured with the manifest so a later edit never rewrites a run.
-        'competitorRefs',coalesce((select jsonb_agg(jsonb_build_object('name',k.name,'aliases',k.aliases) order by k.created_at,k.id)
+        'competitorRefs',coalesce((select jsonb_agg((jsonb_build_object('name',k.name,'aliases',k.aliases) || case when ${includeMonitoring} then jsonb_build_object('id',k.id,'domains',k.domains) else '{}'::jsonb end) order by k.created_at,k.id)
           from competitors k where k.client_id=c.id and k.account_id=c.account_id and k.archived_at is null),'[]'::jsonb)),
         'policy',jsonb_build_object('maxAttempts',3,'maxOutputTokens',${PULSE_ANSWER_MAX_TOKENS}::int,'maxOutputTokensGeminiFlash',${pulseAnswerMaxTokens('gemini-flash')}::int,'maxClassificationAttempts',3,'maxAnalysisOutputTokens',300),
         'items',coalesce((select jsonb_agg(jsonb_build_object('promptId',p.id,'question',p.question,'category',p.category,
-          'language',p.language,'market',p.market,'contextVersion','2026-10-03.v1','sourceSchemaVersion','2026-10-11.v1','platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')
+          'language',p.language,'market',p.market,'contextVersion','2026-10-03.v1','sourceSchemaVersion','2026-10-11.v1','platform',v->>'platform','model',v->>'model') || case when ${includeMonitoring} and p.monitoring->>'locale'=p.language and p.monitoring->>'market'=p.market then jsonb_build_object('monitoring',p.monitoring,'contextVersion','2026-10-26.v1') else '{}'::jsonb end order by p.id,v->>'model')
           from prompts p cross join jsonb_array_elements(${JSON.stringify(input.manifest)}::jsonb) v),'[]'::jsonb)) end as manifest
       from clients c where c.account_id = ${scope.accountId} and c.id = ${scope.clientId}::uuid
     ), candidate as (
