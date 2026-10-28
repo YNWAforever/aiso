@@ -6,18 +6,43 @@ import { ConversationStudio } from '@/components/dashboard/ConversationStudio'
 import { renderWithIntl } from '@/__tests__/helpers/intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
+import { emptyStudioEvidence, savedStudioEvidence, savedStudioScan } from '@/__tests__/helpers/studio-evidence'
+import { composeSavedReply } from '@/lib/conversation-studio/reply'
+import { STUDIO_TEMPLATES } from '@/lib/conversation-studio/types'
+import { StudioReplyView } from '@/components/dashboard/StudioReply'
 
-it.each(['en', 'zh-HK'])('renders an honest empty demo with templates, composer and thread list in %s', lang => {
+it.each(['en', 'zh-HK'])('renders saved-evidence scope with templates, composer and temporary threads in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio
-  const html = renderWithIntl(<ConversationStudio brandName="Example Brand" />, lang)
+  const html = renderWithIntl(<ConversationStudio brandName="Example Brand" evidence={emptyStudioEvidence} />, lang)
   expect(html).toContain(copy.title)
   expect(html).toContain('Example Brand')
   expect(html).toContain(copy.threadsEmpty)
   expect(html).toContain(copy.privacyBody)
-  expect(html).toContain(copy.demoNotice)
+  expect(html).toContain(copy.savedNotice)
   expect(html).toContain('<textarea')
-  for (const key of ['visibility', 'content', 'competitors'] as const) expect(html).toContain(copy.templates[key].label)
+  for (const key of STUDIO_TEMPLATES) expect(html).toContain(copy.templates[key].label)
   expect(html).not.toContain('<form action=')
+})
+it.each(['en', 'zh-HK'])('renders insufficient and evidenced replies with honest coverage and real sources in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio.evidence
+  const empty = renderWithIntl(<StudioReplyView id="empty" evidence={emptyStudioEvidence} reply={composeSavedReply('question', null, emptyStudioEvidence)} />, lang)
+  expect(empty).toContain(copy.insufficient)
+  expect(empty).toContain(copy.noSources)
+  expect(empty).toContain(copy.status.missing)
+  expect(empty).toContain(copy.status.unsupported)
+  const html = renderWithIntl(<StudioReplyView id="saved" evidence={savedStudioEvidence} reply={composeSavedReply('pulse', 'pulse', savedStudioEvidence)} />, lang)
+  expect(html).toContain(copy.savedSummary)
+  expect(html).toContain(copy.historicalQuote)
+  expect(html).toContain(copy.searchUnknown)
+  expect(html).toContain('https://example.com/bread')
+  expect(html).toContain(savedStudioEvidence.observations[0].id)
+  expect(html).toContain('2026-10-27T03:00:00Z')
+  expect(html).not.toContain('Live answers with evidence are coming in Stage B')
+  const scanData = { ...emptyStudioEvidence, scan: savedStudioScan }
+  const scanHtml = renderWithIntl(<StudioReplyView id="scan" evidence={scanData} reply={composeSavedReply('brief', 'brief', scanData)} />, lang)
+  expect(scanHtml).toContain('owned-scan-evidence')
+  expect(scanHtml).toContain(savedStudioScan!.id)
+  expect(scanHtml).toContain('c1_robots')
 })
 
 // Real interactive production component in an offline browser fixture. This
@@ -31,9 +56,11 @@ afterAll(async () => {
 import {createRoot} from 'react-dom/client';
 import {NextIntlClientProvider} from 'next-intl';
 import {ConversationStudio} from '@/components/dashboard/ConversationStudio';
+import {emptyStudioEvidence,savedStudioEvidence,savedStudioScan} from '@/__tests__/helpers/studio-evidence';
 import en from '@/messages/en.json'; import zh from '@/messages/zh-HK.json';
 const locale=document.documentElement.lang;
-createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand'})));`)
+const evidence=location.search.includes('empty=1')?emptyStudioEvidence:location.search.includes('scan=1')?{...savedStudioEvidence,scan:savedStudioScan}:savedStudioEvidence;
+createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand',evidence})));`)
   await build({
     configFile: false, envDir: false, oxc: { jsx: { development: false } },
     resolve: { alias: { '@': resolve('.') } },

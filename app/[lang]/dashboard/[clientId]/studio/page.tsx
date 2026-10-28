@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { isFeatureEnabled } from '@/lib/flags'
 import { ConversationStudio } from '@/components/dashboard/ConversationStudio'
+import { loadStudioEvidence } from '@/lib/conversation-studio/evidence'
 
 export default async function StudioPage({ params }: {
   params: Promise<{ lang: string; clientId: string }>
@@ -14,9 +15,11 @@ export default async function StudioPage({ params }: {
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(clientId)) notFound()
 
   let brands
+  let evidence
   try {
-    // Only establish brand ownership. No scans, analysis or conversation store.
+    // Establish ownership before loading saved, account-scoped evidence.
     brands = await db()`select id, brand_name from clients where id = ${clientId} and account_id = ${profile.account_id}`
+    if (brands[0]) evidence = await loadStudioEvidence(profile.account_id, clientId)
   } catch {
     const t = await getTranslations('conversationStudio')
     return <main className="mx-auto w-full max-w-3xl space-y-4 p-6">
@@ -26,7 +29,7 @@ export default async function StudioPage({ params }: {
     </main>
   }
   const brand = brands[0]
-  if (!brand) notFound()
-  // Brand changes remount the demo, clearing all page-local conversation state.
-  return <ConversationStudio key={clientId} brandName={brand.brand_name} />
+  if (!brand || !evidence) notFound()
+  // Brand changes remount the studio, clearing all page-local conversation state.
+  return <ConversationStudio key={clientId} brandName={brand.brand_name} evidence={evidence} />
 }

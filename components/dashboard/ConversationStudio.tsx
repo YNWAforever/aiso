@@ -4,37 +4,42 @@ import { useRef, useState, type FormEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { Lock, MessageSquare, Plus, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { composeSavedReply } from '@/lib/conversation-studio/reply'
+import { STUDIO_TEMPLATES, type StudioEvidence, type StudioReply, type StudioTemplate } from '@/lib/conversation-studio/types'
+import { StudioReplyView } from './StudioReply'
 
-type DemoThread = { id: number; prompts: string[]; draft: string }
-const TEMPLATE_KEYS = ['visibility', 'content', 'competitors'] as const
+type StudioThread = { id: number; turns: { prompt: string; reply: StudioReply }[]; draft: string; template: StudioTemplate | null }
 
-/** Stage A: page-local demo state only. Deliberately no transport or storage. */
-export function ConversationStudio({ brandName }: { brandName: string }) {
+/** Stage B1: saved evidence in, page-local messages only. No transport or storage. */
+export function ConversationStudio({ brandName, evidence }: { brandName: string; evidence: StudioEvidence }) {
   const t = useTranslations('conversationStudio')
-  const [threads, setThreads] = useState<DemoThread[]>([])
+  const [threads, setThreads] = useState<StudioThread[]>([])
   const [activeId, setActiveId] = useState<number | null>(null)
   const [newDraft, setNewDraft] = useState('')
+  const [newTemplate, setNewTemplate] = useState<StudioTemplate | null>(null)
   const nextId = useRef(1)
   const composer = useRef<HTMLTextAreaElement>(null)
   const current = threads.find(thread => thread.id === activeId)
   const draft = current?.draft ?? newDraft
 
-  function updateDraft(value: string) {
-    if (activeId === null) setNewDraft(value)
-    else setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, draft: value } : thread))
+  function updateDraft(value: string, template: StudioTemplate | null = null) {
+    if (activeId === null) { setNewDraft(value); setNewTemplate(template) }
+    else setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, draft: value, template } : thread))
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const prompt = draft.trim()
     if (!prompt) return
+    const turn = { prompt, reply: composeSavedReply(prompt, current ? current.template : newTemplate, evidence) }
     if (current) {
-      setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, prompts: [...thread.prompts, prompt], draft: '' } : thread))
+      setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
     } else {
       const id = nextId.current++
-      setThreads(previous => [{ id, prompts: [prompt], draft: '' }, ...previous])
+      setThreads(previous => [{ id, turns: [turn], draft: '', template: null }, ...previous])
       setActiveId(id)
       setNewDraft('')
+      setNewTemplate(null)
     }
     composer.current?.focus()
   }
@@ -45,10 +50,10 @@ export function ConversationStudio({ brandName }: { brandName: string }) {
         <p className="break-words text-sm font-semibold text-muted-foreground">{brandName}</p>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
-          <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs font-semibold">{t('demoBadge')}</span>
+          <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs font-semibold">{t('savedBadge')}</span>
         </div>
         <p className="max-w-2xl text-muted-foreground">{t('description')}</p>
-        <p className="rounded-xl border border-border bg-secondary p-4 text-sm">{t('demoNotice')}</p>
+        <p className="rounded-xl border border-border bg-secondary p-4 text-sm">{t('savedNotice')}</p>
       </header>
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
@@ -65,7 +70,7 @@ export function ConversationStudio({ brandName }: { brandName: string }) {
             : <ul className="max-h-64 space-y-1 overflow-y-auto">
               {threads.map(thread => <li key={thread.id}>
                 <button type="button" aria-pressed={thread.id === activeId} onClick={() => setActiveId(thread.id)} className={cn('min-h-11 w-full truncate rounded-lg px-3 text-left text-sm hover:bg-secondary', thread.id === activeId && 'bg-secondary font-semibold')}>
-                  {thread.prompts[0]}
+                  {thread.turns[0].prompt}
                 </button>
               </li>)}
             </ul>}
@@ -78,8 +83,8 @@ export function ConversationStudio({ brandName }: { brandName: string }) {
         <div className="min-w-0 space-y-5">
           <section aria-labelledby="studio-templates-title" className="space-y-3">
             <h2 id="studio-templates-title" className="font-semibold">{t('templatesTitle')}</h2>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {TEMPLATE_KEYS.map(key => <button key={key} type="button" onClick={() => { updateDraft(t(`templates.${key}.prompt`)); composer.current?.focus() }} className="min-h-20 rounded-xl border border-border bg-card p-4 text-left text-sm font-medium hover:bg-secondary">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {STUDIO_TEMPLATES.map(key => <button key={key} type="button" onClick={() => { updateDraft(t(`templates.${key}.prompt`), key); composer.current?.focus() }} className="min-h-20 rounded-xl border border-border bg-card p-4 text-left text-sm font-medium hover:bg-secondary">
                 {t(`templates.${key}.label`)}
               </button>)}
             </div>
@@ -90,15 +95,12 @@ export function ConversationStudio({ brandName }: { brandName: string }) {
               <h2 className="text-lg font-semibold">{t('emptyTitle')}</h2>
               <p className="text-sm text-muted-foreground">{t('emptyBody')}</p>
             </div>}
-            {current?.prompts.map((prompt, index) => <div key={index} className="space-y-3">
+            {current?.turns.map(({ prompt, reply }, index) => <div key={index} className="space-y-3">
               <div className="rounded-xl bg-secondary p-4">
                 <p className="mb-2 text-xs font-semibold text-muted-foreground">{t('youLabel')}</p>
                 <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{prompt}</p>
               </div>
-              <div className="space-y-2 p-2 text-sm">
-                <p className="font-semibold">{t('stubLabel')}</p>
-                <p className="text-muted-foreground">{t('stubReply')}</p>
-              </div>
+              <StudioReplyView reply={reply} evidence={evidence} id={`studio-${current.id}-${index}`} number={index + 1} />
             </div>)}
           </div>
 

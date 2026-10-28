@@ -1,5 +1,9 @@
 # Conversation Studio Stage A
 
+Stage A's original scope is recorded below. [Stage B1](conversation-studio-stage-b.md)
+replaces its fixed reply with bounded saved-evidence summaries; it adds no live
+provider calls or thread persistence.
+
 Stage A is a brand-scoped, temporary conversation demo. It adds templates,
 a composer and a thread list with a fixed demo reply. No analysis runs.
 

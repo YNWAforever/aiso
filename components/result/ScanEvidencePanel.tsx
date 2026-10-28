@@ -3,11 +3,11 @@ import type { OwnedResultEvidence } from '@/lib/result-evidence'
 
 const STATES = new Set(['complete', 'partial', 'blocked', 'failed', 'unsupported', 'unknown', 'pass', 'warn', 'fail', 'not-verifiable', 'not-applicable'])
 
-export function ScanEvidencePanel({ evidence }: { evidence: OwnedResultEvidence | null }) {
+export function ScanEvidencePanel({ evidence, ariaLabel }: { evidence: OwnedResultEvidence | null; ariaLabel?: string }) {
   const t = useTranslations('scanEvidence')
   const label = (state: string) => t(`states.${STATES.has(state) ? state : 'unknown'}`)
   return (
-    <section aria-label={t('title')} data-testid="owned-scan-evidence" className="rounded-2xl border border-border bg-card p-5 text-sm text-foreground/80">
+    <section aria-label={ariaLabel ?? t('title')} data-testid="owned-scan-evidence" className="rounded-2xl border border-border bg-card p-5 text-sm text-foreground/80">
       <h2 className="font-bold text-foreground">{t('title')}</h2>
       <p className="mt-2 text-xs leading-relaxed">{t('scope')}</p>
       {!evidence ? <p className="mt-3">{t('absent')}</p> : <>
