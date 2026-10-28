@@ -1,5 +1,5 @@
 {
-  "git": { "deploymentEnabled": { "codex/aiso-full-remediation-20261003": false, "fix/onboarding-brand-draft-schema-20261027": false, "feat/roadmap-phase3-visibility": false, "feat/roadmap-phase4-enterprise": false, "codex/conversation-studio-stage-a": false, "codex/conversation-studio-stage-b": false, "codex/conversation-studio-stage-b2": false } },
+  "git": { "deploymentEnabled": { "codex/aiso-full-remediation-20261003": false, "fix/onboarding-brand-draft-schema-20261027": false, "feat/roadmap-phase3-visibility": false, "feat/roadmap-phase4-enterprise": false, "codex/conversation-studio-stage-a": false, "codex/conversation-studio-stage-b": false, "codex/conversation-studio-stage-b2": false, "codex/conversation-studio-design-stage-0": false } },
   "regions": ["sin1"],
   "functions": {
     "app/api/dashboard/clients/[clientId]/studio/answer/route.ts": { "maxDuration": 30 },
