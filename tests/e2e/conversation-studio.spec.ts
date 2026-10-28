@@ -4,24 +4,108 @@ import { readFileSync } from 'node:fs'
 import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
 
-async function fixture(page: Page, lang: string, empty = false, scan = false) {
+async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false) {
+  // Native smooth scrolling can keep a mobile target moving as replies grow.
+  // Use supported reduced motion, without forced clicks or skipped assertions.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   const directory = process.env.STUDIO_HTML_DIR ?? '.next/component-fixtures/STUDIO'
   const js = readFileSync(`${directory}/fixture.js`, 'utf8')
   const css = readFileSync(`${directory}/build.css`, 'utf8')
   const requests: string[] = []
+  const liveRequests: { prompt: string; platforms: string[]; language: string }[] = []
   // Block and record ALL attempted outbound requests, including provider URLs,
   // unexpected same-origin calls and browser-triggered source prefetches.
   await page.route('**/*', route => { requests.push(route.request().url()); return route.abort() })
-  const url = `https://studio.fixture/${lang}${empty ? '?empty=1' : scan ? '?scan=1' : ''}`
+  await page.route('https://studio.fixture/api/dashboard/clients/*/studio/answer', route => {
+    const body = route.request().postDataJSON()
+    liveRequests.push(body)
+    if (quotaError) return route.fulfill({ status: 429, json: { error: 'STUDIO_QUOTA_EXCEEDED' } })
+    return route.fulfill({ json: { quota: { cap: 5, remaining: 3, scope: 'process' }, answers: body.platforms.map((platform: string) => ({
+      platform, coverage: platform === 'gemini-flash' ? 'present' : 'missing',
+      answer: platform === 'gemini-flash' ? 'MOCK LIVE ANSWER' : null,
+      model: 'mock-live-model', startedAt: '2026-10-28T00:00:00Z', durationMs: 12, finishReason: 'stop', grounding: 'none',
+      searchEvidence: { requested: 'none', execution: 'unknown', basis: 'request-only' },
+      citations: [{ url: 'https://source.example/live', title: 'Live source' }, { url: 'http://127.0.0.1/private', title: 'Unsafe' }],
+      error: platform === 'gemini-flash' ? null : 'PROVIDER_UNAVAILABLE',
+    })) } })
+  })
+  const params = new URLSearchParams()
+  if (empty) params.set('empty', '1')
+  if (scan) params.set('scan', '1')
+  if (liveCap !== undefined) params.set('live', String(liveCap))
+  if (free) params.set('free', '1')
+  const url = `https://studio.fixture/${lang}${params.size ? `?${params}` : ''}`
   await page.route(url, route => route.fulfill({
     contentType: 'text/html; charset=utf-8',
     body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Studio fixture</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`,
   }))
   await page.goto(url)
-  return { copy: (lang === 'en' ? en : zh).conversationStudio, requests }
+  return { copy: (lang === 'en' ? en : zh).conversationStudio, requests, liveRequests }
 }
 
 for (const lang of ['en', 'zh-HK']) {
+  test(`live Send shows separate unverified output, safe sources and partial failure in ${lang}`, async ({ page }) => {
+    const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 5)
+    await page.getByRole('checkbox', { name: 'gpt-4o', exact: true }).check()
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.getByRole('button', { name: copy.send, exact: true }).click()
+    const panel = page.getByRole('region', { name: copy.live.replyLabel.replace('{number}', '1'), exact: true })
+    await expect(panel).toContainText(copy.live.unverified)
+    await expect(panel).toContainText('MOCK LIVE ANSWER')
+    await expect(panel).toContainText(copy.live.missing)
+    await expect(panel).toContainText(copy.live.searchUnknown)
+    await expect(panel).toContainText('mock-live-model')
+    await expect(panel).toContainText('2026-10-28T00:00:00Z')
+    await expect(panel.getByRole('link', { name: 'Live source' }).first()).toHaveAttribute('href', 'https://source.example/live')
+    await expect(panel.getByRole('link', { name: 'Unsafe' })).toHaveCount(0)
+    await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
+    expect(liveRequests).toEqual([{ prompt: copy.templates.brief.prompt, platforms: ['gemini-flash', 'gpt-4o'], language: lang }])
+    await page.getByRole('textbox', { name: copy.composerLabel }).fill('Second question only')
+    await page.getByRole('button', { name: copy.send, exact: true }).click()
+    await expect(page.getByText('MOCK LIVE ANSWER', { exact: true })).toHaveCount(2)
+    expect(liveRequests[1]).toEqual({ prompt: 'Second question only', platforms: ['gemini-flash', 'gpt-4o'], language: lang })
+    expect(requests).toEqual([])
+    for (const width of [320, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    }
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    await page.reload()
+    await expect(page.getByText(copy.threadsEmpty, { exact: true })).toBeVisible()
+    expect(requests).toEqual([])
+  })
+
+  test(`cap zero Send stays saved-only with no transport in ${lang}`, async ({ page }) => {
+    const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 0)
+    await expect(page.getByText(copy.live.disabled, { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.getByRole('button', { name: copy.send, exact: true }).click()
+    await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
+    expect(liveRequests).toEqual([])
+    expect(requests).toEqual([])
+  })
+
+  test(`a plan with no platforms stays saved-only in ${lang}`, async ({ page }) => {
+    const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 5, false, true)
+    await expect(page.getByText(copy.live.upgrade, { exact: true })).toBeVisible()
+    await expect(page.getByRole('checkbox')).toHaveCount(0)
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.getByRole('button', { name: copy.send, exact: true }).click()
+    await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
+    expect(liveRequests).toEqual([])
+    expect(requests).toEqual([])
+  })
+
+  test(`quota rejection preserves saved evidence in ${lang}`, async ({ page }) => {
+    const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 5, true)
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.getByRole('button', { name: copy.send, exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText(copy.live.exhausted)
+    await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
+    expect(liveRequests).toHaveLength(1)
+    expect(requests).toEqual([])
+  })
+
   test(`saved evidence, citations and temporary threads without outbound HTTP in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     const composer = page.getByRole('textbox', { name: copy.composerLabel })

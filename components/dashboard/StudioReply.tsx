@@ -2,8 +2,9 @@ import { useTranslations } from 'next-intl'
 import { ScanEvidencePanel } from '@/components/result/ScanEvidencePanel'
 import type { StudioEvidence, StudioReply } from '@/lib/conversation-studio/types'
 
-export function StudioReplyView({ reply, evidence, id, number = 1 }: { reply: StudioReply; evidence: StudioEvidence; id: string; number?: number }) {
+export function StudioReplyView({ reply, evidence, id, number = 1, liveEnabled = false }: { reply: StudioReply; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean }) {
   const t = useTranslations('conversationStudio.evidence')
+  const live = useTranslations('conversationStudio.live')
   const date = (value: string | null) => value ? <time dateTime={value}>{value}</time> : t('unknown')
   return <article aria-label={t('replyLabel')} className="min-w-0 space-y-3 p-2 text-sm [overflow-wrap:anywhere]">
     <h3 className="font-semibold">{t(reply.status === 'evidenced' ? 'savedSummary' : 'insufficient')}</h3>
@@ -48,7 +49,7 @@ export function StudioReplyView({ reply, evidence, id, number = 1 }: { reply: St
         </li>)}</ul>
         {reply.scan && <p className="mt-3">{t('scanId')}: {reply.scan.id} · {t('recordedAt')}: {date(reply.scan.recordedAt)}</p>}
       </details>
-      <p className="mt-3 text-xs">{t('liveLimit')}</p>
+      <p className="mt-3 text-xs">{liveEnabled ? live('savedScope') : t('liveLimit')}</p>
     </details>
   </article>
 }

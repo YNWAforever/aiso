@@ -10,6 +10,7 @@ import { emptyStudioEvidence, savedStudioEvidence, savedStudioScan } from '@/__t
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
 import { STUDIO_TEMPLATES } from '@/lib/conversation-studio/types'
 import { StudioReplyView } from '@/components/dashboard/StudioReply'
+import { StudioLiveReplyView } from '@/components/dashboard/StudioLiveReply'
 
 it.each(['en', 'zh-HK'])('renders saved-evidence scope with templates, composer and temporary threads in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio
@@ -45,6 +46,29 @@ it.each(['en', 'zh-HK'])('renders insufficient and evidenced replies with honest
   expect(scanHtml).toContain('c1_robots')
 })
 
+it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified output in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio.live
+  const ui = (cap: number, platforms = ['gemini-flash']) => renderWithIntl(<ConversationStudio brandName="Brand" clientId="brand-id" evidence={emptyStudioEvidence} live={{ cap, platforms }} />, lang)
+  expect(ui(0)).toContain(copy.disabled)
+  expect(ui(2)).toContain('gemini-flash')
+  expect(ui(2)).not.toContain('gpt-4o')
+  expect(ui(2, [])).toContain(copy.upgrade)
+  expect(ui(2)).toContain(copy.temporaryCap)
+  const html = renderWithIntl(<StudioLiveReplyView reply={{ quota: { cap: 2, remaining: 1, scope: 'process' }, answers: [{
+    platform: 'gemini-flash', coverage: 'present', answer: '<script>unsafe</script>', model: 'mock-model',
+    startedAt: '2026-10-28T00:00:00Z', durationMs: 123, finishReason: 'length', grounding: 'none',
+    searchEvidence: { requested: 'none', execution: 'unknown', basis: 'request-only' }, error: null,
+    citations: [{ url: 'javascript:alert(1)', title: 'Unsafe' }, { url: 'https://source.example/', title: 'Source' }],
+  }] }} />, lang)
+  expect(html).toContain(copy.unverified)
+  expect(html).toContain(copy.searchUnknown)
+  expect(html).toContain('mock-model')
+  expect(html).toContain('length')
+  expect(html).not.toContain('<script>')
+  expect(html).not.toContain('javascript:')
+  expect(html).toContain('href="https://source.example/"')
+})
+
 // Real interactive production component in an offline browser fixture. This
 // never bypasses dashboard authentication or constructs SQL/Auth clients.
 afterAll(async () => {
@@ -60,7 +84,9 @@ import {emptyStudioEvidence,savedStudioEvidence,savedStudioScan} from '@/__tests
 import en from '@/messages/en.json'; import zh from '@/messages/zh-HK.json';
 const locale=document.documentElement.lang;
 const evidence=location.search.includes('empty=1')?emptyStudioEvidence:location.search.includes('scan=1')?{...savedStudioEvidence,scan:savedStudioScan}:savedStudioEvidence;
-createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand',evidence})));`)
+const params=new URLSearchParams(location.search);
+const live=params.has('live')?{cap:Number(params.get('live')),platforms:params.has('free')?[]:['gemini-flash','gpt-4o']}:undefined;
+createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand',clientId:'11111111-1111-4111-8111-111111111111',evidence,live})));`)
   await build({
     configFile: false, envDir: false, oxc: { jsx: { development: false } },
     resolve: { alias: { '@': resolve('.') } },

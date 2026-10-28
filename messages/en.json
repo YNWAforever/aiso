@@ -90,6 +90,47 @@
         "unsupported": "Unsupported"
       },
       "scanReplyLabel": "Saved scan evidence · Reply {number}"
+    },
+    "live": {
+      "title": "Live answer",
+      "unverified": "Live model output, not verified",
+      "notice": "Saved evidence stays in its own panel. Live models receive only this question and the brand name; saved records and conversation history are not sent.",
+      "platforms": "Live platforms granted by your plan",
+      "disabled": "Live answers are disabled (cap 0). Send still reads saved evidence only.",
+      "upgrade": "Your plan grants no live platforms. Send reads saved evidence only.",
+      "usesQuota": "Send also asks the selected models and uses {count} answer units. Configured weekly cap: {cap} per process.",
+      "temporaryCap": "Temporary Preview limit: counters are per process, reset on restart, and are not shared across instances. This is not a durable account quota.",
+      "composerHelp": "Enter adds a new line. Each live Send asks one question, with no conversation history. Limit: 1,000 characters and 4 KB per request.",
+      "pending": "Waiting for selected models…",
+      "exhausted": "Live quota is disabled or exhausted in this process. The saved evidence reply is still available.",
+      "unavailable": "The live request could not complete. The saved evidence reply is still available.",
+      "remaining": "Remaining answer units in the responding process: {count}. Failed or unknown provider attempts use quota.",
+      "coverage": "Live coverage",
+      "status": {
+        "present": "Present",
+        "missing": "Missing",
+        "unsupported": "Unsupported"
+      },
+      "missing": "No answer from this platform. Missing does not mean zero mentions.",
+      "model": "Model",
+      "duration": "{ms} ms",
+      "finish": "Finish reason",
+      "unknown": "Not recorded",
+      "grounding": "Search mode",
+      "groundingValues": {
+        "native": "Native model search",
+        "web": "Web search requested",
+        "none": "No search requested"
+      },
+      "search": "Search execution",
+      "confirmed": "Confirmed by a provider search event",
+      "searchUnknown": "Unknown; citations and search requests do not prove execution",
+      "noCitations": "No usable public provider citations.",
+      "savedScope": "This panel uses saved evidence only. Any live model output appears separately. Firecrawl, GSC and DataForSEO Mentions are not queried; no HK/zh-HK Mentions coverage is claimed.",
+      "replyLabel": "Live answer · Reply {number}",
+      "badge": "Stage B2 · Saved evidence + live models",
+      "budget": "The selected platforms exceed this request’s call or token budget. Select fewer platforms.",
+      "invalid": "The live request was rejected. Use a question up to 1,000 characters and the granted platforms."
     }
   },
   "seo": {
