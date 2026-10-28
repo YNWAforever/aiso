@@ -17,9 +17,11 @@ views and screenshot, instead of relying on an accessible live concept URL.
   from the pack only in Cloudflare challenge parameters (request ID/timestamp);
   after normalising those parameters, the outer files match. The live and packed
   `iframe[data-srcdoc]` content both match the supplied inner HTML byte for byte.
-  **The supplied pack copies are the committed source**, keeping the screenshots
-  and snapshot together. Neither snapshot is a product export.
-- Provenance before the required banner/comment insertion (SHA-256):
+  **The supplied pack is the source of the committed offline copies**, keeping
+  the screenshots and snapshot together. Sanitization is documented below;
+  neither snapshot is a product export.
+- Provenance before the banner/comment insertion and offline sanitization
+  (SHA-256 of the supplied source files):
   outer `51336c13fdd32b6ac2687bbe1defc52f1553266fb51ad1dc2116d467a6931546`;
   inner `07e9f8718da3c626db2bf45f8bfbe0077b3361dfab22a74f93ba5be278c4835b`.
 - Willy Approve via Rio/AISO, **2026-10-29 HKT**: Stages **0–5 continuous**;
@@ -33,8 +35,8 @@ views and screenshot, instead of relying on an accessible live concept URL.
 
 | File | Purpose |
 | --- | --- |
-| [concept-outer.html](concept-outer.html) | Original host wrapper, including its encoded `data-srcdoc` and bootstrap |
-| [concept-inner.html](concept-inner.html) | Decoded `data-srcdoc`; best entry point for viewing the concept directly |
+| [concept-outer.html](concept-outer.html) | Offline host wrapper, including its sanitized encoded `data-srcdoc` and bootstrap |
+| [concept-inner.html](concept-inner.html) | Offline decoded `data-srcdoc`; best entry point for viewing the concept directly |
 | [screenshots/01-home.webp](screenshots/01-home.webp) | Home / 開始工作 |
 | [screenshots/02-discussion.webp](screenshots/02-discussion.webp) | Discussion / 討論 |
 | [screenshots/03-threads.webp](screenshots/03-threads.webp) | Thread list / 討論串 |
@@ -44,10 +46,15 @@ views and screenshot, instead of relying on an accessible live concept URL.
 | [VIEWS.md](VIEWS.md) | Views, interactions, existing implementation references and Stages 1–5 |
 
 Both HTML files have an added top comment and visible body banner carrying the
-mock label above; their remaining bytes are preserved. The outer file's encoded
-inner payload stays unchanged. Screenshots are unmodified pack copies and show
-the concept's existing “示例” labelling; all brands, documents, records and states
-visible in them are mock data.
+mock label above. The standalone document and the outer file's encoded inner
+payload remove the three external CDN script tags (Floating UI core, Floating
+UI DOM and Lucide). The outer wrapper also removes the host's Cloudflare
+challenge loader. Their Content Security Policies permit inline mock scripts
+and styles, data images and, in the outer wrapper only, its sandboxed frame;
+external resource loads and connections are blocked. All other source bytes are
+preserved. Screenshots are unmodified pack copies and show the concept's
+existing “示例” labelling; all brands, documents, records and states visible in
+them are mock data.
 
 ## Viewing and viewport notes
 
@@ -56,12 +63,14 @@ inline layout, view switching, sample replies and sample state. Its interactions
 simulate work and do not establish real model, connector or save capability.
 The outer wrapper is useful for reproducing host framing.
 
-The original snapshots include external CDN scripts (Floating UI and Lucide),
-host bridge code and, in the outer wrapper, Cloudflare challenge code. **No
-external scripts were added.** A fully disconnected browser may omit icons or
-host helpers; the four WebP files provide fixed visual references without those
-dependencies. The standalone concept copy is zh-TW-labelled written Traditional
-Chinese; the English column in STRINGS is a draft, not an English screenshot.
+The supplied source included external CDN scripts and Cloudflare challenge
+code; the committed offline copies remove those loaders, including inside the
+encoded frame. Inline mock interactions and host framing remain. Optional
+Lucide glyphs and Floating UI tooltips are omitted; use the four WebP files for
+the original icon appearance. No CDN, tracker, model or connector request is
+needed to view these copies. The standalone concept copy is zh-TW-labelled
+written Traditional Chinese; the English column in STRINGS is a draft, not an
+English screenshot.
 
 | Reference | What is known |
 | --- | --- |
@@ -80,9 +89,13 @@ shell; the outer host's width cap is not a product layout requirement.
 JSON parsing and the single-entry Vercel config comparison pass. All 60 relative
 Markdown links resolve; all 11 concept variables are mapped; all 112 copy mapping
 rows match the concept/plan verbatim, with key existence checked in both catalogs.
-The HTML matches its sources after removing only the two required insertions;
-the four images match byte for byte. `git diff --check` passes. Config inspection
-places HTML outside lint/typecheck/test discovery. No Markdown lint/formatter is
+The HTML matches its sources after accounting for the two required insertions,
+removed external loaders and restricted Content Security Policies, including the
+encoded inner payload; the four images match byte for byte. A blocked-network
+browser smoke check verifies zero HTTP(S) request attempts in both snapshots,
+working view switching and evidence controls, and the inner mobile navigation.
+`git diff --check` passes. Config inspection places HTML outside
+lint/typecheck/test discovery. No Markdown lint/formatter is
 configured. `npm run lint` was attempted but could not run (`eslint: not found`;
 dependencies are absent). No app build, typecheck, unit or full E2E run is claimed.
 
