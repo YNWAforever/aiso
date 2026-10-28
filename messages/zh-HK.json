@@ -1,40 +1,95 @@
 {
   "conversationStudio": {
     "title": "開始工作",
-    "demoBadge": "Stage A · 示範",
-    "description": "為你的品牌開始對話。選擇範本，或寫下自己的問題。",
-    "demoNotice": "此示範只會顯示固定回覆，不會執行 AI、查詢品牌資料或使用付費服務。",
+    "description": "檢視已儲存的品牌證據。選擇摘要範本，或輸入問題搜尋相關摘錄。",
     "threadsTitle": "對話列表",
     "newThread": "新增對話",
     "threadsEmpty": "暫存對話會顯示在這裡。",
-    "privateLabel": "預設私人 · 示範",
+    "privateLabel": "預設私人 · 暫存",
     "privacyBody": "訊息只暫存在此頁面的記憶體，離開或重新整理後便會消失。儲存、分享及私人存取權限功能將於日後提供。",
     "templatesTitle": "從範本開始",
-    "conversationLabel": "示範對話",
+    "conversationLabel": "品牌證據對話",
     "emptyTitle": "你想處理甚麼工作？",
-    "emptyBody": "在下方寫下問題，或選擇上方範本。回覆只供示範。",
+    "emptyBody": "範本會整理已儲存紀錄。自訂問題會顯示相關摘錄；證據不足時會清楚說明。",
     "youLabel": "你",
-    "stubLabel": "示範回覆",
-    "stubReply": "已收到你的示範訊息。附有依據的即時回答將於 Stage B 提供，目前未有執行任何分析。",
     "composerLabel": "你的訊息",
     "composerPlaceholder": "寫下有關品牌的問題…",
-    "composerHelp": "按 Enter 換行，按傳送查看示範回覆。",
-    "send": "傳送示範訊息",
-    "loadError": "暫時無法載入此品牌，請再試一次。",
+    "composerHelp": "按 Enter 換行。傳送只會讀取已載入的快照，不會發出網絡請求。",
+    "send": "傳送訊息",
+    "loadError": "未能載入此品牌已儲存的證據，請再試一次。",
     "retry": "再試一次",
     "templates": {
-      "visibility": {
-        "label": "檢視品牌曝光",
-        "prompt": "幫我檢視品牌在 AI 回答中的曝光情況。"
-      },
-      "content": {
-        "label": "規劃實用內容",
-        "prompt": "幫我擬定內容大綱，回答客戶關心的問題。"
+      "brief": {
+        "label": "附來源的品牌摘要",
+        "prompt": "根據已儲存的 Pulse 觀察及掃描證據整理品牌摘要，列出來源及資料缺口。"
       },
       "competitors": {
-        "label": "探索競爭對手問題",
-        "prompt": "比較我的品牌與競爭對手時，可以提出哪些問題？"
+        "label": "競爭對手證據",
+        "prompt": "檢視可用於競爭對手比較的已儲存證據及引用，說明哪些部分未能可靠比較。"
+      },
+      "pulse": {
+        "label": "已儲存的 Pulse 觀察",
+        "prompt": "整理已儲存的 Pulse 觀察、日期、引用及涵蓋範圍限制。"
+      },
+      "report": {
+        "label": "附來源的報告草稿",
+        "prompt": "根據已儲存觀察及掃描證據整理報告草稿，附上引用並清楚標示缺失的證據。"
       }
+    },
+    "savedBadge": "階段 B1 · 已儲存證據",
+    "savedNotice": "回覆只使用此品牌已儲存資料的快照。不會查詢 AI 模型或即時資料來源，訊息只保留在本頁。",
+    "evidence": {
+      "replyLabel": "已儲存證據回覆",
+      "savedSummary": "已儲存證據摘要",
+      "insufficient": "證據不足",
+      "comparisonLimit": "現有證據不足以作可靠的競爭對手比較。以下已儲存觀察僅供參考，不能確立排名或整體市場可見度。",
+      "summaryScope": "此摘要只整理已儲存紀錄，並未核實歷史模型陳述是否仍屬實。",
+      "questionLimit": "現有證據不足以核實此問題的答案。以下關鍵字相符摘錄僅供參考；可選擇已儲存資料範本查看結構化摘要。",
+      "reportDraft": "報告草稿 · 已儲存紀錄摘錄，供覆核",
+      "selected": "已選取 {count} 則已儲存觀察。",
+      "classified": "已分類的已儲存答案",
+      "incomplete": "不完整的已儲存答案",
+      "brandMention": "紀錄中的品牌提及",
+      "mentionYes": "有，在此已儲存答案中",
+      "mentionNo": "沒有，在此已儲存答案中",
+      "unknown": "未有紀錄",
+      "historicalQuote": "歷史模型輸出 · 引用摘錄，未經獨立核實；摘錄可能已截短。",
+      "answerMissing": "未有可用的已儲存答案文字。",
+      "panelTitle": "證據及涵蓋範圍",
+      "stepsTitle": "步驟",
+      "stepLoad": "已載入最近保留的 Pulse 週次：{week}；該週有 {count} 筆紀錄。",
+      "stepSelect": "從此品牌已載入的快照中，選取範本紀錄或關鍵字相符摘錄。",
+      "stepCompose": "在本頁整理紀錄摘錄，沒有執行新分析、搜尋或供應商請求。",
+      "boundedScope": "範圍：最近保留的正式 Pulse 週次最多 8 則觀察，每則最多 900 字元及 5 個連結，另附最近一次屬於此帳戶的掃描。這並非品牌完整歷史；重新載入可讀取更新快照。",
+      "truncated": "該週尚有其他觀察未包括在此快照內。",
+      "coverageMeaning": "「已有紀錄」表示回覆包含已儲存紀錄，不代表問題已獲完整解答。「缺失」表示此有限選取範圍未有資料，不等於零提及或沒有活動。",
+      "sourcesTitle": "來源",
+      "noSources": "此選取範圍未有相符的已儲存來源。",
+      "observationId": "觀察 ID",
+      "recordedAt": "記錄日期",
+      "collectedAt": "收集日期",
+      "model": "模型",
+      "market": "紀錄中的市場",
+      "search": "已儲存搜尋執行情況",
+      "searchConfirmed": "已儲存的供應商紀錄確認曾執行",
+      "searchUnknown": "未能確認；單憑引用或搜尋請求不能證明曾執行",
+      "providerCitation": "已儲存的供應商引用",
+      "textLink": "已儲存文字中的連結 · 並非供應商引用",
+      "citationsMissing": "此選取範圍未有可用引用連結。",
+      "scanId": "掃描 ID",
+      "liveLimit": "此處不支援即時來源：不會查詢 OpenRouter、Firecrawl 或 GSC，亦不會套用 GSC 香港篩選或太平洋時間日期範圍。不會查詢 DataForSEO ChatGPT LLM Mentions；其美國／英文涵蓋範圍不能證明支援香港／繁體中文。缺失資料絕不等於零提及。",
+      "coverage": {
+        "pulse": "已儲存的 Pulse 觀察",
+        "citations": "已儲存的供應商引用",
+        "scan": "已儲存的掃描證據",
+        "live": "即時來源"
+      },
+      "status": {
+        "present": "已有紀錄",
+        "missing": "缺失",
+        "unsupported": "不支援"
+      },
+      "scanReplyLabel": "已儲存掃描證據 · 第 {number} 則回覆"
     }
   },
   "seo": {

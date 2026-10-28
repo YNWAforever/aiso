@@ -1,40 +1,95 @@
 {
   "conversationStudio": {
     "title": "Start work",
-    "demoBadge": "Stage A · Demo",
-    "description": "Start a conversation for your brand. Choose a template or write your own question.",
-    "demoNotice": "This demo shows a fixed sample reply. It does not run AI, look up brand data or use paid services.",
+    "description": "Review saved brand evidence. Choose a summary template or search excerpts with your own question.",
     "threadsTitle": "Conversations",
     "newThread": "New conversation",
     "threadsEmpty": "Your temporary conversations will appear here.",
-    "privateLabel": "Private by default · Demo",
+    "privateLabel": "Private by default · Temporary",
     "privacyBody": "Messages stay in this page’s memory and disappear when you leave or refresh. Saving, sharing and private access controls are coming later.",
     "templatesTitle": "Start with a template",
-    "conversationLabel": "Demo conversation",
+    "conversationLabel": "Brand evidence conversation",
     "emptyTitle": "What would you like to work on?",
-    "emptyBody": "Choose a starting point below or use a template above. Replies are demo placeholders.",
+    "emptyBody": "Templates summarise saved records. Freeform questions show matching excerpts and say when there is not enough evidence.",
     "youLabel": "You",
-    "stubLabel": "Demo reply",
-    "stubReply": "Your message is ready for this demo. Live answers with evidence are coming in Stage B. No analysis has been run.",
     "composerLabel": "Your message",
     "composerPlaceholder": "Ask a question about your brand…",
-    "composerHelp": "Enter adds a new line. Send shows a demo reply.",
-    "send": "Send demo message",
-    "loadError": "We could not load this brand. Please try again.",
+    "composerHelp": "Enter adds a new line. Send reads the loaded snapshot without a network request.",
+    "send": "Send message",
+    "loadError": "We could not load this brand’s saved evidence. Please try again.",
     "retry": "Try again",
     "templates": {
-      "visibility": {
-        "label": "Review brand visibility",
-        "prompt": "Help me review how my brand appears in AI answers."
-      },
-      "content": {
-        "label": "Plan useful content",
-        "prompt": "Help me outline content that answers my customers’ questions."
+      "brief": {
+        "label": "Sourced brand brief",
+        "prompt": "Prepare a brand brief from saved Pulse observations and scan evidence, with sources and gaps."
       },
       "competitors": {
-        "label": "Explore competitor questions",
-        "prompt": "What questions could I ask when comparing my brand with competitors?"
+        "label": "Competitor evidence",
+        "prompt": "Review saved evidence for a competitor comparison with citations. State what cannot be compared reliably."
+      },
+      "pulse": {
+        "label": "Saved Pulse observations",
+        "prompt": "Summarise saved Pulse observations, their dates, citations and coverage limits."
+      },
+      "report": {
+        "label": "Sourced report draft",
+        "prompt": "Prepare a report draft from saved observations and scan evidence, with citations and missing evidence clearly marked."
       }
+    },
+    "savedBadge": "Stage B1 · Saved evidence",
+    "savedNotice": "Replies use only a snapshot of this brand’s saved data. No AI model or live data source is queried. Messages stay in this page.",
+    "evidence": {
+      "replyLabel": "Saved evidence reply",
+      "savedSummary": "Saved evidence summary",
+      "insufficient": "Not enough evidence",
+      "comparisonLimit": "Not enough evidence for a verified competitor comparison. Saved observations below are context only; they do not establish rankings or market-wide visibility.",
+      "summaryScope": "This summary reports saved records only. It does not verify historical model statements as current facts.",
+      "questionLimit": "Not enough evidence to verify an answer to this question. Any keyword-matched excerpts below are context only; try a saved-data template for a structured summary.",
+      "reportDraft": "Report draft · Saved-record extracts for review",
+      "selected": "{count, plural, one {# saved observation selected.} other {# saved observations selected.}}",
+      "classified": "Classified saved answer",
+      "incomplete": "Incomplete saved answer",
+      "brandMention": "Recorded brand mention",
+      "mentionYes": "Yes, in this saved answer",
+      "mentionNo": "No, in this saved answer",
+      "unknown": "Not recorded",
+      "historicalQuote": "Historical model output · Quoted excerpt, not independently verified. Excerpts may be shortened.",
+      "answerMissing": "No saved answer text is available.",
+      "panelTitle": "Evidence and coverage",
+      "stepsTitle": "Steps",
+      "stepLoad": "Loaded the latest retained Pulse week: {week}; {count} recorded rows in that week.",
+      "stepSelect": "Selected template records or keyword-matched excerpts from this brand’s loaded snapshot.",
+      "stepCompose": "Composed record extracts locally. No new analysis, search or provider request ran.",
+      "boundedScope": "Scope: at most 8 observations from the latest retained canonical Pulse week, up to 900 characters and 5 links per observation, plus the latest owned scan. This is not a complete brand history. Reload to read a newer snapshot.",
+      "truncated": "More observations exist in this week than this snapshot includes.",
+      "coverageMeaning": "Present means a saved record is included in this reply, not that the request is fully answered. Missing means absent from this bounded selection, not zero mentions or zero activity.",
+      "sourcesTitle": "Sources",
+      "noSources": "No matching saved sources in this selection.",
+      "observationId": "Observation ID",
+      "recordedAt": "Recorded",
+      "collectedAt": "Collected",
+      "model": "Model",
+      "market": "Recorded market",
+      "search": "Saved search execution",
+      "searchConfirmed": "Confirmed in the saved provider record",
+      "searchUnknown": "Unknown; citations or a search request alone do not prove execution",
+      "providerCitation": "Saved provider citation",
+      "textLink": "Link in saved text · Not a provider citation",
+      "citationsMissing": "No usable citation links in this selection.",
+      "scanId": "Scan ID",
+      "liveLimit": "Live sources are unsupported here: OpenRouter, Firecrawl and GSC are not queried. No GSC HK filter or PT date bounds are applied. DataForSEO ChatGPT LLM Mentions is not queried; its US/EN coverage does not establish HK/zh-HK coverage. Missing data never means zero mentions.",
+      "coverage": {
+        "pulse": "Saved Pulse observations",
+        "citations": "Saved provider citations",
+        "scan": "Saved scan evidence",
+        "live": "Live sources"
+      },
+      "status": {
+        "present": "Present",
+        "missing": "Missing",
+        "unsupported": "Unsupported"
+      },
+      "scanReplyLabel": "Saved scan evidence · Reply {number}"
     }
   },
   "seo": {
