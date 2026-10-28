@@ -1,4 +1,5 @@
-import { redactSecrets } from '@/lib/security/redact-secrets'
+// @ts-expect-error -- explicit extension required by native Node operator scripts
+import { redactSecrets } from './redact-secrets.ts'
 
 /**
  * Which database is this connection actually talking to?

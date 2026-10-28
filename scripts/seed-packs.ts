@@ -1,5 +1,9 @@
-import { db } from '@/lib/db'
-import { INDUSTRY_PACKS, REGIONAL_PACKS } from '../lib/authority/packs'
+// @ts-expect-error -- native Node requires explicit relative .ts extensions
+import { db } from '../lib/db.ts'
+// @ts-expect-error -- native Node requires explicit relative .ts extensions
+import { INDUSTRY_PACKS, REGIONAL_PACKS } from '../lib/authority/packs.ts'
+// @ts-expect-error -- native Node requires explicit relative .ts extensions
+import { assertExpectationConfigured, readExpectationFromEnv } from '../lib/security/db-binding.ts'
 // node needs the explicit .ts extension to resolve this relative import when
 // running this file directly (plain node, no bundler); tsc rejects that
 // extension under moduleResolution "bundler" without repo-wide
@@ -9,6 +13,18 @@ import { INDUSTRY_PACKS, REGIONAL_PACKS } from '../lib/authority/packs'
 import { redactSecrets } from '../lib/security/redact-secrets.ts'
 
 async function seed() {
+  const args = process.argv.slice(2)
+  if (args.length > 1 || args.some(arg => !['--dry-run', '--yes'].includes(arg))) {
+    throw new Error('Use --dry-run or --yes')
+  }
+  // The preview proves imports/arguments/configuration without opening a client.
+  // Applied writes still prove the actual database identity through db().
+  assertExpectationConfigured(readExpectationFromEnv())
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set')
+  if (args[0] !== '--yes') {
+    console.log(`Dry run: ${Object.keys(INDUSTRY_PACKS).length} industry packs, ${Object.keys(REGIONAL_PACKS).length} regional packs. No database connection or writes. Use --yes to apply to the verified target.`)
+    return
+  }
   const sql = db()
 
   console.log('Seeding industry packs...')

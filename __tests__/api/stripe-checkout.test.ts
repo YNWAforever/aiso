@@ -16,12 +16,12 @@ vi.mock('@/lib/stripe', () => ({
 
 vi.mock('@/lib/auth', () => ({ getProfile }))
 
-async function postCheckout(body: object) {
+async function postCheckout(body: unknown, raw = false) {
   const { POST } = await import('@/app/api/stripe/checkout/route')
   return POST(new NextRequest('http://localhost/api/stripe/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: raw ? String(body) : JSON.stringify(body),
   }))
 }
 
@@ -43,6 +43,30 @@ describe('POST /api/stripe/checkout', () => {
     }))
   })
 
+  it.each([null, [], 'pro', 1, { plan: {} }, { plan: null }, { plan: 1 }, { plan: 'pro', lang: [] }, { plan: 'pro', lang: null }])('rejects malformed checkout input %j without Stripe work', async body => {
+    const response = await postCheckout(body)
+    expect(response.status).toBe(400)
+    expect(createCheckoutSession).not.toHaveBeenCalled()
+  })
+
+  it.each(['{', ' '.repeat(1025) + '{"plan":"pro"}'])('returns a stable 400 for malformed or oversized JSON', async body => {
+    const response = await postCheckout(body, true)
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Invalid checkout request' })
+    expect(createCheckoutSession).not.toHaveBeenCalled()
+  })
+
+  it('sanitizes Stripe failures in both the response and logs', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      createCheckoutSession.mockRejectedValue(new Error('private-customer-text', { cause: { key: 'private-customer-text' } }))
+      const response = await postCheckout({ plan: 'pro' })
+      expect(response.status).toBe(500)
+      expect(await response.json()).toEqual({ error: 'Checkout temporarily unavailable' })
+      expect(JSON.stringify(log.mock.calls)).not.toContain('private-customer-text')
+    } finally { log.mockRestore() }
+  })
+
   it('falls back to English for an unsupported locale', async () => {
     const response = await postCheckout({ plan: 'enterprise', lang: 'javascript:alert(1)' })
 
@@ -54,7 +78,7 @@ describe('POST /api/stripe/checkout', () => {
     }))
   })
 
-  it.each(['free', 'unexpected', '', null])('rejects non-checkout plan %j', async plan => {
+  it.each(['free', 'unexpected', ''])('rejects non-checkout plan %j', async plan => {
     const response = await postCheckout({ plan, lang: 'en' })
 
     expect(response.status).toBe(400)

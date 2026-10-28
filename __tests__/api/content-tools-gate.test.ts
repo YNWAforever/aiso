@@ -115,6 +115,23 @@ describe.each(ROUTES)('POST /api/fix/%s', (_name, modulePath, body) => {
 })
 
 describe('allowance is keyed to the account', () => {
+  it.each([null, [], 'text', { chunkText: 1 }, { chunkText: [] }, { chunkText: {} }, { chunkText: '  ' }, { chunkText: 'x', heading: 1 }, { chunkText: 'x', targetLength: [] }, { chunkText: 'x', targetLength: null }])('returns 400 for invalid rewrite input %j before quota or provider work', async body => {
+    const response = await call('@/app/api/fix/rewrite-chunks/route', body)
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Invalid rewrite request' })
+    expect(h.consume).not.toHaveBeenCalled()
+    expect(h.llm).not.toHaveBeenCalled()
+  })
+
+  it.each(['{', JSON.stringify({ chunkText: 'x'.repeat(16384) })])('bounds rewrite JSON before quota work', async body => {
+    const { POST } = await import('@/app/api/fix/rewrite-chunks/route')
+    const response = await POST(new NextRequest('http://localhost/api/fix/rewrite-chunks', { method: 'POST', body }))
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Invalid rewrite request' })
+    expect(h.consume).not.toHaveBeenCalled()
+    expect(h.llm).not.toHaveBeenCalled()
+  })
+
   it('derives the counter key from the account, not the caller address', async () => {
     await call('@/app/api/fix/rewrite-chunks/route', { chunkText: 'x' })
     h.profile = { ...signedIn(account('pro')), account_id: 'acct-2' }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_PRICES, APP_URL } from '@/lib/stripe'
 import { getProfile } from '@/lib/auth'
 import { getCheckoutPlanId } from '@/lib/plans/catalog'
+import { readLimitedJson } from '@/lib/approvals/request'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,15 @@ function getSupportedLang(lang: unknown): (typeof VALID_LANGS)[number] {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json() as { plan?: unknown; lang?: unknown }
+  let body: { plan?: unknown; lang?: unknown }
+  try {
+    const raw = await readLimitedJson(req, 1024)
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('invalid')
+    body = raw
+    if (typeof body.plan !== 'string' || (body.lang !== undefined && typeof body.lang !== 'string')) throw new Error('invalid')
+  } catch {
+    return NextResponse.json({ error: 'Invalid checkout request' }, { status: 400 })
+  }
   const plan = getCheckoutPlanId(body.plan)
   const supportedLang = getSupportedLang(body.lang)
   const profile = await getProfile()
@@ -43,9 +52,8 @@ export async function POST(req: NextRequest) {
       cancel_url:  `${APP_URL}/${supportedLang}/pricing`,
     })
     return NextResponse.json({ url: session.url })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Stripe error'
-    console.error('[stripe/checkout]', msg)
-    return NextResponse.json({ error: msg }, { status: 500 })
+  } catch {
+    console.error('[stripe/checkout] session creation failed')
+    return NextResponse.json({ error: 'Checkout temporarily unavailable' }, { status: 500 })
   }
 }

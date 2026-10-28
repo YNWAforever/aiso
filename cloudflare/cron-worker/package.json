@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "tail": "wrangler tail",
+    "dev": "wrangler dev --config ../aiso-worker/wrangler.jsonc",
+    "deploy": "wrangler deploy --config ../aiso-worker/wrangler.jsonc",
+    "tail": "wrangler tail --config ../aiso-worker/wrangler.jsonc",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

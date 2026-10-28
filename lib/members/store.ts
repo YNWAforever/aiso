@@ -301,14 +301,12 @@ export type SetMemberActiveResult = 'updated' | 'unchanged' | 'self' | 'not_foun
  * `neon_auth.user` row, so re-inviting them answers `already_registered`, and
  * without a restore an accidental removal would be permanent.
  *
- * There is no "last active member" guard, and that is not an omission. With N
- * active members, removing anyone but yourself leaves N-1 >= 1; removing
- * yourself is refused; and a deactivated member cannot act at all. The
- * self-check is therefore the whole guarantee that an account stays reachable,
- * and a separate rule would be dead code that read like a safety net.
- *
- * One statement: the diagnosis and the write share a snapshot, so the answer
- * cannot describe a state the write did not act on.
+ * Both removal and restoration lock the account in a separate first statement.
+ * Under ReadCommitted, the following statement gets a fresh snapshot AFTER
+ * that lock is acquired. Actor authorization must be read in that snapshot:
+ * reciprocal removals of different profile rows otherwise both succeed.
+ * Self-removal prevention plus the serialized active-actor check leaves at
+ * least one active member, without changing the membership policy.
  */
 export async function setMemberActive({
   accountId,
@@ -326,7 +324,9 @@ export async function setMemberActive({
   const actor = uuid(actorId)
   const sql = db()
 
-  const rows = (await sql`
+  const [, rows] = await sql.transaction([
+    sql`select id from accounts where id = ${account}::uuid for update`,
+    sql`
     with actor as (
       select 1 from profiles
       where id = ${actor}::uuid and account_id = ${account}::uuid
@@ -350,7 +350,7 @@ export async function setMemberActive({
       exists (select 1 from actor) as actor_ok,
       exists (select 1 from target) as target_ok,
       exists (select 1 from changed) as changed
-  `) as Array<Record<string, unknown>>
+  `], { isolationLevel: 'ReadCommitted' })
 
   const row = rows[0]
   // Actor and target failures share one answer on purpose: the id came from
