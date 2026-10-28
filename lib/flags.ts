@@ -4,8 +4,9 @@
  * from client components — flags gate server-rendered behavior only, per
  * ADR-011's dark-launch requirement.
  */
-export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility' | 'enterprise_os' | 'conversation_studio'
+export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility' | 'enterprise_os' | 'conversation_studio' | 'conversation_studio_live'
 
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
+  if (flag === 'conversation_studio_live' && !isFeatureEnabled('conversation_studio')) return false
   return process.env[`FEATURE_${flag.toUpperCase()}`] === '1'
 }

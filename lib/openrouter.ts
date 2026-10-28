@@ -21,6 +21,7 @@ export interface JsonSchemaFormat {
  * list, so a new call site can neither forget it nor misspell it.
  */
 export type CallLabel =
+  | 'studio.answer'
   | 'improve.recommendations'
   | 'check.factual_density'
   | 'check.topical_authority'
@@ -47,7 +48,7 @@ interface CallOptions {
   /**
    * Ask for a web-grounded answer through OpenRouter's `web` plugin (native
    * search for OpenAI, Anthropic and Google models). Costs extra per call, so
-   * only Pulse asks, and only via lib/pulse/grounding.ts's allowance.
+   * Pulse and Studio ask only via lib/pulse/grounding.ts's allowance.
    */
   webSearch?: boolean
 }
@@ -188,8 +189,10 @@ function logUsage(label: CallLabel, model: string, data: CompletionMetadata | nu
     event: 'openrouter_usage',
     label,
     model,
-    servedBy: str(data?.model),
-    generationId: str(data?.id),
+    // Studio logs fixed requested models and numeric usage only. Provider IDs
+    // and model strings are untrusted and could echo the private question/reply.
+    servedBy: label === 'studio.answer' ? null : str(data?.model),
+    generationId: label === 'studio.answer' ? null : str(data?.id),
     promptTokens: tokens(data?.usage?.prompt_tokens),
     completionTokens: tokens(data?.usage?.completion_tokens),
     costUsd: num(data?.usage?.cost),

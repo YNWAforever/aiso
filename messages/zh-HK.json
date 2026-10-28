@@ -90,6 +90,47 @@
         "unsupported": "不支援"
       },
       "scanReplyLabel": "已儲存掃描證據 · 第 {number} 則回覆"
+    },
+    "live": {
+      "title": "即時回答",
+      "unverified": "即時模型輸出，未經核實",
+      "notice": "已儲存證據會在獨立面板顯示。即時模型只會收到本次問題及品牌名稱，不會收到已儲存紀錄或對話歷史。",
+      "platforms": "方案已授權的即時平台",
+      "disabled": "即時回答已停用（上限為 0）。傳送仍只讀取已儲存證據。",
+      "upgrade": "你的方案未授權即時平台。傳送只會讀取已儲存證據。",
+      "usesQuota": "傳送亦會向所選模型提問，使用 {count} 個回答單位。每個程序設定的每週上限：{cap}。",
+      "temporaryCap": "Preview 暫時限制：計數器各程序獨立，重啟後重設，亦不會跨執行個體共用。這並非永久儲存的帳戶配額。",
+      "composerHelp": "Enter 會新增一行。每次即時傳送只問一個問題，不包括對話歷史。上限為 1,000 字元，每個請求 4 KB。",
+      "pending": "正在等候所選模型…",
+      "exhausted": "此程序的即時配額已停用或用盡。已儲存證據的回答仍可查閱。",
+      "unavailable": "無法完成即時請求。已儲存證據的回答仍可查閱。",
+      "remaining": "回應程序剩餘的回答單位：{count}。失敗或結果不明的供應商嘗試亦會使用配額。",
+      "coverage": "即時覆蓋",
+      "status": {
+        "present": "有資料",
+        "missing": "缺少資料",
+        "unsupported": "不支援"
+      },
+      "missing": "此平台未有回答。缺少回答不代表零提及。",
+      "model": "模型",
+      "duration": "{ms} 毫秒",
+      "finish": "結束原因",
+      "unknown": "未有紀錄",
+      "grounding": "搜尋模式",
+      "groundingValues": {
+        "native": "模型原生搜尋",
+        "web": "已要求網頁搜尋",
+        "none": "未要求搜尋"
+      },
+      "search": "搜尋執行情況",
+      "confirmed": "供應商搜尋事件已確認",
+      "searchUnknown": "不明；引用或搜尋要求不代表已執行搜尋",
+      "noCitations": "沒有可用的公開供應商引用。",
+      "savedScope": "此面板只使用已儲存證據。即時模型輸出會分開顯示。不會查詢 Firecrawl、GSC 或 DataForSEO Mentions，亦不宣稱支援香港／zh-HK Mentions 覆蓋。",
+      "replyLabel": "即時回答 · 第 {number} 則",
+      "badge": "Stage B2 · 已儲存證據及即時模型",
+      "budget": "所選平台超出本次請求的呼叫或 token 預算，請減少所選平台。",
+      "invalid": "即時請求被拒絕。請使用最多 1,000 字元的問題及已授權平台。"
     }
   },
   "seo": {

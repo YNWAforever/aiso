@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ auth: vi.fn(), sql: vi.fn(), evidence: vi.fn() }))
+vi.mock('server-only', () => ({}))
 vi.mock('@/lib/conversation-studio/evidence', () => ({ loadStudioEvidence: mocks.evidence }))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth }))
 vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
@@ -18,6 +19,7 @@ const render = (id = clientId) => Page({ params: Promise.resolve({ lang: 'en', c
 beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '0')
   mocks.auth.mockResolvedValue({ account_id: 'account-a' })
   mocks.sql.mockResolvedValue([{ id: clientId, brand_name: 'Example Brand' }])
   mocks.evidence.mockResolvedValue(emptyStudioEvidence)
@@ -36,12 +38,22 @@ it('renders only the owned brand shell when enabled', async () => {
   expect(page.key).toBe(clientId)
   expect(page.props.brandName).toBe('Example Brand')
   expect(page.props.evidence).toEqual(emptyStudioEvidence)
+  expect(page.props.live).toBeUndefined()
   expect(mocks.evidence).toHaveBeenCalledWith('account-a', clientId)
   expect(mocks.auth).toHaveBeenCalledWith('en')
   const [strings, ...values] = mocks.sql.mock.calls[0]
   expect(strings.join('?')).toMatch(/where id = \? and account_id = \?/)
   expect(values).toEqual([clientId, 'account-a'])
   expect(mocks.sql).toHaveBeenCalledTimes(1)
+})
+
+it('passes only plan-granted platforms and the fail-closed cap when LIVE is on', async () => {
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '1')
+  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', undefined)
+  mocks.auth.mockResolvedValue({ account_id: 'account-a', accounts: { override_plan: 'basic' } })
+  expect((await render()).props.live).toEqual({ platforms: ['gemini-flash'], cap: 0 })
+  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', '3')
+  expect((await render()).props.live).toEqual({ platforms: ['gemini-flash'], cap: 3 })
 })
 it('stops at authentication before any brand read', async () => {
   mocks.auth.mockRejectedValueOnce(new Error('AUTH_REDIRECT'))

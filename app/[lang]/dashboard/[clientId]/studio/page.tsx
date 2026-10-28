@@ -5,6 +5,9 @@ import { db } from '@/lib/db'
 import { isFeatureEnabled } from '@/lib/flags'
 import { ConversationStudio } from '@/components/dashboard/ConversationStudio'
 import { loadStudioEvidence } from '@/lib/conversation-studio/evidence'
+import { studioLiveCap } from '@/lib/conversation-studio/live-quota'
+import { runtimePlatformsFor } from '@/lib/pulse/platforms'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 export default async function StudioPage({ params }: {
   params: Promise<{ lang: string; clientId: string }>
@@ -31,5 +34,9 @@ export default async function StudioPage({ params }: {
   const brand = brands[0]
   if (!brand || !evidence) notFound()
   // Brand changes remount the studio, clearing all page-local conversation state.
-  return <ConversationStudio key={clientId} brandName={brand.brand_name} evidence={evidence} />
+  const live = isFeatureEnabled('conversation_studio_live') ? {
+    platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
+    cap: studioLiveCap(),
+  } : undefined
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} live={live} />
 }
