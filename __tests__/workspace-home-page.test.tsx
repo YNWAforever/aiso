@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { buildScanEvidence } from '@/lib/scan-evidence'
 vi.mock('server-only', () => ({}))
@@ -16,6 +16,12 @@ import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import type { ReactElement } from 'react'
 import Page from '@/app/[lang]/dashboard/[clientId]/page'
+import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
+afterEach(() => vi.unstubAllEnvs())
+it.each(['0', '1'])('keeps explicit home on WorkspaceHome with studio flag %s', async value => {
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO', value)
+  expect((await render({ step: 'home' })).type).toBe(WorkspaceHome)
+})
 const profile = { account_id: 'account-a', accounts: { plan: 'free' } }
 const render = (search = {}) => Page({ params: Promise.resolve({ lang: 'en', clientId: 'client-a' }), searchParams: Promise.resolve(search) })
 beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null) })

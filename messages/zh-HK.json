@@ -1,4 +1,42 @@
 {
+  "conversationStudio": {
+    "title": "開始工作",
+    "demoBadge": "Stage A · 示範",
+    "description": "為你的品牌開始對話。選擇範本，或寫下自己的問題。",
+    "demoNotice": "此示範只會顯示固定回覆，不會執行 AI、查詢品牌資料或使用付費服務。",
+    "threadsTitle": "對話列表",
+    "newThread": "新增對話",
+    "threadsEmpty": "暫存對話會顯示在這裡。",
+    "privateLabel": "預設私人 · 示範",
+    "privacyBody": "訊息只暫存在此頁面的記憶體，離開或重新整理後便會消失。儲存、分享及私人存取權限功能將於日後提供。",
+    "templatesTitle": "從範本開始",
+    "conversationLabel": "示範對話",
+    "emptyTitle": "你想處理甚麼工作？",
+    "emptyBody": "在下方寫下問題，或選擇上方範本。回覆只供示範。",
+    "youLabel": "你",
+    "stubLabel": "示範回覆",
+    "stubReply": "已收到你的示範訊息。附有依據的即時回答將於 Stage B 提供，目前未有執行任何分析。",
+    "composerLabel": "你的訊息",
+    "composerPlaceholder": "寫下有關品牌的問題…",
+    "composerHelp": "按 Enter 換行，按傳送查看示範回覆。",
+    "send": "傳送示範訊息",
+    "loadError": "暫時無法載入此品牌，請再試一次。",
+    "retry": "再試一次",
+    "templates": {
+      "visibility": {
+        "label": "檢視品牌曝光",
+        "prompt": "幫我檢視品牌在 AI 回答中的曝光情況。"
+      },
+      "content": {
+        "label": "規劃實用內容",
+        "prompt": "幫我擬定內容大綱，回答客戶關心的問題。"
+      },
+      "competitors": {
+        "label": "探索競爭對手問題",
+        "prompt": "比較我的品牌與競爭對手時，可以提出哪些問題？"
+      }
+    }
+  },
   "seo": {
     "home": {
       "title": "Fimmick AISO｜AI 搜尋網站就緒檢查",
@@ -708,6 +746,8 @@
     "sign_in": "已有帳號？立即登入 →"
   },
   "dashboard": {
+    "nav_start_work": "開始工作",
+    "nav_start_work_desc": "對話示範",
     "choose_saved_scan": "選擇已儲存的掃描",
     "select_saved_scan": "選擇已完成的掃描",
     "no_completed_scans": "尚未有已完成的掃描",

@@ -1,4 +1,42 @@
 {
+  "conversationStudio": {
+    "title": "Start work",
+    "demoBadge": "Stage A · Demo",
+    "description": "Start a conversation for your brand. Choose a template or write your own question.",
+    "demoNotice": "This demo shows a fixed sample reply. It does not run AI, look up brand data or use paid services.",
+    "threadsTitle": "Conversations",
+    "newThread": "New conversation",
+    "threadsEmpty": "Your temporary conversations will appear here.",
+    "privateLabel": "Private by default · Demo",
+    "privacyBody": "Messages stay in this page’s memory and disappear when you leave or refresh. Saving, sharing and private access controls are coming later.",
+    "templatesTitle": "Start with a template",
+    "conversationLabel": "Demo conversation",
+    "emptyTitle": "What would you like to work on?",
+    "emptyBody": "Choose a starting point below or use a template above. Replies are demo placeholders.",
+    "youLabel": "You",
+    "stubLabel": "Demo reply",
+    "stubReply": "Your message is ready for this demo. Live answers with evidence are coming in Stage B. No analysis has been run.",
+    "composerLabel": "Your message",
+    "composerPlaceholder": "Ask a question about your brand…",
+    "composerHelp": "Enter adds a new line. Send shows a demo reply.",
+    "send": "Send demo message",
+    "loadError": "We could not load this brand. Please try again.",
+    "retry": "Try again",
+    "templates": {
+      "visibility": {
+        "label": "Review brand visibility",
+        "prompt": "Help me review how my brand appears in AI answers."
+      },
+      "content": {
+        "label": "Plan useful content",
+        "prompt": "Help me outline content that answers my customers’ questions."
+      },
+      "competitors": {
+        "label": "Explore competitor questions",
+        "prompt": "What questions could I ask when comparing my brand with competitors?"
+      }
+    }
+  },
   "seo": {
     "home": {
       "title": "Fimmick AISO | Website Readiness for AI Search",
@@ -708,6 +746,8 @@
     "sign_in": "Already have an account? Sign in →"
   },
   "dashboard": {
+    "nav_start_work": "Start work",
+    "nav_start_work_desc": "Conversation demo",
     "choose_saved_scan": "Choose a saved scan",
     "select_saved_scan": "Select a completed scan",
     "no_completed_scans": "No completed scans yet",

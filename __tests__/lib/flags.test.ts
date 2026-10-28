@@ -1,5 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isFeatureEnabled } from '@/lib/flags'
+
+describe('conversation_studio flag', () => {
+  afterEach(() => vi.unstubAllEnvs())
+  it.each([undefined, '', '0', 'true', '1 ', '1'])('enables only the exact value 1 (%s)', value => {
+    vi.stubEnv('FEATURE_CONVERSATION_STUDIO', value)
+    expect(isFeatureEnabled('conversation_studio')).toBe(value === '1')
+  })
+})
 
 describe('isFeatureEnabled', () => {
   const envKey = 'FEATURE_DONOR_UI_SHELL'

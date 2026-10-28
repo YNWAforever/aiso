@@ -1,5 +1,5 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const dbNextResults = vi.hoisted((): unknown[] => [])
 const { requireAuthMock, headersMock, dbMock } = vi.hoisted(() => ({
@@ -29,6 +29,17 @@ vi.mock('server-only', () => ({}))
 import DashboardLayout from '@/app/[lang]/dashboard/layout'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
 import { TopBar } from '@/components/dashboard/shell/TopBar'
+import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
+
+afterEach(() => vi.unstubAllEnvs())
+it.each([undefined, 'true', '1'])('passes the server studio flag %s to both navigation consumers', async value => {
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO', value)
+  headersMock.mockResolvedValue(new Headers())
+  const layout = await renderLayout(account())
+  for (const type of [TopBar, DashboardSidebar]) {
+    expect(findElementOfType<{ conversationStudio: boolean }>(layout, type)?.props.conversationStudio).toBe(value === '1')
+  }
+})
 
 type TrialBannerProps = {
   daysRemaining: number
