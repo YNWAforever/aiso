@@ -35,7 +35,7 @@ export type VaultEnv = {
   GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS?: string
 }
 
-export type VaultContext = { accountId: string }
+export type VaultContext = { accountId: string; purpose?: string }
 
 const IV_BYTES = 12
 const TAG_BYTES = 16
@@ -78,7 +78,9 @@ function previousKey(env: VaultEnv): { key: Buffer; id: string } | null {
 
 function aad(context: VaultContext): Buffer {
   if (!context.accountId) throw new Error('vault context requires accountId')
-  return Buffer.from(`aiso-google-refresh-token:v1:${context.accountId}`)
+  return Buffer.from(context.purpose
+    ? `aiso-integration-secret:v1:${context.accountId}:${context.purpose}`
+    : `aiso-google-refresh-token:v1:${context.accountId}`)
 }
 
 /** Throws VAULT_KEY_MISSING when unusable. Routes call it first to fail closed. */

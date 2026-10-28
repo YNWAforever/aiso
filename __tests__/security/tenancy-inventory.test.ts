@@ -43,6 +43,15 @@ import { describe, expect, it } from 'vitest'
  */
 const TENANT_TABLES: Record<string, string> = {
   // Direct `account_id` column.
+  outcome_integration_settings: 'account_id + client_id (071/072)',
+  outcome_ingest_credentials: 'account_id + client_id (071/072)',
+  outcome_query_clusters: 'account_id + client_id (071/072)',
+  outcome_events: 'account_id + client_id (071/072)',
+  outcome_deployments: 'account_id + client_id (071/072)',
+  outcome_attempts: 'account_id + client_id (071/072)',
+  outcome_attempt_receipts: 'account_id + client_id (071/072)',
+  outcome_regressions: 'account_id + client_id (071/072)',
+  search_console_appearance: 'account_id + client_id (071/072)',
   clients: 'account_id (004)',
   scans: 'account_id (008), client_id (029)',
   account_report_branding: 'account_id (027)',
@@ -150,6 +159,8 @@ const DECLARED: Record<string, string> = {
  * each entry pointing at a live function that still carries tenant SQL.
  */
 const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
+  'lib/outcome-integrations/credentials.ts::loadOutcomeCredential':
+    'Opaque key establishes scope; active creator, owned client/account joins, commercial entitlement and exact-body HMAC are required before ingestion. No caller account parameter.',
   'lib/integrations/search-console/store.ts::loadDueBindings':
     'The selection made by the Search Console cron (spec §6): the due bindings of every account, by ' +
     'design, like alert evaluation. The cron is authenticated by CRON_SECRET and has no session to ' +

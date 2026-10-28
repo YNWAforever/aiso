@@ -110,6 +110,43 @@ describe('syncBinding deadline', () => {
 })
 
 describe('syncBinding', () => {
+  it('stores observed search appearance only for the explicitly sampled owned pages', async () => {
+    const writeAppearance = vi.fn().mockResolvedValue(1)
+    const query = vi.fn(async (_token: string, _site: string, q: { dimensions: string[];searchAppearanceEquals?:string }) => {
+      if(q.dimensions.includes('searchAppearance')) {
+        if(q.dimensions.length!==1)throw new GoogleApiError('unavailable',400,'invalid_dimensions')
+        return [{keys:['RICH_RESULTS'],clicks:2,impressions:10,ctr:0.2,position:4}]
+      }
+      return q.searchAppearanceEquals ? [
+        { keys: ['2026-09-20', 'https://example.com/a'], clicks: 2, impressions: 10, ctr: 0.2, position: 4 },
+        { keys: ['2026-09-20', 'https://foreign.example/'], clicks: 9, impressions: 10, ctr: 0.9, position: 1 },
+      ] : []
+    })
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/a']), writeAppearance })
+    expect(await syncBinding(binding(), d)).toBe('ok')
+    expect(query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ dimensions: ['searchAppearance'] }))
+    expect(query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ dimensions: ['date','page'],searchAppearanceEquals:'RICH_RESULTS' }))
+    expect(writeAppearance).toHaveBeenCalledWith('a', 'c', [expect.objectContaining({ pageUrl: 'https://example.com/a', appearance: 'RICH_RESULTS' })], expect.objectContaining({ pageUrls: ['https://example.com/a'] }))
+  })
+  it('keeps core traffic/query writes when optional appearance collection is refused',async()=>{
+    const writeAppearance=vi.fn(),query=vi.fn(async(_token,_site,q)=>{
+      if(q.dimensions.includes('searchAppearance'))throw new GoogleApiError('unavailable',400,'invalid_dimensions')
+      return [{keys:q.dimensions.includes('query')?['2026-09-20','query']:['2026-09-20'],clicks:2,impressions:10,ctr:0.2,position:4}]
+    })
+    const d=deps({query,writeAppearance,listPages:vi.fn().mockResolvedValue(['https://example.com/a']),writeDaily:vi.fn().mockResolvedValue(2),writePageQueries:vi.fn().mockResolvedValue(1)})
+    expect(await syncBinding(binding(),d)).toBe('deferred')
+    expect(d.writeDaily).toHaveBeenCalled();expect(d.writePageQueries).toHaveBeenCalled();expect(writeAppearance).not.toHaveBeenCalled()
+    expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({rowsWritten:3,outcome:'deferred'}))
+  })
+
+  it('does not clear stored appearance when its collection deadline was missed', async () => {
+    const writeAppearance = vi.fn()
+    const query = vi.fn().mockImplementation(async (_token, _site, q) => { if (q.dimensions.includes('searchAppearance')) throw new DeadlineReachedError(); return [] })
+    const d = deps({ query, writeAppearance, listPages: vi.fn().mockResolvedValue(['https://example.com/a']) })
+    expect(await syncBinding(binding(), d)).toBe('deferred')
+    expect(writeAppearance).not.toHaveBeenCalled()
+    expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'deferred', clearBackfill: false }))
+  })
   it('skips an account below Pro without calling Google, and records it', async () => {
     const d = deps()
     expect(await syncBinding(binding({ account: { plan: 'basic', status: 'active' } as DueBinding['account'] }), d))

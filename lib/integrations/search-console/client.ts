@@ -22,12 +22,13 @@ export const ROW_LIMIT = 25_000
 export const MAX_PAGES = 8
 
 export type SiteEntry = { siteUrl: string; permissionLevel: string }
-export type AnalyticsDimension = 'date' | 'page' | 'query'
+export type AnalyticsDimension = 'date' | 'page' | 'query' | 'searchAppearance'
 export type AnalyticsQuery = {
   startDate: string
   endDate: string
   dimensions: AnalyticsDimension[]
   pageEquals?: string
+  searchAppearanceEquals?: string
   rowLimit?: number
   /**
    * Epoch ms (Date.now) after which no further `startRow` page is requested.
@@ -195,6 +196,10 @@ export async function querySearchAnalytics(
   q: AnalyticsQuery,
   f: GoogleFetch = fetch,
 ): Promise<AnalyticsRow[]> {
+  // Google requires searchAppearance discovery without any other dimension.
+  if(q.dimensions.includes('searchAppearance')&&q.dimensions.length!==1)throw new GoogleApiError('misconfigured',0,'invalid_dimensions')
+  const filters=[...(q.pageEquals?[{dimension:'page',operator:'equals',expression:q.pageEquals}]:[]),
+    ...(q.searchAppearanceEquals?[{dimension:'searchAppearance',operator:'equals',expression:q.searchAppearanceEquals}]:[])]
   const pageSize = q.rowLimit ?? ROW_LIMIT
   const url = `${BASE}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`
   const rows: AnalyticsRow[] = []
@@ -212,8 +217,8 @@ export async function querySearchAnalytics(
         dataState: 'all',
         rowLimit: pageSize,
         startRow,
-        ...(q.pageEquals
-          ? { dimensionFilterGroups: [{ filters: [{ dimension: 'page', operator: 'equals', expression: q.pageEquals }] }] }
+        ...(filters.length
+          ? { dimensionFilterGroups: [{ filters }] }
           : {}),
       }),
     })

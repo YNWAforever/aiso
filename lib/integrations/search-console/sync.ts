@@ -1,10 +1,10 @@
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { GoogleApiError, type GoogleFailure } from '@/lib/integrations/google/oauth'
 import { VaultError, type SealedToken } from '@/lib/integrations/google/vault'
-import { DeadlineReachedError, type AnalyticsQuery, type AnalyticsRow } from './client'
+import { DeadlineReachedError, MAX_PAGES, ROW_LIMIT, type AnalyticsQuery, type AnalyticsRow } from './client'
 import { bindingMatchesDomain } from './binding'
 import type { SyncOutcome } from './state'
-import type { DailyMetric, DueBinding, PageQueryMetric, QueryWindow } from './store'
+import type { DailyMetric, DueBinding, PageQueryMetric, QueryWindow, SearchAppearanceMetric } from './store'
 
 /**
  * Sync one binding and say exactly what happened (spec §4.3, §5). Every
@@ -40,6 +40,7 @@ export type SyncDeps = {
   listPages(accountId: string, clientId: string, cap: number): Promise<string[]>
   writeDaily(accountId: string, clientId: string, metrics: DailyMetric[]): Promise<number>
   writePageQueries(accountId: string, clientId: string, metrics: PageQueryMetric[], window: QueryWindow): Promise<number>
+  writeAppearance?(accountId: string, clientId: string, metrics: SearchAppearanceMetric[], window: QueryWindow): Promise<number>
   markConnection(accountId: string, connectionId: string, status: 'needs_reconnect'): Promise<void>
   recordRun(input: {
     accountId: string
@@ -80,13 +81,6 @@ function daysBefore(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`)
   d.setUTCDate(d.getUTCDate() - days)
   return d.toISOString().slice(0, 10)
-}
-
-/** True/string properties are read this way for an unknown thrown value without assuming it is an Error. */
-function stringProp(value: unknown, key: string): string | undefined {
-  if (!value || typeof value !== 'object') return undefined
-  const v = (value as Record<string, unknown>)[key]
-  return typeof v === 'string' ? v : undefined
 }
 
 /**
@@ -210,18 +204,57 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
     // keeps backfill_pending set, so the next run re-fetches the full window.
     // Keeping the partial result means a backfill too large for one run still
     // lands its property totals and its first pages instead of nothing.
-    const written = await deps.writeDaily(b.accountId, b.clientId, daily)
-      // Called with the same fetched window even when queries is empty, so a
-      // page that dropped out of the top ranks entirely still has its stale
-      // rows cleared — see store.ts's writePageQueries doc.
+    // Core observations are independent of optional appearance collection. A
+    // refusal/deadline on the latter must never discard fetched traffic/query data.
+    const coreWritten = await deps.writeDaily(b.accountId, b.clientId, daily)
       + await deps.writePageQueries(b.accountId, b.clientId, queries, { startDate, endDate, pageUrls: completedPages })
+    let appearanceWritten = 0
+    if (deps.writeAppearance && pageUrls.length) {
+      if (deferred || outOfTime()) deferred = true
+      else {
+        try {
+          // Provider protocol: discover types alone, then filter by each type.
+          // https://developers.google.com/webmaster-tools/v1/how-tos/all-your-data#getting_search_appearance_data
+          const discovered = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['searchAppearance'] })
+          const validType = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_]{1,80}$/.test(value)
+          const categories = [...new Set(discovered.map(row => row.keys[0]))]
+          if (discovered.length >= MAX_PAGES * ROW_LIMIT || categories.length > 20 || categories.some(type => !validType(type))) deferred = true
+          else {
+            const pages = new Set(completedPages), seen = new Set<string>()
+            const metrics: SearchAppearanceMetric[] = []
+            for (const category of categories) {
+              if (outOfTime()) throw new DeadlineReachedError()
+              const rows = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['date', 'page'], searchAppearanceEquals: category })
+              if (rows.length >= MAX_PAGES * ROW_LIMIT) { deferred = true; break }
+              for (const row of rows) {
+                const [date, pageUrl] = row.keys
+                if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !pageUrl) { deferred = true; break }
+                if (!pages.has(pageUrl)) continue
+                const key = JSON.stringify([date,pageUrl,category])
+                if (seen.has(key)) continue
+                seen.add(key)
+                metrics.push({ date, pageUrl, appearance: category, clicks: row.clicks, impressions: row.impressions, ctr: row.ctr, position: row.position })
+              }
+              if (deferred) break
+            }
+            // Replace the window only after all discovered categories completed.
+            if (!deferred) appearanceWritten = await deps.writeAppearance(b.accountId, b.clientId, metrics, { startDate, endDate, pageUrls: completedPages })
+          }
+        } catch {
+          deferred = true
+          console.error('[search-console] appearance deferred', { clientId: b.clientId, reason: 'APPEARANCE_UNAVAILABLE' })
+        }
+      }
+    }
+    const written = coreWritten + appearanceWritten
     const dataThrough = property.map(r => r.keys[0]!).sort().at(-1) ?? null
     return { outcome: deferred ? 'deferred' : 'ok', rows: written, through: dataThrough }
   } catch (error) {
     if (!(error instanceof GoogleApiError)) throw error
     if (error.kind === 'revoked') await deps.markConnection(b.accountId, b.connectionId, 'needs_reconnect')
     if (error.kind === 'misconfigured') {
-      console.error('[search-console] google misconfigured', { clientId: b.clientId, status: error.status, code: error.code })
+      console.error('[search-console] google misconfigured', { clientId: b.clientId, status: error.status,
+        code: error.code === 'invalid_client' ? 'invalid_client' : 'GOOGLE_CONFIG_ERROR' })
     }
     return { outcome: OUTCOME_FOR[error.kind], rows: 0, through: null }
   }
@@ -231,16 +264,10 @@ export async function syncBinding(b: DueBinding, deps: SyncDeps): Promise<SyncOu
   let result: AttemptResult
   try {
     result = await attempt(b, deps)
-  } catch (error) {
-    // Never log error.message: the Neon driver can echo the full connection
-    // string, password included, into some of its own error messages. Only
-    // well-known, narrow string fields are logged, and only if present.
-    console.error('[search-console] sync failed', {
-      clientId: b.clientId,
-      name: error instanceof Error ? error.name : typeof error,
-      code: stringProp(error, 'code'),
-      constraint: stringProp(error, 'constraint'),
-    })
+  } catch {
+    // Error names, codes and constraints are also arbitrary driver/provider
+    // text. Emit only the controlled outcome, never a serialized cause.
+    console.error('[search-console] sync failed', { clientId: b.clientId, reason: 'DEPENDENCY_UNAVAILABLE' })
     result = { outcome: 'internal_error', rows: 0, through: null }
   }
 

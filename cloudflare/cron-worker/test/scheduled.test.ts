@@ -69,7 +69,7 @@ describe('scheduled', () => {
     await expect(worker.scheduled(controller('17 4 * * *'), env, ctx)).rejects.toThrow(
       '[cron-worker] /api/cron/pulse responded 500',
     )
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
   it('rejects an unmapped cron without making a request', async () => {
@@ -114,6 +114,6 @@ describe('ROUTES stays in sync with wrangler.jsonc', () => {
   })
 })
 
-it('AISO deployed profile schedules raw-only repair without adding email dispatch',()=>{const config=parseWranglerJsonc(readFileSync(join(import.meta.dirname,'..','..','aiso-worker','wrangler.jsonc'),'utf8'));expect(config.triggers?.crons).toEqual(['17 4 * * *','47 7 * * 1']);expect(ROUTES['17 4 * * *']).toContain('/api/cron/pulse?mode=repair');expect(ROUTES['17 4 * * *'].every(route=>!route.includes('trial-emails')&&!route.includes('search-console'))).toBe(true)});
+it('AISO deployed profile schedules outcome collection on the approved daily trigger without email dispatch',()=>{const config=parseWranglerJsonc(readFileSync(join(import.meta.dirname,'..','..','aiso-worker','wrangler.jsonc'),'utf8'));expect(config.triggers?.crons).toEqual(['17 4 * * *','47 7 * * 1']);expect(ROUTES['17 4 * * *']).toEqual(['/api/cron/pulse','/api/cron/pulse?mode=repair','/api/cron/search-console','/api/cron/outcomes']);expect(ROUTES['17 4 * * *'].every(route=>!route.includes('trial-emails'))).toBe(true)});
 
-it.each(['http','network'])('disables runtime retry before dispatch on %s failure',async(kind)=>{const scheduled=controller('17 4 * * *'),fetchSpy=vi.fn(kind==='network'?async()=>{throw Error('outcome unknown')}:async()=>({ok:false,status:503}));globalThis.fetch=fetchSpy as never;await expect(worker.scheduled(scheduled,env,ctx)).rejects.toThrow();expect(scheduled.noRetry).toHaveBeenCalledOnce();expect(scheduled.noRetry.mock.invocationCallOrder[0]).toBeLessThan(fetchSpy.mock.invocationCallOrder[0]);expect(fetchSpy).toHaveBeenCalledTimes(2)});
+it.each(['http','network'])('disables runtime retry before dispatch on %s failure',async(kind)=>{const scheduled=controller('17 4 * * *'),fetchSpy=vi.fn(kind==='network'?async()=>{throw Error('outcome unknown')}:async()=>({ok:false,status:503}));globalThis.fetch=fetchSpy as never;await expect(worker.scheduled(scheduled,env,ctx)).rejects.toThrow();expect(scheduled.noRetry).toHaveBeenCalledOnce();expect(scheduled.noRetry.mock.invocationCallOrder[0]).toBeLessThan(fetchSpy.mock.invocationCallOrder[0]);expect(fetchSpy).toHaveBeenCalledTimes(4)});
