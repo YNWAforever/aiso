@@ -1,5 +1,5 @@
 {
-  "git": { "deploymentEnabled": { "codex/aiso-full-remediation-20261003": false, "fix/onboarding-brand-draft-schema-20261027": false, "feat/roadmap-phase3-visibility": false } },
+  "git": { "deploymentEnabled": { "codex/aiso-full-remediation-20261003": false, "fix/onboarding-brand-draft-schema-20261027": false, "feat/roadmap-phase3-visibility": false, "feat/roadmap-phase4-enterprise": false } },
   "regions": ["sin1"],
   "functions": {
     "app/api/scan/route.ts": { "maxDuration": 60 },
