@@ -235,21 +235,42 @@ describe('T04 source import and approval', () => {
     const { scope, input } = await fixture('t04-rollback')
     const initial = await importSource(scope, input)
     if (!('source' in initial)) throw new Error('fixture missing')
-    await sql.query(`create function t04_pointer_failure() returns trigger language plpgsql as $$ begin
-      if new.source_key = 't04-rollback' and new.label = 'T04 fault' then raise exception 'T04 pointer fixture failure'; end if;
-      return new; end $$`)
-    await sql.query('create trigger t04_pointer_failure before update on client_sources for each row execute function t04_pointer_failure()')
+    const before = await readSource(scope, initial.source.id)
+    expect(before!.latestVersion).toBe(1)
+    expect(before!.current!.approvedAt).toBeNull()
+    const versions = () => sql`select * from client_source_versions
+      where account_id = ${ACCOUNT} and client_id = ${scope.clientId} and source_id = ${initial.source.id}
+      order by version_number`
+    const beforeVersions = await versions()
+    expect(beforeVersions).toHaveLength(1)
+    // Sequence increments survive rollback, proving the pointer trigger fired
+    // even though A02 deliberately redacts its exception message.
+    await sql.query('create sequence t04_pointer_failure_calls')
     try {
-      await expect(importSource(scope, { ...input, label: 'T04 fault', approve: true })).rejects.toThrow(/T04 pointer fixture failure/)
-      await expect(importSource(scope, { ...input, label: 'T04 fault', entries: [{ question: 'Hours?', answer: 'Changed' }] })).rejects.toThrow(/T04 pointer fixture failure/)
-      const current = await readSource(scope, initial.source.id)
-      expect(current!.latestVersion).toBe(1)
-      expect(current!.label).toBe(input.label)
-      expect(current!.current!.approvedAt).toBeNull()
-      expect(await sql`select id from client_source_versions where account_id = ${ACCOUNT} and client_id = ${scope.clientId}`).toHaveLength(1)
+      await sql.query(`create function t04_pointer_failure() returns trigger language plpgsql as $$ begin
+        if new.source_key = 't04-rollback' and new.label = 'T04 fault' then
+          perform nextval('t04_pointer_failure_calls');
+          raise exception 'T04 pointer fixture failure';
+        end if;
+        return new; end $$`)
+      await sql.query('create trigger t04_pointer_failure before update on client_sources for each row execute function t04_pointer_failure()')
+      const attempts = [
+        { ...input, label: 'T04 fault', approve: true },
+        { ...input, label: 'T04 fault', entries: [{ question: 'Hours?', answer: 'Changed' }] },
+      ]
+      for (const [index, attempt] of attempts.entries()) {
+        await expect(importSource(scope, attempt)).rejects.toMatchObject({
+          message: 'Database operation failed', code: 'P0001',
+        })
+        expect(await sql`select last_value::int as calls, is_called from t04_pointer_failure_calls`)
+          .toEqual([{ calls: index + 1, is_called: true }])
+        expect(await readSource(scope, initial.source.id)).toEqual(before)
+        expect(await versions()).toEqual(beforeVersions)
+      }
     } finally {
-      await sql.query('drop trigger t04_pointer_failure on client_sources')
-      await sql.query('drop function t04_pointer_failure()')
+      await sql.query('drop trigger if exists t04_pointer_failure on client_sources')
+      await sql.query('drop function if exists t04_pointer_failure()')
+      await sql.query('drop sequence t04_pointer_failure_calls')
     }
   })
 })
