@@ -180,3 +180,22 @@ npm --prefix cloudflare/cron-worker run typecheck
    generic rollback. Feature flags alone may leave legacy producers active.
 
 These are release instructions, not a record of a deployment performed by this PR.
+
+## Roadmap outcome and enterprise acceptance
+
+Phases 2–4 release contracts and dark flags are documented in
+[integrations/outcomes.md](integrations/outcomes.md),
+[integrations/closed-loop-visibility.md](integrations/closed-loop-visibility.md)
+and [integrations/enterprise-os.md](integrations/enterprise-os.md). Run the full
+local gates plus the focused synthetic SQL/contracts before PR handoff:
+
+```bash
+npm run test:unit -- __tests__/integrations/outcome-store.test.ts __tests__/visibility __tests__/enterprise
+```
+
+These tests create fresh in-memory PostgreSQL fixtures, including the application
+role and migrations 071–079 as appropriate; they do not connect to the managed
+`DATABASE_URL`. Hosted disposable-Neon integration and browser checks remain
+separate gates. The external adapter example imports without provider credentials
+or DB writes. No new Worker schedule, production allowlist edit, paid provider
+call or production migration is part of local acceptance.

@@ -18,6 +18,7 @@ export function MonitorStep({features,lang,clientId,view,now}:Props){
   <nav className="flex flex-wrap gap-3"><Link href={`/${lang}/dashboard/${clientId}/prompts`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline">{tp('nav_questions')}</Link><Link href={`/${lang}/pulse/${clientId}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline">{copy.full}</Link></nav>
   {isFeatureEnabled('outcome_integrations') && features.outcome_integrations && <OutcomePreview clientId={clientId} lang={lang}/>}
   {isFeatureEnabled('closed_loop_visibility') && <Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}/visibility`}>{(lang==='zh-HK'?zhHK:en).closedLoopVisibility.nav}</Link>}
+  {isFeatureEnabled('enterprise_os') && features.enterprise_workflows && <Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}/enterprise`}>{(lang==='zh-HK'?zhHK:en).enterpriseOS.nav}</Link>}
   <MonitorSignals view={view} lang={lang} now={now}/>
   <ObservedPulseView view={view} lang={lang}/>
   {features.alerts?<section className="rounded-xl border border-border bg-card p-5"><AlertsTab clientId={clientId}/></section>:<LockedFeature feature={t('feature_alerts')} requiredPlan="Pro" price={`$${PLAN_CATALOG.pro.monthlyPriceUsd}/month`}/>}

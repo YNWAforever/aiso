@@ -4,7 +4,7 @@
  * from client components — flags gate server-rendered behavior only, per
  * ADR-011's dark-launch requirement.
  */
-export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility'
+export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility' | 'enterprise_os'
 
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
   return process.env[`FEATURE_${flag.toUpperCase()}`] === '1'

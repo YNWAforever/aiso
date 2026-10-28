@@ -137,6 +137,10 @@ function allRelations() {
     'outcome_integration_settings','outcome_ingest_credentials','outcome_query_clusters','outcome_events','outcome_deployments','outcome_attempts','outcome_attempt_receipts','outcome_regressions','search_console_appearance',
     // 074/075 authored visibility tables; synthetic inventory, not managed DB proof.
     'visibility_reviews','visibility_drafts','visibility_settings','visibility_revalidations','visibility_revalidation_attempts','visibility_page_snapshots','visibility_completion_events',
+    // 076-078: verified on fresh PGlite, including aeo_app; no managed application claim.
+    'enterprise_role_events','enterprise_roles','enterprise_audit','enterprise_keys','enterprise_api_nonces','enterprise_api_windows',
+    'enterprise_branding','enterprise_artifacts','enterprise_decisions','enterprise_portals','enterprise_schedules','enterprise_schedule_periods',
+    'enterprise_adapters','enterprise_adapter_runs','enterprise_adapter_observations','enterprise_webhooks','enterprise_events','enterprise_deliveries','enterprise_attempts',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
