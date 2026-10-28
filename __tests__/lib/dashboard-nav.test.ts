@@ -7,6 +7,25 @@ const PAGE = readFileSync(join(process.cwd(), 'app/[lang]/dashboard/[clientId]/p
 const HOME = readFileSync(join(process.cwd(), 'components/dashboard/WorkspaceHome.tsx'), 'utf8')
 const features = { agent_recs: true, edit_prompts: true }
 
+describe('conversation studio navigation', () => {
+  it.each(['en', 'zh-HK'])('adds a separate brand entry without changing existing links in %s', lang => {
+    const args = { lang, clientId: 'c1', features, scanId: 's1', includeHidden: true }
+    const oldNav = buildDashboardNav(args)
+    const newNav = buildDashboardNav({ ...args, conversationStudio: true })
+    expect(newNav.find(section => section.key === 'studio')).toMatchObject({ href: `/${lang}/dashboard/c1/studio`, labelKey: 'nav_start_work' })
+    expect(newNav.filter(section => section.key !== 'studio')).toEqual(oldNav)
+  })
+  it('hides the entry by default, when disabled and outside a brand', () => {
+    for (const args of [{ clientId: 'c1' }, { clientId: 'c1', conversationStudio: false }, { conversationStudio: true }]) {
+      expect(buildDashboardNav({ lang: 'en', features, ...args }).some(section => section.key === 'studio')).toBe(false)
+    }
+  })
+  it('locates studio independently of overview', () => {
+    expect(locateDashboard('/zh-HK/dashboard/c1/studio', null)).toEqual({ section: 'studio', item: 'studio', clientId: 'c1' })
+    expect(locateDashboard('/zh-HK/dashboard/c1', 'home')).toEqual({ section: 'overview', item: null, clientId: 'c1' })
+  })
+})
+
 describe('dashboard navigation model', () => {
   it('retains the selected scan in Results, Improve and Reports links', () => {
     const nav = buildDashboardNav({ lang: 'en', clientId: 'c1', features, scanId: 'older-scan' })

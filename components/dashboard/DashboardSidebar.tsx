@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { LogOut, Wrench, Brain, Settings, Lock, LayoutDashboard, ScanSearch, Radio, FileText, Settings2, type LucideIcon } from 'lucide-react'
+import { LogOut, Wrench, Brain, Settings, Lock, LayoutDashboard, MessageSquare, ScanSearch, Radio, FileText, Settings2, type LucideIcon } from 'lucide-react'
 import type { CommercialEntitlement } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 import { buildDashboardNav, locateDashboard, type SectionKey } from '@/lib/dashboard-nav'
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { Wordmark } from '@/components/brand/Wordmark'
 
 const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
-  overview: LayoutDashboard, scan: ScanSearch, monitor: Radio, reports: FileText, settings: Settings2,
+  overview: LayoutDashboard, studio: MessageSquare, scan: ScanSearch, monitor: Radio, reports: FileText, settings: Settings2,
 }
 
 type Props = {
@@ -28,6 +28,8 @@ type Props = {
    * so nothing supplies this today — the id comes from useParams below.
    */
   brandId?: string
+  /** Evaluated on the server; never read feature env vars in this component. */
+  conversationStudio?: boolean
 }
 
 /**
@@ -37,7 +39,7 @@ type Props = {
  * list; a plan limit shows a lock but never blocks the link, because the page
  * itself carries the upgrade path.
  */
-export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
+export function DashboardSidebar({ profile, entitlement, brandId, conversationStudio = false }: Props) {
   const t = useTranslations('dashboard')
   const [navigationOpen, setNavigationOpen] = useState(false)
   const params = useParams<{ lang: string; clientId?: string; scanId?: string }>()
@@ -50,7 +52,7 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
   const clientId = params?.clientId ?? brandId
   const { plan, features } = entitlement
   const scanId = params?.scanId ?? searchParams?.get('scanId')
-  const nav = buildDashboardNav({ lang, clientId, features, scanId })
+  const nav = buildDashboardNav({ lang, clientId, features, scanId, conversationStudio })
   const here = locateDashboard(pathname ?? '', clientId ? (searchParams?.get('step') ?? 'home') : null)
 
   return (

@@ -17,7 +17,7 @@
  */
 export const MONITOR_VISIBLE = false
 
-export type SectionKey = 'overview' | 'scan' | 'monitor' | 'reports' | 'settings'
+export type SectionKey = 'overview' | 'studio' | 'scan' | 'monitor' | 'reports' | 'settings'
 
 export interface NavItem {
   key: string
@@ -50,7 +50,7 @@ const BRAND_LIST = '#portfolio-brands'
  * `includeHidden` keeps hidden sections (Monitor) for breadcrumbs only: their
  * pages still work by URL and need a trail, but must not be advertised.
  */
-export function buildDashboardNav({ lang, clientId, features, scanId, includeHidden = false }: { lang: string; clientId?: string | null; features: NavFeatures; scanId?: string | null; includeHidden?: boolean }): NavSection[] {
+export function buildDashboardNav({ lang, clientId, features, scanId, includeHidden = false, conversationStudio = false }: { lang: string; clientId?: string | null; features: NavFeatures; scanId?: string | null; includeHidden?: boolean; conversationStudio?: boolean }): NavSection[] {
   const root = `/${lang}/dashboard`
   const account = `${root}/settings`
   if (!clientId) {
@@ -66,6 +66,7 @@ export function buildDashboardNav({ lang, clientId, features, scanId, includeHid
   const brand = `${root}/${clientId}`
   const sections: NavSection[] = [
     { key: 'overview', labelKey: 'nav_overview', descKey: 'nav_overview_desc', href: `${brand}?step=home`, needsBrand: false, items: [] },
+    ...(conversationStudio ? [{ key: 'studio' as const, labelKey: 'nav_start_work', descKey: 'nav_start_work_desc', href: `${brand}/studio`, needsBrand: true, items: [] }] : []),
     { key: 'scan', labelKey: 'nav_scan_fix', descKey: 'nav_scan_fix_desc', href: `${brand}?step=scan`, needsBrand: true, items: [
       { key: 'scan', labelKey: 'nav_scan', href: `${brand}?step=scan` },
       { key: 'results', labelKey: 'nav_results', href: `${brand}?step=results` },
@@ -104,6 +105,7 @@ const STEP_LOCATION: Record<string, [SectionKey, string | null]> = {
 }
 
 const SEGMENT_LOCATION: Record<string, [SectionKey, string]> = {
+  studio: ['studio', 'studio'],
   opportunities: ['scan', 'opportunities'], tasks: ['scan', 'tasks'], 'work-items': ['scan', 'tasks'], result: ['scan', 'results'],
   observations: ['monitor', 'observations'], prompts: ['monitor', 'prompts'], competitors: ['monitor', 'competitors'], citations: ['monitor', 'citations'],
   reports: ['reports', 'reports'],

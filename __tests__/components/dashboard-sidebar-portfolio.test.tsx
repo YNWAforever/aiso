@@ -37,6 +37,15 @@ function links(html: string) {
 const render = () => links(renderToStaticMarkup(<DashboardSidebar profile={{}} entitlement={entitlement} />))
 
 describe('dashboard sidebar on the brand portfolio', () => {
+  it('shows and marks Start work current only when enabled inside a brand', () => {
+    nav.params = { lang: 'en', clientId: 'client-1' }
+    nav.pathname = '/en/dashboard/client-1/studio'
+    const enabled = links(renderToStaticMarkup(<DashboardSidebar profile={{}} entitlement={entitlement} conversationStudio />))
+    expect(enabled.find(link => link.label === 'nav_start_work')).toMatchObject({ href: '/en/dashboard/client-1/studio', current: true })
+    expect(render().some(link => link.label === 'nav_start_work')).toBe(false)
+    nav.params = { lang: 'en' }
+    expect(links(renderToStaticMarkup(<DashboardSidebar profile={{}} entitlement={entitlement} conversationStudio />)).some(link => link.label === 'nav_start_work')).toBe(false)
+  })
   it('labels a user without a display name by email rather than a generic "User"', () => {
     const html = renderToStaticMarkup(<DashboardSidebar profile={{ display_name: null, email: 'owner@example.com' }} entitlement={entitlement} />)
     expect(html).toContain('owner@example.com')

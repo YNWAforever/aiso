@@ -21,6 +21,7 @@ interface Props {
   brands: ShellBrand[] | null
   unreadCount: number | null
   features: NavFeatures
+  conversationStudio?: boolean
 }
 
 /**
@@ -28,7 +29,7 @@ interface Props {
  * (⌘K), notifications and help on the right. Everything is derived from the
  * route and lib/dashboard-nav.ts, so it always agrees with the sidebar.
  */
-export function TopBar({ lang, brands, unreadCount, features }: Props) {
+export function TopBar({ lang, brands, unreadCount, features, conversationStudio = false }: Props) {
   const t = useTranslations('dashboard')
   const shell = useTranslations('dashboard.shell')
   const ui = useTranslations('ui')
@@ -54,7 +55,7 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
   }, [paletteLoaded])
   const scanId = params?.scanId ?? searchParams?.get('scanId')
   const scanQuery = scanId ? `?scanId=${encodeURIComponent(scanId)}` : ''
-  const nav = buildDashboardNav({ lang, clientId, features, scanId })
+  const nav = buildDashboardNav({ lang, clientId, features, scanId, conversationStudio })
   const here = locateDashboard(pathname, clientId ? (searchParams?.get('step') ?? 'home') : null)
   const brand = clientId ? brands?.find(b => b.id === clientId) ?? null : null
   const root = `/${lang}/dashboard`
@@ -65,7 +66,7 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
   // Resolve against every section, so a hidden one's pages (Monitor's question
   // bank, observations, …) still get a trail; the hidden section itself gets no
   // crumb, because a link to it would advertise it.
-  const section = buildDashboardNav({ lang, clientId, features, scanId, includeHidden: true }).find(s => s.key === here.section)
+  const section = buildDashboardNav({ lang, clientId, features, scanId, conversationStudio, includeHidden: true }).find(s => s.key === here.section)
   const sectionHidden = !!section && !nav.some(s => s.key === section.key)
   if (section && !(section.key === 'overview' && !here.item)) {
     if (!sectionHidden) crumbs.push({ label: t(section.labelKey), href: section.href })

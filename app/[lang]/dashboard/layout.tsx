@@ -10,6 +10,7 @@ import { TopBar } from '@/components/dashboard/shell/TopBar'
 import { listOwnedBrands, type OwnedBrand } from '@/lib/workspace/list-owned-brands'
 import { getTrialStatus } from '@/lib/trial'
 import { resolveCommercialEntitlement } from '@/lib/tier'
+import { isFeatureEnabled } from '@/lib/flags'
 
 export default async function DashboardLayout({
   children,
@@ -22,6 +23,7 @@ export default async function DashboardLayout({
   const profile = await requireAuth(lang, (await headers()).get(AUTH_RETURN_TO_HEADER) ?? undefined)
   const trial = getTrialStatus(profile.accounts)
   const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const conversationStudio = isFeatureEnabled('conversation_studio')
 
   // The brand is deliberately NOT resolved here. This layout sits at
   // `dashboard/`, so it cannot see the `[clientId]` segment's params — a Next
@@ -60,9 +62,9 @@ export default async function DashboardLayout({
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}
       <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden print:block print:overflow-visible">
-        <DashboardSidebar profile={profile} entitlement={entitlement} />
+        <DashboardSidebar profile={profile} entitlement={entitlement} conversationStudio={conversationStudio} />
         <div className="flex-1 min-w-0 w-full flex flex-col overflow-auto print:block print:overflow-visible">
-          <TopBar lang={lang} brands={brands} unreadCount={unreadCount} features={entitlement.features} />
+          <TopBar lang={lang} brands={brands} unreadCount={unreadCount} features={entitlement.features} conversationStudio={conversationStudio} />
           <ToastProvider>{children}</ToastProvider>
         </div>
       </div>
