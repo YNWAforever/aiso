@@ -54,3 +54,22 @@ it('retrieves Chinese excerpts without claiming a verified answer, even with a l
   // Generous headroom for CI; quadratic code-point conversion froze the UI.
   expect(performance.now() - start).toBeLessThan(2000)
 })
+
+it('reports only the saved composition steps supported by this turn’s inputs and extracts', () => {
+  expect(composeSavedReply('brief', 'brief', emptyStudioEvidence).researchSteps).toEqual([])
+  expect(composeSavedReply('brief', 'brief', { ...emptyStudioEvidence, week: '2026-10-26' }).researchSteps).toEqual([])
+  expect(composeSavedReply('pulse', 'pulse', savedStudioEvidence).researchSteps).toEqual([
+    { kind: 'loadWeek', week: '2026-10-26', count: 1 }, { kind: 'selectRecords' }, { kind: 'composeExtracts' },
+  ])
+  // Selection ran against available records, but no matching extracts were composed.
+  expect(composeSavedReply('unrelated helicopters', null, savedStudioEvidence).researchSteps).toEqual([
+    { kind: 'loadWeek', week: '2026-10-26', count: 1 }, { kind: 'selectRecords' },
+  ])
+  const missingText = structuredClone(savedStudioEvidence)
+  missingText.observations[0].excerpt = null
+  expect(composeSavedReply('pulse', 'pulse', missingText).researchSteps.map(step => step.kind)).toEqual(['loadWeek', 'selectRecords'])
+  expect(composeSavedReply('brief', 'brief', { ...emptyStudioEvidence, scan: savedStudioScan }).researchSteps).toEqual([
+    { kind: 'selectRecords' }, { kind: 'composeExtracts' },
+  ])
+  expect(composeSavedReply('pulse', 'pulse', { ...emptyStudioEvidence, scan: savedStudioScan }).researchSteps).toEqual([])
+})

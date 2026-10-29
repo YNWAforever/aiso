@@ -1,6 +1,6 @@
 {
   "conversationStudio": {
-    "answerLabel": "Fimmick AISO · Answer",
+    "answerLabel": "AISO · Answer",
     "scopeNote": "Evidence scope and limits",
     "localeLabel": "Hong Kong · Traditional Chinese",
     "heroEyebrow": "YOUR BRAND WORKSPACE",
@@ -86,8 +86,8 @@
       "historicalQuote": "Historical model output · Quoted excerpt, not independently verified. Excerpts may be shortened.",
       "answerMissing": "No saved answer text is available.",
       "panelTitle": "Evidence and coverage",
-      "stepsTitle": "Steps",
-      "stepLoad": "Loaded the latest retained Pulse week: {week}; {count} recorded rows in that week.",
+      "stepsTitle": "Research steps",
+      "stepLoad": "Read the page’s loaded Pulse week: {week}; {count} recorded rows in that week.",
       "stepSelect": "Selected template records or keyword-matched excerpts from this brand’s loaded snapshot.",
       "stepCompose": "Composed record extracts locally. No new analysis, search or provider request ran.",
       "boundedScope": "Scope: at most 8 observations from the latest retained canonical Pulse week, up to 900 characters and 5 links per observation, plus the latest owned scan. This is not a complete brand history. Reload to read a newer snapshot.",
@@ -119,7 +119,10 @@
         "missing": "Missing",
         "unsupported": "Unsupported"
       },
-      "scanReplyLabel": "Saved scan evidence · Reply {number}"
+      "scanReplyLabel": "Saved scan evidence · Reply {number}",
+      "noSteps": "No saved records were available to select or extract for this turn.",
+      "open": "View evidence",
+      "savedObservation": "Saved observation"
     },
     "live": {
       "title": "Live answer",
@@ -161,7 +164,8 @@
       "badge": "Stage B2 · Saved evidence + live models",
       "budget": "The selected platforms exceed this request’s call or token budget. Select fewer platforms.",
       "invalid": "The live request was rejected. Use a question up to 1,000 characters and the granted platforms.",
-      "selector": "Live platforms · {count}"
+      "selector": "Live platforms · {count}",
+      "unverifiedTitle": "Live model output · Unverified"
     },
     "heroTitle": "What would you like to accomplish for your brand today?",
     "chooseDocuments": "Choose documents",
@@ -172,7 +176,7 @@
     "continueTitle": "Continue working",
     "discussionTitle": "Discussion",
     "followUpSend": "Send message",
-    "followUpPlaceholder": "Ask a follow-up…",
+    "followUpPlaceholder": "Ask a follow-up, or start a new discussion with selected content…",
     "sources": {
       "bound": "Search Console · Bound",
       "unbound": "Search Console · Not connected",
@@ -188,7 +192,8 @@
     "honesty": {
       "noEstimatedNumbers": "Show “Pending verification” when data is missing; do not fill in estimated figures.",
       "mentionsCoverage": "HK / Traditional Chinese: DataForSEO’s ChatGPT LLM Mentions currently lists US / English coverage only. No Hong Kong ChatGPT score is shown here.",
-      "missingIsNotZero": "Do not count unanswered questions as zero mentions"
+      "missingIsNotZero": "Do not count unanswered questions as zero mentions",
+      "searchDemandPending": "Search demand: pending verification"
     },
     "filters": {
       "all": "All",
@@ -196,7 +201,16 @@
       "improve": "Improve content",
       "monitor": "Monitor performance",
       "report": "Deliver reports"
-    }
+    },
+    "discussionEyebrow": "DISCUSSION / RESEARCH",
+    "briefEyebrow": "CONTENT BRIEF",
+    "threadScope": "Discussion scope",
+    "savedWeek": "Saved week: {week}",
+    "branchBrief": "Start a separate brief discussion",
+    "briefThreadTitle": "Brief · {title}",
+    "briefContextPrompt": "Create a sourced brief for this work goal: {goal}",
+    "briefContext": "Context from: {title}",
+    "briefTemporary": "This is a new temporary discussion. Context stays in this page’s memory; reload clears both discussions. Send the draft to begin."
   },
   "seo": {
     "home": {

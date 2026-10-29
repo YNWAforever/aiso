@@ -1,4 +1,4 @@
-/* Studio chrome and home IA. Every selector and token stays inside Studio. */
+/* Studio chrome, home and discussion. Every selector and token stays inside Studio. */
 #aiso-studio {
   --as-bg: var(--background);
   --as-panel: var(--card);
@@ -77,13 +77,20 @@
 #aiso-studio .as-platform-picker { min-width: 0; max-width: 100%; color: var(--as-muted); font-size: 12px; }
 #aiso-studio .as-platform-picker > summary { min-width: 44px; padding-inline: 8px; border-radius: 8px; }
 #aiso-studio .as-platform-picker fieldset { padding: 8px 0; }
-#aiso-studio .as-conversation { border: 1px solid var(--as-line); border-radius: 12px; background: var(--as-bg); }
+#aiso-studio #studio-discussion { max-width: 880px; margin-inline: auto; }
+#aiso-studio .as-conversation { min-width: 0; }
 #aiso-studio .as-question { border-radius: 10px; background: var(--as-side); }
+#aiso-studio .as-conversation .as-question { margin: 24px 0 0 30px; }
+#aiso-studio .as-answer-label { display: flex; align-items: center; gap: 8px; color: var(--as-blue); font-size: 12px; font-weight: 600; }
+#aiso-studio .as-research { border-block: 1px solid var(--as-line); font-size: 12px; }
+#aiso-studio .as-research > summary { font-weight: 600; }
+#aiso-studio .as-result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #aiso-studio .as-composer { border: 1px solid var(--as-line); border-radius: 16px; padding: 15px; background: var(--as-panel); box-shadow: 0 6px 22px #102a5b06; }
 #aiso-studio textarea { border: 0; border-radius: 8px; padding: 8px 0; background: transparent; color: var(--as-ink); font: inherit; }
 #aiso-studio textarea::placeholder { color: var(--as-muted); opacity: 1; }
 
 #aiso-studio .as-result { border: 1px solid var(--as-line); border-radius: 10px; padding: 15px; background: var(--as-panel); }
+#aiso-studio .as-live-result { border-left: 3px solid var(--as-warn); background: var(--as-side); }
 /* Reuse the shared scan evidence UI, applying the Studio surface only in this scope. */
 #aiso-studio [data-testid="owned-scan-evidence"] { border-color: var(--as-line); border-radius: 10px; padding: 15px; background: var(--as-panel); color: var(--as-ink); }
 #aiso-studio [data-testid="owned-scan-evidence"] h2 { color: var(--as-ink); }

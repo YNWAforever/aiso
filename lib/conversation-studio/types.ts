@@ -18,5 +18,6 @@ export interface StudioReply {
   template: StudioTemplate | null
   observations: StudioObservation[]
   scan: StudioEvidence['scan']
+  researchSteps: ({ kind: 'loadWeek'; week: string; count: number } | { kind: 'selectRecords' | 'composeExtracts' })[]
   coverage: Record<'pulse' | 'citations' | 'scan' | 'live', 'present' | 'missing' | 'unsupported'>
 }
