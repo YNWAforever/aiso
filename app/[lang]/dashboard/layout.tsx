@@ -11,6 +11,7 @@ import { listOwnedBrands, type OwnedBrand } from '@/lib/workspace/list-owned-bra
 import { getTrialStatus } from '@/lib/trial'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { isFeatureEnabled } from '@/lib/flags'
+import { DashboardChrome } from '@/components/dashboard/shell/DashboardChrome'
 
 export default async function DashboardLayout({
   children,
@@ -56,18 +57,16 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden print:h-auto print:overflow-visible print:bg-white">
+    <ToastProvider>
       <SessionRefresh />
-      {entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
+      <DashboardChrome conversationStudio={conversationStudio}
+      banner={entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}
-      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden print:block print:overflow-visible">
-        <DashboardSidebar profile={profile} entitlement={entitlement} conversationStudio={conversationStudio} />
-        <div className="flex-1 min-w-0 w-full flex flex-col overflow-auto print:block print:overflow-visible">
-          <TopBar lang={lang} brands={brands} unreadCount={unreadCount} features={entitlement.features} conversationStudio={conversationStudio} />
-          <ToastProvider>{children}</ToastProvider>
-        </div>
-      </div>
-    </div>
+      sidebar={<DashboardSidebar profile={profile} entitlement={entitlement} conversationStudio={conversationStudio} />}
+      topbar={<TopBar lang={lang} brands={brands} unreadCount={unreadCount} features={entitlement.features} conversationStudio={conversationStudio} />}>
+        {children}
+      </DashboardChrome>
+    </ToastProvider>
   )
 }

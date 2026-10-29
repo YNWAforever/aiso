@@ -28,6 +28,7 @@ export async function prepareComponentFixtures(root, environment = process.env, 
   files.push('__tests__/components/admin-directory.test.tsx')
   files.push('__tests__/components/suggest-questions-panel.test.tsx')
   files.push('__tests__/components/conversation-studio.test.tsx')
+  files.push('__tests__/components/studio-shell-fixture.test.tsx')
   const result = run(process.execPath,[join(root,'node_modules/vitest/vitest.mjs'),'run',...files,'--maxWorkers=1'],{cwd:root,env,stdio:'inherit'})
   if(result.error || result.status !== 0) throw new Error('Component fixture renderer failed')
 }

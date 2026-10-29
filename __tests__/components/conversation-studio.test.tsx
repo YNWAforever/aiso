@@ -147,6 +147,10 @@ afterAll(async () => {
   if (!directory) return
   mkdirSync(directory, { recursive: true })
   const entry = join(resolve(directory), 'entry.tsx')
+  // Standalone fixture has no Next router. Internal Studio links are exercised
+  // by studio-shell-fixture with its navigation transport.
+  const link = join(resolve(directory), 'standalone-link.tsx')
+  writeFileSync(link, `import React from 'react';export default function Link({prefetch,...props}){return <a {...props}/>}`)
   writeFileSync(entry, `import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {NextIntlClientProvider} from 'next-intl';
@@ -161,9 +165,10 @@ const live=params.has('live')?{cap:Number(params.get('live')),platforms:params.h
 createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand',clientId:'11111111-1111-4111-8111-111111111111',evidence,live,inspector,sourceStatus:params.has('reads')?'bound':'unavailable'})));`)
   await build({
     configFile: false, envDir: false, oxc: { jsx: { development: false } },
-    resolve: { alias: { '@': resolve('.') } },
+    resolve: { alias: { 'next/link': link, '@': resolve('.') } },
     define: { 'process.env.NODE_ENV': '"production"' },
     build: { outDir: resolve(directory), emptyOutDir: false, lib: { entry, name: 'StudioFixture', formats: ['iife'], fileName: () => 'fixture.js' } },
   })
   unlinkSync(entry)
+  unlinkSync(link)
 })
