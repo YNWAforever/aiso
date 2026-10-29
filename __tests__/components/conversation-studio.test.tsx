@@ -24,6 +24,22 @@ it.each(['en', 'zh-HK'])('renders saved-evidence scope with templates, composer 
   for (const key of STUDIO_TEMPLATES) expect(html).toContain(copy.templates[key].label)
   expect(html).not.toContain('<form action=')
 })
+it.each(['en', 'zh-HK'])('starts on home with six tasks, five filters and no conversation log in %s', lang => {
+  const html = renderWithIntl(<ConversationStudio brandName="Example Brand" evidence={emptyStudioEvidence} />, lang)
+  expect(html).not.toContain('role="log"')
+  expect(html.match(/class="as-template /g)).toHaveLength(6)
+  expect(html.match(/aria-pressed="(?:true|false)"/g)).toHaveLength(5)
+  expect(html).toContain('disabled=""') // document attachment stays held
+  expect(html).not.toMatch(/Harbour Home|Harbour Tea|WI-DEMO/)
+})
+it.each(['bound', 'unbound', 'reconnect', 'rebind', 'unavailable'] as const)('renders the supplied GSC %s status without pretending a query ran', sourceStatus => {
+  for (const lang of ['en', 'zh-HK']) {
+    const copy = (lang === 'en' ? en : zh).conversationStudio
+    const html = renderWithIntl(<ConversationStudio brandName="Example Brand" evidence={emptyStudioEvidence} sourceStatus={sourceStatus} />, lang)
+    expect(html).toContain(copy.sources[sourceStatus])
+    expect(html).toContain(copy.sources.notQueried)
+  }
+})
 it.each(['en', 'zh-HK'])('renders insufficient and evidenced replies with honest coverage and real sources in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio.evidence
   const empty = renderWithIntl(<StudioReplyView id="empty" evidence={emptyStudioEvidence} reply={composeSavedReply('question', null, emptyStudioEvidence)} />, lang)

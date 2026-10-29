@@ -1,4 +1,18 @@
 {
+  "naming": [
+    {
+      "locale": "en",
+      "key": "conversationStudio.savedDataLabel",
+      "text": "Data saved in AISO",
+      "reason": "Exact Stage 2 source-bar shorthand required by the approved concept STRINGS and brief; product naming elsewhere remains Fimmick AISO."
+    },
+    {
+      "locale": "zh-HK",
+      "key": "conversationStudio.savedDataLabel",
+      "text": "AISO 已保存資料",
+      "reason": "Exact Stage 2 source-bar shorthand required by the approved concept STRINGS and brief; product naming elsewhere remains Fimmick AISO."
+    }
+  ],
   "hardcoded": [
     {
       "text": "English",

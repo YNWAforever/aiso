@@ -1,4 +1,4 @@
-/* Stage 1 chrome only. Every selector and token stays inside the existing Studio. */
+/* Studio chrome and home IA. Every selector and token stays inside Studio. */
 #aiso-studio {
   --as-bg: var(--background);
   --as-panel: var(--card);
@@ -59,6 +59,24 @@
 
 #aiso-studio .as-template { min-height: 44px; border: 1px solid var(--as-line); border-radius: 11px; padding: 15px; background: var(--as-panel); }
 #aiso-studio .as-template:hover { border-color: var(--as-blue); background: var(--as-soft); }
+#aiso-studio .as-home { max-width: 880px; margin-inline: auto; }
+#aiso-studio .as-section-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+#aiso-studio .as-template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#aiso-studio .as-template { min-width: 0; overflow-wrap: anywhere; }
+#aiso-studio .as-filters { display: flex; flex-wrap: wrap; gap: 4px; }
+#aiso-studio .as-filter { min-height: 44px; min-width: 44px; padding: 8px 12px; border-radius: 6px; color: var(--as-muted); }
+#aiso-studio .as-filter:hover { background: var(--as-soft); }
+#aiso-studio .as-filter[aria-pressed="true"] { background: var(--as-ink); color: var(--as-panel); }
+#aiso-studio .as-source-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 12px; color: var(--as-muted); }
+#aiso-studio .as-source-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--as-blue); }
+#aiso-studio .as-source-status { color: var(--as-warn); }
+#aiso-studio .as-continue-list > li + li { border-top: 1px solid var(--as-line); }
+#aiso-studio .as-continue-list .as-thread { padding: 12px 4px; }
+#aiso-studio .as-composer-footer { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+#aiso-studio .as-composer-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+#aiso-studio .as-platform-picker { min-width: 0; max-width: 100%; color: var(--as-muted); font-size: 12px; }
+#aiso-studio .as-platform-picker > summary { min-width: 44px; padding-inline: 8px; border-radius: 8px; }
+#aiso-studio .as-platform-picker fieldset { padding: 8px 0; }
 #aiso-studio .as-conversation { border: 1px solid var(--as-line); border-radius: 12px; background: var(--as-bg); }
 #aiso-studio .as-question { border-radius: 10px; background: var(--as-side); }
 #aiso-studio .as-composer { border: 1px solid var(--as-line); border-radius: 16px; padding: 15px; background: var(--as-panel); box-shadow: 0 6px 22px #102a5b06; }
@@ -88,4 +106,6 @@
   #aiso-studio { padding: 20px 16px; }
   #aiso-studio h1 { font-size: 26px; }
   #aiso-studio textarea { font-size: 16px; }
+  #aiso-studio .as-template-grid { grid-template-columns: minmax(0, 1fr); }
+  #aiso-studio .as-composer-footer > .as-primary { margin-left: auto; }
 }

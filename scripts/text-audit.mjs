@@ -198,7 +198,9 @@ function naming() {
   const findings = []
   for (const [locale, catalogue] of [['en', en], ['zh-HK', zh]]) {
     for (const [key, text] of Object.entries(catalogue)) {
-      if (OLD_NAME.test(text) || text.match(SHORT_NAME)) findings.push({ where: `${locale} ${key}`, text })
+      // Only exact, approved copy exceptions; a key alone never exempts a rename.
+      const approved = allowlist.naming?.some(entry => entry.locale === locale && entry.key === key && entry.text === text)
+      if (OLD_NAME.test(text) || (text.match(SHORT_NAME) && !approved)) findings.push({ where: `${locale} ${key}`, text })
     }
   }
   for (const file of SOURCE_DIRS.filter(dir => existsSync(join(ROOT, dir))).flatMap(dir => sourceFiles(join(ROOT, dir)))) {

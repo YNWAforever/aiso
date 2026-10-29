@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -84,5 +84,26 @@ describe('text audit', () => {
     expect(result.status).toBe(1)
     for (const where of ['en old', 'zh-HK old', 'en bare', 'zh-HK bare', 'lib/mail.ts:1']) expect(result.stdout).toContain(`naming        ${where} `)
     for (const where of ['en score', 'en full', 'zh-HK score', 'lib/mail.ts:2', 'lib/mail.ts:3']) expect(result.stdout).not.toContain(`naming        ${where} `)
+  })
+
+  it('permits only the exact approved Studio source-bar shorthand', () => {
+    const allowlist = readFileSync('scripts/text-audit-allowlist.json', 'utf8')
+    const result = audit({
+      ...catalogue(
+        { conversationStudio: { savedDataLabel: 'Data saved in AISO' }, other: 'Data saved in AISO' },
+        { conversationStudio: { savedDataLabel: 'AISO 已保存資料' }, other: 'AISO 已保存資料' },
+      ),
+      'scripts/text-audit-allowlist.json': allowlist,
+    })
+    expect(result.stdout).not.toContain('naming        en conversationStudio.savedDataLabel ')
+    expect(result.stdout).not.toContain('naming        zh-HK conversationStudio.savedDataLabel ')
+    expect(result.stdout).toContain('naming        en other ')
+    expect(result.stdout).toContain('naming        zh-HK other ')
+    const changed = audit({
+      ...catalogue({ conversationStudio: { savedDataLabel: 'AISO will do everything' } }, { conversationStudio: { savedDataLabel: 'AISO 會完成所有工作' } }),
+      'scripts/text-audit-allowlist.json': allowlist,
+    })
+    expect(changed.stdout).toContain('naming        en conversationStudio.savedDataLabel ')
+    expect(changed.stdout).toContain('naming        zh-HK conversationStudio.savedDataLabel ')
   })
 })
