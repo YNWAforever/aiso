@@ -2,7 +2,7 @@ import { afterAll, expect, it } from 'vitest'
 import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { build } from 'vite'
-import { ConversationStudio } from '@/components/dashboard/ConversationStudio'
+import { ConversationStudio, StudioThreadHeader } from '@/components/dashboard/ConversationStudio'
 import { renderWithIntl } from '@/__tests__/helpers/intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
@@ -54,12 +54,39 @@ it.each(['en', 'zh-HK'])('renders insufficient and evidenced replies with honest
   expect(html).toContain('https://example.com/bread')
   expect(html).toContain(savedStudioEvidence.observations[0].id)
   expect(html).toContain('2026-10-27T03:00:00Z')
+  expect(html).toContain('<h3>Which bakery offers sourdough?</h3>')
+  expect(html).toContain(copy.open)
+  const research = html.match(/<details class="as-research">(.*?)<\/details>/s)![1]
+  expect(research).toContain(copy.stepsTitle)
+  expect(research.match(/<li>/g)).toHaveLength(3)
+  expect(research).not.toMatch(/DataForSEO|Firecrawl|GSC/)
+  const emptyResearch = empty.match(/<details class="as-research">(.*?)<\/details>/s)![1]
+  expect(emptyResearch).toContain(copy.noSteps)
+  expect(emptyResearch).not.toContain('<li>')
   expect(html).not.toContain('Live answers with evidence are coming in Stage B')
   const scanData = { ...emptyStudioEvidence, scan: savedStudioScan }
   const scanHtml = renderWithIntl(<StudioReplyView id="scan" evidence={scanData} reply={composeSavedReply('brief', 'brief', scanData)} />, lang)
   expect(scanHtml).toContain('owned-scan-evidence')
   expect(scanHtml).toContain(savedStudioScan!.id)
   expect(scanHtml).toContain('c1_robots')
+  expect(scanHtml.match(/<details class="as-research">(.*?)<\/details>/s)![1]).not.toContain('2026-10-26')
+})
+
+it.each(['en', 'zh-HK'])('renders thread scope and brief context without invented dates or documents in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const thread = { title: 'Source goal', goal: 'Original question', kind: 'research' as const, week: '2026-10-26' }
+  const html = renderWithIntl(<StudioThreadHeader thread={thread} onHome={() => {}} />, lang)
+  expect(html).toContain(copy.discussionEyebrow)
+  expect(html).toContain('<h1 class="[overflow-wrap:anywhere]">Source goal</h1>')
+  expect(html).toContain(copy.localeBadge)
+  expect(html).toContain(copy.savedWeek.replace('{week}', thread.week))
+  expect(html).not.toMatch(/28 days|產品資料|Selected documents/)
+  const brief = renderWithIntl(<StudioThreadHeader thread={{ ...thread, kind: 'brief', week: null, sourceTitle: 'Source discussion' }} onHome={() => {}} />, lang)
+  expect(brief).toContain(copy.briefEyebrow)
+  expect(brief).toContain('Original question')
+  expect(brief).toContain('Source discussion')
+  expect(brief).toContain(copy.briefTemporary)
+  expect(brief).not.toContain('2026-10-26')
 })
 
 it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified output in %s', lang => {
@@ -77,6 +104,8 @@ it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified
     citations: [{ url: 'javascript:alert(1)', title: 'Unsafe' }, { url: 'https://source.example/', title: 'Source' }],
   }] }} />, lang)
   expect(html).toContain(copy.unverified)
+  expect(html).toContain(copy.unverifiedTitle)
+  expect(html).toContain('as-live-result')
   expect(html).toContain(copy.searchUnknown)
   expect(html).toContain('mock-model')
   expect(html).toContain('length')

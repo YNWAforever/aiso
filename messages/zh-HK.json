@@ -1,6 +1,6 @@
 {
   "conversationStudio": {
-    "answerLabel": "Fimmick AISO · 回答",
+    "answerLabel": "AISO · 回答",
     "scopeNote": "證據範圍與限制",
     "localeLabel": "香港 · 繁體中文",
     "heroEyebrow": "品牌工作室",
@@ -86,8 +86,8 @@
       "historicalQuote": "歷史模型輸出 · 引用摘錄，未經獨立核實；摘錄可能已截短。",
       "answerMissing": "未有可用的已儲存答案文字。",
       "panelTitle": "證據及涵蓋範圍",
-      "stepsTitle": "步驟",
-      "stepLoad": "已載入最近保留的 Pulse 週次：{week}；該週有 {count} 筆紀錄。",
+      "stepsTitle": "研究步驟",
+      "stepLoad": "讀取本頁已載入的 Pulse 週次：{week}；該週有 {count} 筆紀錄。",
       "stepSelect": "從此品牌已載入的快照中，選取範本紀錄或關鍵字相符摘錄。",
       "stepCompose": "在本頁整理紀錄摘錄，沒有執行新分析、搜尋或供應商請求。",
       "boundedScope": "範圍：最近保留的正式 Pulse 週次最多 8 則觀察，每則最多 900 字元及 5 個連結，另附最近一次屬於此帳戶的掃描。這並非品牌完整歷史；重新載入可讀取更新快照。",
@@ -119,7 +119,10 @@
         "missing": "缺失",
         "unsupported": "不支援"
       },
-      "scanReplyLabel": "已儲存掃描證據 · 第 {number} 則回覆"
+      "scanReplyLabel": "已儲存掃描證據 · 第 {number} 則回覆",
+      "noSteps": "本次未有可供選取或整理摘錄的已儲存紀錄。",
+      "open": "查看證據",
+      "savedObservation": "已儲存觀察"
     },
     "live": {
       "title": "即時回答",
@@ -161,7 +164,8 @@
       "badge": "Stage B2 · 已儲存證據及即時模型",
       "budget": "所選平台超出本次請求的呼叫或 token 預算，請減少所選平台。",
       "invalid": "即時請求被拒絕。請使用最多 1,000 字元的問題及已授權平台。",
-      "selector": "即時平台 · {count}"
+      "selector": "即時平台 · {count}",
+      "unverifiedTitle": "即時模型輸出 · 未經核實"
     },
     "heroTitle": "今日想為品牌完成甚麼？",
     "chooseDocuments": "選文件",
@@ -172,7 +176,7 @@
     "continueTitle": "繼續工作",
     "discussionTitle": "討論",
     "followUpSend": "傳送訊息",
-    "followUpPlaceholder": "繼續追問…",
+    "followUpPlaceholder": "繼續追問，或把選定內容另開討論…",
     "sources": {
       "bound": "Search Console · 已綁定",
       "unbound": "Search Console · 未連接",
@@ -188,7 +192,8 @@
     "honesty": {
       "noEstimatedNumbers": "缺少資料時顯示「待核實」，不填入推算數字。",
       "mentionsCoverage": "HK／繁中：DataForSEO 的 ChatGPT LLM Mentions 目前只標示美國／英文覆蓋，此處不顯示香港 ChatGPT 分數。",
-      "missingIsNotZero": "不將沒有回應的問題計作零提及"
+      "missingIsNotZero": "不將沒有回應的問題計作零提及",
+      "searchDemandPending": "搜尋需求：待核實"
     },
     "filters": {
       "all": "全部",
@@ -196,7 +201,16 @@
       "improve": "改善內容",
       "monitor": "觀察成效",
       "report": "交付報告"
-    }
+    },
+    "discussionEyebrow": "DISCUSSION / RESEARCH",
+    "briefEyebrow": "CONTENT BRIEF",
+    "threadScope": "討論範圍",
+    "savedWeek": "已儲存週次：{week}",
+    "branchBrief": "另開 brief 討論",
+    "briefThreadTitle": "brief · {title}",
+    "briefContextPrompt": "請根據這個工作目標建立有來源的 brief：{goal}",
+    "briefContext": "承接討論：{title}",
+    "briefTemporary": "這是一個新的暫存討論。上下文只保留在本頁記憶體，重新整理會清除兩個討論。傳送草稿後才開始。"
   },
   "seo": {
     "home": {

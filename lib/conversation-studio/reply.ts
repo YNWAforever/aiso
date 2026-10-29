@@ -22,10 +22,16 @@ export function composeSavedReply(prompt: string, template: StudioTemplate | nul
   const scan = template === 'brief' || template === 'report' ? data.scan : null
   const usablePulse = observations.some(item => item.result === 'success' && !!item.excerpt)
   const usableScan = scan?.evidence.checks.some(check => check.collection === 'complete' && ['pass', 'warn', 'fail'].includes(check.assessment)) ?? false
+  // Describe this local composition only. The page loaded the snapshot earlier;
+  // neither a missing week nor an empty selection is a completed extraction.
+  const researchSteps: StudioReply['researchSteps'] = []
+  if (data.week && data.observations.length) researchSteps.push({ kind: 'loadWeek', week: data.week, count: data.totalRecorded })
+  if (data.observations.length || scan) researchSteps.push({ kind: 'selectRecords' })
+  if (observations.some(item => item.excerpt) || scan?.evidence.checks.length) researchSteps.push({ kind: 'composeExtracts' })
   return {
     // Arbitrary questions and verified comparisons need assessment beyond B1's extracts.
     status: template && template !== 'competitors' && (usablePulse || usableScan) ? 'evidenced' : 'insufficient',
-    template, observations, scan,
+    template, observations, scan, researchSteps,
     coverage: {
       pulse: observations.length ? 'present' : 'missing',
       citations: observations.some(item => item.links.some(link => link.kind === 'provider-citation')) ? 'present' : 'missing',

@@ -2,8 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Activity, ArrowLeft, ArrowUpRight, FilePenLine, FileText, Globe2, Lock, NotebookPen, Paperclip, ScanSearch, Search, Send } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Activity, ArrowLeft, ArrowUpRight, FilePenLine, FileText, Globe2, Lock, NotebookPen, Paperclip, ScanSearch, Search, Send, Sparkles } from 'lucide-react'
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
 import { type StudioEvidence, type StudioReply } from '@/lib/conversation-studio/types'
 import { StudioReplyView } from './StudioReply'
@@ -15,7 +14,21 @@ import './conversation-studio.css'
 const templateIcons = { opportunity: Search, improve: FilePenLine, brief: NotebookPen, competitors: ScanSearch, pulse: Activity, report: FileText }
 
 type StudioTurn = { id: number; prompt: string; reply: StudioReply; task: StudioHomeTemplate | null; live?: { pending?: boolean; reply?: StudioLiveReply; error?: string } }
-type StudioThread = { id: number; turns: StudioTurn[]; draft: string; template: StudioHomeTemplate | null }
+type StudioThread = { id: number; title: string; goal: string; week: string | null; kind: 'research' | 'brief'; sourceTitle?: string; turns: StudioTurn[]; draft: string; template: StudioHomeTemplate | null }
+
+export function StudioThreadHeader({ thread, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle'>; onHome: () => void }) {
+  const t = useTranslations('conversationStudio')
+  return <header className="space-y-3">
+    <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
+    <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><span className="as-badge">{t('privateLabel')}</span></div>
+    <h1 className="[overflow-wrap:anywhere]">{thread.title}</h1>
+    <div className="flex flex-wrap gap-2" aria-label={t('threadScope')}>
+      <span className="as-badge">{t('localeBadge')}</span>
+      {thread.week && <span className="as-badge">{t('savedWeek', { week: thread.week })}</span>}
+    </div>
+    {thread.sourceTitle && <div className="as-note space-y-1 [overflow-wrap:anywhere]"><p>{t('briefContext', { title: thread.sourceTitle })}</p><p>{thread.goal}</p><p>{t('briefTemporary')}</p></div>}
+  </header>
+}
 
 /** Saved evidence is local; the optional B2 transport sends one question only. */
 export function ConversationStudio({ brandName, evidence, clientId, live, sourceStatus = 'unavailable' }: { brandName: string; evidence: StudioEvidence; clientId?: string; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus }) {
@@ -47,6 +60,13 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
   function openHome() { focusAfterNavigation.current = true; setActiveId(null) }
   function openThread(id: number) { focusAfterNavigation.current = true; setActiveId(id) }
 
+  function branchBrief(source: StudioThread) {
+    const id = nextId.current++
+    // A new editable draft, with no synthetic turn, transport or persistence.
+    setThreads(previous => [{ id, title: t('briefThreadTitle', { title: source.title }), goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: t('briefContextPrompt', { goal: source.goal }), template: 'brief' }, ...previous])
+    openThread(id)
+  }
+
   function updateDraft(value: string, template: StudioHomeTemplate | null = null) {
     if (activeId === null) { setNewDraft(value); setNewTemplate(template) }
     else setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, draft: value, template } : thread))
@@ -64,7 +84,7 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
     } else {
-      setThreads(previous => [{ id, turns: [turn], draft: '', template: null }, ...previous])
+      setThreads(previous => [{ id, title: task ? t(`templates.${task}.label`) : prompt, goal: prompt, week: evidence.week, kind: task === 'brief' ? 'brief' : 'research', turns: [turn], draft: '', template: null }, ...previous])
       openThread(id)
       setNewDraft('')
       setNewTemplate(null)
@@ -169,7 +189,7 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
           {threads.length === 0 ? <p className="as-muted">{t('threadsEmpty')}</p> : <ul className="as-continue-list">
             {threads.map(thread => <li key={thread.id}>
               <button type="button" onClick={() => openThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">
-                <span className="min-w-0"><span className="block truncate">{thread.turns[0].prompt}</span><span className="as-muted as-small">{t('privateLabel')}</span></span>
+                <span className="min-w-0"><span className="block truncate">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span><span className="as-muted as-small">{t('privateLabel')}</span></span>
                 <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
               </button>
             </li>)}
@@ -177,26 +197,24 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
         </section>
         {scopeNote}
       </div> : <div id="studio-discussion" className="space-y-5">
-        <header className="space-y-3">
-          <button type="button" onClick={openHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
-          <p className="as-eyebrow">{t('discussionTitle')}</p>
-          <h1 className="[overflow-wrap:anywhere]">{current.turns[0].prompt}</h1>
-          <span className="as-badge">{t('privateLabel')}</span>
-        </header>
+        <StudioThreadHeader thread={current} onHome={openHome} />
         <h2 className="sr-only">{t('conversationLabel')}</h2>
-        <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-4 p-4 sm:p-5">
-          {current.turns.map(({ id, prompt, reply, task, live: liveTurn }, index) => <div key={id} className="space-y-3">
+        <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
+          {current.turns.map(({ id, prompt, reply, task, live: liveTurn }, index) => <div key={id} className="space-y-5">
             <div className="as-question p-4">
               <p className="as-muted as-small mb-2 font-semibold">{t('youLabel')}</p>
               <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{prompt}</p>
             </div>
+            <div className="as-answer space-y-3">
+            <p className="as-answer-label"><Sparkles className="size-4" aria-hidden="true" />{t('answerLabel')}</p>
             {task && <div className="as-note space-y-1">
               <p>{t(`templates.${task}.limit`)}</p>
               {basePath && HOME_TASKS[task].destination && <a href={`${basePath}/${HOME_TASKS[task].destination}`} className="gap-2 underline">{t(`destinations.${HOME_TASKS[task].destination}`)}<ArrowUpRight className="size-4" aria-hidden="true" /></a>}
             </div>}
-            <div className={cn('min-w-0', liveTurn && 'grid gap-4 xl:grid-cols-2')}>
-              <StudioReplyView reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} />
+            <div className="min-w-0 space-y-4">
+              <StudioReplyView reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} onBranchBrief={() => branchBrief(current)} />
               {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} />}
+            </div>
             </div>
           </div>)}
         </div>

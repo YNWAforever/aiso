@@ -4,10 +4,9 @@ import { safeEvidenceUrl } from '@/lib/pulse/provider-citations'
 
 export function StudioLiveReplyView({ reply, pending, error, number = 1 }: { reply?: StudioLiveReply; pending?: boolean; error?: string; number?: number }) {
   const t = useTranslations('conversationStudio.live')
-  const studio = useTranslations('conversationStudio')
-  return <section aria-label={t('replyLabel', { number })} className="as-result min-w-0 space-y-3 [overflow-wrap:anywhere]">
-    <p className="as-result-kicker">{studio('answerLabel')}</p>
-    <h3>{t('title')}</h3>
+  return <section aria-label={t('replyLabel', { number })} className="as-result as-live-result min-w-0 space-y-3 [overflow-wrap:anywhere]">
+    <p className="as-result-kicker">{t('title')}</p>
+    <h3>{t('unverifiedTitle')}</h3>
     <p className="as-note">{t('unverified')}</p>
     {pending && <p role="status">{t('pending')}</p>}
     {error && <p role="alert" className="as-note">{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : 'unavailable')}</p>}

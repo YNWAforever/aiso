@@ -106,4 +106,25 @@ describe('text audit', () => {
     expect(changed.stdout).toContain('naming        en conversationStudio.savedDataLabel ')
     expect(changed.stdout).toContain('naming        zh-HK conversationStudio.savedDataLabel ')
   })
+
+  it('permits only the exact Stage 3 answer label at its approved key', () => {
+    const allowlist = readFileSync('scripts/text-audit-allowlist.json', 'utf8')
+    const result = audit({
+      ...catalogue(
+        { conversationStudio: { answerLabel: 'AISO · Answer' }, other: 'AISO · Answer' },
+        { conversationStudio: { answerLabel: 'AISO · 回答' }, other: 'AISO · 回答' },
+      ),
+      'scripts/text-audit-allowlist.json': allowlist,
+    })
+    expect(result.stdout).not.toContain('naming        en conversationStudio.answerLabel ')
+    expect(result.stdout).not.toContain('naming        zh-HK conversationStudio.answerLabel ')
+    expect(result.stdout).toContain('naming        en other ')
+    expect(result.stdout).toContain('naming        zh-HK other ')
+    const changed = audit({
+      ...catalogue({ conversationStudio: { answerLabel: 'AISO will answer everything' } }, { conversationStudio: { answerLabel: 'AISO 會回答所有問題' } }),
+      'scripts/text-audit-allowlist.json': allowlist,
+    })
+    expect(changed.stdout).toContain('naming        en conversationStudio.answerLabel ')
+    expect(changed.stdout).toContain('naming        zh-HK conversationStudio.answerLabel ')
+  })
 })

@@ -11,6 +11,18 @@
       "key": "conversationStudio.savedDataLabel",
       "text": "AISO 已保存資料",
       "reason": "Exact Stage 2 source-bar shorthand required by the approved concept STRINGS and brief; product naming elsewhere remains Fimmick AISO."
+    },
+    {
+      "locale": "en",
+      "key": "conversationStudio.answerLabel",
+      "text": "AISO · Answer",
+      "reason": "Exact Stage 3 answer chrome required by the approved brief and STRINGS product override; all other product naming remains Fimmick AISO."
+    },
+    {
+      "locale": "zh-HK",
+      "key": "conversationStudio.answerLabel",
+      "text": "AISO · 回答",
+      "reason": "Exact Stage 3 answer chrome required by the approved brief and STRINGS product override; all other product naming remains Fimmick AISO."
     }
   ],
   "hardcoded": [
