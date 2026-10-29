@@ -1,5 +1,9 @@
 {
   "conversationStudio": {
+    "answerLabel": "Fimmick AISO · 回答",
+    "scopeNote": "證據範圍與限制",
+    "localeLabel": "香港 · 繁體中文",
+    "heroEyebrow": "品牌工作室",
     "title": "開始工作",
     "description": "檢視已儲存的品牌證據。選擇摘要範本，或輸入問題搜尋相關摘錄。",
     "threadsTitle": "對話列表",
@@ -7,12 +11,12 @@
     "threadsEmpty": "暫存對話會顯示在這裡。",
     "privateLabel": "預設私人 · 暫存",
     "privacyBody": "訊息只暫存在此頁面的記憶體，離開或重新整理後便會消失。儲存、分享及私人存取權限功能將於日後提供。",
-    "templatesTitle": "從範本開始",
+    "templatesTitle": "從一個任務開始",
     "conversationLabel": "品牌證據對話",
     "emptyTitle": "你想處理甚麼工作？",
     "emptyBody": "範本會整理已儲存紀錄。自訂問題會顯示相關摘錄；證據不足時會清楚說明。",
     "youLabel": "你",
-    "composerLabel": "你的訊息",
+    "composerLabel": "你的工作目標",
     "composerPlaceholder": "寫下有關品牌的問題…",
     "composerHelp": "按 Enter 換行。傳送只會讀取已載入的快照，不會發出網絡請求。",
     "send": "傳送訊息",
@@ -21,19 +25,27 @@
     "templates": {
       "brief": {
         "label": "附來源的品牌摘要",
-        "prompt": "根據已儲存的 Pulse 觀察及掃描證據整理品牌摘要，列出來源及資料缺口。"
+        "prompt": "根據已儲存的 Pulse 觀察及掃描證據整理品牌摘要，列出來源及資料缺口。",
+        "description": "整理已儲存的品牌觀察與來源，清楚標示缺口。",
+        "output": "已儲存證據 → brief 摘要"
       },
       "competitors": {
         "label": "競爭對手證據",
-        "prompt": "檢視可用於競爭對手比較的已儲存證據及引用，說明哪些部分未能可靠比較。"
+        "prompt": "檢視可用於競爭對手比較的已儲存證據及引用，說明哪些部分未能可靠比較。",
+        "description": "檢視已儲存回答與引用，保留比較限制。",
+        "output": "已儲存觀察 → 比較參考"
       },
       "pulse": {
         "label": "已儲存的 Pulse 觀察",
-        "prompt": "整理已儲存的 Pulse 觀察、日期、引用及涵蓋範圍限制。"
+        "prompt": "整理已儲存的 Pulse 觀察、日期、引用及涵蓋範圍限制。",
+        "description": "查看已保存的觀察、引用及未完成的測試。",
+        "output": "已儲存觀察 → 涵蓋範圍摘要"
       },
       "report": {
         "label": "附來源的報告草稿",
-        "prompt": "根據已儲存觀察及掃描證據整理報告草稿，附上引用並清楚標示缺失的證據。"
+        "prompt": "根據已儲存觀察及掃描證據整理報告草稿，附上引用並清楚標示缺失的證據。",
+        "description": "整理已儲存觀察與掃描證據，供審閱摘錄。",
+        "output": "已儲存證據 → 報告草稿"
       }
     },
     "savedBadge": "階段 B1 · 已儲存證據",
