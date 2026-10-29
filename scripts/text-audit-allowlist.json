@@ -23,6 +23,30 @@
       "key": "conversationStudio.answerLabel",
       "text": "AISO · 回答",
       "reason": "Exact Stage 3 answer chrome required by the approved brief and STRINGS product override; all other product naming remains Fimmick AISO."
+    },
+    {
+      "locale": "en",
+      "key": "conversationStudio.nav.tools",
+      "text": "All AISO tools",
+      "reason": "Exact Stage 5 sidebar/tools name in the approved owner brief and STRINGS."
+    },
+    {
+      "locale": "zh-HK",
+      "key": "conversationStudio.nav.tools",
+      "text": "全部 AISO 工具",
+      "reason": "Exact Stage 5 sidebar/tools name in the approved owner brief and STRINGS."
+    },
+    {
+      "locale": "en",
+      "key": "conversationStudio.brandMark",
+      "text": "AISO",
+      "reason": "Exact Stage 5 AISO BY FIMMICK brand lockup in the approved brief."
+    },
+    {
+      "locale": "zh-HK",
+      "key": "conversationStudio.brandMark",
+      "text": "AISO",
+      "reason": "Exact Stage 5 AISO BY FIMMICK brand lockup in the approved brief."
     }
   ],
   "hardcoded": [
@@ -109,6 +133,18 @@
     {
       "key": "generatedWork.fileFaq",
       "reason": "a technical format name (FAQ JSON-LD), the same in both languages"
+    },
+    {
+      "key": "conversationStudio.brandMark",
+      "reason": "Approved fixed brand lockup or Google product name, identical in both locales."
+    },
+    {
+      "key": "conversationStudio.brandAttribution",
+      "reason": "Approved fixed brand lockup or Google product name, identical in both locales."
+    },
+    {
+      "key": "conversationStudio.connections.searchConsoleTitle",
+      "reason": "Approved fixed brand lockup or Google product name, identical in both locales."
     }
   ],
   "claimRules": [

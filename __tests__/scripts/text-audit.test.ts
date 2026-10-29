@@ -107,6 +107,30 @@ describe('text audit', () => {
     expect(changed.stdout).toContain('naming        zh-HK conversationStudio.savedDataLabel ')
   })
 
+  it('permits only the exact Stage 5 brand lockup and tools label at approved keys', () => {
+    const allowlist = readFileSync('scripts/text-audit-allowlist.json', 'utf8')
+    const result = audit({
+      ...catalogue(
+        { conversationStudio: { brandMark: 'AISO', nav: { tools: 'All AISO tools' } }, other: 'All AISO tools' },
+        { conversationStudio: { brandMark: 'AISO', nav: { tools: '全部 AISO 工具' } }, other: '全部 AISO 工具' },
+      ),
+      'scripts/text-audit-allowlist.json': allowlist,
+    })
+    for (const locale of ['en', 'zh-HK']) {
+      expect(result.stdout).not.toContain(`naming        ${locale} conversationStudio.brandMark `)
+      expect(result.stdout).not.toContain(`naming        ${locale} conversationStudio.nav.tools `)
+      expect(result.stdout).toContain(`naming        ${locale} other `)
+    }
+    const changed = audit({
+      ...catalogue({ conversationStudio: { brandMark: 'AISO magic', nav: { tools: 'AISO does everything' } } }, { conversationStudio: { brandMark: 'AISO 魔法', nav: { tools: 'AISO 無所不能' } } }),
+      'scripts/text-audit-allowlist.json': allowlist,
+    })
+    for (const locale of ['en', 'zh-HK']) {
+      expect(changed.stdout).toContain(`naming        ${locale} conversationStudio.brandMark `)
+      expect(changed.stdout).toContain(`naming        ${locale} conversationStudio.nav.tools `)
+    }
+  })
+
   it('permits only the exact Stage 3 answer label at its approved key', () => {
     const allowlist = readFileSync('scripts/text-audit-allowlist.json', 'utf8')
     const result = audit({

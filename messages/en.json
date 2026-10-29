@@ -10,7 +10,7 @@
     "newThread": "Start a new discussion",
     "threadsEmpty": "This brand has no discussions yet. Start with a work goal above.",
     "privateLabel": "Private by default · Temporary",
-    "privacyBody": "Messages stay in this page’s memory and disappear when you leave or refresh. Saving, sharing and private access controls are coming later.",
+    "privacyBody": "Messages stay in this brand workspace’s memory and disappear when you leave Studio, switch brands or refresh. Saving, sharing and private access controls are coming later.",
     "templatesTitle": "Start with a task",
     "conversationLabel": "Brand evidence conversation",
     "emptyTitle": "What would you like to work on?",
@@ -243,8 +243,66 @@
     "briefContext": "Context from: {title}",
     "briefTemporary": "This is a new temporary discussion. Context stays in this page’s memory; reload clears both discussions. Send the draft to begin.",
     "connections": {
-      "disconnected": "Not connected"
-    }
+      "disconnected": "Not connected",
+      "searchConsoleTitle": "Google Search Console",
+      "hkEndpointPending": "Hong Kong endpoint pending verification",
+      "completenessPending": "Data completeness requires verification",
+      "viewScope": "View connection scope",
+      "savedOnly": "Saved binding and sync status only. No search data query, sync or Hong Kong filter ran here.",
+      "firecrawlScope": "Public page URL, retrieval time and cited passages; currently not connected. No pages were retrieved."
+    },
+    "nav": {
+      "documents": "Documents & outputs",
+      "connections": "Data connections",
+      "tools": "All AISO tools"
+    },
+    "brandLabel": "Current brand",
+    "recentThreadsTitle": "Recent discussions · Private",
+    "sidebarScope": "Work within this brand",
+    "sidebarFlow": "Discussion → Evidence → Reviewable outputs",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "sidebarLabel": "Brand workspace navigation",
+    "mainNavigationLabel": "Main features",
+    "recentThreadsEmpty": "This brand has no discussions yet",
+    "temporaryLabel": "Temporary",
+    "backToDashboard": "Back to brand overview",
+    "readUnavailable": "Pending verification: saved records are unavailable. Reload to try again.",
+    "planRequired": "Plan upgrade required",
+    "manageConnections": "Manage data connections",
+    "allThreads": "All discussions",
+    "views": {
+      "threads": {
+        "title": "Every task has its own context",
+        "description": "Discussions are temporary within this brand workspace. They disappear when you leave Studio or refresh.",
+        "empty": "Start with a work goal, or choose a template to begin a new discussion."
+      },
+      "documents": {
+        "title": "Find your data and outputs in one place",
+        "description": "Inputs are versioned; deliverables have their own review process.",
+        "inputs": "Brand inputs",
+        "outputs": "Work outputs",
+        "sourceFlow": "View approved sources",
+        "outputFlow": "View work items",
+        "readScope": "Current approved, non-revoked version metadata only. Documents are not attached to an answer or model.",
+        "approvedAt": "Approved: {date}",
+        "importedAt": "Imported: {date}",
+        "updatedAt": "Updated: {date}",
+        "draftRevision": "Draft · Revision {revision}",
+        "outputsTruncated": "Showing up to 50 work items. Open the existing work-item list for more records."
+      },
+      "connections": {
+        "title": "Give answers a basis in data",
+        "description": "Each connection has its own scope and data date. Only saved status is shown here; disconnected sources are labelled explicitly."
+      },
+      "tools": {
+        "title": "Keep using the existing tools directly",
+        "description": "Conversations help you get started and interpret results; specialist work stays in the existing tools."
+      }
+    },
+    "brandMark": "AISO",
+    "brandAttribution": "BY FIMMICK",
+    "otherLanguage": "繁中"
   },
   "seo": {
     "home": {

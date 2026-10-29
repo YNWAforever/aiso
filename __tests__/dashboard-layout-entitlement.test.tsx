@@ -60,8 +60,9 @@ function findElementOfType<P>(node: ReactNode, type: unknown): ReactElement<P> |
   if (!isValidElement(node)) return undefined
   if (node.type === type) return node as ReactElement<P>
 
-  const props = node.props as { children?: ReactNode }
-  for (const child of Children.toArray(props.children)) {
+  // DashboardChrome receives the ordinary chrome as named server-rendered slots.
+  const props = node.props as { children?: ReactNode; sidebar?: ReactNode; topbar?: ReactNode; banner?: ReactNode }
+  for (const child of Children.toArray([props.children, props.sidebar, props.topbar, props.banner])) {
     const found = findElementOfType<P>(child, type)
     if (found) return found
   }

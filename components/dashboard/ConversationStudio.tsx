@@ -4,18 +4,17 @@ import { useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Activity, ArrowLeft, ArrowUpRight, FilePenLine, FileText, Globe2, Lock, NotebookPen, Paperclip, ScanSearch, Search, Send, Sparkles } from 'lucide-react'
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
-import { type StudioEvidence, type StudioEvidenceTarget, type StudioInspectorReads, type StudioReply } from '@/lib/conversation-studio/types'
+import { type StudioEvidence, type StudioEvidenceTarget, type StudioInspectorReads } from '@/lib/conversation-studio/types'
 import { StudioReplyView } from './StudioReply'
 import { StudioEvidenceInspector } from '@/components/dashboard/StudioEvidenceInspector'
 import { StudioLiveReplyView } from '@/components/dashboard/StudioLiveReply'
 import { STUDIO_PROMPT_LIMIT, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
+import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type StudioThread, type StudioTurn } from '@/components/dashboard/StudioSession'
+import Link from 'next/link'
 import './conversation-studio.css'
 
 const templateIcons = { opportunity: Search, improve: FilePenLine, brief: NotebookPen, competitors: ScanSearch, pulse: Activity, report: FileText }
-
-type StudioTurn = { id: number; prompt: string; reply: StudioReply; task: StudioHomeTemplate | null; live?: { pending?: boolean; reply?: StudioLiveReply; error?: string } }
-type StudioThread = { id: number; title: string; goal: string; week: string | null; kind: 'research' | 'brief'; sourceTitle?: string; turns: StudioTurn[]; draft: string; template: StudioHomeTemplate | null }
 
 export function StudioThreadHeader({ thread, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle'>; onHome: () => void }) {
   const t = useTranslations('conversationStudio')
@@ -32,19 +31,18 @@ export function StudioThreadHeader({ thread, onHome }: { thread: Pick<StudioThre
 }
 
 /** Saved evidence is local; the optional B2 transport sends one question only. */
-export function ConversationStudio({ brandName, evidence, clientId, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null } }: { brandName: string; evidence: StudioEvidence; clientId?: string; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads }) {
+type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads }
+export function ConversationStudio(props: Props) {
+  const session = useOptionalStudioSession()
+  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider><StudioConversation {...props} /></StudioSessionProvider>
+}
+function StudioConversation({ brandName, evidence, clientId, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, embedded = false }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
-  const [busy, setBusy] = useState(false)
-  const inFlight = useRef(false)
-  const [threads, setThreads] = useState<StudioThread[]>([])
-  const [activeId, setActiveId] = useState<number | null>(null)
-  const [newDraft, setNewDraft] = useState('')
-  const [newTemplate, setNewTemplate] = useState<StudioHomeTemplate | null>(null)
+  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, setActiveId, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
   const [inspection, setInspection] = useState<{ turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
-  const nextId = useRef(1)
   const composer = useRef<HTMLTextAreaElement>(null)
   const focusAfterNavigation = useRef(false)
   const current = threads.find(thread => thread.id === activeId)
@@ -64,7 +62,7 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
   function openThread(id: number) { setInspection(null); focusAfterNavigation.current = true; setActiveId(id) }
 
   function branchBrief(source: StudioThread) {
-    const id = nextId.current++
+    const id = allocateId()
     // A new editable draft, with no synthetic turn, transport or persistence.
     setThreads(previous => [{ id, title: t('briefThreadTitle', { title: source.title }), goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: t('briefContextPrompt', { goal: source.goal }), template: 'brief' }, ...previous])
     openThread(id)
@@ -78,12 +76,12 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const prompt = draft.trim()
-    if (!prompt || inFlight.current) return
+    if (!prompt || isInFlight()) return
     const askLive = Boolean(live && live.cap > 0 && platforms.length && clientId)
     if (askLive && prompt.length > STUDIO_PROMPT_LIMIT) return
-    const id = current?.id ?? nextId.current++
+    const id = current?.id ?? allocateId()
     const task = current ? current.template : newTemplate
-    const turn: StudioTurn = { id: nextId.current++, prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task)), ...(askLive ? { live: { pending: true } } : {}) }
+    const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task)), ...(askLive ? { live: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
     } else {
@@ -94,8 +92,7 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
     }
     composer.current?.focus()
     if (askLive) {
-      inFlight.current = true
-      setBusy(true)
+      beginLive()
       let result: NonNullable<StudioTurn['live']>
       try {
         const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId!)}/studio/answer`, {
@@ -106,8 +103,7 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
         result = response.ok ? { reply: data as StudioLiveReply } : { error: data.error ?? 'STUDIO_UNAVAILABLE' }
       } catch { result = { error: 'STUDIO_UNAVAILABLE' } }
       setThreads(previous => previous.map(thread => thread.id === id ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: result } : item) } : thread))
-      inFlight.current = false
-      setBusy(false)
+      endLive()
     }
   }
 
@@ -148,11 +144,11 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
   </details>
 
   return (
-    <main id="aiso-studio" className="mx-auto w-full min-w-0 max-w-6xl space-y-6">
-      <div className="as-topbar">
+    <main id={embedded ? undefined : "aiso-studio"} className={embedded ? "as-page space-y-6" : "mx-auto w-full min-w-0 max-w-6xl space-y-6"}>
+      {!embedded && <div className="as-topbar">
         <p className="as-breadcrumb"><span>{brandName}</span><span aria-hidden="true">/</span><span>{t(home ? 'title' : 'discussionTitle')}</span></p>
         <span className="as-locale"><Globe2 className="size-3.5 shrink-0" aria-hidden="true" />{t('localeLabel')}</span>
-      </div>
+      </div>}
       {home ? <div id="studio-home" className="as-home space-y-6">
         <header className="space-y-3">
           <p className="as-eyebrow">{t('heroEyebrow')}</p>
@@ -164,6 +160,7 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
           <span className="inline-flex items-center gap-2"><span className="as-source-dot" aria-hidden="true" />{t('savedDataLabel')}</span>
           <span className={sourceStatus === 'bound' ? 'as-muted' : 'as-source-status'}>{t(`sources.${sourceStatus}`)}</span>
           <span className="as-muted">{t('sources.notQueried')}</span>
+          {embedded && basePath && <Link href={`${basePath}/studio/connections`} className="underline">{t('manageConnections')}</Link>}
         </div>
         <section aria-labelledby="studio-templates-title" className="space-y-3">
           <div className="as-section-heading">
@@ -188,7 +185,7 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
           </div>
         </section>
         <section aria-labelledby="studio-continue-title" className="space-y-3">
-          <h2 id="studio-continue-title">{t('continueTitle')}</h2>
+          <div className="as-section-heading"><h2 id="studio-continue-title">{t('continueTitle')}</h2>{embedded && basePath && <Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link>}</div>
           {threads.length === 0 ? <p className="as-muted">{t('threadsEmpty')}</p> : <ul className="as-continue-list">
             {threads.map(thread => <li key={thread.id}>
               <button type="button" onClick={() => openThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">

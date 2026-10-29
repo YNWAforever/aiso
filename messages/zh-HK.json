@@ -10,7 +10,7 @@
     "newThread": "開始新討論",
     "threadsEmpty": "這個品牌未有討論。從上方的工作目標開始。",
     "privateLabel": "預設私人 · 暫存",
-    "privacyBody": "訊息只暫存在此頁面的記憶體，離開或重新整理後便會消失。儲存、分享及私人存取權限功能將於日後提供。",
+    "privacyBody": "訊息只暫存在目前品牌工作室的記憶體，離開工作室、切換品牌或重新整理後便會消失。儲存、分享及私人存取權限功能將於日後提供。",
     "templatesTitle": "從一個任務開始",
     "conversationLabel": "品牌證據對話",
     "emptyTitle": "你想處理甚麼工作？",
@@ -243,8 +243,66 @@
     "briefContext": "承接討論：{title}",
     "briefTemporary": "這是一個新的暫存討論。上下文只保留在本頁記憶體，重新整理會清除兩個討論。傳送草稿後才開始。",
     "connections": {
-      "disconnected": "未連接"
-    }
+      "disconnected": "未連接",
+      "searchConsoleTitle": "Google Search Console",
+      "hkEndpointPending": "香港端點待核實",
+      "completenessPending": "資料完整度需驗證",
+      "viewScope": "查看連接範圍",
+      "savedOnly": "只讀取已儲存的綁定及同步狀態。本次未查詢搜尋資料，未執行同步或香港篩選。",
+      "firecrawlScope": "公開頁面 URL、擷取時間、引用段落；目前未連接，沒有擷取頁面。"
+    },
+    "nav": {
+      "documents": "文件與成果",
+      "connections": "資料連接",
+      "tools": "全部 AISO 工具"
+    },
+    "brandLabel": "目前品牌",
+    "recentThreadsTitle": "最近討論 · 私人",
+    "sidebarScope": "品牌範圍內工作",
+    "sidebarFlow": "討論 → 證據 → 可審閱成果",
+    "openNavigation": "開啟導航",
+    "closeNavigation": "關閉導航",
+    "sidebarLabel": "品牌工作室導航",
+    "mainNavigationLabel": "主要功能",
+    "recentThreadsEmpty": "這個品牌未有討論",
+    "temporaryLabel": "暫存",
+    "backToDashboard": "返回品牌概覽",
+    "readUnavailable": "待核實：目前無法讀取已儲存紀錄，請重新載入再試。",
+    "planRequired": "需要升級方案",
+    "manageConnections": "管理資料連接",
+    "allThreads": "所有討論",
+    "views": {
+      "threads": {
+        "title": "每件工作，各有脈絡",
+        "description": "討論只暫存在目前品牌工作室。離開工作室或重新整理後便會消失。",
+        "empty": "從工作目標開始，或選一個範本開始新討論。"
+      },
+      "documents": {
+        "title": "資料與成果，都找得到",
+        "description": "輸入資料有版本，交付成果有自己的審閱流程。",
+        "inputs": "品牌資料",
+        "outputs": "工作成果",
+        "sourceFlow": "查看核准來源",
+        "outputFlow": "查看工作項目",
+        "readScope": "只顯示目前核准且未撤銷的版本資料；沒有將文件附加至回答或模型。",
+        "approvedAt": "核准：{date}",
+        "importedAt": "匯入：{date}",
+        "updatedAt": "更新：{date}",
+        "draftRevision": "草稿 · 修訂 {revision}",
+        "outputsTruncated": "目前最多顯示 50 個工作項目；其他紀錄請到原有工作項目列表查看。"
+      },
+      "connections": {
+        "title": "讓答案有資料依據",
+        "description": "每個連接都有自己的範圍與資料日期。此處只顯示已儲存狀態，未連接的來源會明確標示。"
+      },
+      "tools": {
+        "title": "原有功能，繼續直接使用",
+        "description": "對話協助開始與解讀；專業操作保留在原有工作畫面。"
+      }
+    },
+    "brandMark": "AISO",
+    "brandAttribution": "BY FIMMICK",
+    "otherLanguage": "EN"
   },
   "seo": {
     "home": {
