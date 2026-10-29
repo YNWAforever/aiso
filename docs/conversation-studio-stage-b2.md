@@ -2,6 +2,17 @@
 
 Base: `0b82158ccb836da00643d8866c500e7640465257` (B1).
 
+## Design reference
+
+Future Conversation Studio design briefs should cite the
+[Stage 0 concept pack](ux/conversation-studio-concept/README.md): HTML snapshots,
+four view screenshots, verbatim copy/key mapping, tokens and the Stages 1–5 view
+inventory. Willy approved Stages 0–5 continuous and Stage 5 Layout B full-bleed
+on 2026-10-29 HKT; this pack is docs only. All concept data is mock-only,
+Production FEATURE stays OFF, and Stage 6 requires separate approval.
+
+## Existing B2 behavior
+
 The existing saved-evidence reply remains local. With both
 `FEATURE_CONVERSATION_STUDIO=1` and `FEATURE_CONVERSATION_STUDIO_LIVE=1`, the
 composer also exposes the current commercial plan's runtime platforms. One Send
