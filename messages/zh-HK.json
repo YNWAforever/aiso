@@ -85,7 +85,7 @@
       "unknown": "未有紀錄",
       "historicalQuote": "歷史模型輸出 · 引用摘錄，未經獨立核實；摘錄可能已截短。",
       "answerMissing": "未有可用的已儲存答案文字。",
-      "panelTitle": "證據及涵蓋範圍",
+      "panelTitle": "本次證據",
       "stepsTitle": "研究步驟",
       "stepLoad": "讀取本頁已載入的 Pulse 週次：{week}；該週有 {count} 筆紀錄。",
       "stepSelect": "從此品牌已載入的快照中，選取範本紀錄或關鍵字相符摘錄。",
@@ -122,7 +122,37 @@
       "scanReplyLabel": "已儲存掃描證據 · 第 {number} 則回覆",
       "noSteps": "本次未有可供選取或整理摘錄的已儲存紀錄。",
       "open": "查看證據",
-      "savedObservation": "已儲存觀察"
+      "savedObservation": "已儲存觀察",
+      "inspectorLabel": "證據詳情",
+      "close": "關閉",
+      "brandDocuments": "品牌文件",
+      "searchConsole": "Search Console",
+      "dataForSeo": "DataForSEO",
+      "firecrawl": "Firecrawl",
+      "aiCitations": "AI 引用",
+      "aiCitationScope": "保留原問題、平台及測試時間；與搜尋成效分開。",
+      "documentsReadOnly": "已載入來源快照中的核准版本。只供檢視，未附加至本次回答或傳送至模型。",
+      "approvedVersion": "已核准版本 {version}",
+      "approvedAt": "核准時間",
+      "importedAt": "匯入時間",
+      "versionId": "版本 ID",
+      "documentsTruncated": "此來源快照有數量上限；可能尚有其他來源。",
+      "notQueried": "本次未查詢",
+      "syncStatus": "已保存同步狀態",
+      "dataThrough": "已保存資料截至",
+      "turnScope": "所選回答的證據；來源與連接狀態於載入此頁時讀取。重新載入可更新快照。",
+      "coverageTitle": "已保存證據及涵蓋範圍",
+      "sync": {
+        "unbound": "未連接",
+        "awaiting_first_sync": "等待首次同步",
+        "synced": "已同步",
+        "reconnect": "需要重新連接",
+        "access_lost": "已失去 property 存取權",
+        "retrying": "等待重試",
+        "rebind": "需要重新綁定",
+        "paused_plan": "方案已暫停同步",
+        "temporarily_unavailable": "暫時無法使用"
+      }
     },
     "live": {
       "title": "即時回答",
@@ -190,10 +220,11 @@
       "reports": "前往客戶報告"
     },
     "honesty": {
-      "noEstimatedNumbers": "缺少資料時顯示「待核實」，不填入推算數字。",
+      "noEstimatedNumbers": "缺少資料時顯示『待核實』，不填入推算數字。",
       "mentionsCoverage": "HK／繁中：DataForSEO 的 ChatGPT LLM Mentions 目前只標示美國／英文覆蓋，此處不顯示香港 ChatGPT 分數。",
       "missingIsNotZero": "不將沒有回應的問題計作零提及",
-      "searchDemandPending": "搜尋需求：待核實"
+      "searchDemandPending": "搜尋需求：待核實",
+      "pending": "待核實"
     },
     "filters": {
       "all": "全部",
@@ -210,7 +241,10 @@
     "briefThreadTitle": "brief · {title}",
     "briefContextPrompt": "請根據這個工作目標建立有來源的 brief：{goal}",
     "briefContext": "承接討論：{title}",
-    "briefTemporary": "這是一個新的暫存討論。上下文只保留在本頁記憶體，重新整理會清除兩個討論。傳送草稿後才開始。"
+    "briefTemporary": "這是一個新的暫存討論。上下文只保留在本頁記憶體，重新整理會清除兩個討論。傳送草稿後才開始。",
+    "connections": {
+      "disconnected": "未連接"
+    }
   },
   "seo": {
     "home": {

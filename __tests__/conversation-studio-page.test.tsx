@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), sql: vi.fn(), evidence: vi.fn(), binding: vi.fn() }))
-vi.mock('@/lib/integrations/search-console/store', () => ({ loadBinding: mocks.binding }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), sql: vi.fn(), evidence: vi.fn(), binding: vi.fn(), panel: vi.fn(), documents: vi.fn() }))
+vi.mock('@/lib/integrations/search-console/store', () => ({ loadBinding: mocks.binding, loadPanelData: mocks.panel }))
+vi.mock('@/lib/conversation-studio/inspector', () => ({ loadStudioDocuments: mocks.documents }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/conversation-studio/evidence', () => ({ loadStudioEvidence: mocks.evidence }))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth }))
@@ -24,6 +25,8 @@ beforeEach(() => {
   vi.stubEnv('FEATURE_SEARCH_CONSOLE', '1')
   mocks.auth.mockResolvedValue({ account_id: 'account-a', accounts: { override_plan: 'pro' } })
   mocks.binding.mockResolvedValue(null)
+  mocks.panel.mockResolvedValue({ latest: null, lastGoodDataThrough: null })
+  mocks.documents.mockResolvedValue({ items: [], truncated: false })
   mocks.sql.mockResolvedValue([{ id: clientId, brand_name: 'Example Brand' }])
   mocks.evidence.mockResolvedValue(emptyStudioEvidence)
 })
@@ -35,6 +38,8 @@ it.each([undefined, '0', 'true'])('redirects to the existing home with flag %s b
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.evidence).not.toHaveBeenCalled()
   expect(mocks.binding).not.toHaveBeenCalled()
+  expect(mocks.documents).not.toHaveBeenCalled()
+  expect(mocks.panel).not.toHaveBeenCalled()
 })
 it('renders only the owned brand shell when enabled', async () => {
   const page = await render()
@@ -51,6 +56,9 @@ it('renders only the owned brand shell when enabled', async () => {
   expect(mocks.sql).toHaveBeenCalledTimes(1)
   expect(mocks.binding).toHaveBeenCalledWith('account-a', clientId)
   expect(page.props.sourceStatus).toBe('unbound')
+  expect(page.props.inspector).toEqual({ documents: { items: [], truncated: false }, searchConsole: { kind: 'unbound' } })
+  expect(mocks.documents).toHaveBeenCalledWith(clientId)
+  expect(mocks.panel).not.toHaveBeenCalled()
 })
 
 it('projects actual saved GSC binding status without metrics or provider reads', async () => {
@@ -76,6 +84,7 @@ it('does not turn GSC lookup errors or disabled access into an unbound claim', a
   mocks.auth.mockResolvedValue({ account_id: 'account-a', accounts: { plan: 'free' } })
   expect((await render()).props.sourceStatus).toBe('unavailable')
   expect(mocks.binding).not.toHaveBeenCalled()
+  expect(mocks.panel).not.toHaveBeenCalled()
 })
 
 it('passes only plan-granted platforms and the fail-closed cap when LIVE is on', async () => {
@@ -96,6 +105,8 @@ it('returns 404 for a missing or foreign brand', async () => {
   await expect(render()).rejects.toThrow('NOT_FOUND')
   expect(mocks.evidence).not.toHaveBeenCalled()
   expect(mocks.binding).not.toHaveBeenCalled()
+  expect(mocks.documents).not.toHaveBeenCalled()
+  expect(mocks.panel).not.toHaveBeenCalled()
 })
 it('shows unavailable when evidence fails, without exposing details or a false empty reply', async () => {
   mocks.evidence.mockRejectedValueOnce(new Error('private-evidence-error'))
@@ -112,4 +123,24 @@ it('shows a translated unavailable state without exposing SQL errors', async () 
   const page = await render()
   expect(JSON.stringify(page)).toContain('loadError')
   expect(JSON.stringify(page)).not.toContain('private-database-details')
+})
+
+it('derives saved sync state and exposes no stored search metrics or secrets', async () => {
+  mocks.binding.mockResolvedValue({ connectionStatus: 'active', siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner', boundDomain: 'example.com', currentDomain: 'example.com', boundAt: '2026-10-27T00:00:00Z', connectionId: 'private-connection' })
+  mocks.panel.mockResolvedValue({ latest: { outcome: 'ok', dataThrough: '2026-10-26', ranAt: '2026-10-28T00:00:00Z' }, lastGoodDataThrough: '2026-10-26', property: { clicks: 987654 } })
+  const page = await render()
+  expect(page.props.inspector.searchConsole).toEqual({ kind: 'synced', dataThrough: '2026-10-26' })
+  expect(mocks.panel).toHaveBeenCalledWith('account-a', clientId)
+  expect(JSON.stringify(page)).not.toMatch(/987654|private-connection|siteOwner/)
+  mocks.panel.mockRejectedValueOnce(new Error('sync-read-failed'))
+  const failed = await render()
+  expect(failed.props.sourceStatus).toBe('bound')
+  expect(failed.props.inspector.searchConsole).toBeNull()
+})
+it('keeps document failures pending without losing saved replies', async () => {
+  mocks.documents.mockRejectedValueOnce(new Error('private-source-error'))
+  const page = await render()
+  expect(page.props.inspector.documents).toBeNull()
+  expect(page.props.evidence).toEqual(emptyStudioEvidence)
+  expect(JSON.stringify(page)).not.toContain('private-source-error')
 })
