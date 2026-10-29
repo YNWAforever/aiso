@@ -1,5 +1,9 @@
 {
   "conversationStudio": {
+    "answerLabel": "Fimmick AISO · Answer",
+    "scopeNote": "Evidence scope and limits",
+    "localeLabel": "Hong Kong · Traditional Chinese",
+    "heroEyebrow": "YOUR BRAND WORKSPACE",
     "title": "Start work",
     "description": "Review saved brand evidence. Choose a summary template or search excerpts with your own question.",
     "threadsTitle": "Conversations",
@@ -7,12 +11,12 @@
     "threadsEmpty": "Your temporary conversations will appear here.",
     "privateLabel": "Private by default · Temporary",
     "privacyBody": "Messages stay in this page’s memory and disappear when you leave or refresh. Saving, sharing and private access controls are coming later.",
-    "templatesTitle": "Start with a template",
+    "templatesTitle": "Start with a task",
     "conversationLabel": "Brand evidence conversation",
     "emptyTitle": "What would you like to work on?",
     "emptyBody": "Templates summarise saved records. Freeform questions show matching excerpts and say when there is not enough evidence.",
     "youLabel": "You",
-    "composerLabel": "Your message",
+    "composerLabel": "Your work goal",
     "composerPlaceholder": "Ask a question about your brand…",
     "composerHelp": "Enter adds a new line. Send reads the loaded snapshot without a network request.",
     "send": "Send message",
@@ -21,19 +25,27 @@
     "templates": {
       "brief": {
         "label": "Sourced brand brief",
-        "prompt": "Prepare a brand brief from saved Pulse observations and scan evidence, with sources and gaps."
+        "prompt": "Prepare a brand brief from saved Pulse observations and scan evidence, with sources and gaps.",
+        "description": "Organise saved brand observations and sources, with gaps clearly marked.",
+        "output": "Saved evidence → Brief summary"
       },
       "competitors": {
         "label": "Competitor evidence",
-        "prompt": "Review saved evidence for a competitor comparison with citations. State what cannot be compared reliably."
+        "prompt": "Review saved evidence for a competitor comparison with citations. State what cannot be compared reliably.",
+        "description": "Review saved answers and citations, with comparison limits kept explicit.",
+        "output": "Saved observations → Comparison context"
       },
       "pulse": {
         "label": "Saved Pulse observations",
-        "prompt": "Summarise saved Pulse observations, their dates, citations and coverage limits."
+        "prompt": "Summarise saved Pulse observations, their dates, citations and coverage limits.",
+        "description": "Review saved observations, citations and incomplete tests.",
+        "output": "Saved observations → Coverage summary"
       },
       "report": {
         "label": "Sourced report draft",
-        "prompt": "Prepare a report draft from saved observations and scan evidence, with citations and missing evidence clearly marked."
+        "prompt": "Prepare a report draft from saved observations and scan evidence, with citations and missing evidence clearly marked.",
+        "description": "Collect saved observations and scan evidence into extracts for review.",
+        "output": "Saved evidence → Report draft"
       }
     },
     "savedBadge": "Stage B1 · Saved evidence",

@@ -9,11 +9,11 @@ import { describe, expect, it } from 'vitest'
  */
 const css = readFileSync('app/globals.css', 'utf8')
 
-function block(selector: string): Record<string, string> {
-  const start = css.indexOf(`${selector} {`)
+function block(selector: string, source = css): Record<string, string> {
+  const start = source.indexOf(`${selector} {`)
   expect(start, selector).toBeGreaterThanOrEqual(0)
-  const body = css.slice(start, css.indexOf('\n}', start))
-  return Object.fromEntries([...body.matchAll(/(--[\w-]+):\s*(#[0-9a-f]{6})\s*;/gi)].map(m => [m[1]!, m[2]!.toLowerCase()]))
+  const body = source.slice(start, source.indexOf('\n}', start))
+  return Object.fromEntries([...body.matchAll(/(--[\w-]+):\s*(#[0-9a-f]{6}|var\(--[\w-]+\))\s*;/gi)].map(m => [m[1]!, m[2]!.toLowerCase()]))
 }
 
 function luminance(hex: string): number {
@@ -64,6 +64,23 @@ describe('design tokens', () => {
         ] as [string, string, string][]),
       ]
       for (const [name, fg, bg] of pairs) expect(contrast(fg, bg), `${theme}: ${name}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('passes AA for Studio text, badges, notes and buttons in both themes', () => {
+    const studioCss = readFileSync('components/dashboard/conversation-studio.css', 'utf8')
+    for (const [theme, selector] of [['light', '#aiso-studio'], ['dark', '.dark #aiso-studio']] as const) {
+      const tokens = { ...themes[theme], ...block(selector, studioCss) }
+      const value = (name: string) => {
+        const raw = tokens[name]!
+        return raw.startsWith('var(') ? tokens[raw.slice(4, -1)]! : raw
+      }
+      const pairs = [
+        ...['--as-bg', '--as-panel', '--as-side', '--as-soft'].flatMap(bg => [['--as-ink', bg], ['--as-muted', bg]]),
+        ...['--as-bg', '--as-panel', '--as-soft'].map(bg => ['--as-blue', bg]),
+        ['--as-warn', '--as-warnbg'], ['--as-onblue', '--as-blue'],
+      ]
+      for (const [fg, bg] of pairs) expect(contrast(value(fg!), value(bg!)), `${theme}: ${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5)
     }
   })
 })

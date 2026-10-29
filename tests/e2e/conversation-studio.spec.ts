@@ -46,6 +46,10 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
 for (const lang of ['en', 'zh-HK']) {
   test(`live Send shows separate unverified output, safe sources and partial failure in ${lang}`, async ({ page }) => {
     const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 5)
+    await expect(page.getByText(copy.live.badge, { exact: true })).toHaveCount(0)
+    await page.getByText(copy.scopeNote, { exact: true }).click()
+    await expect(page.getByText(copy.live.notice, { exact: true })).toBeVisible()
+    await expect(page.getByText(copy.live.temporaryCap, { exact: true })).toBeVisible()
     await page.getByRole('checkbox', { name: 'gpt-4o', exact: true }).check()
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
     await page.getByRole('button', { name: copy.send, exact: true }).click()
@@ -65,11 +69,14 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByText('MOCK LIVE ANSWER', { exact: true })).toHaveCount(2)
     expect(liveRequests[1]).toEqual({ prompt: 'Second question only', platforms: ['gemini-flash', 'gpt-4o'], language: lang })
     expect(requests).toEqual([])
-    for (const width of [320, 768, 1440]) {
-      await page.setViewportSize({ width, height: 900 })
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    for (const dark of [false, true]) {
+      await page.evaluate(dark => document.documentElement.classList.toggle('dark', dark), dark)
+      for (const width of [320, 768, 1440]) {
+        await page.setViewportSize({ width, height: 900 })
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      }
+      expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     }
-    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     await page.reload()
     await expect(page.getByText(copy.threadsEmpty, { exact: true })).toBeVisible()
     expect(requests).toEqual([])
@@ -108,6 +115,9 @@ for (const lang of ['en', 'zh-HK']) {
 
   test(`saved evidence, citations and temporary threads without outbound HTTP in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
+    await expect(page.getByText(copy.savedBadge, { exact: true })).toHaveCount(0)
+    await page.getByText(copy.scopeNote, { exact: true }).click()
+    await expect(page.getByText(copy.savedNotice, { exact: true })).toBeVisible()
     const composer = page.getByRole('textbox', { name: copy.composerLabel })
     const send = page.getByRole('button', { name: copy.send, exact: true })
     const log = page.getByRole('log')
@@ -191,11 +201,14 @@ for (const lang of ['en', 'zh-HK']) {
     await page.getByRole('log').getByText(copy.evidence.panelTitle).last().click()
     await page.getByRole('log').getByText(copy.evidence.sourcesTitle).last().click()
     await composer.fill('x'.repeat(300))
-    for (const width of [320, 768, 1440]) {
-      await page.setViewportSize({ width, height: 900 })
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    for (const dark of [false, true]) {
+      await page.evaluate(dark => document.documentElement.classList.toggle('dark', dark), dark)
+      for (const width of [320, 768, 1440]) {
+        await page.setViewportSize({ width, height: 900 })
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      }
+      expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     }
-    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     expect(requests).toEqual([])
     await page.screenshot({ path: `artifacts/studio/${lang}-${test.info().project.name}.png`, fullPage: true })
   })

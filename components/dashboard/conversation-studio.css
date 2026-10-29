@@ -1,0 +1,91 @@
+/* Stage 1 chrome only. Every selector and token stays inside the existing Studio. */
+#aiso-studio {
+  --as-bg: var(--background);
+  --as-panel: var(--card);
+  --as-side: #f0f4f9;
+  --as-ink: #17263e;
+  --as-muted: #596b82;
+  --as-line: #dce4ef;
+  --as-blue: var(--primary);
+  --as-onblue: var(--primary-foreground);
+  --as-soft: #eaf1ff;
+  --as-warn: #805714;
+  --as-warnbg: #fff8e9;
+  padding: 27px 28px 32px;
+  background: var(--as-bg);
+  color: var(--as-ink);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.dark #aiso-studio {
+  --as-bg: #0d1320;
+  --as-panel: #141c2a;
+  --as-side: #101725;
+  --as-ink: #edf2fc;
+  --as-muted: #a8b7cc;
+  --as-line: #314059;
+  --as-blue: #70b5ff;
+  --as-onblue: #0b203c;
+  --as-soft: #203752;
+  --as-warn: #f0c784;
+  --as-warnbg: #322919;
+}
+
+#aiso-studio h1 { font-size: 30px; line-height: 1.3; font-weight: 650; letter-spacing: -0.8px; }
+#aiso-studio h2 { font-size: 19px; line-height: 1.4; font-weight: 650; }
+#aiso-studio h3 { font-size: 15px; font-weight: 600; }
+#aiso-studio .as-muted { color: var(--as-muted); }
+#aiso-studio .as-blue { color: var(--as-blue); }
+/* Concept eyebrows and badges are 11px; product text observes the repo's 12px floor. */
+#aiso-studio .as-small, #aiso-studio .as-eyebrow { font-size: 12px; }
+#aiso-studio .as-eyebrow { color: var(--as-blue); font-weight: 650; letter-spacing: 1.7px; }
+#aiso-studio:lang(zh-HK) .as-eyebrow { letter-spacing: normal; }
+
+#aiso-studio .as-topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--as-line); }
+#aiso-studio .as-breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; overflow-wrap: anywhere; color: var(--as-muted); }
+#aiso-studio .as-breadcrumb span:last-child { color: var(--as-ink); }
+#aiso-studio .as-locale { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--as-line); border-radius: 999px; padding: 4px 10px; background: var(--as-panel); color: var(--as-muted); font-size: 12px; }
+
+#aiso-studio .as-threads { border: 1px solid var(--as-line); border-radius: 12px; background: var(--as-side); }
+#aiso-studio .as-divider { border-top: 1px solid var(--as-line); }
+#aiso-studio .as-button, #aiso-studio .as-thread, #aiso-studio .as-platform { min-height: 44px; border-radius: 8px; }
+#aiso-studio .as-button, #aiso-studio .as-platform { border: 1px solid var(--as-line); background: var(--as-panel); }
+#aiso-studio .as-button:hover, #aiso-studio .as-thread:hover, #aiso-studio .as-thread[aria-pressed="true"], #aiso-studio .as-platform:has(:checked) { background: var(--as-soft); }
+#aiso-studio .as-thread[aria-pressed="true"] { font-weight: 600; }
+#aiso-studio .as-platform { cursor: pointer; font-size: 12px; }
+#aiso-studio input[type="checkbox"] { accent-color: var(--as-blue); }
+#aiso-studio .as-primary, #aiso-studio .as-primary:hover { border-color: var(--as-blue); background: var(--as-blue); color: var(--as-onblue); }
+
+#aiso-studio .as-template { min-height: 44px; border: 1px solid var(--as-line); border-radius: 11px; padding: 15px; background: var(--as-panel); }
+#aiso-studio .as-template:hover { border-color: var(--as-blue); background: var(--as-soft); }
+#aiso-studio .as-conversation { border: 1px solid var(--as-line); border-radius: 12px; background: var(--as-bg); }
+#aiso-studio .as-question { border-radius: 10px; background: var(--as-side); }
+#aiso-studio .as-composer { border: 1px solid var(--as-line); border-radius: 16px; padding: 15px; background: var(--as-panel); box-shadow: 0 6px 22px #102a5b06; }
+#aiso-studio textarea { border: 0; border-radius: 8px; padding: 8px 0; background: transparent; color: var(--as-ink); font: inherit; }
+#aiso-studio textarea::placeholder { color: var(--as-muted); opacity: 1; }
+
+#aiso-studio .as-result { border: 1px solid var(--as-line); border-radius: 10px; padding: 15px; background: var(--as-panel); }
+/* Reuse the shared scan evidence UI, applying the Studio surface only in this scope. */
+#aiso-studio [data-testid="owned-scan-evidence"] { border-color: var(--as-line); border-radius: 10px; padding: 15px; background: var(--as-panel); color: var(--as-ink); }
+#aiso-studio [data-testid="owned-scan-evidence"] h2 { color: var(--as-ink); }
+#aiso-studio .as-result-kicker { color: var(--as-blue); font-size: 12px; font-weight: 600; }
+#aiso-studio .as-badge { display: inline-flex; align-items: center; max-width: 100%; border: 1px solid var(--as-line); border-radius: 6px; padding: 2px 7px; background: var(--as-panel); color: var(--as-muted); font-size: 12px; }
+#aiso-studio .as-badge-blue { border-color: transparent; background: var(--as-soft); color: var(--as-blue); }
+#aiso-studio .as-badge-amber { border-color: transparent; background: var(--as-warnbg); color: var(--as-warn); }
+#aiso-studio .as-note { border-radius: 8px; padding: 12px; background: var(--as-warnbg); color: var(--as-warn); font-size: 12px; }
+#aiso-studio .as-disclosure { border: 1px solid var(--as-line); border-radius: 8px; padding: 0 12px; }
+#aiso-studio summary { min-height: 44px; padding: 11px 0; cursor: pointer; }
+#aiso-studio .as-disclosure > summary { font-weight: 600; }
+#aiso-studio blockquote { border-color: var(--as-line); }
+#aiso-studio a { display: inline-flex; min-width: 44px; min-height: 44px; max-width: 100%; align-items: center; color: var(--as-blue); overflow-wrap: anywhere; }
+#aiso-studio :is(button, a, input, textarea, summary):focus-visible { outline: 3px solid var(--as-blue); outline-offset: 3px; }
+
+@media (max-width: 900px) {
+  #aiso-studio { padding: 22px; }
+}
+@media (max-width: 620px) {
+  #aiso-studio { padding: 20px 16px; }
+  #aiso-studio h1 { font-size: 26px; }
+  #aiso-studio textarea { font-size: 16px; }
+}
