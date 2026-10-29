@@ -1,5 +1,13 @@
 import type { ObservationDetailDto } from '@/lib/observations/types'
 import type { OwnedResultEvidence } from '@/lib/result-evidence'
+import type { OwnerState } from '@/lib/integrations/search-console/state'
+
+export interface StudioInspectorReads {
+  documents: { items: { id: string; label: string; versionId: string; versionNumber: number; approvedAt: string; importedAt: string }[]; truncated: boolean } | null
+  searchConsole: OwnerState | null
+}
+export type StudioEvidenceTarget = 'saved' | 'scan' | `source-${number}` | `live-${number}`
+export type OpenStudioEvidence = (trigger: HTMLButtonElement, target?: StudioEvidenceTarget) => void
 
 export const STUDIO_TEMPLATES = ['brief', 'competitors', 'pulse', 'report'] as const
 export type StudioTemplate = typeof STUDIO_TEMPLATES[number]

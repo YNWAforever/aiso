@@ -116,3 +116,23 @@
   #aiso-studio .as-template-grid { grid-template-columns: minmax(0, 1fr); }
   #aiso-studio .as-composer-footer > .as-primary { margin-left: auto; }
 }
+
+/* Stage 4 inspector remains in the discussion flow; no portal or dashboard shell change. */
+#aiso-studio #studio-discussion.as-inspector-open { max-width: none; }
+#aiso-studio .as-discussion-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+#aiso-studio .as-discussion-grid:has(.as-inspector) { grid-template-columns: minmax(0, 1fr) 240px; }
+#aiso-studio .as-inspector { position: sticky; top: 16px; min-width: 0; border: 1px solid var(--as-line); border-radius: 10px; background: var(--as-panel); font-size: 12px; overflow-wrap: anywhere; }
+#aiso-studio .as-inspector-body { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; padding: 14px; border-radius: inherit; }
+#aiso-studio .as-inspector-body > * + * { margin-top: 16px; }
+#aiso-studio .as-inspector-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+#aiso-studio .as-inspector h2 { font-size: 15px; }
+#aiso-studio .as-inspector h3 { font-size: 13px; }
+#aiso-studio .as-evidence-rows > section { padding-block: 14px; border-bottom: 1px solid var(--as-line); }
+#aiso-studio .as-evidence-rows > section:first-child { padding-top: 0; }
+#aiso-studio .as-evidence-prompt { border-left: 2px solid var(--as-line); padding-left: 8px; }
+#aiso-studio .as-inspector [tabindex="-1"]:focus { outline: 3px solid var(--as-blue); outline-offset: 3px; }
+@media (max-width: 900px) {
+  #aiso-studio .as-discussion-grid:has(.as-inspector) { grid-template-columns: minmax(0, 1fr); }
+  #aiso-studio .as-inspector { position: static; }
+  #aiso-studio .as-inspector-body { max-height: 80dvh; }
+}

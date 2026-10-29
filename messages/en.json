@@ -85,7 +85,7 @@
       "unknown": "Not recorded",
       "historicalQuote": "Historical model output · Quoted excerpt, not independently verified. Excerpts may be shortened.",
       "answerMissing": "No saved answer text is available.",
-      "panelTitle": "Evidence and coverage",
+      "panelTitle": "Evidence for this discussion",
       "stepsTitle": "Research steps",
       "stepLoad": "Read the page’s loaded Pulse week: {week}; {count} recorded rows in that week.",
       "stepSelect": "Selected template records or keyword-matched excerpts from this brand’s loaded snapshot.",
@@ -122,7 +122,37 @@
       "scanReplyLabel": "Saved scan evidence · Reply {number}",
       "noSteps": "No saved records were available to select or extract for this turn.",
       "open": "View evidence",
-      "savedObservation": "Saved observation"
+      "savedObservation": "Saved observation",
+      "inspectorLabel": "Evidence details",
+      "close": "Close",
+      "brandDocuments": "Brand documents",
+      "searchConsole": "Search Console",
+      "dataForSeo": "DataForSEO",
+      "firecrawl": "Firecrawl",
+      "aiCitations": "AI citations",
+      "aiCitationScope": "Retain the original question, platform and test time; keep separate from search performance.",
+      "documentsReadOnly": "Approved versions in the loaded source snapshot. Read only; not attached to this answer or sent to a model.",
+      "approvedVersion": "Approved version {version}",
+      "approvedAt": "Approved at",
+      "importedAt": "Imported at",
+      "versionId": "Version ID",
+      "documentsTruncated": "This source snapshot is limited; more sources may exist.",
+      "notQueried": "Not queried this turn",
+      "syncStatus": "Saved sync status",
+      "dataThrough": "Saved data through",
+      "turnScope": "Evidence for the selected answer; source and connection states were read when this page loaded. Reload to refresh.",
+      "coverageTitle": "Saved evidence and coverage",
+      "sync": {
+        "unbound": "Not connected",
+        "awaiting_first_sync": "Awaiting first sync",
+        "synced": "Synced",
+        "reconnect": "Reconnect required",
+        "access_lost": "Property access lost",
+        "retrying": "Waiting to retry",
+        "rebind": "Rebinding required",
+        "paused_plan": "Paused by plan",
+        "temporarily_unavailable": "Temporarily unavailable"
+      }
     },
     "live": {
       "title": "Live answer",
@@ -193,7 +223,8 @@
       "noEstimatedNumbers": "Show “Pending verification” when data is missing; do not fill in estimated figures.",
       "mentionsCoverage": "HK / Traditional Chinese: DataForSEO’s ChatGPT LLM Mentions currently lists US / English coverage only. No Hong Kong ChatGPT score is shown here.",
       "missingIsNotZero": "Do not count unanswered questions as zero mentions",
-      "searchDemandPending": "Search demand: pending verification"
+      "searchDemandPending": "Search demand: pending verification",
+      "pending": "Pending verification"
     },
     "filters": {
       "all": "All",
@@ -210,7 +241,10 @@
     "briefThreadTitle": "Brief · {title}",
     "briefContextPrompt": "Create a sourced brief for this work goal: {goal}",
     "briefContext": "Context from: {title}",
-    "briefTemporary": "This is a new temporary discussion. Context stays in this page’s memory; reload clears both discussions. Send the draft to begin."
+    "briefTemporary": "This is a new temporary discussion. Context stays in this page’s memory; reload clears both discussions. Send the draft to begin.",
+    "connections": {
+      "disconnected": "Not connected"
+    }
   },
   "seo": {
     "home": {

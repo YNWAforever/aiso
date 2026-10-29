@@ -4,8 +4,9 @@ import { useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Activity, ArrowLeft, ArrowUpRight, FilePenLine, FileText, Globe2, Lock, NotebookPen, Paperclip, ScanSearch, Search, Send, Sparkles } from 'lucide-react'
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
-import { type StudioEvidence, type StudioReply } from '@/lib/conversation-studio/types'
+import { type StudioEvidence, type StudioEvidenceTarget, type StudioInspectorReads, type StudioReply } from '@/lib/conversation-studio/types'
 import { StudioReplyView } from './StudioReply'
+import { StudioEvidenceInspector } from '@/components/dashboard/StudioEvidenceInspector'
 import { StudioLiveReplyView } from '@/components/dashboard/StudioLiveReply'
 import { STUDIO_PROMPT_LIMIT, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
@@ -31,7 +32,7 @@ export function StudioThreadHeader({ thread, onHome }: { thread: Pick<StudioThre
 }
 
 /** Saved evidence is local; the optional B2 transport sends one question only. */
-export function ConversationStudio({ brandName, evidence, clientId, live, sourceStatus = 'unavailable' }: { brandName: string; evidence: StudioEvidence; clientId?: string; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus }) {
+export function ConversationStudio({ brandName, evidence, clientId, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null } }: { brandName: string; evidence: StudioEvidence; clientId?: string; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
@@ -42,10 +43,12 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
   const [newDraft, setNewDraft] = useState('')
   const [newTemplate, setNewTemplate] = useState<StudioHomeTemplate | null>(null)
   const [filter, setFilter] = useState<StudioFilter>('all')
+  const [inspection, setInspection] = useState<{ turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
   const nextId = useRef(1)
   const composer = useRef<HTMLTextAreaElement>(null)
   const focusAfterNavigation = useRef(false)
   const current = threads.find(thread => thread.id === activeId)
+  const inspectedTurn = current?.turns.find(turn => turn.id === inspection?.turnId)
   const draft = current?.draft ?? newDraft
   const home = !current
   const basePath = clientId ? `/${language}/dashboard/${encodeURIComponent(clientId)}` : null
@@ -57,8 +60,8 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
     }
   }, [activeId])
 
-  function openHome() { focusAfterNavigation.current = true; setActiveId(null) }
-  function openThread(id: number) { focusAfterNavigation.current = true; setActiveId(id) }
+  function openHome() { setInspection(null); focusAfterNavigation.current = true; setActiveId(null) }
+  function openThread(id: number) { setInspection(null); focusAfterNavigation.current = true; setActiveId(id) }
 
   function branchBrief(source: StudioThread) {
     const id = nextId.current++
@@ -196,9 +199,10 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
           </ul>}
         </section>
         {scopeNote}
-      </div> : <div id="studio-discussion" className="space-y-5">
+      </div> : <div id="studio-discussion" className={`space-y-5${inspection ? ' as-inspector-open' : ''}`}>
         <StudioThreadHeader thread={current} onHome={openHome} />
         <h2 className="sr-only">{t('conversationLabel')}</h2>
+        <div className="as-discussion-grid">
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
           {current.turns.map(({ id, prompt, reply, task, live: liveTurn }, index) => <div key={id} className="space-y-5">
             <div className="as-question p-4">
@@ -212,11 +216,13 @@ export function ConversationStudio({ brandName, evidence, clientId, live, source
               {basePath && HOME_TASKS[task].destination && <a href={`${basePath}/${HOME_TASKS[task].destination}`} className="gap-2 underline">{t(`destinations.${HOME_TASKS[task].destination}`)}<ArrowUpRight className="size-4" aria-hidden="true" /></a>}
             </div>}
             <div className="min-w-0 space-y-4">
-              <StudioReplyView reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} onBranchBrief={() => branchBrief(current)} />
-              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} />}
+              <StudioReplyView reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} onBranchBrief={() => branchBrief(current)} onOpenEvidence={(trigger, target = 'saved') => setInspection({ turnId: id, target, trigger })} />
+              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} onOpenEvidence={(trigger, target = 'saved') => setInspection({ turnId: id, target, trigger })} />}
             </div>
             </div>
           </div>)}
+        </div>
+        {inspection && inspectedTurn && <StudioEvidenceInspector reply={inspectedTurn.reply} evidence={evidenceForHomeTask(evidence, inspectedTurn.task)} liveReply={inspectedTurn.live?.reply} liveEnabled={Boolean(live)} reads={inspector} sourceStatus={sourceStatus} prompt={inspectedTurn.prompt} target={inspection.target} trigger={inspection.trigger} onClose={() => setInspection(null)} />}
         </div>
         {composerForm}
         {scopeNote}

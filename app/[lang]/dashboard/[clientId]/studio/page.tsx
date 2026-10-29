@@ -8,7 +8,10 @@ import { loadStudioEvidence } from '@/lib/conversation-studio/evidence'
 import { studioLiveCap } from '@/lib/conversation-studio/live-quota'
 import { runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { resolveCommercialEntitlement } from '@/lib/tier'
-import { loadBinding } from '@/lib/integrations/search-console/store'
+import { loadBinding, loadPanelData } from '@/lib/integrations/search-console/store'
+import { deriveOwnerState } from '@/lib/integrations/search-console/state'
+import { loadStudioDocuments } from '@/lib/conversation-studio/inspector'
+import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
 import { bindingMatchesDomain } from '@/lib/integrations/search-console/binding'
 import type { StudioSourceStatus } from '@/lib/conversation-studio/home'
 
@@ -36,14 +39,26 @@ export default async function StudioPage({ params }: {
   }
   const brand = brands[0]
   if (!brand || !evidence) notFound()
+  const inspector: StudioInspectorReads = { documents: null, searchConsole: null }
+  try { inspector.documents = await loadStudioDocuments(clientId) } catch { /* Failed reads stay pending verification. */ }
   let sourceStatus: StudioSourceStatus = 'unavailable'
   if (isFeatureEnabled('search_console') && resolveCommercialEntitlement(profile.accounts).features.search_console) {
     try {
-      // Saved binding metadata only, after ownership. No Google query or sync.
+      // Saved binding and sync metadata after ownership. No Google query or sync.
       const binding = await loadBinding(profile.account_id, clientId)
       sourceStatus = !binding || binding.connectionStatus === 'revoked' ? 'unbound'
         : binding.connectionStatus === 'needs_reconnect' ? 'reconnect'
         : bindingMatchesDomain(binding, binding.currentDomain) ? 'bound' : 'rebind'
+      if (sourceStatus === 'unbound') inspector.searchConsole = { kind: 'unbound' }
+      else if (binding) {
+        // Existing saved ledger/metrics reader only; no Google client or sync.
+        const panel = await loadPanelData(profile.account_id, clientId)
+        inspector.searchConsole = deriveOwnerState({
+          bound: true, entitled: true, connectionStatus: binding.connectionStatus,
+          domainMatches: bindingMatchesDomain(binding, binding.currentDomain), boundAt: binding.boundAt,
+          latest: panel.latest, lastGoodDataThrough: panel.lastGoodDataThrough,
+        })
+      }
     } catch { /* Unknown stays unknown; a failed read is never an unbound claim. */ }
   }
   // Brand changes remount the studio, clearing all page-local conversation state.
@@ -51,5 +66,5 @@ export default async function StudioPage({ params }: {
     platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
     cap: studioLiveCap(),
   } : undefined
-  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} live={live} sourceStatus={sourceStatus} />
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} live={live} sourceStatus={sourceStatus} inspector={inspector} />
 }
