@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), sql: vi.fn(), evidence: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), sql: vi.fn(), evidence: vi.fn(), binding: vi.fn() }))
+vi.mock('@/lib/integrations/search-console/store', () => ({ loadBinding: mocks.binding }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/conversation-studio/evidence', () => ({ loadStudioEvidence: mocks.evidence }))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth }))
@@ -20,7 +21,9 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '0')
-  mocks.auth.mockResolvedValue({ account_id: 'account-a' })
+  vi.stubEnv('FEATURE_SEARCH_CONSOLE', '1')
+  mocks.auth.mockResolvedValue({ account_id: 'account-a', accounts: { override_plan: 'pro' } })
+  mocks.binding.mockResolvedValue(null)
   mocks.sql.mockResolvedValue([{ id: clientId, brand_name: 'Example Brand' }])
   mocks.evidence.mockResolvedValue(emptyStudioEvidence)
 })
@@ -31,6 +34,7 @@ it.each([undefined, '0', 'true'])('redirects to the existing home with flag %s b
   await expect(render()).rejects.toThrow(`REDIRECT:/en/dashboard/${clientId}?step=home`)
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.evidence).not.toHaveBeenCalled()
+  expect(mocks.binding).not.toHaveBeenCalled()
 })
 it('renders only the owned brand shell when enabled', async () => {
   const page = await render()
@@ -45,6 +49,33 @@ it('renders only the owned brand shell when enabled', async () => {
   expect(strings.join('?')).toMatch(/where id = \? and account_id = \?/)
   expect(values).toEqual([clientId, 'account-a'])
   expect(mocks.sql).toHaveBeenCalledTimes(1)
+  expect(mocks.binding).toHaveBeenCalledWith('account-a', clientId)
+  expect(page.props.sourceStatus).toBe('unbound')
+})
+
+it('projects actual saved GSC binding status without metrics or provider reads', async () => {
+  mocks.binding.mockResolvedValue({ connectionStatus: 'active', siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner', boundDomain: 'example.com', currentDomain: 'example.com' })
+  expect((await render()).props.sourceStatus).toBe('bound')
+  mocks.binding.mockResolvedValue({ connectionStatus: 'active', siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner', boundDomain: 'example.com', currentDomain: 'other.example' })
+  expect((await render()).props.sourceStatus).toBe('rebind')
+  mocks.binding.mockResolvedValue({ connectionStatus: 'needs_reconnect' })
+  expect((await render()).props.sourceStatus).toBe('reconnect')
+  mocks.binding.mockResolvedValue({ connectionStatus: 'revoked' })
+  expect((await render()).props.sourceStatus).toBe('unbound')
+})
+it('does not turn GSC lookup errors or disabled access into an unbound claim', async () => {
+  mocks.binding.mockRejectedValueOnce(new Error('private-binding-error'))
+  const page = await render()
+  expect(page.props.sourceStatus).toBe('unavailable')
+  expect(JSON.stringify(page)).not.toContain('private-binding-error')
+  vi.stubEnv('FEATURE_SEARCH_CONSOLE', '0')
+  mocks.binding.mockClear()
+  expect((await render()).props.sourceStatus).toBe('unavailable')
+  expect(mocks.binding).not.toHaveBeenCalled()
+  vi.stubEnv('FEATURE_SEARCH_CONSOLE', '1')
+  mocks.auth.mockResolvedValue({ account_id: 'account-a', accounts: { plan: 'free' } })
+  expect((await render()).props.sourceStatus).toBe('unavailable')
+  expect(mocks.binding).not.toHaveBeenCalled()
 })
 
 it('passes only plan-granted platforms and the fail-closed cap when LIVE is on', async () => {
@@ -64,6 +95,7 @@ it('returns 404 for a missing or foreign brand', async () => {
   mocks.sql.mockResolvedValueOnce([])
   await expect(render()).rejects.toThrow('NOT_FOUND')
   expect(mocks.evidence).not.toHaveBeenCalled()
+  expect(mocks.binding).not.toHaveBeenCalled()
 })
 it('shows unavailable when evidence fails, without exposing details or a false empty reply', async () => {
   mocks.evidence.mockRejectedValueOnce(new Error('private-evidence-error'))

@@ -5,10 +5,10 @@
     "localeLabel": "香港 · 繁體中文",
     "heroEyebrow": "品牌工作室",
     "title": "開始工作",
-    "description": "檢視已儲存的品牌證據。選擇摘要範本，或輸入問題搜尋相關摘錄。",
-    "threadsTitle": "對話列表",
-    "newThread": "新增對話",
-    "threadsEmpty": "暫存對話會顯示在這裡。",
+    "description": "直接問，或選一個範本。把研究變成下一份有來源、可以交付的成果。",
+    "threadsTitle": "討論串",
+    "newThread": "開始新討論",
+    "threadsEmpty": "這個品牌未有討論。從上方的工作目標開始。",
     "privateLabel": "預設私人 · 暫存",
     "privacyBody": "訊息只暫存在此頁面的記憶體，離開或重新整理後便會消失。儲存、分享及私人存取權限功能將於日後提供。",
     "templatesTitle": "從一個任務開始",
@@ -17,35 +17,53 @@
     "emptyBody": "範本會整理已儲存紀錄。自訂問題會顯示相關摘錄；證據不足時會清楚說明。",
     "youLabel": "你",
     "composerLabel": "你的工作目標",
-    "composerPlaceholder": "寫下有關品牌的問題…",
+    "composerPlaceholder": "例如：香港客人買這類產品前，還有哪些問題未被回答？",
     "composerHelp": "按 Enter 換行。傳送只會讀取已載入的快照，不會發出網絡請求。",
-    "send": "傳送訊息",
+    "send": "開始討論",
     "loadError": "未能載入此品牌已儲存的證據，請再試一次。",
     "retry": "再試一次",
     "templates": {
       "brief": {
-        "label": "附來源的品牌摘要",
-        "prompt": "根據已儲存的 Pulse 觀察及掃描證據整理品牌摘要，列出來源及資料缺口。",
-        "description": "整理已儲存的品牌觀察與來源，清楚標示缺口。",
-        "output": "已儲存證據 → brief 摘要"
+        "label": "建立有來源的 brief",
+        "description": "結合品牌文件、內容缺口及真實來源。",
+        "output": "brief → 待審版本",
+        "prompt": "根據這個品牌已儲存的觀察及掃描證據建立 brief，清楚列出來源及資料缺口。",
+        "limit": "只整理已儲存紀錄摘錄。附加品牌文件及建立待審版本：未支援。"
       },
       "competitors": {
-        "label": "競爭對手證據",
-        "prompt": "檢視可用於競爭對手比較的已儲存證據及引用，說明哪些部分未能可靠比較。",
-        "description": "檢視已儲存回答與引用，保留比較限制。",
-        "output": "已儲存觀察 → 比較參考"
+        "label": "比較競爭對手的內容",
+        "description": "看他們回答了甚麼，保留頁面與引用證據。",
+        "output": "內容差距 → 機會",
+        "prompt": "比較這個品牌與競爭對手的可用已儲存證據，說明哪些部分未能可靠比較。",
+        "limit": "只整理已儲存觀察。內容差距及競爭對手排名：待核實。"
       },
       "pulse": {
-        "label": "已儲存的 Pulse 觀察",
-        "prompt": "整理已儲存的 Pulse 觀察、日期、引用及涵蓋範圍限制。",
+        "label": "解釋本週能見度變化",
         "description": "查看已保存的觀察、引用及未完成的測試。",
-        "output": "已儲存觀察 → 涵蓋範圍摘要"
+        "output": "觀察解讀 → 下一步",
+        "prompt": "根據已保存的 Pulse 觀察，本週有甚麼改變？",
+        "limit": "只整理已儲存觀察。完整週比較：待核實；缺失不等於零提及。"
       },
       "report": {
-        "label": "附來源的報告草稿",
-        "prompt": "根據已儲存觀察及掃描證據整理報告草稿，附上引用並清楚標示缺失的證據。",
-        "description": "整理已儲存觀察與掃描證據，供審閱摘錄。",
-        "output": "已儲存證據 → 報告草稿"
+        "label": "整理客戶報告",
+        "description": "將研究、修改及結果整理成可審閱的版本。",
+        "output": "報告草稿 → 審閱",
+        "prompt": "把本月內容工作整理成一份有來源的客戶報告草稿。",
+        "limit": "只整理已儲存紀錄草稿摘錄。自動建立及發佈報告：未支援。"
+      },
+      "opportunity": {
+        "label": "找出香港內容機會",
+        "description": "找出未答好的購買問題，決定先改哪幾頁。",
+        "output": "機會清單 → 內容 brief",
+        "prompt": "根據這個品牌已儲存的證據，香港客人的哪些購買問題值得進一步研究？請標示待核實的搜尋需求及內容缺口。",
+        "limit": "只整理已儲存證據。搜尋需求及機會優先次序：待核實；此處未執行機會分析。"
+      },
+      "improve": {
+        "label": "改善一個現有頁面",
+        "description": "由頁面和證據開始，整理可以交付的修改建議。",
+        "output": "修改清單 → 工作項目",
+        "prompt": "檢視這個品牌最近一次已儲存的掃描，哪些頁面檢查需要改善？請標示已儲存證據未能核實的部分。",
+        "limit": "只整理屬於此帳戶的已儲存掃描證據。新頁面檢查及儲存工作項目：未支援。"
       }
     },
     "savedBadge": "階段 B1 · 已儲存證據",
@@ -142,7 +160,42 @@
       "replyLabel": "即時回答 · 第 {number} 則",
       "badge": "Stage B2 · 已儲存證據及即時模型",
       "budget": "所選平台超出本次請求的呼叫或 token 預算，請減少所選平台。",
-      "invalid": "即時請求被拒絕。請使用最多 1,000 字元的問題及已授權平台。"
+      "invalid": "即時請求被拒絕。請使用最多 1,000 字元的問題及已授權平台。",
+      "selector": "即時平台 · {count}"
+    },
+    "heroTitle": "今日想為品牌完成甚麼？",
+    "chooseDocuments": "選文件",
+    "localeBadge": "香港 · 繁中",
+    "followUpLabel": "繼續這個討論",
+    "savedDataLabel": "AISO 已保存資料",
+    "templatesDescription": "每個範本都有明確成果",
+    "continueTitle": "繼續工作",
+    "discussionTitle": "討論",
+    "followUpSend": "傳送訊息",
+    "followUpPlaceholder": "繼續追問…",
+    "sources": {
+      "bound": "Search Console · 已綁定",
+      "unbound": "Search Console · 未連接",
+      "reconnect": "Search Console · 需要重新連接",
+      "rebind": "Search Console · 綁定待核實",
+      "unavailable": "Search Console · 待核實",
+      "notQueried": "只顯示綁定狀態，本次未查詢搜尋資料。"
+    },
+    "destinations": {
+      "opportunities": "前往內容機會",
+      "reports": "前往客戶報告"
+    },
+    "honesty": {
+      "noEstimatedNumbers": "缺少資料時顯示「待核實」，不填入推算數字。",
+      "mentionsCoverage": "HK／繁中：DataForSEO 的 ChatGPT LLM Mentions 目前只標示美國／英文覆蓋，此處不顯示香港 ChatGPT 分數。",
+      "missingIsNotZero": "不將沒有回應的問題計作零提及"
+    },
+    "filters": {
+      "all": "全部",
+      "discover": "發現機會",
+      "improve": "改善內容",
+      "monitor": "觀察成效",
+      "report": "交付報告"
     }
   },
   "seo": {

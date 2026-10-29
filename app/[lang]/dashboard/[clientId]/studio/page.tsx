@@ -8,6 +8,9 @@ import { loadStudioEvidence } from '@/lib/conversation-studio/evidence'
 import { studioLiveCap } from '@/lib/conversation-studio/live-quota'
 import { runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { resolveCommercialEntitlement } from '@/lib/tier'
+import { loadBinding } from '@/lib/integrations/search-console/store'
+import { bindingMatchesDomain } from '@/lib/integrations/search-console/binding'
+import type { StudioSourceStatus } from '@/lib/conversation-studio/home'
 
 export default async function StudioPage({ params }: {
   params: Promise<{ lang: string; clientId: string }>
@@ -33,10 +36,20 @@ export default async function StudioPage({ params }: {
   }
   const brand = brands[0]
   if (!brand || !evidence) notFound()
+  let sourceStatus: StudioSourceStatus = 'unavailable'
+  if (isFeatureEnabled('search_console') && resolveCommercialEntitlement(profile.accounts).features.search_console) {
+    try {
+      // Saved binding metadata only, after ownership. No Google query or sync.
+      const binding = await loadBinding(profile.account_id, clientId)
+      sourceStatus = !binding || binding.connectionStatus === 'revoked' ? 'unbound'
+        : binding.connectionStatus === 'needs_reconnect' ? 'reconnect'
+        : bindingMatchesDomain(binding, binding.currentDomain) ? 'bound' : 'rebind'
+    } catch { /* Unknown stays unknown; a failed read is never an unbound claim. */ }
+  }
   // Brand changes remount the studio, clearing all page-local conversation state.
   const live = isFeatureEnabled('conversation_studio_live') ? {
     platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
     cap: studioLiveCap(),
   } : undefined
-  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} live={live} />
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} live={live} sourceStatus={sourceStatus} />
 }

@@ -5,10 +5,10 @@
     "localeLabel": "Hong Kong · Traditional Chinese",
     "heroEyebrow": "YOUR BRAND WORKSPACE",
     "title": "Start work",
-    "description": "Review saved brand evidence. Choose a summary template or search excerpts with your own question.",
-    "threadsTitle": "Conversations",
-    "newThread": "New conversation",
-    "threadsEmpty": "Your temporary conversations will appear here.",
+    "description": "Ask directly, or choose a template. Turn research into your next sourced, deliverable result.",
+    "threadsTitle": "Discussions",
+    "newThread": "Start a new discussion",
+    "threadsEmpty": "This brand has no discussions yet. Start with a work goal above.",
     "privateLabel": "Private by default · Temporary",
     "privacyBody": "Messages stay in this page’s memory and disappear when you leave or refresh. Saving, sharing and private access controls are coming later.",
     "templatesTitle": "Start with a task",
@@ -17,35 +17,53 @@
     "emptyBody": "Templates summarise saved records. Freeform questions show matching excerpts and say when there is not enough evidence.",
     "youLabel": "You",
     "composerLabel": "Your work goal",
-    "composerPlaceholder": "Ask a question about your brand…",
+    "composerPlaceholder": "For example: What questions do Hong Kong customers still need answered before buying this kind of product?",
     "composerHelp": "Enter adds a new line. Send reads the loaded snapshot without a network request.",
-    "send": "Send message",
+    "send": "Start discussion",
     "loadError": "We could not load this brand’s saved evidence. Please try again.",
     "retry": "Try again",
     "templates": {
       "brief": {
-        "label": "Sourced brand brief",
-        "prompt": "Prepare a brand brief from saved Pulse observations and scan evidence, with sources and gaps.",
-        "description": "Organise saved brand observations and sources, with gaps clearly marked.",
-        "output": "Saved evidence → Brief summary"
+        "label": "Create a sourced brief",
+        "description": "Combine brand documents, content gaps and real sources.",
+        "output": "Brief → Version for review",
+        "prompt": "Prepare a brief from this brand’s saved observations and scan evidence, with sources and gaps clearly marked.",
+        "limit": "Saved-record extracts only. Document attachments and review-version creation: unsupported."
       },
       "competitors": {
-        "label": "Competitor evidence",
-        "prompt": "Review saved evidence for a competitor comparison with citations. State what cannot be compared reliably.",
-        "description": "Review saved answers and citations, with comparison limits kept explicit.",
-        "output": "Saved observations → Comparison context"
+        "label": "Compare competitor content",
+        "description": "See what they answer, retaining pages and citation evidence.",
+        "output": "Content gaps → Opportunities",
+        "prompt": "Compare available saved evidence for this brand and its competitors. State what cannot be compared reliably.",
+        "limit": "Saved observations only. Verified content gaps and competitor rankings: pending verification."
       },
       "pulse": {
-        "label": "Saved Pulse observations",
-        "prompt": "Summarise saved Pulse observations, their dates, citations and coverage limits.",
+        "label": "Explain this week’s visibility changes",
         "description": "Review saved observations, citations and incomplete tests.",
-        "output": "Saved observations → Coverage summary"
+        "output": "Observation analysis → Next steps",
+        "prompt": "Based on saved Pulse observations, what changed this week?",
+        "limit": "Saved observations only. Complete weekly comparison: pending verification; missing is not zero mentions."
       },
       "report": {
-        "label": "Sourced report draft",
-        "prompt": "Prepare a report draft from saved observations and scan evidence, with citations and missing evidence clearly marked.",
-        "description": "Collect saved observations and scan evidence into extracts for review.",
-        "output": "Saved evidence → Report draft"
+        "label": "Prepare a client report",
+        "description": "Turn research, changes and results into a version for review.",
+        "output": "Report draft → Review",
+        "prompt": "Organise this month’s content work into a sourced client report draft.",
+        "limit": "Saved-record draft extracts only. Automatic report creation and publication: unsupported."
+      },
+      "opportunity": {
+        "label": "Find Hong Kong content opportunities",
+        "description": "Find unanswered buying questions and decide which pages to improve first.",
+        "output": "Opportunity list → Content brief",
+        "prompt": "From this brand’s saved evidence, which Hong Kong buying questions need further investigation? Mark unverified demand and content gaps.",
+        "limit": "Saved evidence only. Search demand and opportunity priorities: pending verification; no opportunity analysis runs here."
+      },
+      "improve": {
+        "label": "Improve an existing page",
+        "description": "Start with a page and evidence to prepare actionable changes.",
+        "output": "Change list → Work item",
+        "prompt": "Review the latest saved scan for this brand. Which page checks need attention? Mark anything the saved evidence cannot verify.",
+        "limit": "Saved owned-scan evidence only. New page checks and work-item saves: unsupported."
       }
     },
     "savedBadge": "Stage B1 · Saved evidence",
@@ -142,7 +160,42 @@
       "replyLabel": "Live answer · Reply {number}",
       "badge": "Stage B2 · Saved evidence + live models",
       "budget": "The selected platforms exceed this request’s call or token budget. Select fewer platforms.",
-      "invalid": "The live request was rejected. Use a question up to 1,000 characters and the granted platforms."
+      "invalid": "The live request was rejected. Use a question up to 1,000 characters and the granted platforms.",
+      "selector": "Live platforms · {count}"
+    },
+    "heroTitle": "What would you like to accomplish for your brand today?",
+    "chooseDocuments": "Choose documents",
+    "localeBadge": "Hong Kong · Traditional Chinese",
+    "followUpLabel": "Continue this discussion",
+    "savedDataLabel": "Data saved in AISO",
+    "templatesDescription": "Every template has a clear outcome",
+    "continueTitle": "Continue working",
+    "discussionTitle": "Discussion",
+    "followUpSend": "Send message",
+    "followUpPlaceholder": "Ask a follow-up…",
+    "sources": {
+      "bound": "Search Console · Bound",
+      "unbound": "Search Console · Not connected",
+      "reconnect": "Search Console · Reconnect required",
+      "rebind": "Search Console · Binding needs verification",
+      "unavailable": "Search Console · Pending verification",
+      "notQueried": "Binding status only; no search data queried."
+    },
+    "destinations": {
+      "opportunities": "Open content opportunities",
+      "reports": "Open client reports"
+    },
+    "honesty": {
+      "noEstimatedNumbers": "Show “Pending verification” when data is missing; do not fill in estimated figures.",
+      "mentionsCoverage": "HK / Traditional Chinese: DataForSEO’s ChatGPT LLM Mentions currently lists US / English coverage only. No Hong Kong ChatGPT score is shown here.",
+      "missingIsNotZero": "Do not count unanswered questions as zero mentions"
+    },
+    "filters": {
+      "all": "All",
+      "discover": "Discover opportunities",
+      "improve": "Improve content",
+      "monitor": "Monitor performance",
+      "report": "Deliver reports"
     }
   },
   "seo": {
