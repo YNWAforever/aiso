@@ -14,11 +14,13 @@ it.each(['en', 'zh-HK'])('keeps goal, selected question and honest saved-result 
     expect(composeBriefDraft(short, format)).toBe(format(short))
     for (const context of [
       { ...short, goal: '目標'.repeat(500), prompt: '問題'.repeat(500) },
+      { ...short, goal: '😀'.repeat(500), prompt: '🚀'.repeat(500) },
       { ...short, goal: 'x'.repeat(1000) },
       { ...short, prompt: 'y'.repeat(1000) },
     ]) {
       const draft = composeBriefDraft(context, format)
       expect(draft.length).toBeLessThanOrEqual(STUDIO_PROMPT_LIMIT)
+      expect(draft.isWellFormed()).toBe(true)
       expect(draft).toContain(summary) // Preserve pending/insufficient, even with long user text.
       expect(draft).toContain(context.goal.slice(0, 8))
       expect(draft).toContain(context.prompt.slice(0, 8))
