@@ -29,6 +29,41 @@ async function navigate(page: Page, label: string, copy: typeof en.conversationS
 }
 
 for (const lang of ['en', 'zh-HK']) {
+  test(`result cards link to same-brand existing flows and restore dashboard chrome in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang)
+    // Use the second brand as well, so a hardcoded first-brand link cannot pass.
+    for (const brand of [clientId, '22222222-2222-4222-8222-222222222222']) {
+      if (brand !== clientId) {
+        const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
+        if (await toggle.isVisible()) await toggle.click()
+        await page.getByRole('button', { name: copy.brandLabel, exact: true }).click()
+        await page.getByRole('link', { name: 'Second Brand', exact: true }).click()
+      }
+      for (const destination of ['opportunities', 'reports', 'studio/tools'] as const) {
+        await page.locator('#studio-composer').fill('Explain saved observations')
+        await page.getByRole('button', { name: copy.send, exact: true }).click()
+        const card = page.locator('.as-saved-reply > .as-result')
+        const label = destination === 'studio/tools' ? copy.viewTools : copy.destinations[destination]
+        const link = card.getByRole('link', { name: label, exact: true })
+        await expect(link).toHaveAttribute('href', `/${lang}/dashboard/${brand}/${destination}`)
+        await link.click()
+        await expect(page).toHaveURL(`https://studio.fixture/${lang}/dashboard/${brand}/${destination}`)
+        if (destination === 'studio/tools') {
+          await expect(page.getByRole('heading', { name: copy.views.tools.title })).toBeVisible()
+          await expect(page.locator('main a[href*="step=monitor"]')).toHaveCount(0)
+          await page.locator('main a[href$="?step=scan"]').click()
+        }
+        await expect(page.getByTestId('dashboard-topbar')).toBeVisible()
+        await expect(page.getByRole('complementary')).toBeVisible()
+        await expect(page.locator('#aiso-studio')).toHaveCount(0)
+        await page.getByTestId('dashboard-content').getByRole('link', { name: 'Studio', exact: true }).click()
+        await expect(page.locator('#studio-home')).toBeVisible()
+        await expect(page.locator('.as-recent li')).toHaveCount(0)
+      }
+    }
+    expect(requests).toEqual([])
+  })
+
   test(`Layout B navigation, temporary discussions, READ pages and dashboard escape in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     await expect(page.getByTestId('dashboard-topbar')).toHaveCount(0)
@@ -131,6 +166,8 @@ for (const lang of ['en', 'zh-HK']) {
     test(`Studio screens ${lang} ${width} ${theme}: reflow and axe`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 })
       const { copy, requests } = await fixture(page, lang, '', theme === 'dark')
+      const breadcrumbCenters = await page.locator('.as-breadcrumb').evaluate(el => [...el.children].map(child => { const box = child.getBoundingClientRect(); return box.y + box.height / 2 }))
+      expect(Math.max(...breadcrumbCenters) - Math.min(...breadcrumbCenters)).toBeLessThanOrEqual(1)
       const shots = process.env.STUDIO_STAGE5_SHOTS_DIR
       if (shots) mkdirSync(shots, { recursive: true })
       for (const view of ['home', 'discussion', 'threads', 'documents', 'connections', 'tools']) {
@@ -147,7 +184,13 @@ for (const lang of ['en', 'zh-HK']) {
         expect(targets, view).toEqual([])
         const smallText = await page.locator('#aiso-studio').evaluate(root => [...root.querySelectorAll('*')].filter(el => el.getClientRects().length && [...el.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) && parseFloat(getComputedStyle(el).fontSize) < 12).map(el => el.textContent))
         expect(smallText, view).toEqual([])
-        if (shots && testInfo.project.name === 'chromium') await page.screenshot({ path: `${shots}/${lang}-${theme}-${width}-${view}.png`, fullPage: true })
+        if (shots && testInfo.project.name === 'chromium') {
+          // Composer focus can scroll the full-bleed shell. Compare the same
+          // top-of-view framing as the concept, without a leftover hover state.
+          await page.locator('#aiso-studio').evaluate(root => root.parentElement?.scrollTo(0, 0))
+          await page.mouse.move(0, 0)
+          await page.screenshot({ path: `${shots}/${lang}-${theme}-${width}-${view}.png`, fullPage: true })
+        }
       }
       expect(requests).toEqual([])
     })

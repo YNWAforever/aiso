@@ -1,8 +1,24 @@
-import { useTranslations } from 'next-intl'
+import Link from 'next/link'
+import { ArrowUpRight } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 import { ScanEvidencePanel } from '@/components/result/ScanEvidencePanel'
+import { buildDashboardNav } from '@/lib/dashboard-nav'
 import type { OpenStudioEvidence, StudioEvidence, StudioReply } from '@/lib/conversation-studio/types'
 
-export function StudioReplyView({ reply, number = 1, onBranchBrief, onOpenEvidence }: { reply: StudioReply; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
+function StudioResultLinks({ clientId }: { clientId: string }) {
+  const lang = useLocale()
+  const t = useTranslations('conversationStudio')
+  const nav = buildDashboardNav({ lang, clientId: encodeURIComponent(clientId), features: {} })
+  const opportunities = nav.find(section => section.key === 'scan')?.items.find(item => item.key === 'opportunities')
+  const reports = nav.find(section => section.key === 'reports')
+  return <div className="as-result-actions">
+    {opportunities && <Link href={opportunities.href} prefetch={false} className="as-button gap-2 px-3">{t('destinations.opportunities')}<ArrowUpRight className="size-4 shrink-0" aria-hidden="true" /></Link>}
+    {reports && <Link href={reports.href} prefetch={false} className="as-button gap-2 px-3">{t('destinations.reports')}<ArrowUpRight className="size-4 shrink-0" aria-hidden="true" /></Link>}
+    <Link href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/studio/tools`} prefetch={false} className="as-button gap-2 px-3">{t('viewTools')}<ArrowUpRight className="size-4 shrink-0" aria-hidden="true" /></Link>
+  </div>
+}
+
+export function StudioReplyView({ reply, clientId, number = 1, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
   const t = useTranslations('conversationStudio.evidence')
   const studio = useTranslations('conversationStudio')
   return <article aria-label={t('replyLabel')} className="as-saved-reply min-w-0 space-y-3 [overflow-wrap:anywhere]">
@@ -17,6 +33,7 @@ export function StudioReplyView({ reply, number = 1, onBranchBrief, onOpenEviden
     <div className="flex flex-wrap gap-2"><span className="as-badge as-badge-amber">{studio('honesty.searchDemandPending')}</span></div>
     {reply.template === 'report' && <p className="as-badge">{t('reportDraft')}</p>}
     <div className="as-result-actions"><button type="button" className="as-button px-3" onClick={event => onOpenEvidence?.(event.currentTarget)} aria-haspopup="dialog">{t('open')}</button>{onBranchBrief && <button type="button" className="as-button as-primary px-3" onClick={onBranchBrief}>{studio('branchBrief')}</button>}</div>
+    {clientId && <StudioResultLinks clientId={clientId} />}
     </section>
     {reply.observations.length > 0 && <>
       <p className="as-muted as-small">{t('selected', { count: reply.observations.length })}</p>

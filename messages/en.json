@@ -238,6 +238,8 @@
     "threadScope": "Discussion scope",
     "savedWeek": "Saved week: {week}",
     "branchBrief": "Start a separate brief discussion",
+    "briefOpened": "Opened a separate brief discussion. It is temporary for this session.",
+    "viewTools": "View existing tools",
     "briefThreadTitle": "Brief · {title}",
     "briefContextPrompt": "Create a sourced brief for this work goal: {goal}",
     "briefContext": "Context from: {title}",

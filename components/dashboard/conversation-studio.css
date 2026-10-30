@@ -84,7 +84,7 @@
 #aiso-studio:lang(zh-HK) .as-eyebrow { letter-spacing: normal; }
 
 #aiso-studio .as-topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--as-line); }
-#aiso-studio .as-breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; overflow-wrap: anywhere; color: var(--as-muted); }
+#aiso-studio .as-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; color: var(--as-muted); }
 #aiso-studio .as-breadcrumb span:last-child { color: var(--as-ink); }
 #aiso-studio .as-locale { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--as-line); border-radius: 999px; padding: 4px 10px; background: var(--as-panel); color: var(--as-muted); font-size: 12px; }
 
@@ -126,6 +126,8 @@
 #aiso-studio .as-research { border-block: 1px solid var(--as-line); font-size: 12px; }
 #aiso-studio .as-research > summary { font-weight: 600; }
 #aiso-studio .as-result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#aiso-studio .as-toast { margin-top: 13px; font-size: 12px; color: var(--as-blue); }
+#aiso-studio .as-toast:empty { margin: 0; }
 #aiso-studio .as-composer { border: 1px solid var(--as-line); border-radius: 16px; padding: 15px; background: var(--as-panel); box-shadow: 0 6px 22px #102a5b06; }
 #aiso-studio textarea { border: 0; border-radius: 8px; padding: 8px 0; background: transparent; color: var(--as-ink); font: inherit; }
 #aiso-studio textarea::placeholder { color: var(--as-muted); opacity: 1; }
