@@ -97,6 +97,20 @@ it.each(['en', 'zh-HK'])('renders thread scope and brief context without invente
   expect(brief).not.toContain('2026-10-26')
 })
 
+it.each(['en', 'zh-HK'])('keeps result destinations in the supplied brand and omits them without brand context in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const reply = composeSavedReply('pulse', 'pulse', savedStudioEvidence)
+  for (const clientId of ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222']) {
+    const html = renderWithIntl(<StudioReplyView clientId={clientId} id="saved" evidence={savedStudioEvidence} reply={reply} />, lang)
+    for (const destination of ['opportunities', 'reports', 'studio/tools']) expect(html).toContain(`href="/${lang}/dashboard/${clientId}/${destination}"`)
+    for (const label of [copy.destinations.opportunities, copy.destinations.reports, copy.viewTools]) expect(html).toContain(label)
+    // Preserve the dashboard's hidden Monitor section and existing authority gates.
+    expect(html).not.toMatch(/step=monitor|\/admin|\/dashboard\/settings/)
+  }
+  const unscoped = renderWithIntl(<StudioReplyView id="saved" evidence={savedStudioEvidence} reply={reply} />, lang)
+  expect(unscoped).not.toContain('/dashboard/')
+})
+
 it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified output in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio.live
   const ui = (cap: number, platforms = ['gemini-flash']) => renderWithIntl(<ConversationStudio brandName="Brand" clientId="brand-id" evidence={emptyStudioEvidence} live={{ cap, platforms }} />, lang)

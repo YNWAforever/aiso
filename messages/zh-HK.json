@@ -238,6 +238,8 @@
     "threadScope": "討論範圍",
     "savedWeek": "已儲存週次：{week}",
     "branchBrief": "另開 brief 討論",
+    "briefOpened": "已另開 brief 討論，只暫存於本次工作階段。",
+    "viewTools": "查看原有工具",
     "briefThreadTitle": "brief · {title}",
     "briefContextPrompt": "請根據這個工作目標建立有來源的 brief：{goal}",
     "briefContext": "承接討論：{title}",

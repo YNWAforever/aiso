@@ -42,6 +42,7 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
   const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, setActiveId, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
+  const [briefToastId, setBriefToastId] = useState<number | null>(null)
   const [inspection, setInspection] = useState<{ turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
   const focusAfterNavigation = useRef(false)
@@ -58,14 +59,15 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
     }
   }, [activeId])
 
-  function openHome() { setInspection(null); focusAfterNavigation.current = true; setActiveId(null) }
-  function openThread(id: number) { setInspection(null); focusAfterNavigation.current = true; setActiveId(id) }
+  function openHome() { setInspection(null); setBriefToastId(null); focusAfterNavigation.current = true; setActiveId(null) }
+  function openThread(id: number) { setInspection(null); setBriefToastId(null); focusAfterNavigation.current = true; setActiveId(id) }
 
   function branchBrief(source: StudioThread) {
     const id = allocateId()
     // A new editable draft, with no synthetic turn, transport or persistence.
     setThreads(previous => [{ id, title: t('briefThreadTitle', { title: source.title }), goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: t('briefContextPrompt', { goal: source.goal }), template: 'brief' }, ...previous])
     openThread(id)
+    setBriefToastId(id)
   }
 
   function updateDraft(value: string, template: StudioHomeTemplate | null = null) {
@@ -79,6 +81,7 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
     if (!prompt || isInFlight()) return
     const askLive = Boolean(live && live.cap > 0 && platforms.length && clientId)
     if (askLive && prompt.length > STUDIO_PROMPT_LIMIT) return
+    setBriefToastId(null)
     const id = current?.id ?? allocateId()
     const task = current ? current.template : newTemplate
     const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task)), ...(askLive ? { live: { pending: true } } : {}) }
@@ -210,10 +213,9 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
             <p className="as-answer-label"><Sparkles className="size-4" aria-hidden="true" />{t('answerLabel')}</p>
             {task && <div className="as-note space-y-1">
               <p>{t(`templates.${task}.limit`)}</p>
-              {basePath && HOME_TASKS[task].destination && <a href={`${basePath}/${HOME_TASKS[task].destination}`} className="gap-2 underline">{t(`destinations.${HOME_TASKS[task].destination}`)}<ArrowUpRight className="size-4" aria-hidden="true" /></a>}
             </div>}
             <div className="min-w-0 space-y-4">
-              <StudioReplyView reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} onBranchBrief={() => branchBrief(current)} onOpenEvidence={(trigger, target = 'saved') => setInspection({ turnId: id, target, trigger })} />
+              <StudioReplyView clientId={clientId} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} onBranchBrief={() => branchBrief(current)} onOpenEvidence={(trigger, target = 'saved') => setInspection({ turnId: id, target, trigger })} />
               {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} onOpenEvidence={(trigger, target = 'saved') => setInspection({ turnId: id, target, trigger })} />}
             </div>
             </div>
@@ -224,6 +226,7 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
         {composerForm}
         {scopeNote}
       </div>}
+      <div className="as-toast" role="status" aria-live="polite" aria-atomic="true">{briefToastId !== null && briefToastId === activeId && <span key={briefToastId}>{t('briefOpened')}</span>}</div>
       <footer className="as-divider space-y-2 pt-4">
         <p className="as-small flex items-center gap-2 font-semibold"><Lock className="size-4 shrink-0" aria-hidden="true" />{t('privateLabel')}</p>
         <p className="as-muted as-small">{t('privacyBody')}</p>
