@@ -29,6 +29,79 @@ async function navigate(page: Page, label: string, copy: typeof en.conversationS
 }
 
 for (const lang of ['en', 'zh-HK']) {
+  test(`follow-up drafts and feedback stay in their thread and clear across brands, accounts and exits in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang)
+    const composer = page.locator('#studio-composer')
+    const toast = page.locator('.as-toast')
+    const openRecent = async (title: string) => {
+      const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
+      if (await toggle.isVisible()) await toggle.click()
+      await page.locator('.as-recent').getByRole('button').filter({ has: page.getByText(title, { exact: true }) }).click()
+      await expect(composer).toBeFocused()
+    }
+    const switchBrand = async (name: string) => {
+      const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
+      if (await toggle.isVisible()) await toggle.click()
+      await page.getByRole('button', { name: copy.brandLabel, exact: true }).click()
+      await page.getByRole('link', { name, exact: true }).click()
+      await expect(composer).toHaveValue('')
+      await expect(page.locator('.as-recent li')).toHaveCount(0)
+      await expect(toast).toBeEmpty()
+    }
+    await composer.fill('First thread goal')
+    await page.locator('button[type="submit"]').click()
+    await composer.fill('First thread unsent')
+    await page.getByRole('button', { name: copy.branchBrief, exact: true }).click()
+    const briefTitle = copy.briefThreadTitle.replace('{title}', 'First thread goal')
+    await expect(composer).not.toHaveValue('First thread unsent')
+    await composer.fill('Second thread unsent')
+    await openRecent('First thread goal')
+    await expect(composer).toHaveValue('First thread unsent')
+    await expect(toast).toBeEmpty()
+    await openRecent(briefTitle)
+    await expect(composer).toHaveValue('Second thread unsent')
+    await expect(toast).toBeEmpty() // Do not revive the old brief-success message.
+    await page.locator('button[type="submit"]').click()
+    await expect(toast).toHaveText(copy.followUpSent)
+    await openRecent('First thread goal')
+    await expect(toast).toBeEmpty()
+    await expect(composer).toHaveValue('First thread unsent')
+    await page.getByRole('button', { name: copy.evidence.open, exact: true }).first().click()
+    await page.keyboard.press('Escape')
+    await openRecent(briefTitle)
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await composer.fill('First brand private draft')
+    await switchBrand('Second Brand')
+    await composer.fill('Second brand goal')
+    await page.locator('button[type="submit"]').click()
+    await composer.fill('Second brand private draft')
+    await switchBrand('Example Brand')
+    await composer.fill('Account A goal')
+    await page.locator('button[type="submit"]').click()
+    await composer.fill('Account A private draft')
+    // Synthetic session-account change uses the same account:brand key as the
+    // guarded layout. This is UI memory evidence, not hosted authentication.
+    for (const account of ['account-b', 'account-a']) {
+      await page.evaluate(account => {
+        history.pushState({}, '', `${location.pathname}?account=${account}`)
+        window.dispatchEvent(new PopStateEvent('popstate'))
+      }, account)
+      await expect(composer).toHaveValue('')
+      await expect(page.locator('.as-recent li')).toHaveCount(0)
+      await expect(toast).toBeEmpty()
+      await composer.fill(`${account} goal`)
+      await page.locator('button[type="submit"]').click()
+      await composer.fill(`${account} unsent`)
+    }
+    await page.getByRole('log').getByRole('link', { name: copy.destinations.opportunities, exact: true }).click()
+    await expect(page.getByTestId('dashboard-topbar')).toBeVisible()
+    await page.getByTestId('dashboard-content').getByRole('link', { name: 'Studio', exact: true }).click()
+    await expect(composer).toHaveValue('')
+    await expect(page.locator('.as-recent li')).toHaveCount(0)
+    await expect(toast).toBeEmpty()
+    expect(requests).toEqual([])
+  })
+
   test(`result cards link to same-brand existing flows and restore dashboard chrome in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     // Use the second brand as well, so a hardcoded first-brand link cannot pass.
@@ -190,6 +263,17 @@ for (const lang of ['en', 'zh-HK']) {
           await page.locator('#aiso-studio').evaluate(root => root.parentElement?.scrollTo(0, 0))
           await page.mouse.move(0, 0)
           await page.screenshot({ path: `${shots}/${lang}-${theme}-${width}-${view}.png`, fullPage: true })
+          if (view === 'discussion') {
+            await page.getByRole('button', { name: copy.branchBrief, exact: true }).click()
+            await expect(page.locator('#studio-composer')).toBeFocused()
+            await expect(page.locator('.as-toast')).toHaveText(copy.briefOpened)
+            expect((await new AxeBuilder({ page }).analyze()).violations, 'brief').toEqual([])
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'brief').toBe(true)
+            await page.locator('#aiso-studio').evaluate(root => root.parentElement?.scrollTo(0, 0))
+            await page.mouse.move(0, 0)
+            await page.screenshot({ path: `${shots}/${lang}-${theme}-${width}-brief.png`, fullPage: true })
+            await page.locator('.as-composer').screenshot({ path: `${shots}/${lang}-${theme}-${width}-brief-draft.png` })
+          }
         }
       }
       expect(requests).toEqual([])

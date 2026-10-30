@@ -239,9 +239,10 @@
     "savedWeek": "已儲存週次：{week}",
     "branchBrief": "另開 brief 討論",
     "briefOpened": "已另開 brief 討論，只暫存於本次工作階段。",
+    "followUpSent": "訊息已加入這個暫存討論。",
     "viewTools": "查看原有工具",
     "briefThreadTitle": "brief · {title}",
-    "briefContextPrompt": "請根據這個工作目標建立有來源的 brief：{goal}",
+    "briefContextPrompt": "請根據這個工作目標建立有來源的 brief：{goal}\n\n先前問題：{prompt}\n\n先前已儲存結果：{summary}",
     "briefContext": "承接討論：{title}",
     "briefTemporary": "這是一個新的暫存討論。上下文只保留在本頁記憶體，重新整理會清除兩個討論。傳送草稿後才開始。",
     "connections": {
