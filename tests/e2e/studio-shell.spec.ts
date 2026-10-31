@@ -257,6 +257,21 @@ for (const lang of ['en', 'zh-HK']) {
         expect(targets, view).toEqual([])
         const smallText = await page.locator('#aiso-studio').evaluate(root => [...root.querySelectorAll('*')].filter(el => el.getClientRects().length && [...el.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) && parseFloat(getComputedStyle(el).fontSize) < 12).map(el => el.textContent))
         expect(smallText, view).toEqual([])
+        // Numeric, content-free evidence for the durable KD3 matrix. Keep raw
+        // axe nodes, selectors, URLs and screenshots out of the committed receipt.
+        await testInfo.attach('studio-a11y-cell', {
+          contentType: 'application/json',
+          body: Buffer.from(JSON.stringify({
+            locale: lang, width, theme, view,
+            axeViolations: result.violations.length,
+            axeSerious: result.violations.filter(rule => rule.impact === 'serious').length,
+            axeCritical: result.violations.filter(rule => rule.impact === 'critical').length,
+            horizontalOverflowPx: await page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - innerWidth)),
+            textBelow12px: smallText.length,
+            controlsBelow44px: targets.length,
+            unexpectedRequests: requests.length,
+          })),
+        })
         if (shots && testInfo.project.name === 'chromium') {
           // Composer focus can scroll the full-bleed shell. Compare the same
           // top-of-view framing as the concept, without a leftover hover state.

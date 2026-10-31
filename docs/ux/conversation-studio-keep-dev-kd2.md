@@ -1,5 +1,9 @@
 # Conversation Studio keep-dev KD2 discussion polish
 
+Durable follow-up: [Studio visual/a11y matrix](conversation-studio-visual-a11y-matrix.md)
+defines the 72 cells, committed sanitized receipt/schema and local proof commands.
+This KD2 record retains its historical evidence and validation boundaries.
+
 DESIGN only, under the existing Stages 0–5 approval (Rio Ask `t130s893`).
 Base: `fff4a885fb78dd89ee4004c8e0b3d3bd64a16e51` (#126, KD1).
 Branch: `codex/conversation-studio-keep-dev-kd2`.

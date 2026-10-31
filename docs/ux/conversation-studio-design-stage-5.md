@@ -1,5 +1,9 @@
 # Conversation Studio design — Stage 5
 
+Durable follow-up: [Studio visual/a11y matrix](conversation-studio-visual-a11y-matrix.md)
+defines the 72 cells, committed sanitized receipt/schema and local proof commands.
+This Stage 5 record retains its historical evidence and validation boundaries.
+
 Willy continuous **Stages 0–5 Approve**, via Rio Ask **t130s893**, selects
 **Layout B full-bleed**. Base: `7d9f163150f48559dae7404d53d0d6f19cd8c53a`
 (Stage 4, #124 squash merge). This delivery is **Stage 5 DESIGN + READ**.
