@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Activity, ArrowLeft, ArrowUpRight, FilePenLine, FileText, Globe2, Lock, NotebookPen, Paperclip, ScanSearch, Search, Send, Sparkles } from 'lucide-react'
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
+import { composeBriefDraft } from '@/lib/conversation-studio/brief'
 import { type StudioEvidence, type StudioEvidenceTarget, type StudioInspectorReads } from '@/lib/conversation-studio/types'
 import { StudioReplyView } from './StudioReply'
 import { StudioEvidenceInspector } from '@/components/dashboard/StudioEvidenceInspector'
@@ -34,40 +35,50 @@ export function StudioThreadHeader({ thread, onHome }: { thread: Pick<StudioThre
 type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
-  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider><StudioConversation {...props} /></StudioSessionProvider>
+  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName}><StudioConversation {...props} /></StudioSessionProvider>
 }
 function StudioConversation({ brandName, evidence, clientId, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, embedded = false }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
-  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, setActiveId, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId } = useStudioSession()
+  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
-  const [briefToastId, setBriefToastId] = useState<number | null>(null)
-  const [inspection, setInspection] = useState<{ turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
+  const [inspection, setInspection] = useState<{ navigationVersion: number; turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
-  const focusAfterNavigation = useRef(false)
+  const previousNavigation = useRef(navigationVersion)
+  const focusBriefStart = useRef(false)
   const current = threads.find(thread => thread.id === activeId)
-  const inspectedTurn = current?.turns.find(turn => turn.id === inspection?.turnId)
+  const inspectedTurn = inspection?.navigationVersion === navigationVersion ? current?.turns.find(turn => turn.id === inspection.turnId) : undefined
   const draft = current?.draft ?? newDraft
   const home = !current
   const basePath = clientId ? `/${language}/dashboard/${encodeURIComponent(clientId)}` : null
 
   useLayoutEffect(() => {
-    if (focusAfterNavigation.current) {
+    if (previousNavigation.current !== navigationVersion || activeId !== null) {
       composer.current?.focus()
-      focusAfterNavigation.current = false
+      if (focusBriefStart.current && composer.current) {
+        composer.current.setSelectionRange(0, 0)
+        composer.current.scrollTop = 0
+        focusBriefStart.current = false
+      }
     }
-  }, [activeId])
+    previousNavigation.current = navigationVersion
+  }, [activeId, navigationVersion])
 
-  function openHome() { setInspection(null); setBriefToastId(null); focusAfterNavigation.current = true; setActiveId(null) }
-  function openThread(id: number) { setInspection(null); setBriefToastId(null); focusAfterNavigation.current = true; setActiveId(id) }
+  function openHome() { setInspection(null); setActiveId(null) }
+  function openThread(id: number) { setInspection(null); setActiveId(id) }
 
-  function branchBrief(source: StudioThread) {
+  function branchBrief(source: StudioThread, turn: StudioTurn) {
     const id = allocateId()
+    const summary = [t(turn.reply.status === 'evidenced' ? 'evidence.savedSummary' : 'evidence.insufficient'),
+      t(turn.reply.template === 'competitors' ? 'evidence.comparisonLimit' : turn.reply.template ? 'evidence.summaryScope' : 'evidence.questionLimit'),
+      t('honesty.searchDemandPending')].join(' ')
+    const seed = composeBriefDraft({ goal: source.goal, prompt: turn.prompt, summary }, context => t('briefContextPrompt', context))
     // A new editable draft, with no synthetic turn, transport or persistence.
-    setThreads(previous => [{ id, title: t('briefThreadTitle', { title: source.title }), goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: t('briefContextPrompt', { goal: source.goal }), template: 'brief' }, ...previous])
+    setThreads(previous => [{ id, title: t('briefThreadTitle', { title: source.title }), goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: seed, template: 'brief' }, ...previous])
+    focusBriefStart.current = true
     openThread(id)
-    setBriefToastId(id)
+    setFeedback({ id, threadId: id, key: 'briefOpened' })
   }
 
   function updateDraft(value: string, template: StudioHomeTemplate | null = null) {
@@ -81,12 +92,13 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
     if (!prompt || isInFlight()) return
     const askLive = Boolean(live && live.cap > 0 && platforms.length && clientId)
     if (askLive && prompt.length > STUDIO_PROMPT_LIMIT) return
-    setBriefToastId(null)
+    setFeedback(null)
     const id = current?.id ?? allocateId()
     const task = current ? current.template : newTemplate
     const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task)), ...(askLive ? { live: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
+      setFeedback({ id: turn.id, threadId: id, key: 'followUpSent' })
     } else {
       setThreads(previous => [{ id, title: task ? t(`templates.${task}.label`) : prompt, goal: prompt, week: evidence.week, kind: task === 'brief' ? 'brief' : 'research', turns: [turn], draft: '', template: null }, ...previous])
       openThread(id)
@@ -199,7 +211,7 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
           </ul>}
         </section>
         {scopeNote}
-      </div> : <div id="studio-discussion" className={`space-y-5${inspection ? ' as-inspector-open' : ''}`}>
+      </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
         <StudioThreadHeader thread={current} onHome={openHome} />
         <h2 className="sr-only">{t('conversationLabel')}</h2>
         <div className="as-discussion-grid">
@@ -215,8 +227,8 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
               <p>{t(`templates.${task}.limit`)}</p>
             </div>}
             <div className="min-w-0 space-y-4">
-              <StudioReplyView clientId={clientId} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} onBranchBrief={() => branchBrief(current)} onOpenEvidence={(trigger, target = 'saved') => setInspection({ turnId: id, target, trigger })} />
-              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} onOpenEvidence={(trigger, target = 'saved') => setInspection({ turnId: id, target, trigger })} />}
+              <StudioReplyView clientId={clientId} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} onBranchBrief={() => branchBrief(current, current.turns[index])} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
+              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />}
             </div>
             </div>
           </div>)}
@@ -226,7 +238,7 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
         {composerForm}
         {scopeNote}
       </div>}
-      <div className="as-toast" role="status" aria-live="polite" aria-atomic="true">{briefToastId !== null && briefToastId === activeId && <span key={briefToastId}>{t('briefOpened')}</span>}</div>
+      <div className="as-toast" role="status" aria-live="polite" aria-atomic="true">{feedback && feedback.threadId === activeId && <span key={feedback.id}>{t(feedback.key)}</span>}</div>
       <footer className="as-divider space-y-2 pt-4">
         <p className="as-small flex items-center gap-2 font-semibold"><Lock className="size-4 shrink-0" aria-hidden="true" />{t('privateLabel')}</p>
         <p className="as-muted as-small">{t('privacyBody')}</p>

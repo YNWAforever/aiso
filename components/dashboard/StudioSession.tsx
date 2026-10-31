@@ -10,14 +10,17 @@ export type StudioThread = { id: number; title: string; goal: string; week: stri
 
 function useSessionState() {
   const [threads, setThreads] = useState<StudioThread[]>([])
-  const [activeId, setActiveId] = useState<number | null>(null)
+  const [navigation, setNavigation] = useState<{ activeId: number | null; version: number }>({ activeId: null, version: 0 })
+  const [feedback, setFeedback] = useState<{ id: number; threadId: number; key: 'briefOpened' | 'followUpSent' } | null>(null)
   const [newDraft, setNewDraft] = useState('')
   const [newTemplate, setNewTemplate] = useState<StudioHomeTemplate | null>(null)
   const [busy, setBusy] = useState(false)
   const inFlight = useRef(false)
   const nextId = useRef(1)
   // Keep mutable refs private to their owning hook. Consumers use actions.
-  return { threads, setThreads, activeId, setActiveId, newDraft, setNewDraft, newTemplate, setNewTemplate, busy,
+  return { threads, setThreads, activeId: navigation.activeId, navigationVersion: navigation.version,
+    setActiveId: (activeId: number | null) => { setNavigation(previous => ({ activeId, version: previous.version + 1 })); setFeedback(null) },
+    feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, busy,
     allocateId: () => nextId.current++,
     isInFlight: () => inFlight.current,
     beginLive: () => { inFlight.current = true; setBusy(true) },

@@ -239,9 +239,10 @@
     "savedWeek": "Saved week: {week}",
     "branchBrief": "Start a separate brief discussion",
     "briefOpened": "Opened a separate brief discussion. It is temporary for this session.",
+    "followUpSent": "Message added to this temporary discussion.",
     "viewTools": "View existing tools",
     "briefThreadTitle": "Brief · {title}",
-    "briefContextPrompt": "Create a sourced brief for this work goal: {goal}",
+    "briefContextPrompt": "Create a sourced brief for this work goal: {goal}\n\nPrior question: {prompt}\n\nPrior saved result: {summary}",
     "briefContext": "Context from: {title}",
     "briefTemporary": "This is a new temporary discussion. Context stays in this page’s memory; reload clears both discussions. Send the draft to begin.",
     "connections": {

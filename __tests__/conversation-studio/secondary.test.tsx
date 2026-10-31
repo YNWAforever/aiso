@@ -43,6 +43,9 @@ it('keys the temporary layout by account and brand and loads only account-owned 
   expect(layout.key).toBe(`account-a:${clientId}`)
   expect(mocks.brands).toHaveBeenCalledWith('account-a')
   expect(layout.props.children.props.admin).toBe(false)
+  const secondBrand = '22222222-2222-4222-8222-222222222222'
+  mocks.sql.mockResolvedValueOnce([{ id: secondBrand, brand_name: 'Second Brand' }])
+  expect((await StudioLayout({ params: Promise.resolve({ lang: 'en', clientId: secondBrand }), children: null })).key).toBe(`account-a:${secondBrand}`)
   mocks.auth.mockResolvedValue({ account_id: 'account-b', is_admin: true, accounts: { override_plan: 'pro' } })
   expect((await StudioLayout({ params, children: null })).key).toBe(`account-b:${clientId}`)
 })
