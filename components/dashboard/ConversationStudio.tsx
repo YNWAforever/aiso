@@ -41,6 +41,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
+  const [liveExhausted, setLiveExhausted] = useState(false)
   const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
   const [inspection, setInspection] = useState<{ navigationVersion: number; turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
@@ -90,7 +91,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     event.preventDefault()
     const prompt = draft.trim()
     if (!prompt || isInFlight()) return
-    const askLive = Boolean(live && live.cap > 0 && platforms.length && clientId)
+    const askLive = Boolean(live && live.cap > 0 && !liveExhausted && platforms.length && clientId)
     if (askLive && prompt.length > STUDIO_PROMPT_LIMIT) return
     setFeedback(null)
     const id = current?.id ?? allocateId()
@@ -115,7 +116,14 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           body: JSON.stringify({ prompt, platforms, language }), signal: AbortSignal.timeout(25_000),
         })
         const data = await response.json()
-        result = response.ok ? { reply: data as StudioLiveReply } : { error: data.error ?? 'STUDIO_UNAVAILABLE' }
+        if (response.ok) {
+          const reply = data as StudioLiveReply
+          result = { reply }
+          if (reply.quota.remaining === 0) setLiveExhausted(true)
+        } else {
+          result = { error: data.error ?? 'STUDIO_UNAVAILABLE' }
+          if (data.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
+        }
       } catch { result = { error: 'STUDIO_UNAVAILABLE' } }
       setThreads(previous => previous.map(thread => thread.id === id ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: result } : item) } : thread))
       endLive()
@@ -131,7 +139,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         <span className="as-badge">{t('localeBadge')}</span>
         {live && <details className="as-platform-picker">
           <summary>{t('live.selector', { count: platforms.length })}</summary>
-          <fieldset className="space-y-2" disabled={busy || live.cap === 0}>
+          <fieldset className="space-y-2" disabled={busy || live.cap === 0 || liveExhausted}>
             <legend className="as-muted as-small font-semibold">{t('live.platforms')}</legend>
             <div className="flex flex-wrap gap-2">{live.platforms.map(platform => <label key={platform} className="as-platform flex items-center gap-2 px-3">
               <input type="checkbox" checked={platforms.includes(platform)} onChange={event => setPlatforms(previous => event.target.checked ? [...previous, platform] : previous.filter(item => item !== platform))} />{platform}
@@ -143,7 +151,8 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         <Send className="size-4" aria-hidden="true" />{t(home ? 'send' : 'followUpSend')}
       </button>
     </div>
-    {live && <p className="as-muted as-small">{t(!live.platforms.length ? 'live.upgrade' : live.cap === 0 ? 'live.disabled' : 'live.usesQuota', { count: platforms.length, cap: live.cap })}</p>}
+    {!live && <p className="as-note">{t('featureShellNote')}</p>}
+    {live && <p className="as-muted as-small">{t(liveExhausted ? 'live.exhausted' : !live.platforms.length ? 'live.upgrade' : live.cap === 0 ? 'live.disabled' : 'live.usesQuota', { count: platforms.length, cap: live.cap })}</p>}
     <p id="studio-composer-help" className="as-muted as-small">{t(live ? 'live.composerHelp' : 'composerHelp')}</p>
   </form>
 

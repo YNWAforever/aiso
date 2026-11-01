@@ -45,10 +45,10 @@ export async function answerStudio(request: Request, clientId: string): Promise<
     // Reserve the entire fan-out first, so rejection cannot cause partial spend.
     selected.forEach(() => budget.reserve(maxTokens))
     const week = studioWeek()
-    const quota = reserveStudioAnswers(profile.account_id, selected.length, week)
+    const quota = await reserveStudioAnswers(profile.account_id, selected.length, week)
     const allowance = await webSearchAllowance(sql, profile.account_id, week)
     const searchable = selected.filter(({ platform }) => groundingFor(platform, false) === 'none').length
-    const webSearch = searchable > 0 && reserveStudioSearches(profile.account_id, searchable, allowance)
+    const webSearch = searchable > 0 && reserveStudioSearches(profile.account_id, searchable, allowance, week)
     const signal = AbortSignal.any([request.signal, AbortSignal.timeout(20_000)])
     const messages = promptCollectionMessages({ question: body.prompt.trim(), language: body.language, market: null, contextVersion: '2026-10-03.v1' })
     messages[0].content += ` Brand context: ${JSON.stringify(brands[0].brand_name)}. Do not claim access to saved records or conversation history.`

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ profile: vi.fn(), sql: vi.fn() }))
+const mocks = vi.hoisted(() => ({ profile: vi.fn(), sql: vi.fn(), answerUsage: new Map<string, number>() }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/auth', () => ({ getProfile: mocks.profile }))
 vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
@@ -13,6 +13,24 @@ let info: ReturnType<typeof vi.spyOn>
 let warn: ReturnType<typeof vi.spyOn>
 let error: ReturnType<typeof vi.spyOn>
 const body = (platforms = ['gemini-flash']) => ({ prompt, platforms, language: 'zh-HK' })
+
+function answerQuota(strings: TemplateStringsArray, values: unknown[]) {
+  if (!strings.join('').includes('studio_live_weekly_usage')) return undefined
+  const [accountId, week, count, cap] = values as [string, string, number, number]
+  const key = `${accountId}:${week}`
+  const current = mocks.answerUsage.get(key) ?? 0
+  if (current + count > cap) return [{ allowed: false, answer_count: current }]
+  const next = current + count
+  mocks.answerUsage.set(key, next)
+  return [{ allowed: true, answer_count: next }]
+}
+
+function defaultSql(strings: TemplateStringsArray, ...values: unknown[]) {
+  const quota = answerQuota(strings, values)
+  if (quota) return quota
+  if (strings.join('').includes('as used')) return [{ used: 0 }]
+  return [{ id: clientId, brand_name: 'Example Brand' }]
+}
 
 async function send(input: unknown = body(), id = clientId, raw = false) {
   const { POST } = await import('@/app/api/dashboard/clients/[clientId]/studio/answer/route')
@@ -41,7 +59,8 @@ beforeEach(() => {
   vi.stubEnv('AISO_LLM_MAX_OUTPUT_TOKENS', '4000')
   vi.stubEnv('OPENROUTER_API_KEY', 'mock-only')
   mocks.profile.mockResolvedValue({ account_id: 'account-a', accounts: { override_plan: 'pro' } })
-  mocks.sql.mockResolvedValue([{ id: clientId, brand_name: 'Example Brand' }])
+  mocks.answerUsage.clear()
+  mocks.sql.mockImplementation(defaultSql)
   outbound = vi.fn(async () => completion())
   vi.stubGlobal('fetch', outbound)
   info = vi.spyOn(console, 'info').mockImplementation(() => {})
@@ -129,7 +148,7 @@ it('reserves token budget before the provider and clamps each completion', async
 it('sends one localized question, preserves safe citations and logs only studio metadata', async () => {
   const response = await send()
   expect(response.status).toBe(200)
-  expect(await response.json()).toMatchObject({ quota: { cap: 10, remaining: 9, scope: 'process' }, answers: [{
+  expect(await response.json()).toMatchObject({ quota: { cap: 10, remaining: 9, scope: 'account' }, answers: [{
     platform: 'gemini-flash', coverage: 'present', answer: reply, finishReason: 'stop', grounding: 'none',
     searchEvidence: { requested: 'none', execution: 'unknown' }, citations: [{ url: 'https://source.example/article', title: 'Source' }],
   }] })
@@ -165,7 +184,10 @@ it('serializes concurrent reservations across brands in one account and keeps ot
 it('only enables web search within the existing allowance and its local Studio reservation', async () => {
   vi.stubEnv('FEATURE_PULSE_GROUNDING', '1')
   vi.stubEnv('PULSE_GROUNDED_ANSWERS_PER_WEEK', '1')
-  mocks.sql.mockImplementation(async (strings: TemplateStringsArray) => strings.join('').includes('as used') ? [{ used: 0 }] : [{ id: clientId, brand_name: 'Brand' }])
+  mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+    if (strings.join('').includes('as used')) return [{ used: 0 }]
+    return answerQuota(strings, values) ?? [{ id: clientId, brand_name: 'Brand' }]
+  })
   await send()
   await send()
   const requests = outbound.mock.calls.map(call => JSON.parse((call[1] as RequestInit).body as string))
@@ -174,9 +196,9 @@ it('only enables web search within the existing allowance and its local Studio r
 })
 it('fails closed to no web search on allowance lookup failure; native search stays honest', async () => {
   vi.stubEnv('FEATURE_PULSE_GROUNDING', '1')
-  mocks.sql.mockImplementation(async (strings: TemplateStringsArray) => {
+  mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
     if (strings.join('').includes('as used')) throw new Error('private DB details')
-    return [{ id: clientId, brand_name: 'Brand' }]
+    return answerQuota(strings, values) ?? [{ id: clientId, brand_name: 'Brand' }]
   })
   const data = await (await send(body(['perplexity-sonar', 'gemini-flash']))).json()
   expect(data.answers.map((a: { grounding: string }) => a.grounding).sort()).toEqual(['native', 'none'])
@@ -211,16 +233,16 @@ it('aborts stalled provider calls at the shared timeout with no retry', async ()
   expect(outbound).toHaveBeenCalledTimes(1)
 })
 
-it('resets the temporary counter only at the next UTC Monday', async () => {
+it('uses the existing UTC Monday boundary for the durable account-week', async () => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-28T12:00:00Z'))
   vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', '1')
   const { reserveStudioAnswers, studioWeek } = await import('@/lib/conversation-studio/live-quota')
   expect(studioWeek()).toBe('2026-10-26')
-  expect(reserveStudioAnswers('account-a', 1, studioWeek()).remaining).toBe(0)
+  expect((await reserveStudioAnswers('account-a', 1, studioWeek())).remaining).toBe(0)
   vi.setSystemTime(new Date('2026-11-01T23:59:59Z'))
-  expect(() => reserveStudioAnswers('account-a', 1, studioWeek())).toThrow('STUDIO_QUOTA_EXCEEDED')
+  await expect(reserveStudioAnswers('account-a', 1, studioWeek())).rejects.toThrow('STUDIO_QUOTA_EXCEEDED')
   vi.setSystemTime(new Date('2026-11-02T00:00:00Z'))
   expect(studioWeek()).toBe('2026-11-02')
-  expect(reserveStudioAnswers('account-a', 1, studioWeek()).remaining).toBe(0)
+  expect((await reserveStudioAnswers('account-a', 1, studioWeek())).remaining).toBe(0)
 })

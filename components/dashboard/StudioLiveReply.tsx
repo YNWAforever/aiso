@@ -11,7 +11,7 @@ export function StudioLiveReplyView({ reply, pending, error, number = 1, onOpenE
     <h3>{t('unverifiedTitle')}</h3>
     <p className="as-note">{t('unverified')}</p>
     {pending && <p role="status">{t('pending')}</p>}
-    {error && <p role="alert" className="as-note">{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : 'unavailable')}</p>}
+    {error && <p role="alert" className={error === 'STUDIO_QUOTA_EXCEEDED' ? 'as-note as-live-exhausted' : 'as-note'}>{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : 'unavailable')}</p>}
     {reply && <>
       <p className="as-muted as-small">{t('remaining', { count: reply.quota.remaining })}</p>
       <ul className="space-y-4">{reply.answers.map((item, index) => <li key={item.platform} className="as-result space-y-2">

@@ -3,6 +3,11 @@ import type { ProviderCitation } from '@/lib/pulse/provider-citations'
 
 export const STUDIO_PROMPT_LIMIT = 1000
 export type StudioLiveConfig = { platforms: string[]; cap: number }
+export type StudioLiveQuota = {
+  cap: number
+  remaining: number
+  scope: 'account' | 'durable'
+}
 export type StudioLiveAnswer = {
   platform: string
   coverage: 'present' | 'missing' | 'unsupported'
@@ -18,5 +23,5 @@ export type StudioLiveAnswer = {
 }
 export type StudioLiveReply = {
   answers: StudioLiveAnswer[]
-  quota: { cap: number; remaining: number; scope: 'process' }
+  quota: StudioLiveQuota
 }
