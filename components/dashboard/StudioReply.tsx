@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ScanEvidencePanel } from '@/components/result/ScanEvidencePanel'
 import { buildDashboardNav } from '@/lib/dashboard-nav'
-import type { OpenStudioEvidence, StudioEvidence, StudioReply } from '@/lib/conversation-studio/types'
+import type { OpenStudioEvidence, StudioEvidence, StudioOpportunitySuggestion, StudioReply } from '@/lib/conversation-studio/types'
+import { buildWorkItemDraftBody, readSavedDraftId, workItemDraftErrorKey } from '@/lib/conversation-studio/work-item-draft'
 
 function StudioResultLinks({ clientId }: { clientId: string }) {
   const lang = useLocale()
@@ -18,9 +20,57 @@ function StudioResultLinks({ clientId }: { clientId: string }) {
   </div>
 }
 
+type DraftSaveState = { status: 'idle' | 'saving' | 'saved' | 'error' | 'changed'; draftId?: string; error?: string }
+
+function OpportunityDraftAction({ clientId, suggestion, locale }: { clientId: string; suggestion: StudioOpportunitySuggestion; locale: string }) {
+  const t = useTranslations('conversationStudio')
+  const [state, setState] = useState<DraftSaveState>({ status: 'idle' })
+  const draftId = suggestion.savedDraftId ?? state.draftId ?? null
+  const versionsHref = draftId ? `/${locale}/dashboard/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(draftId)}/versions` : null
+
+  async function save() {
+    if (state.status === 'saving') return
+    setState({ status: 'saving' })
+    try {
+      const response = await fetch(`/api/clients/${encodeURIComponent(clientId)}/work-items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildWorkItemDraftBody(suggestion, locale)),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        const error = workItemDraftErrorKey(response.status, (data as { error?: unknown } | null)?.error)
+        setState({ status: error === 'workItemDraftEvidenceChanged' ? 'changed' : 'error', error })
+        return
+      }
+      const id = readSavedDraftId(data, clientId)
+      if (!id) {
+        setState({ status: 'error', error: 'workItemDraftError' })
+        return
+      }
+      setState({ status: 'saved', draftId: id })
+    } catch {
+      setState({ status: 'error', error: 'workItemDraftError' })
+    }
+  }
+
+  if (versionsHref) return <div className="space-y-2">
+    <p className="as-badge">{t(state.status === 'saved' ? 'workItemDraftSaved' : 'workItemDraftAlreadySaved')}</p>
+    <Link href={versionsHref} prefetch={false} className="as-button inline-flex items-center gap-2 px-3">{t('openWorkItemDraft')}<ArrowUpRight className="size-4 shrink-0" aria-hidden="true" /></Link>
+  </div>
+  if (suggestion.saveAvailability !== 'available') return <p className="as-note">{t('workItemDraftLimited')}</p>
+  if (state.status === 'changed') return <p role="alert">{t('workItemDraftEvidenceChanged')}</p>
+  return <div className="space-y-2">
+    <button type="button" className="as-button as-primary px-3" disabled={state.status === 'saving'} onClick={save}>{t(state.status === 'saving' ? 'savingWorkItemDraft' : 'saveWorkItemDraft')}</button>
+    <p className="as-note">{t('workItemDraftReview')}</p>
+    {state.status === 'error' && <p role="alert">{t(state.error ?? 'workItemDraftError')}</p>}
+  </div>
+}
+
 export function StudioReplyView({ reply, clientId, number = 1, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
   const t = useTranslations('conversationStudio.evidence')
   const studio = useTranslations('conversationStudio')
+  const lang = useLocale()
   const opportunityTask = reply.template === 'opportunity'
   return <article aria-label={t('replyLabel')} className="as-saved-reply min-w-0 space-y-3 [overflow-wrap:anywhere]">
     <details className="as-research">
@@ -42,6 +92,7 @@ export function StudioReplyView({ reply, clientId, number = 1, onBranchBrief, on
           {t(ref.kind === 'pulse-metric' ? 'coverage.pulse' : 'coverage.scan')}: <code>{ref.id}{ref.checkKey ? ` · ${ref.checkKey}` : ''}</code>
         </li>)}</ul>
         {suggestion.recordedAt && <p className="as-muted as-small">{t('recordedAt')}: <time dateTime={suggestion.recordedAt}>{suggestion.recordedAt}</time></p>}
+        {clientId && <OpportunityDraftAction clientId={clientId} suggestion={suggestion} locale={lang} />}
       </li>)}</ul> : <p className="as-note">{studio(`templates.opportunity.${reply.opportunities.state}`)}</p>}
     </>}
     {reply.template === 'report' && <p className="as-badge">{t('reportDraft')}</p>}

@@ -32,7 +32,7 @@ vi.mock('next-intl/server', () => ({
 }))
 
 import { loadStudioOpportunities } from '@/lib/conversation-studio/opportunities'
-import { initial } from '@/__tests__/components/c9c-fixtures'
+import { initial, scanSuggestion } from '@/__tests__/components/c9c-fixtures'
 
 const clientId = '11111111-1111-4111-8111-111111111111'
 beforeEach(() => {
@@ -53,11 +53,50 @@ it.each(['en', 'zh-HK'] as const)('projects owned suggestions to localized Studi
       title: copy.rules['review-question-coverage'].title,
       recordedAt: null,
       evidenceRefs: [{ kind: 'pulse-metric', id: '33333333-3333-4333-8333-333333333333' }],
+      source: { kind: 'pulse-metric', id: '33333333-3333-4333-8333-333333333333' },
+      ruleVersion: 'pulse-brand-absent.v1',
+      fingerprint: 'a'.repeat(64),
+      savedDraftId: null,
+      savedState: 'unavailable',
+      saveAvailability: 'available',
     }],
   })
   expect(result?.suggestions[0].action).toContain('Historical <script>alert(1)</script> 問題')
-  expect(JSON.stringify(result)).not.toMatch(/fingerprint|answerDigest|evidenceVersions|raw_answer/)
+  expect(result?.suggestions[0]).not.toHaveProperty('evidence')
+  expect(result?.suggestions[0]).not.toHaveProperty('args')
+  expect(JSON.stringify(result)).not.toMatch(/answerDigest|evidenceVersions|raw_answer|provenance/)
   expect(mocks.load).toHaveBeenCalledWith(clientId)
+})
+
+
+it('forwards the scan-check create contract and saved draft without evidence envelopes', async () => {
+  mocks.load.mockResolvedValue({
+    ...initial,
+    suggestions: [{ ...scanSuggestion, savedDraftId: '55555555-5555-4555-8555-555555555555', savedState: 'saved' }],
+  })
+  const result = await loadStudioOpportunities(clientId, 'en')
+  expect(result?.suggestions[0]).toMatchObject({
+    source: { kind: 'scan-check', id: scanSuggestion.source.id, checkKey: scanSuggestion.source.checkKey },
+    ruleVersion: 'scan-check-gap.v1',
+    fingerprint: scanSuggestion.fingerprint,
+    savedDraftId: '55555555-5555-4555-8555-555555555555',
+    savedState: 'saved',
+    saveAvailability: 'available',
+  })
+  expect(JSON.stringify(result)).not.toMatch(/envelope|answerDigest|evidenceVersions|raw_answer/)
+})
+
+it('keeps limited-evidence saveability visible and drops agent recommendations', async () => {
+  mocks.load.mockResolvedValue({
+    ...initial,
+    suggestions: [
+      { ...initial.suggestions[0], saveAvailability: 'limited-evidence' },
+      { ...initial.suggestions[0], key: 'agent-fixture', source: { kind: 'agent-recommendation', id: '77777777-7777-4777-8777-777777777777' } },
+    ],
+  })
+  const result = await loadStudioOpportunities(clientId, 'en')
+  expect(result?.suggestions).toHaveLength(1)
+  expect(result?.suggestions[0]).toMatchObject({ key: 'pulse-fixture', saveAvailability: 'limited-evidence' })
 })
 
 it('renders an honest empty state only when source reads completed without candidates', async () => {

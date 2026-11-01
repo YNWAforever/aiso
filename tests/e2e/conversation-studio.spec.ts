@@ -13,6 +13,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   const css = readFileSync(`${directory}/build.css`, 'utf8')
   const requests: string[] = []
   const liveRequests: { prompt: string; platforms: string[]; language: string; attachedSourceId?: string }[] = []
+  const saveRequests: { source: unknown; ruleVersion: string; fingerprint: string; locale: string }[] = []
   // Block and record ALL attempted outbound requests, including provider URLs,
   // unexpected same-origin calls and browser-triggered source prefetches.
   await page.route('**/*', route => { requests.push(route.request().url()); return route.abort() })
@@ -29,6 +30,10 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
       error: platform === 'gemini-flash' ? null : 'PROVIDER_UNAVAILABLE',
     })) } })
   })
+  await page.route('**/api/clients/*/work-items', route => {
+    saveRequests.push(route.request().postDataJSON())
+    return route.fulfill({ status: 201, json: { item: { id: '55555555-5555-4555-8555-555555555555', clientId: '11111111-1111-4111-8111-111111111111', status: 'draft' } } })
+  })
   const params = new URLSearchParams()
   if (empty) params.set('empty', '1')
   if (scan) params.set('scan', '1')
@@ -43,7 +48,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
     body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Studio fixture</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`,
   }))
   await page.goto(url)
-  return { copy: (lang === 'en' ? en : zh).conversationStudio, requests, liveRequests }
+  return { copy: (lang === 'en' ? en : zh).conversationStudio, requests, liveRequests, saveRequests }
 }
 
 for (const lang of ['en', 'zh-HK']) {
@@ -210,6 +215,26 @@ for (const lang of ['en', 'zh-HK']) {
       await expect(page.getByRole('log')).not.toContainText('Review question coverage')
       expect(next.requests).toEqual([])
     }
+  })
+
+  test(`saves a saveable opportunity as a real work-item draft in ${lang}`, async ({ page }) => {
+    const { copy, requests, saveRequests } = await fixture(page, lang)
+    await page.getByRole('button', { name: copy.templates.opportunity.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    const log = page.getByRole('log')
+    const save = log.getByRole('button', { name: copy.saveWorkItemDraft, exact: true }).first()
+    await expect(save).toBeEnabled()
+    await save.click()
+    await expect(log.getByRole('link', { name: copy.openWorkItemDraft, exact: true }).first())
+      .toHaveAttribute('href', `/${lang}/dashboard/11111111-1111-4111-8111-111111111111/work-items/55555555-5555-4555-8555-555555555555/versions`)
+    await expect(log).toContainText(copy.workItemDraftSaved)
+    expect(saveRequests).toEqual([{
+      source: { kind: 'pulse-metric', id: '30000000-0000-4000-8000-000000000001' },
+      ruleVersion: 'pulse-brand-absent.v1',
+      fingerprint: 'a'.repeat(64),
+      locale: lang,
+    }])
+    expect(requests).toEqual([])
   })
 
   test(`cap zero Send stays saved-only with no transport in ${lang}`, async ({ page }) => {

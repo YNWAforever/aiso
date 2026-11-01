@@ -141,6 +141,38 @@ it.each(['en', 'zh-HK'])('renders real saved opportunity titles, evidence refs a
   expect(html).not.toMatch(/Harbour Home|WI-DEMO|rank #\d|volume \d/i)
 })
 
+it.each(['en', 'zh-HK'])('offers save-as-draft only for saveable opportunities with a brand in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const clientId = '11111111-1111-4111-8111-111111111111'
+  const reply = composeSavedReply(copy.templates.opportunity.prompt, 'opportunity', emptyStudioEvidence, savedStudioOpportunities)
+  const count = (html: string) => html.split(copy.workItemDraftReview).length - 1
+  const scoped = renderWithIntl(<StudioReplyView clientId={clientId} id="opportunity" evidence={emptyStudioEvidence} reply={reply} />, lang)
+  expect(count(scoped)).toBe(2)
+  expect(scoped).toContain(copy.workItemDraftReview)
+  expect(scoped).not.toContain(copy.workItemDraftLimited)
+  const unscoped = renderWithIntl(<StudioReplyView id="opportunity" evidence={emptyStudioEvidence} reply={reply} />, lang)
+  expect(count(unscoped)).toBe(0)
+  expect(unscoped).not.toContain(copy.workItemDraftReview)
+  const limited = {
+    ...savedStudioOpportunities,
+    suggestions: savedStudioOpportunities.suggestions.map(suggestion => ({ ...suggestion, saveAvailability: 'limited-evidence' as const })),
+  }
+  const limitedHtml = renderWithIntl(<StudioReplyView clientId={clientId} id="opportunity" evidence={emptyStudioEvidence} reply={{ ...reply, opportunities: limited }} />, lang)
+  expect(count(limitedHtml)).toBe(0)
+  expect(limitedHtml).toContain(copy.workItemDraftLimited)
+  const alreadySaved = {
+    ...savedStudioOpportunities,
+    suggestions: savedStudioOpportunities.suggestions.map((suggestion, index) => index === 0
+      ? { ...suggestion, savedDraftId: '55555555-5555-4555-8555-555555555555', savedState: 'saved' as const }
+      : suggestion),
+  }
+  const savedHtml = renderWithIntl(<StudioReplyView clientId={clientId} id="opportunity" evidence={emptyStudioEvidence} reply={{ ...reply, opportunities: alreadySaved }} />, lang)
+  expect(count(savedHtml)).toBe(1)
+  expect(savedHtml).toContain(copy.workItemDraftAlreadySaved)
+  expect(savedHtml).toContain(copy.openWorkItemDraft)
+  expect(savedHtml).toContain(`href="/${lang}/dashboard/${clientId}/work-items/55555555-5555-4555-8555-555555555555/versions"`)
+})
+
 it.each(['en', 'zh-HK'])('renders empty and pending opportunity reads without inventing rows in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio
   for (const [opportunities, text] of [
