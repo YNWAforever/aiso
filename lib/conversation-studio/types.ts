@@ -32,6 +32,12 @@ export interface StudioOpportunitySuggestion {
   action: string
   recordedAt: string | null
   evidenceRefs: StudioOpportunityEvidenceRef[]
+  source: StudioOpportunityEvidenceRef
+  ruleVersion: 'pulse-brand-absent.v1' | 'scan-check-gap.v1'
+  fingerprint: string
+  savedDraftId: string | null
+  savedState: 'saved' | 'unsaved' | 'unavailable'
+  saveAvailability: 'available' | 'limited-evidence'
 }
 export interface StudioOpportunities {
   state: 'ready' | 'empty' | 'pending'

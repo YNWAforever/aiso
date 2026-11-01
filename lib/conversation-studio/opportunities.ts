@@ -47,6 +47,8 @@ export async function loadStudioOpportunities(
   }
 
   const suggestions = data.suggestions.flatMap(suggestion => {
+    const source = evidenceRef(suggestion.source)
+    if (!source) return []
     const scanCopy = suggestion.evidence.kind === 'scan-check'
       ? scanOpportunityCopy(suggestion.evidence, locale)
       : null
@@ -65,6 +67,12 @@ export async function loadStudioOpportunities(
       action: scanCopy?.action ?? t(`rules.${suggestion.actionKey}.action`, args),
       recordedAt: suggestion.evidence.recordedAt,
       evidenceRefs: uniqueRefs,
+      source,
+      ruleVersion: suggestion.ruleVersion,
+      fingerprint: suggestion.fingerprint,
+      savedDraftId: suggestion.savedDraftId,
+      savedState: suggestion.savedState,
+      saveAvailability: suggestion.saveAvailability,
     }]
   })
   const unavailable = Object.values(data.sourceStates).includes('unavailable')
