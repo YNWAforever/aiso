@@ -27,6 +27,14 @@ it('disables deployment for the exact Stage 6g branch without changing other ent
   expect(config.regions).toEqual(['sin1'])
 })
 
+it('disables deployment for the exact Stage 6a branch without changing other entries', () => {
+  const config = JSON.parse(readFileSync('vercel.json', 'utf8'))
+  expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6a']).toBe(false)
+  expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6g']).toBe(false)
+  expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6h']).toBe(false)
+})
+
+
 it('uses the durable account-week honesty strings from the Hazel pack', () => {
   expect(en.conversationStudio.featureShellNote).toBe(
     'Studio is available. Live model answers stay off until LIVE is enabled; work from saved evidence and templates meanwhile.',

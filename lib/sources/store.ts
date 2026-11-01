@@ -123,6 +123,50 @@ export async function listAgentUsableSources(scope: SourceScope, now = new Date(
   return (rows as SourceRow[]).map(row => dto(row, now))
 }
 
+export type AgentUsableSource = {
+  id: string
+  label: string
+  versionId: string
+  versionNumber: number
+  contentHash: string
+  entries: SourceEntry[]
+}
+
+/**
+ * Latest version only, and only while the same predicates as
+ * `listAgentUsableSources` hold. Tenancy stays inside the statement so a foreign
+ * source id is indistinguishable from a missing one and can never bleed content.
+ */
+export async function readAgentUsableSource(scope: SourceScope, sourceId: string): Promise<AgentUsableSource | null> {
+  const sql = db()
+  const rows = await sql`
+    select s.id, s.label, v.id as version_id, v.version_number, v.content_hash, v.content
+    from client_sources s
+    join client_source_versions v
+      on v.account_id = s.account_id and v.client_id = s.client_id
+      and v.source_id = s.id and v.version_number = s.latest_version
+    where s.account_id = ${scope.accountId} and s.client_id = ${scope.clientId}
+      and s.id = ${sourceId}
+      and s.agent_use_allowed = true
+      and s.revoked_at is null
+      and v.approved_at is not null
+    limit 1
+  `
+  const row = rows[0] as {
+    id: string; label: string; version_id: string; version_number: number
+    content_hash: string; content: SourceContent | null
+  } | undefined
+  if (!row || !Array.isArray(row.content?.entries)) return null
+  return {
+    id: row.id,
+    label: row.label,
+    versionId: row.version_id,
+    versionNumber: row.version_number,
+    contentHash: row.content_hash,
+    entries: row.content.entries,
+  }
+}
+
 export async function readSource(scope: SourceScope, sourceId: string, now = new Date()): Promise<SourceDto | null> {
   const sql = db()
   const rows = await sql`

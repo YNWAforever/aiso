@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
 
-async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false, reads = false, opportunities: 'saved' | 'empty' | 'pending' = 'saved') {
+async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false, reads = false, opportunities: 'saved' | 'empty' | 'pending' = 'saved', attach: 'ready' | 'empty' | 'unavailable' = 'ready') {
   // Native smooth scrolling can keep a mobile target moving as replies grow.
   // Use supported reduced motion, without forced clicks or skipped assertions.
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -12,7 +12,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   const js = readFileSync(`${directory}/fixture.js`, 'utf8')
   const css = readFileSync(`${directory}/build.css`, 'utf8')
   const requests: string[] = []
-  const liveRequests: { prompt: string; platforms: string[]; language: string }[] = []
+  const liveRequests: { prompt: string; platforms: string[]; language: string; attachedSourceId?: string }[] = []
   // Block and record ALL attempted outbound requests, including provider URLs,
   // unexpected same-origin calls and browser-triggered source prefetches.
   await page.route('**/*', route => { requests.push(route.request().url()); return route.abort() })
@@ -36,6 +36,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   if (free) params.set('free', '1')
   if (reads) params.set('reads', '1')
   params.set('opps', opportunities)
+  params.set('attach', attach)
   const url = `https://studio.fixture/${lang}${params.size ? `?${params}` : ''}`
   await page.route(url, route => route.fulfill({
     contentType: 'text/html; charset=utf-8',
@@ -56,7 +57,7 @@ for (const lang of ['en', 'zh-HK']) {
     const composer = page.locator('#studio-composer')
     await expect(home.getByText(copy.featureShellNote, { exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: copy.heroTitle, exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: copy.chooseDocuments, exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: copy.chooseDocuments, exact: true })).toBeEnabled()
     await expect(page.getByText(copy.sources.unavailable, { exact: true })).toBeVisible()
     for (const [category, keys] of [
       ['discover', ['opportunity', 'competitors']], ['improve', ['improve', 'brief']],
@@ -133,6 +134,37 @@ for (const lang of ['en', 'zh-HK']) {
     await page.reload()
     await expect(page.getByText(copy.threadsEmpty, { exact: true })).toBeVisible()
     expect(requests).toEqual([])
+  })
+
+  test(`attaches one approved source explicitly and only sends its id with ${lang}`, async ({ page }) => {
+    const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 5)
+    const choose = page.getByRole('button', { name: copy.chooseDocuments, exact: true })
+    await expect(choose).toBeEnabled()
+    await choose.click()
+    await page.getByRole('button', { name: /Approved brand facts/ }).click()
+    const badge = `${copy.attach.badge} · Approved brand facts`
+    await expect(page.locator('form').getByText(badge, { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    await expect(page.getByRole('log')).toContainText(badge)
+    expect(liveRequests).toEqual([{
+      prompt: copy.templates.brief.prompt, platforms: ['gemini-flash'], language: lang,
+      attachedSourceId: '33333333-3333-4333-8333-333333333333',
+    }])
+    await page.locator('form').getByRole('button', { name: copy.attach.clear, exact: true }).click()
+    await expect(page.locator('form').getByText(badge, { exact: true })).toHaveCount(0)
+    expect(requests).toEqual([])
+  })
+
+  test(`attach picker keeps empty and unavailable choices honest in ${lang}`, async ({ page }) => {
+    const { copy } = await fixture(page, lang, false, false, 5, false, false, false, 'saved', 'empty')
+    await page.getByRole('button', { name: copy.chooseDocuments, exact: true }).click()
+    await expect(page.getByText(copy.attach.empty, { exact: false })).toBeVisible()
+    await expect(page.getByRole('link', { name: copy.attach.manageSources, exact: true }))
+      .toHaveAttribute('href', `/${lang}/dashboard/11111111-1111-4111-8111-111111111111/sources`)
+    const unavailable = await fixture(page, lang, false, false, 5, false, false, false, 'saved', 'unavailable')
+    await unavailable && await page.getByRole('button', { name: unavailable.copy.chooseDocuments, exact: true }).click()
+    await expect(page.getByText(unavailable.copy.attach.unavailable, { exact: true })).toBeVisible()
   })
 
   test(`page improvement uses only owned saved scans and held outcomes stay explicit in ${lang}`, async ({ page }) => {
@@ -505,7 +537,7 @@ for (const lang of ['en', 'zh-HK']) {
     expect(await composer.evaluate(el => (el as HTMLTextAreaElement).selectionStart)).toBe(0)
     await expect(page.getByRole('log')).toBeEmpty()
     await expect(page.locator('.as-toast')).toHaveText(copy.briefOpened)
-    await expect(page.getByRole('button', { name: copy.chooseDocuments, exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: copy.chooseDocuments, exact: true })).toBeEnabled()
     expect(liveRequests).toHaveLength(2)
     await composer.fill('Editable brief only')
     await expect(composer).toHaveValue('Editable brief only')

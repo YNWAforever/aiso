@@ -13,6 +13,12 @@ let info: ReturnType<typeof vi.spyOn>
 let warn: ReturnType<typeof vi.spyOn>
 let error: ReturnType<typeof vi.spyOn>
 const body = (platforms = ['gemini-flash']) => ({ prompt, platforms, language: 'zh-HK' })
+const attachedSourceId = '33333333-3333-4333-8333-333333333333'
+const attachRow = {
+  id: attachedSourceId, label: 'Approved brand facts', version_id: '44444444-4444-4444-8444-444444444444',
+  version_number: 2, content_hash: 'b'.repeat(64),
+  content: { schemaVersion: 1, entries: [{ question: 'Which flour?', answer: 'Rice flour.' }] },
+}
 
 function answerQuota(strings: TemplateStringsArray, values: unknown[]) {
   if (!strings.join('').includes('studio_live_weekly_usage')) return undefined
@@ -30,6 +36,14 @@ function defaultSql(strings: TemplateStringsArray, ...values: unknown[]) {
   if (quota) return quota
   if (strings.join('').includes('as used')) return [{ used: 0 }]
   return [{ id: clientId, brand_name: 'Example Brand' }]
+}
+
+function attachSql(row: typeof attachRow | null) {
+  return (strings: TemplateStringsArray, ...values: unknown[]) => {
+    const text = strings.join('')
+    if (text.includes('from client_sources s') && text.includes('v.version_number = s.latest_version')) return row ? [row] : []
+    return defaultSql(strings, ...values)
+  }
 }
 
 async function send(input: unknown = body(), id = clientId, raw = false) {
@@ -103,6 +117,7 @@ it.each([null, [], {}, { ...body(), prompt: '' }, { ...body(), prompt: ' '.repea
   { ...body(), prompt: 'x'.repeat(1001) }, { ...body(), platforms: [] }, { ...body(), platforms: ['gemini'] },
   { ...body(), platforms: ['gemini-flash', 'gemini-flash'] }, { ...body(), platforms: [1] },
   { ...body(), language: 'zh-TW' }, { ...body(), language: ['en'] }, { ...body(), accountId: 'foreign' },
+  { ...body(), attachedSourceId: 'not-a-uuid' }, { ...body(), attachedSourceId: { id: attachedSourceId } },
 ])('rejects invalid input %# without outbound', async input => {
   const response = await send(input)
   expect(response.status).toBe(400)
@@ -157,9 +172,62 @@ it('sends one localized question, preserves safe citations and logs only studio 
   expect(sent.messages[0].content).toContain('zh-HK')
   expect(sent.messages[0].content).toContain('Example Brand')
   expect(sent.messages[1]).toEqual({ role: 'user', content: prompt })
+  expect(sent.messages[0].content).toContain('Do not claim access to saved records or conversation history.')
+  expect(sent.messages[0].content).not.toContain('studio_attached_source')
   expect(sent.plugins).toBeUndefined()
   expect(info).toHaveBeenCalledWith(expect.objectContaining({ event: 'openrouter_usage', label: 'studio.answer', promptTokens: 10 }))
   expect(JSON.stringify([info.mock.calls, warn.mock.calls, error.mock.calls])).not.toMatch(/PRIVATE QUESTION|PRIVATE MODEL/)
+})
+it('attaches only the explicitly selected usable source as fenced data', async () => {
+  mocks.sql.mockImplementation(attachSql(attachRow))
+  const response = await send({ ...body(), attachedSourceId })
+  expect(response.status).toBe(200)
+  const data = await response.json()
+  expect(data.attachment).toMatchObject({
+    sourceId: attachedSourceId, label: 'Approved brand facts', versionId: attachRow.version_id,
+    versionNumber: 2, contentHash: attachRow.content_hash, entriesIncluded: 1, entriesTotal: 1, truncated: false,
+  })
+  const sent = JSON.parse((outbound.mock.calls[0][1] as RequestInit).body as string)
+  expect(sent.messages).toHaveLength(2)
+  expect(sent.messages[0].content).toContain('Example Brand')
+  expect(sent.messages[0].content).toContain('beyond this attached source')
+  expect(sent.messages[0].content).toContain('<studio_attached_source')
+  expect(sent.messages[0].content).toContain('Which flour?')
+  expect(sent.messages[0].content).toContain('Rice flour.')
+  expect(sent.messages[1]).toEqual({ role: 'user', content: prompt })
+  const sourceCall = mocks.sql.mock.calls.find(call => call[0].join('').includes('from client_sources s'))!
+  const text = sourceCall[0].join('?')
+  expect(text).toMatch(/s\.account_id = \? and s\.client_id = \?/)
+  expect(text).toMatch(/s\.agent_use_allowed = true/)
+  expect(text).toMatch(/s\.revoked_at is null/)
+  expect(text).toMatch(/v\.approved_at is not null/)
+  expect(sourceCall.slice(1)).toEqual(['account-a', clientId, attachedSourceId])
+})
+it.each(['foreign', 'unapproved', 'revoked', 'not-agent-usable'])('rejects a %s source before any provider call', async () => {
+  mocks.sql.mockImplementation(attachSql(null))
+  const response = await send({ ...body(), attachedSourceId })
+  expect(response.status).toBe(404)
+  expect(await response.json()).toEqual({ error: 'STUDIO_ATTACH_UNAVAILABLE' })
+  expect(outbound).not.toHaveBeenCalled()
+})
+it('still stops LIVE at quota zero when a source is attached', async () => {
+  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', '0')
+  mocks.sql.mockImplementation(attachSql(attachRow))
+  const response = await send({ ...body(), attachedSourceId })
+  expect(response.status).toBe(429)
+  expect(await response.json()).toEqual({ error: 'STUDIO_QUOTA_EXCEEDED' })
+  expect(outbound).not.toHaveBeenCalled()
+})
+it('honours the attach inject budget and reports truncation in metadata', async () => {
+  const entries = Array.from({ length: 20 }, (_, index) => ({ question: `Q${index}`, answer: 'A'.repeat(1000) }))
+  mocks.sql.mockImplementation(attachSql({ ...attachRow, content: { schemaVersion: 1, entries } }))
+  const data = await (await send({ ...body(), attachedSourceId })).json()
+  expect(data.attachment).toMatchObject({ entriesTotal: 20, truncated: true })
+  expect(data.attachment.entriesIncluded).toBeLessThan(20)
+  expect(data.attachment.characters).toBeLessThanOrEqual(8000)
+  const sent = JSON.parse((outbound.mock.calls[0][1] as RequestInit).body as string)
+  expect(sent.messages[0].content).toContain('Q0')
+  expect(sent.messages[0].content.length).toBeLessThan(9000)
 })
 it('keeps partial and total failures explicit and charges attempted calls without retry', async () => {
   outbound.mockResolvedValueOnce(Response.json({ error: prompt }, { status: 503 }))

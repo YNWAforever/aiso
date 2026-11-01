@@ -1,9 +1,10 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { loadStudioDocuments } from '@/lib/conversation-studio/inspector'
+import { loadStudioAttachCandidates, loadStudioDocuments } from '@/lib/conversation-studio/inspector'
 
-const mocks = vi.hoisted(() => ({ sources: vi.fn() }))
+const mocks = vi.hoisted(() => ({ sources: vi.fn(), agentSources: vi.fn() }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/sources/service', () => ({ listClientSources: mocks.sources }))
+vi.mock('@/lib/sources/store', () => ({ listAgentUsableSources: mocks.agentSources }))
 beforeEach(() => vi.resetAllMocks())
 
 it('uses the owned source service and projects only approved current versions without prompt contents', async () => {
@@ -26,4 +27,16 @@ it.each([404, 503])('keeps a %s source read unknown, never empty or approved', a
 it('distinguishes a successful empty snapshot from a failed read', async () => {
   mocks.sources.mockResolvedValue(Response.json({ items: [], nextCursor: null }))
   expect(await loadStudioDocuments('empty')).toEqual({ items: [], truncated: false })
+})
+
+it('keeps attach candidates to id, label, version and hash without entry bodies', async () => {
+  const scope = { accountId: 'account-a', clientId: 'owned-client', actorId: 'actor-a' }
+  mocks.agentSources.mockResolvedValue([
+    { id: 'source-a', label: 'Brand facts', current: { versionNumber: 2, contentHash: 'a'.repeat(64), entries: [{ question: 'private-q', answer: 'private-a' }] } },
+    { id: 'source-b', label: 'No version', current: null },
+  ])
+  const data = await loadStudioAttachCandidates(scope)
+  expect(mocks.agentSources).toHaveBeenCalledWith(scope)
+  expect(data).toEqual([{ id: 'source-a', label: 'Brand facts', versionNumber: 2, contentHash: 'a'.repeat(64) }])
+  expect(JSON.stringify(data)).not.toMatch(/private-q|private-a/)
 })

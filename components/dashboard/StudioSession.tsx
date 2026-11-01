@@ -5,7 +5,7 @@ import type { StudioReply } from '@/lib/conversation-studio/types'
 import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 
-export type StudioTurn = { id: number; prompt: string; reply: StudioReply; task: StudioHomeTemplate | null; live?: { pending?: boolean; reply?: StudioLiveReply; error?: string } }
+export type StudioTurn = { id: number; prompt: string; reply: StudioReply; task: StudioHomeTemplate | null; attached?: { label: string; versionNumber: number }; live?: { pending?: boolean; reply?: StudioLiveReply; error?: string } }
 export type StudioThread = { id: number; title: string; goal: string; week: string | null; kind: 'research' | 'brief'; sourceTitle?: string; turns: StudioTurn[]; draft: string; template: StudioHomeTemplate | null }
 
 function useSessionState() {

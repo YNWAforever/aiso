@@ -11,8 +11,9 @@ import { runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { loadBinding, loadPanelData } from '@/lib/integrations/search-console/store'
 import { deriveOwnerState } from '@/lib/integrations/search-console/state'
-import { loadStudioDocuments } from '@/lib/conversation-studio/inspector'
+import { loadStudioAttachCandidates, loadStudioDocuments } from '@/lib/conversation-studio/inspector'
 import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
+import type { StudioAttachCandidate } from '@/lib/conversation-studio/live-types'
 import { bindingMatchesDomain } from '@/lib/integrations/search-console/binding'
 import type { StudioSourceStatus } from '@/lib/conversation-studio/home'
 
@@ -46,6 +47,11 @@ export default async function StudioPage({ params }: {
   if (!brand || !evidence || opportunities === null) notFound()
   const inspector: StudioInspectorReads = { documents: null, searchConsole: null }
   try { inspector.documents = await loadStudioDocuments(clientId) } catch { /* Failed reads stay pending verification. */ }
+  // Metadata only. Full entry bodies stay server-side until an explicit Send.
+  let attachCandidates: StudioAttachCandidate[] | null = null
+  try {
+    attachCandidates = await loadStudioAttachCandidates({ accountId: profile.account_id, clientId, actorId: profile.id })
+  } catch { /* Failed read stays unavailable rather than pretending there are none. */ }
   let sourceStatus: StudioSourceStatus = 'unavailable'
   if (isFeatureEnabled('search_console') && resolveCommercialEntitlement(profile.accounts).features.search_console) {
     try {
@@ -71,5 +77,5 @@ export default async function StudioPage({ params }: {
     platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
     cap: studioLiveCap(),
   } : undefined
-  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} />
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} />
 }

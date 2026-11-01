@@ -11,9 +11,12 @@ export function StudioLiveReplyView({ reply, pending, error, number = 1, onOpenE
     <h3>{t('unverifiedTitle')}</h3>
     <p className="as-note">{t('unverified')}</p>
     {pending && <p role="status">{t('pending')}</p>}
-    {error && <p role="alert" className={error === 'STUDIO_QUOTA_EXCEEDED' ? 'as-note as-live-exhausted' : 'as-note'}>{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : 'unavailable')}</p>}
+    {error && <p role="alert" className={error === 'STUDIO_QUOTA_EXCEEDED' ? 'as-note as-live-exhausted' : 'as-note'}>{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : error === 'STUDIO_ATTACH_UNAVAILABLE' ? 'attachUnavailable' : 'unavailable')}</p>}
     {reply && <>
       <p className="as-muted as-small">{t('remaining', { count: reply.quota.remaining })}</p>
+      {reply.attachment && <p className="as-muted as-small">{reply.attachment.truncated
+        ? t('attachTruncated', { label: reply.attachment.label, included: reply.attachment.entriesIncluded, total: reply.attachment.entriesTotal })
+        : t('attachIncluded', { label: reply.attachment.label, version: reply.attachment.versionNumber })}</p>}
       <ul className="space-y-4">{reply.answers.map((item, index) => <li key={item.platform} className="as-result space-y-2">
         <h4 className="font-semibold">{item.platform}</h4>
         <p className={item.coverage === 'present' ? 'as-badge as-badge-blue' : item.coverage === 'missing' ? 'as-badge as-badge-amber' : 'as-badge'}>{t('coverage')}: {t(`status.${item.coverage}`)}</p>

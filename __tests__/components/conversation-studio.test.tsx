@@ -215,7 +215,8 @@ const params=new URLSearchParams(location.search);
 const opportunities=params.get('opps')==='empty'?emptyStudioOpportunities:params.get('opps')==='pending'?pendingStudioOpportunities:savedStudioOpportunities;
 const inspector=params.has('reads')?{documents:{items:[{id:'fixture-doc',label:'Approved brand facts',versionId:'fixture-version-2',versionNumber:2,approvedAt:'2026-10-27T04:00:00Z',importedAt:'2026-10-26T04:00:00Z'}],truncated:false},searchConsole:{kind:params.get('gsc')||'synced',dataThrough:'2026-10-26'}}:undefined;
 const live=params.has('live')?{cap:Number(params.get('live')),platforms:params.has('free')?[]:['gemini-flash','gpt-4o']}:undefined;
-createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand',clientId:'11111111-1111-4111-8111-111111111111',evidence,opportunities,live,inspector,sourceStatus:params.has('reads')?'bound':'unavailable'})));`)
+const attachCandidates=params.get('attach')==='empty'?[]:params.get('attach')==='unavailable'?null:[{id:'33333333-3333-4333-8333-333333333333',label:'Approved brand facts',versionNumber:2,contentHash:'${'a'.repeat(64)}'}];
+createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand',clientId:'11111111-1111-4111-8111-111111111111',evidence,opportunities,live,inspector,attachCandidates,sourceStatus:params.has('reads')?'bound':'unavailable'})));`)
   await build({
     configFile: false, envDir: false, oxc: { jsx: { development: false } },
     resolve: { alias: { 'next/link': link, '@': resolve('.') } },
