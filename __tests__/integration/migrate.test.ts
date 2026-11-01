@@ -79,6 +79,7 @@ describe('migration runner against a real branch', () => {
       'public_scan_rate_limits',
       'stripe_subscription_processing_leases',
       'stripe_webhook_events',
+      'studio_live_weekly_usage',
     ])
   })
 

@@ -82,6 +82,7 @@ const TENANT_TABLES: Record<string, string> = {
   account_approver_state: 'account_id (042)',
   account_approver_events: 'account_id (042)',
   authenticated_scan_monthly_usage: 'account_id (025)',
+  studio_live_weekly_usage: 'account_id (080)',
   local_trust_profiles: 'account_id (021)',
   local_trust_snapshots: 'account_id (021)',
   local_trust_actions: 'account_id (021)',

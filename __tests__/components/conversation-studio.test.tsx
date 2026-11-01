@@ -22,6 +22,7 @@ it.each(['en', 'zh-HK'])('renders saved-evidence scope with templates, composer 
   expect(html).toContain(copy.threadsEmpty)
   expect(html).toContain(copy.privacyBody)
   expect(html).toContain(copy.savedNotice)
+  expect(html).toContain(copy.featureShellNote)
   expect(html).toContain('<textarea')
   for (const key of STUDIO_TEMPLATES) expect(html).toContain(copy.templates[key].label)
   expect(html).not.toContain('<form action=')
@@ -143,14 +144,16 @@ it.each(['en', 'zh-HK'])('renders empty and pending opportunity reads without in
 })
 
 it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified output in %s', lang => {
-  const copy = (lang === 'en' ? en : zh).conversationStudio.live
+  const studioCopy = (lang === 'en' ? en : zh).conversationStudio
+  const copy = studioCopy.live
   const ui = (cap: number, platforms = ['gemini-flash']) => renderWithIntl(<ConversationStudio brandName="Brand" clientId="brand-id" evidence={emptyStudioEvidence} live={{ cap, platforms }} />, lang)
   expect(ui(0)).toContain(copy.disabled)
   expect(ui(2)).toContain('gemini-flash')
   expect(ui(2)).not.toContain('gpt-4o')
   expect(ui(2, [])).toContain(copy.upgrade)
   expect(ui(2)).toContain(copy.temporaryCap)
-  const reply = { quota: { cap: 2, remaining: 1, scope: 'process' }, answers: [{
+  expect(ui(0)).not.toContain(studioCopy.featureShellNote)
+  const reply = { quota: { cap: 2, remaining: 1, scope: 'account' }, answers: [{
     platform: 'gemini-flash', coverage: 'present', answer: '<script>unsafe</script>', model: 'mock-model',
     startedAt: '2026-10-28T00:00:00Z', durationMs: 123, finishReason: 'length', grounding: 'none',
     searchEvidence: { requested: 'none', execution: 'unknown', basis: 'request-only' }, error: null,
@@ -167,6 +170,9 @@ it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified
   expect(html).not.toContain('<script>')
   expect(html).not.toContain('javascript:')
   expect(html).toContain('href="https://source.example/"')
+  const exhausted = renderWithIntl(<StudioLiveReplyView error="STUDIO_QUOTA_EXCEEDED" />, lang)
+  expect(exhausted).toContain(copy.exhausted)
+  expect(exhausted).toContain('as-live-exhausted')
 })
 
 it.each(['en', 'zh-HK'])('renders inspector rows from loaded metadata or explicit gaps in %s', lang => {

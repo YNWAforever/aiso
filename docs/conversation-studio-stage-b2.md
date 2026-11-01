@@ -29,16 +29,20 @@ measurement. Threads remain in page memory.
   auth, SQL, or provider calls.
 - `STUDIO_LIVE_ANSWERS_PER_WEEK`: default **0**. Missing, malformed, negative,
   fractional or unsafe integer values fail closed. Zero returns 429 without a
-  provider call. The name reserves the future durable setting; B2 implements a
-  **temporary per-account, per-process UTC-week attempt counter** only. It is
-  shared across brands in one warm process, resets on restart, and is independent
-  across instances. It does not enforce an account-wide hosted weekly quota.
+  provider call. B2 originally implemented a temporary per-account, per-process
+  UTC-week attempt counter. **Stage 6g supersedes that counter for LIVE
+  answers** with migration `080_studio_live_weekly_usage.sql` and an atomic Neon
+  account-week reservation. The process-local search guard described below is
+  unchanged and is not a second Pulse search ledger. See
+  [Stage 6g](ux/conversation-studio-stage-6g.md).
 
-Each selected platform consumes one answer unit, reserved synchronously before
-dispatch. Failed and unknown attempts remain charged because they may have spent
-money. There are no automatic retries. The entire fan-out also reserves the
-existing `createTaskBudget` call/token limits before dispatch; its default three
-calls can reject a larger platform selection with 429, without partial spend.
+Each selected platform consumes one answer unit, reserved before dispatch.
+Stage 6g makes that reservation atomic and durable; B2 originally made it
+synchronously in process memory. Failed and unknown attempts remain charged
+because they may have spent money. There are no automatic retries. The entire
+fan-out also reserves the existing `createTaskBudget` call/token limits before
+dispatch; its default three calls can reject a larger platform selection with
+429, without partial spend.
 Output is clamped to at most 1,000 tokens or the lower configured global ceiling.
 Calls use a shared 20-second abort signal; Vercel's exact route duration is 30s.
 
@@ -49,11 +53,12 @@ logged. Actual model and finish reason remain visible in the transient reply.
 
 Optional web-plugin requests require `webSearchAllowance` and a local Studio
 search reservation against its remaining allowance. Studio does not write the
-Pulse usage tables or ledger. The additional search counter has the same
-process-local limitations as the answer cap. Native Perplexity search is labelled
-`native`; other calls without the plugin are `none`. Only provider search events
-confirm execution; citations alone do not. No GSC, Firecrawl or DataForSEO request
-is made, and no HK/zh-HK Mentions support is claimed.
+Pulse usage tables or ledger. The additional search counter remains
+process-local; Stage 6g changes only answer reservations. Native Perplexity
+search is labelled `native`; other calls without the plugin are `none`. Only
+provider search events confirm execution; citations alone do not. No GSC,
+Firecrawl or DataForSEO request is made, and no HK/zh-HK Mentions support is
+claimed.
 
 **Preview-spend still requires Willy Approve before humans set LIVE=1 and cap>0
 with provider credentials.** This draft does not set any hosted environment
@@ -78,11 +83,14 @@ mention coverage. The renderer also handles `unsupported` explicitly. Results
 include actual model, start time, duration, finish reason, search evidence, and
 public provider citations filtered through `safeEvidenceUrl`. Answer text is
 rendered as plain text. Missing answers never mean zero mentions. The response
-quota reports only the responding process's remaining units, with `scope: process`.
+quota reports the durable account-week's remaining units with
+`scope: 'account'` after Stage 6g.
 
-There is **no migration and no persistence** to `pulse_metrics`,
-`ai_citation_log`, Pulse runs/reservations, or a thread store. Billing, entitlement
-resolution, onboarding, cron, MCP, and WorkspaceHome logic are unchanged.
+At B2 delivery there was no migration. Stage 6g adds only the durable answer
+counter described above; there is still no persistence to `pulse_metrics`,
+`ai_citation_log`, Pulse runs/reservations, or a thread store. Billing,
+entitlement resolution, onboarding, cron, MCP, and WorkspaceHome logic are
+unchanged.
 
 ## Validation and exclusions
 
@@ -99,7 +107,8 @@ on intercepts only the local answer endpoint with synthetic results. Browser
 checks include separate saved/live panels, partial errors, quota rejection,
 safe sources, accessibility, narrow reflow and page-local state reset.
 
-NO_GO: merge, Production enablement or environment writes, Stage C/D, durable
-quota migration, billing/entitlement logic, onboarding brand_draft, Neon migration,
-Pulse ledger changes, live provider tests. Hold Extra High PR-diff until CI is
-green and AISO supplies a new brief.
+NO_GO at B2 delivery: merge, Production enablement or environment writes, Stage
+C/D, durable quota migration, billing/entitlement logic, onboarding brand_draft,
+Neon migration, Pulse ledger changes, live provider tests. The durable answers
+quota migration named above lands only under the separately briefed Stage 6g.
+Hold Extra High PR-diff until CI is green and AISO supplies a new brief.

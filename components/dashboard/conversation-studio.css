@@ -142,6 +142,7 @@
 #aiso-studio .as-badge-blue { border-color: transparent; background: var(--as-soft); color: var(--as-blue); }
 #aiso-studio .as-badge-amber { border-color: transparent; background: var(--as-warnbg); color: var(--as-warn); }
 #aiso-studio .as-note { border-radius: 8px; padding: 12px; background: var(--as-warnbg); color: var(--as-warn); font-size: 12px; }
+#aiso-studio .as-live-exhausted { border-left: 4px solid var(--as-warn); font-weight: 600; }
 #aiso-studio .as-disclosure { border: 1px solid var(--as-line); border-radius: 8px; padding: 0 12px; }
 #aiso-studio summary { min-height: 44px; padding: 11px 0; cursor: pointer; }
 #aiso-studio .as-disclosure > summary { font-weight: 600; }

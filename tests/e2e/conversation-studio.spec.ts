@@ -20,7 +20,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
     const body = route.request().postDataJSON()
     liveRequests.push(body)
     if (quotaError) return route.fulfill({ status: 429, json: { error: 'STUDIO_QUOTA_EXCEEDED' } })
-    return route.fulfill({ json: { quota: { cap: 5, remaining: 3, scope: 'process' }, answers: body.platforms.map((platform: string) => ({
+    return route.fulfill({ json: { quota: { cap: 5, remaining: 3, scope: 'account' }, answers: body.platforms.map((platform: string) => ({
       platform, coverage: platform === 'gemini-flash' ? 'present' : 'missing',
       answer: platform === 'gemini-flash' ? 'MOCK LIVE ANSWER' : null,
       model: 'mock-live-model', startedAt: '2026-10-28T00:00:00Z', durationMs: 12, finishReason: 'stop', grounding: 'none',
@@ -54,6 +54,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(home.locator('.as-template')).toHaveCount(6)
     await expect(home.locator('.as-filter')).toHaveCount(5)
     const composer = page.locator('#studio-composer')
+    await expect(home.getByText(copy.featureShellNote, { exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: copy.heroTitle, exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: copy.chooseDocuments, exact: true })).toBeDisabled()
     await expect(page.getByText(copy.sources.unavailable, { exact: true })).toBeVisible()
@@ -205,6 +206,8 @@ for (const lang of ['en', 'zh-HK']) {
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
     await page.locator('button[type="submit"]').click()
     await expect(page.getByRole('alert')).toHaveText(copy.live.exhausted)
+    await expect(page.locator('form').getByText(copy.live.exhausted, { exact: true })).toHaveCount(1)
+    await expect(page.locator('.as-platform-picker input').first()).toBeDisabled()
     await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
     expect(liveRequests).toHaveLength(1)
     expect(requests).toEqual([])

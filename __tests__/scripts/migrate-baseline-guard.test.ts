@@ -141,6 +141,8 @@ function allRelations() {
     'enterprise_role_events','enterprise_roles','enterprise_audit','enterprise_keys','enterprise_api_nonces','enterprise_api_windows',
     'enterprise_branding','enterprise_artifacts','enterprise_decisions','enterprise_portals','enterprise_schedules','enterprise_schedule_periods',
     'enterprise_adapters','enterprise_adapter_runs','enterprise_adapter_observations','enterprise_webhooks','enterprise_events','enterprise_deliveries','enterprise_attempts',
+    // 080: durable Studio LIVE answer quota; authored here and applied by the runner.
+    'studio_live_weekly_usage',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
