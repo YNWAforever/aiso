@@ -74,7 +74,7 @@ export function StudioTools({ clientId, features, admin }: { clientId: string; f
   const t = useTranslations('conversationStudio')
   const dashboard = useTranslations('dashboard')
   const lang = useLocale()
-  return <main className="as-page space-y-6"><ViewHeading view="tools" /><div className="as-tool-grid">{buildStudioTools({ lang, clientId, features, admin }).map(tool => <Link key={tool.key} href={tool.href} className="as-card as-tool flex items-center gap-3">
+  return <main className="as-page space-y-6"><ViewHeading view="tools" /><div className="as-tool-grid">{buildStudioTools({ lang, clientId, features, admin, conversationStudio: true }).map(tool => <Link key={tool.key} href={tool.href} className="as-card as-tool flex items-center gap-3">
     <span className="min-w-0 flex-1 font-semibold">{dashboard(tool.labelKey)}</span>{tool.locked && <Lock className="size-4 shrink-0" aria-label={t('planRequired')} />}{tool.badge && <span className="as-badge">{tool.badge}</span>}<ArrowUpRight className="size-4 shrink-0 as-blue" aria-hidden="true" />
   </Link>)}</div></main>
 }

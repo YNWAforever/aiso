@@ -45,7 +45,12 @@ async function openFirstBrand(page: Page, lang: 'en' | 'zh-HK' = 'en'): Promise<
 
   await brand.click()
   await page.waitForURL(new RegExp(`/${lang}/dashboard/[^/]+`))
-  return new URL(page.url()).pathname.split('/')[3]!
+  const clientId = new URL(page.url()).pathname.split('/')[3]!
+  // With FEATURE_CONVERSATION_STUDIO on, a bare brand URL lands in Studio.
+  // These journeys are about WorkspaceHome, which stays reachable via the
+  // explicit overview alias (also what the Overview nav and Studio back link use).
+  await page.goto(`/${lang}/dashboard/${clientId}?step=overview`)
+  return clientId
 }
 
 /**

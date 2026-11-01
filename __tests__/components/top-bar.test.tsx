@@ -74,6 +74,15 @@ describe('TopBar', () => {
     expect(html).toContain('aria-expanded="false"')
   })
 
+  it('sends the brand crumb, switcher and palette entries to Studio when the flag is on', () => {
+    nav.params = { lang: 'en', clientId: 'c2' }
+    nav.pathname = '/en/dashboard/c2'
+    const html = renderWithIntl(<TopBar lang="en" brands={brands} unreadCount={0} features={features} conversationStudio />)
+    expect(html).toContain('href="/en/dashboard/c1/studio"')
+    expect(html).toMatch(/<a aria-current="true"[^>]*href="\/en\/dashboard\/c2\/studio"/)
+    expect(html).not.toContain('?step=home')
+  })
+
   it('says the brand list is unavailable rather than showing none', () => {
     nav.params = { lang: 'en', clientId: 'c1' }
     nav.pathname = '/en/dashboard/c1'

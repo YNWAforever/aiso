@@ -102,6 +102,13 @@ for (const lang of ['en', 'zh-HK']) {
     expect(requests).toEqual([])
   })
 
+  test(`the dashboard back link uses the WorkspaceHome overview alias in ${lang}`, async ({ page }) => {
+    const { copy } = await fixture(page, lang)
+    const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
+    if (await toggle.isVisible()) await toggle.click()
+    await expect(page.getByRole('link', { name: copy.backToDashboard, exact: true, includeHidden: true })).toHaveAttribute('href', `/${lang}/dashboard/${clientId}?step=overview`)
+  })
+
   test(`result cards link to same-brand existing flows and restore dashboard chrome in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     // Use the second brand as well, so a hardcoded first-brand link cannot pass.
