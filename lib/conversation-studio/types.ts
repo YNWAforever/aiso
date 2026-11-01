@@ -9,7 +9,7 @@ export interface StudioInspectorReads {
 export type StudioEvidenceTarget = 'saved' | 'scan' | `source-${number}` | `live-${number}`
 export type OpenStudioEvidence = (trigger: HTMLButtonElement, target?: StudioEvidenceTarget) => void
 
-export const STUDIO_TEMPLATES = ['brief', 'competitors', 'pulse', 'report'] as const
+export const STUDIO_TEMPLATES = ['brief', 'competitors', 'pulse', 'report', 'opportunity'] as const
 export type StudioTemplate = typeof STUDIO_TEMPLATES[number]
 export type StudioObservation = Pick<ObservationDetailDto,
   'id' | 'question' | 'platform' | 'scanWeek' | 'recordedAt' | 'collectedAt' | 'model' | 'market' |
@@ -21,11 +21,31 @@ export interface StudioEvidence {
   observations: StudioObservation[]
   scan: { id: string; recordedAt: string | null; evidence: OwnedResultEvidence } | null
 }
+export interface StudioOpportunityEvidenceRef {
+  kind: 'pulse-metric' | 'scan-check'
+  id: string
+  checkKey?: string
+}
+export interface StudioOpportunitySuggestion {
+  key: string
+  title: string
+  action: string
+  recordedAt: string | null
+  evidenceRefs: StudioOpportunityEvidenceRef[]
+}
+export interface StudioOpportunities {
+  state: 'ready' | 'empty' | 'pending'
+  suggestions: StudioOpportunitySuggestion[]
+  partial: boolean
+  pulseWeek: string | null
+  sourceStates: { pulse: 'ok' | 'empty' | 'unavailable'; scan: 'ok' | 'empty' | 'unavailable' }
+}
 export interface StudioReply {
   status: 'evidenced' | 'insufficient'
   template: StudioTemplate | null
   observations: StudioObservation[]
   scan: StudioEvidence['scan']
-  researchSteps: ({ kind: 'loadWeek'; week: string; count: number } | { kind: 'selectRecords' | 'composeExtracts' })[]
+  opportunities?: StudioOpportunities
+  researchSteps: ({ kind: 'loadWeek'; week: string; count: number } | { kind: 'loadOpportunities'; count: number } | { kind: 'selectRecords' | 'composeExtracts' })[]
   coverage: Record<'pulse' | 'citations' | 'scan' | 'live', 'present' | 'missing' | 'unsupported'>
 }

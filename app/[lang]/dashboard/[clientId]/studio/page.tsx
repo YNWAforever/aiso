@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { isFeatureEnabled } from '@/lib/flags'
 import { ConversationStudio } from '@/components/dashboard/ConversationStudio'
 import { loadStudioEvidence } from '@/lib/conversation-studio/evidence'
+import { loadStudioOpportunities } from '@/lib/conversation-studio/opportunities'
 import { studioLiveCap } from '@/lib/conversation-studio/live-quota'
 import { runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { resolveCommercialEntitlement } from '@/lib/tier'
@@ -25,10 +26,14 @@ export default async function StudioPage({ params }: {
 
   let brands
   let evidence
+  let opportunities
   try {
     // Establish ownership before loading saved, account-scoped evidence.
     brands = await db()`select id, brand_name from clients where id = ${clientId} and account_id = ${profile.account_id}`
-    if (brands[0]) evidence = await loadStudioEvidence(profile.account_id, clientId)
+    if (brands[0]) {
+      evidence = await loadStudioEvidence(profile.account_id, clientId)
+      opportunities = await loadStudioOpportunities(clientId, lang)
+    }
   } catch {
     const t = await getTranslations('conversationStudio')
     return <main className="mx-auto w-full max-w-3xl space-y-4 p-6">
@@ -38,7 +43,7 @@ export default async function StudioPage({ params }: {
     </main>
   }
   const brand = brands[0]
-  if (!brand || !evidence) notFound()
+  if (!brand || !evidence || opportunities === null) notFound()
   const inspector: StudioInspectorReads = { documents: null, searchConsole: null }
   try { inspector.documents = await loadStudioDocuments(clientId) } catch { /* Failed reads stay pending verification. */ }
   let sourceStatus: StudioSourceStatus = 'unavailable'
@@ -66,5 +71,5 @@ export default async function StudioPage({ params }: {
     platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
     cap: studioLiveCap(),
   } : undefined
-  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} live={live} sourceStatus={sourceStatus} inspector={inspector} />
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} />
 }

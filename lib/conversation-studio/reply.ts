@@ -1,4 +1,4 @@
-import type { StudioEvidence, StudioReply, StudioTemplate } from './types'
+import type { StudioEvidence, StudioOpportunities, StudioReply, StudioTemplate } from './types'
 
 const STOP_WORDS = new Set(['the', 'and', 'what', 'which', 'how', 'does', 'are', 'for', 'with', 'this', 'that', 'from', 'can', 'you', 'your', 'our', 'tell', 'about', 'please', 'today'])
 function searchTerms(prompt: string): string[] {
@@ -12,8 +12,38 @@ function searchTerms(prompt: string): string[] {
   }))]
 }
 
+const pendingOpportunities: StudioOpportunities = {
+  state: 'pending',
+  suggestions: [],
+  partial: true,
+  pulseWeek: null,
+  sourceStates: { pulse: 'unavailable', scan: 'unavailable' },
+}
+
 /** Pure local extraction. A lexical match is never proof of an answer. */
-export function composeSavedReply(prompt: string, template: StudioTemplate | null, data: StudioEvidence): StudioReply {
+export function composeSavedReply(
+  prompt: string,
+  template: StudioTemplate | null,
+  data: StudioEvidence,
+  opportunities: StudioOpportunities = pendingOpportunities,
+): StudioReply {
+  if (template === 'opportunity') {
+    const suggestions = opportunities.suggestions
+    return {
+      status: opportunities.state === 'ready' && suggestions.length > 0 ? 'evidenced' : 'insufficient',
+      template,
+      observations: [],
+      scan: null,
+      opportunities,
+      researchSteps: suggestions.length ? [{ kind: 'loadOpportunities', count: suggestions.length }] : [],
+      coverage: {
+        pulse: suggestions.some(item => item.evidenceRefs.some(ref => ref.kind === 'pulse-metric')) ? 'present' : 'missing',
+        citations: 'missing',
+        scan: suggestions.some(item => item.evidenceRefs.some(ref => ref.kind === 'scan-check')) ? 'present' : 'missing',
+        live: 'unsupported',
+      },
+    }
+  }
   const terms = searchTerms(prompt)
   const observations = template ? data.observations : data.observations.filter(item => {
     const text = `${item.question} ${item.excerpt ?? ''}`.toLowerCase()

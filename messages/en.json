@@ -56,7 +56,11 @@
         "description": "Find unanswered buying questions and decide which pages to improve first.",
         "output": "Opportunity list → Content brief",
         "prompt": "From this brand’s saved evidence, which Hong Kong buying questions need further investigation? Mark unverified demand and content gaps.",
-        "limit": "Saved evidence only. Search demand and opportunity priorities: pending verification; no opportunity analysis runs here."
+        "limit": "Shows real content opportunities for this brand when available. Empty lists show “None yet”; unverified demand stays “Pending verification”—no invented ranks or volumes.",
+        "empty": "None yet for this brand.",
+        "pending": "Pending verification — opportunities could not be loaded for this brand.",
+        "partial": "Some evidence is unavailable or limited; only the suggestions supported by available saved records are shown.",
+        "stepLoad": "Read {count} saved content opportunity suggestions for this brand."
       },
       "improve": {
         "label": "Improve an existing page",

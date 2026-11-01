@@ -7,6 +7,7 @@ import { renderWithIntl } from '@/__tests__/helpers/intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { emptyStudioEvidence, savedStudioEvidence, savedStudioScan } from '@/__tests__/helpers/studio-evidence'
+import { emptyStudioOpportunities, savedStudioOpportunities } from '@/__tests__/helpers/studio-opportunities'
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
 import { STUDIO_TEMPLATES } from '@/lib/conversation-studio/types'
 import { StudioEvidenceRows } from '@/components/dashboard/StudioEvidenceInspector'
@@ -111,6 +112,36 @@ it.each(['en', 'zh-HK'])('keeps result destinations in the supplied brand and om
   expect(unscoped).not.toContain('/dashboard/')
 })
 
+it.each(['en', 'zh-HK'])('renders real saved opportunity titles, evidence refs and the same-brand I5 link in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const clientId = '11111111-1111-4111-8111-111111111111'
+  const reply = composeSavedReply(copy.templates.opportunity.prompt, 'opportunity', emptyStudioEvidence, savedStudioOpportunities)
+  const html = renderWithIntl(<StudioReplyView clientId={clientId} id="opportunity" evidence={emptyStudioEvidence} reply={reply} />, lang)
+  expect(html).toContain(savedStudioOpportunities.suggestions[0].title)
+  expect(html).toContain(savedStudioOpportunities.suggestions[1].title)
+  expect(html).toContain('30000000-0000-4000-8000-000000000001')
+  expect(html).toContain('40000000-0000-4000-8000-000000000001')
+  expect(html).toContain('c11_faq')
+  expect(html).toContain(copy.honesty.searchDemandPending)
+  expect(html).toContain(`href="/${lang}/dashboard/${clientId}/opportunities"`)
+  expect(html).toContain(copy.destinations.opportunities)
+  expect(html).not.toMatch(/Harbour Home|WI-DEMO|rank #\d|volume \d/i)
+})
+
+it.each(['en', 'zh-HK'])('renders empty and pending opportunity reads without inventing rows in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  for (const [opportunities, text] of [
+    [emptyStudioOpportunities, copy.templates.opportunity.empty],
+    [undefined, copy.templates.opportunity.pending],
+  ] as const) {
+    const reply = composeSavedReply(copy.templates.opportunity.prompt, 'opportunity', emptyStudioEvidence, opportunities)
+    const html = renderWithIntl(<StudioReplyView id="opportunity" evidence={emptyStudioEvidence} reply={reply} />, lang)
+    expect(html).toContain(text)
+    expect(html).not.toContain('<li class="as-result')
+    expect(html).not.toMatch(/Harbour Home|WI-DEMO|30000000/)
+  }
+})
+
 it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified output in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio.live
   const ui = (cap: number, platforms = ['gemini-flash']) => renderWithIntl(<ConversationStudio brandName="Brand" clientId="brand-id" evidence={emptyStudioEvidence} live={{ cap, platforms }} />, lang)
@@ -170,13 +201,15 @@ import {createRoot} from 'react-dom/client';
 import {NextIntlClientProvider} from 'next-intl';
 import {ConversationStudio} from '@/components/dashboard/ConversationStudio';
 import {emptyStudioEvidence,savedStudioEvidence,savedStudioScan} from '@/__tests__/helpers/studio-evidence';
+import {emptyStudioOpportunities,pendingStudioOpportunities,savedStudioOpportunities} from '@/__tests__/helpers/studio-opportunities';
 import en from '@/messages/en.json'; import zh from '@/messages/zh-HK.json';
 const locale=document.documentElement.lang;
 const evidence=location.search.includes('empty=1')?emptyStudioEvidence:location.search.includes('scan=1')?{...savedStudioEvidence,scan:savedStudioScan}:savedStudioEvidence;
 const params=new URLSearchParams(location.search);
+const opportunities=params.get('opps')==='empty'?emptyStudioOpportunities:params.get('opps')==='pending'?pendingStudioOpportunities:savedStudioOpportunities;
 const inspector=params.has('reads')?{documents:{items:[{id:'fixture-doc',label:'Approved brand facts',versionId:'fixture-version-2',versionNumber:2,approvedAt:'2026-10-27T04:00:00Z',importedAt:'2026-10-26T04:00:00Z'}],truncated:false},searchConsole:{kind:params.get('gsc')||'synced',dataThrough:'2026-10-26'}}:undefined;
 const live=params.has('live')?{cap:Number(params.get('live')),platforms:params.has('free')?[]:['gemini-flash','gpt-4o']}:undefined;
-createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand',clientId:'11111111-1111-4111-8111-111111111111',evidence,live,inspector,sourceStatus:params.has('reads')?'bound':'unavailable'})));`)
+createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand',clientId:'11111111-1111-4111-8111-111111111111',evidence,opportunities,live,inspector,sourceStatus:params.has('reads')?'bound':'unavailable'})));`)
   await build({
     configFile: false, envDir: false, oxc: { jsx: { development: false } },
     resolve: { alias: { 'next/link': link, '@': resolve('.') } },

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
 
-async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false, reads = false) {
+async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false, reads = false, opportunities: 'saved' | 'empty' | 'pending' = 'saved') {
   // Native smooth scrolling can keep a mobile target moving as replies grow.
   // Use supported reduced motion, without forced clicks or skipped assertions.
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -35,6 +35,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   if (liveCap !== undefined) params.set('live', String(liveCap))
   if (free) params.set('free', '1')
   if (reads) params.set('reads', '1')
+  params.set('opps', opportunities)
   const url = `https://studio.fixture/${lang}${params.size ? `?${params}` : ''}`
   await page.route(url, route => route.fulfill({
     contentType: 'text/html; charset=utf-8',
@@ -153,6 +154,29 @@ for (const lang of ['en', 'zh-HK']) {
       await expect(log.getByRole('link', { name: copy.destinations[destination] })).toHaveAttribute('href', `/${lang}/dashboard/11111111-1111-4111-8111-111111111111/${destination}`)
     }
     expect(requests).toEqual([])
+  })
+
+  test(`opportunity READ shows saved suggestions, honest empty/pending states and I5 in ${lang}`, async ({ page }) => {
+    const saved = await fixture(page, lang)
+    await page.getByRole('button', { name: saved.copy.templates.opportunity.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    const log = page.getByRole('log')
+    await expect(log.getByRole('heading', { name: 'Review question coverage', exact: true })).toBeVisible()
+    await expect(log.getByRole('heading', { name: 'Review frequently asked questions', exact: true })).toBeVisible()
+    await expect(log).toContainText('30000000-0000-4000-8000-000000000001')
+    await expect(log).toContainText('c11_faq')
+    await expect(log.getByRole('link', { name: saved.copy.destinations.opportunities, exact: true }))
+      .toHaveAttribute('href', `/${lang}/dashboard/11111111-1111-4111-8111-111111111111/opportunities`)
+    expect(saved.requests).toEqual([])
+
+    for (const state of ['empty', 'pending'] as const) {
+      const next = await fixture(page, lang, false, false, undefined, false, false, false, state)
+      await page.getByRole('button', { name: next.copy.templates.opportunity.label, exact: true }).click()
+      await page.locator('button[type="submit"]').click()
+      await expect(page.getByRole('log')).toContainText(next.copy.templates.opportunity[state])
+      await expect(page.getByRole('log')).not.toContainText('Review question coverage')
+      expect(next.requests).toEqual([])
+    }
   })
 
   test(`cap zero Send stays saved-only with no transport in ${lang}`, async ({ page }) => {
@@ -309,14 +333,14 @@ for (const lang of ['en', 'zh-HK']) {
 
   test(`discussion header, actual research and result actions expose existing evidence in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
-    await page.getByRole('button', { name: copy.templates.opportunity.label, exact: true }).click()
+    await page.getByRole('button', { name: copy.templates.pulse.label, exact: true }).click()
     await page.locator('button[type="submit"]').click()
     const header = page.locator('#studio-discussion > header')
     await expect(header).toContainText(copy.discussionEyebrow)
-    await expect(header.getByRole('heading', { level: 1 })).toHaveText(copy.templates.opportunity.label)
+    await expect(header.getByRole('heading', { level: 1 })).toHaveText(copy.templates.pulse.label)
     await expect(header).toContainText(copy.localeBadge)
     await expect(header).toContainText(copy.savedWeek.replace('{week}', '2026-10-26'))
-    await expect(page.locator('.as-question')).toContainText(copy.templates.opportunity.prompt)
+    await expect(page.locator('.as-question')).toContainText(copy.templates.pulse.prompt)
     await expect(page.locator('.as-answer-label')).toHaveText(copy.answerLabel)
     const steps = page.locator('.as-research')
     await steps.getByText(copy.evidence.stepsTitle, { exact: true }).click()

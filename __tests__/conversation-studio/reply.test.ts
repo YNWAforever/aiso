@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
 import { emptyStudioEvidence, savedStudioEvidence, savedStudioScan } from '@/__tests__/helpers/studio-evidence'
+import { emptyStudioOpportunities, pendingStudioOpportunities, savedStudioOpportunities } from '@/__tests__/helpers/studio-opportunities'
 
 it.each(['brief', 'pulse', 'competitors', 'report', null] as const)('is explicitly insufficient without saved evidence (%s)', template => {
   const reply = composeSavedReply('bakery', template, emptyStudioEvidence)
@@ -72,4 +73,27 @@ it('reports only the saved composition steps supported by this turn’s inputs a
     { kind: 'selectRecords' }, { kind: 'composeExtracts' },
   ])
   expect(composeSavedReply('pulse', 'pulse', { ...emptyStudioEvidence, scan: savedStudioScan }).researchSteps).toEqual([])
+})
+
+it('composes only supplied saved opportunity suggestions without falling back to generic evidence', () => {
+  const reply = composeSavedReply('anything', 'opportunity', savedStudioEvidence, savedStudioOpportunities)
+  expect(reply.status).toBe('evidenced')
+  expect(reply.observations).toEqual([])
+  expect(reply.scan).toBeNull()
+  expect(reply.opportunities).toEqual(savedStudioOpportunities)
+  expect(reply.researchSteps).toEqual([{ kind: 'loadOpportunities', count: 2 }])
+  expect(reply.coverage).toEqual({ pulse: 'present', citations: 'missing', scan: 'present', live: 'unsupported' })
+})
+
+it.each([
+  ['empty', emptyStudioOpportunities],
+  ['pending', pendingStudioOpportunities],
+  ['missing', undefined],
+] as const)('keeps an opportunity %s read insufficient with no invented rows', (_state, opportunities) => {
+  const reply = composeSavedReply('anything', 'opportunity', savedStudioEvidence, opportunities)
+  expect(reply.status).toBe('insufficient')
+  expect(reply.observations).toEqual([])
+  expect(reply.scan).toBeNull()
+  expect(reply.opportunities?.suggestions).toEqual([])
+  expect(reply.opportunities?.state).toBe(_state === 'missing' ? 'pending' : _state)
 })
