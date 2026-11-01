@@ -195,8 +195,8 @@ semantics when moving copy into notes/inspectors:
 
 | Existing full key | Current zh-HK copy | English draft / meaning to retain |
 | --- | --- | --- |
-| `conversationStudio.privateLabel` | 預設私人 · 暫存 | Private by default · Temporary |
-| `conversationStudio.privacyBody` | 訊息只暫存在此頁面的記憶體，離開或重新整理後便會消失。儲存、分享及私人存取權限功能將於日後提供。 | Messages stay in this page’s memory and disappear when you leave or refresh. Saving, sharing and private access controls are coming later. |
+| `conversationStudio.privateLabel` | 只供你查看 · 已儲存在此品牌工作室 | Private to you · Saved in this brand workspace |
+| `conversationStudio.privacyBody` | 討論會儲存在此品牌工作室，只有你可見（不包括團隊成員），重新整理後仍會保留。輸入中的草稿不會儲存。分享功能尚未提供。 | Discussions are saved to this brand workspace, visible only to you, not teammates, and survive refresh. Composer drafts are not saved. Sharing is not available yet. |
 | `conversationStudio.evidence.comparisonLimit` | 現有證據不足以作可靠的競爭對手比較。以下已儲存觀察僅供參考，不能確立排名或整體市場可見度。 | Not enough evidence for a verified competitor comparison. Saved observations below are context only; they do not establish rankings or market-wide visibility. |
 | `conversationStudio.evidence.summaryScope` | 此摘要只整理已儲存紀錄，並未核實歷史模型陳述是否仍屬實。 | This summary reports saved records only. It does not verify historical model statements as current facts. |
 | `conversationStudio.evidence.boundedScope` | 範圍：最近保留的正式 Pulse 週次最多 8 則觀察，每則最多 900 字元及 5 個連結，另附最近一次屬於此帳戶的掃描。這並非品牌完整歷史；重新載入可讀取更新快照。 | Scope: at most 8 observations from the latest retained canonical Pulse week, up to 900 characters and 5 links per observation, plus the latest owned scan. This is not a complete brand history. Reload to read a newer snapshot. |
@@ -212,7 +212,9 @@ semantics when moving copy into notes/inspectors:
 These are existing product strings, not quotations invented for the concept.
 In particular, live output stays unverified; citations/requests alone do not
 prove search execution; B1 remains bounded saved evidence; B2’s cap remains
-process-local. “私人” in the mock does not establish durable private ACL, sharing
+process-local. Stage 6c persists threads under the owning account + brand + creator profile;
+“私人” means only that creator profile, and sharing remains future work. Composer drafts and
+source bodies stay client-only.
 or persistence. Keep the existing temporary-memory notice visible/reachable
 until separately approved work changes the behavior. Never copy Harbour Home,
 Harbour Tea, version IDs, fake bindings or research steps claiming queries that

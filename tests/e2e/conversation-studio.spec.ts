@@ -168,7 +168,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByRole('link', { name: copy.attach.manageSources, exact: true }))
       .toHaveAttribute('href', `/${lang}/dashboard/11111111-1111-4111-8111-111111111111/sources`)
     const unavailable = await fixture(page, lang, false, false, 5, false, false, false, 'saved', 'unavailable')
-    await unavailable && await page.getByRole('button', { name: unavailable.copy.chooseDocuments, exact: true }).click()
+    await page.getByRole('button', { name: unavailable.copy.chooseDocuments, exact: true }).click()
     await expect(page.getByText(unavailable.copy.attach.unavailable, { exact: true })).toBeVisible()
   })
 

@@ -9,7 +9,7 @@ export default async function StudioLayout({ children, params }: { children: Rea
   const { profile, brand } = await requireStudioBrand(lang, clientId)
   let brands = null
   try { brands = await listOwnedBrands(profile.account_id) } catch { /* Current owned brand is still usable. */ }
-  return <StudioSessionProvider key={`${profile.account_id}:${clientId}`}>
+  return <StudioSessionProvider key={`${profile.account_id}:${clientId}`} clientId={clientId}>
     <StudioShell clientId={clientId} brandName={brand.name} brands={brands} features={resolveCommercialEntitlement(profile.accounts).features} admin={Boolean(profile.is_admin)}>{children}</StudioShell>
   </StudioSessionProvider>
 }

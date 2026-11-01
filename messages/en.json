@@ -9,9 +9,9 @@
     "featureShellNote": "Studio is available. Live model answers stay off until LIVE is enabled; work from saved evidence and templates meanwhile.",
     "threadsTitle": "Discussions",
     "newThread": "Start a new discussion",
-    "threadsEmpty": "This brand has no discussions yet. Start with a work goal above.",
-    "privateLabel": "Private by default · Temporary",
-    "privacyBody": "Messages stay in this brand workspace’s memory and disappear when you leave Studio, switch brands or refresh. Saving, sharing and private access controls are coming later.",
+    "threadsEmpty": "This brand has no saved discussions yet. Start with a work goal above.",
+    "privateLabel": "Private to you · Saved in this brand workspace",
+    "privacyBody": "Discussions are saved to this brand workspace and visible only to you, not teammates, and survive refresh. Composer drafts are not saved. Sharing is not available yet.",
     "templatesTitle": "Start with a task",
     "conversationLabel": "Brand evidence conversation",
     "emptyTitle": "What would you like to work on?",
@@ -72,7 +72,7 @@
       }
     },
     "savedBadge": "Stage B1 · Saved evidence",
-    "savedNotice": "Replies use only a snapshot of this brand’s saved data. No AI model or live data source is queried. Messages stay in this page.",
+    "savedNotice": "Replies use only a snapshot of this brand’s saved data. No AI model or live data source is queried.",
     "evidence": {
       "replyLabel": "Saved evidence reply",
       "savedSummary": "Saved evidence summary",
@@ -256,8 +256,8 @@
     "threadScope": "Discussion scope",
     "savedWeek": "Saved week: {week}",
     "branchBrief": "Start a separate brief discussion",
-    "briefOpened": "Opened a separate brief discussion. It is temporary for this session.",
-    "followUpSent": "Message added to this temporary discussion.",
+    "briefOpened": "Opened a separate brief discussion. It is saved to this brand workspace.",
+    "followUpSent": "Message saved to this discussion.",
   "saveWorkItemDraft": "Save as a work item draft",
   "savingWorkItemDraft": "Saving draft…",
   "workItemDraftSaved": "Draft saved for review",
@@ -275,7 +275,7 @@
     "briefThreadTitle": "Brief · {title}",
     "briefContextPrompt": "Create a sourced brief for this work goal: {goal}\n\nPrior question: {prompt}\n\nPrior saved result: {summary}",
     "briefContext": "Context from: {title}",
-    "briefTemporary": "This is a new temporary discussion. Context stays in this page’s memory; reload clears both discussions. Send the draft to begin.",
+    "briefTemporary": "This is a private brief discussion. Composer drafts are not saved; sending saves the message to this brand workspace.",
     "connections": {
       "disconnected": "Not connected",
       "searchConsoleTitle": "Google Search Console",
@@ -298,8 +298,10 @@
     "closeNavigation": "Close navigation",
     "sidebarLabel": "Brand workspace navigation",
     "mainNavigationLabel": "Main features",
-    "recentThreadsEmpty": "This brand has no discussions yet",
-    "temporaryLabel": "Temporary",
+    "recentThreadsEmpty": "This brand has no saved discussions yet",
+    "temporaryLabel": "Not saved",
+    "loadingThreads": "Loading saved discussions…",
+    "saveFailed": "This change could not be saved. It will disappear when you refresh.",
     "backToDashboard": "Back to brand overview",
     "readUnavailable": "Pending verification: saved records are unavailable. Reload to try again.",
     "planRequired": "Plan upgrade required",
@@ -308,7 +310,7 @@
     "views": {
       "threads": {
         "title": "Every task has its own context",
-        "description": "Discussions are temporary within this brand workspace. They disappear when you leave Studio or refresh.",
+        "description": "Discussions are saved to this brand workspace, visible only to you and survive refresh. Composer drafts are not saved.",
         "empty": "Start with a work goal, or choose a template to begin a new discussion."
       },
       "documents": {

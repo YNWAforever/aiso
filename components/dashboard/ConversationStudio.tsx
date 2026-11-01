@@ -17,11 +17,11 @@ import './conversation-studio.css'
 
 const templateIcons = { opportunity: Search, improve: FilePenLine, brief: NotebookPen, competitors: ScanSearch, pulse: Activity, report: FileText }
 
-export function StudioThreadHeader({ thread, attachment, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle'>; attachment?: StudioAttachCandidate | null; onHome: () => void }) {
+export function StudioThreadHeader({ thread, attachment, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState'>; attachment?: StudioAttachCandidate | null; onHome: () => void }) {
   const t = useTranslations('conversationStudio')
   return <header className="space-y-3">
     <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
-    <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><span className="as-badge">{t('privateLabel')}</span></div>
+    <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></div>
     <h1 className="[overflow-wrap:anywhere]">{thread.title}</h1>
     <div className="flex flex-wrap gap-2" aria-label={t('threadScope')}>
       <span className="as-badge">{t('localeBadge')}</span>
@@ -36,7 +36,7 @@ export function StudioThreadHeader({ thread, attachment, onHome }: { thread: Pic
 type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; opportunities?: StudioOpportunities; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads; attachCandidates?: StudioAttachCandidate[] | null }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
-  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName}><StudioConversation {...props} /></StudioSessionProvider>
+  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId}><StudioConversation {...props} /></StudioSessionProvider>
 }
 function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
@@ -45,7 +45,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const [liveExhausted, setLiveExhausted] = useState(false)
   const [attachment, setAttachment] = useState<StudioAttachCandidate | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId } = useStudioSession()
+  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, saveLive, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
   const [inspection, setInspection] = useState<{ navigationVersion: number; turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
@@ -70,19 +70,21 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   }, [activeId, navigationVersion])
 
   function openHome() { setInspection(null); setActiveId(null) }
-  function openThread(id: number) { setInspection(null); setActiveId(id) }
+  function openThread(id: string) { setInspection(null); selectThread(id) }
 
   function branchBrief(source: StudioThread, turn: StudioTurn) {
-    const id = allocateId()
+    const id = allocateThreadId()
+    const title = t('briefThreadTitle', { title: source.title })
     const summary = [t(turn.reply.status === 'evidenced' ? 'evidence.savedSummary' : 'evidence.insufficient'),
       t(turn.reply.template === 'competitors' ? 'evidence.comparisonLimit' : turn.reply.template ? 'evidence.summaryScope' : 'evidence.questionLimit'),
       t('honesty.searchDemandPending')].join(' ')
     const seed = composeBriefDraft({ goal: source.goal, prompt: turn.prompt, summary }, context => t('briefContextPrompt', context))
-    // A new editable draft, with no synthetic turn, transport or persistence.
-    setThreads(previous => [{ id, title: t('briefThreadTitle', { title: source.title }), goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: seed, template: 'brief' }, ...previous])
+    // The thread is saved; the editable composer draft stays client-only.
+    setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: seed, template: 'brief', saveState: 'unsaved', turnsLoaded: true }, ...previous])
+    void saveThread(id, { kind: 'brief', title, goal: source.goal, week: source.week, sourceTitle: source.title })
     focusBriefStart.current = true
     openThread(id)
-    setFeedback({ id, threadId: id, key: 'briefOpened' })
+    setFeedback({ id: turn.id, threadId: id, key: 'briefOpened' })
   }
 
   function updateDraft(value: string, template: StudioHomeTemplate | null = null) {
@@ -97,19 +99,23 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     const askLive = Boolean(live && live.cap > 0 && !liveExhausted && platforms.length && clientId)
     if (askLive && prompt.length > STUDIO_PROMPT_LIMIT) return
     setFeedback(null)
-    const id = current?.id ?? allocateId()
+    const id = current?.id ?? allocateThreadId()
     const task = current ? current.template : newTemplate
+    const title = task ? t(`templates.${task}.label`) : prompt
+    const kind = task === 'brief' ? 'brief' : 'research'
     const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(attachment ? { attached: { label: attachment.label, versionNumber: attachment.versionNumber } } : {}), ...(askLive ? { live: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
       setFeedback({ id: turn.id, threadId: id, key: 'followUpSent' })
     } else {
-      setThreads(previous => [{ id, title: task ? t(`templates.${task}.label`) : prompt, goal: prompt, week: evidence.week, kind: task === 'brief' ? 'brief' : 'research', turns: [turn], draft: '', template: null }, ...previous])
+      setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true }, ...previous])
+      void saveThread(id, { kind, title, goal: prompt, week: evidence.week, sourceTitle: null })
       openThread(id)
       setNewDraft('')
       setNewTemplate(null)
     }
     composer.current?.focus()
+    const persist = saveTurn(id, turn.id, { prompt, task, reply: turn.reply, attached: turn.attached ?? null })
     if (askLive) {
       beginLive()
       let result: NonNullable<StudioTurn['live']>
@@ -128,8 +134,12 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           if (data.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
         }
       } catch { result = { error: 'STUDIO_UNAVAILABLE' } }
-      setThreads(previous => previous.map(thread => thread.id === id ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: result } : item) } : thread))
+      setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id) ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: result } : item) } : thread))
+      const saved = await persist
+      if (saved.ok) await saveLive(saved.threadId, saved.position, result.reply ? { reply: result.reply } : { error: result.error ?? 'STUDIO_UNAVAILABLE' })
       endLive()
+    } else {
+      void persist
     }
   }
 
@@ -233,7 +243,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           {threads.length === 0 ? <p className="as-muted">{t('threadsEmpty')}</p> : <ul className="as-continue-list">
             {threads.map(thread => <li key={thread.id}>
               <button type="button" onClick={() => openThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">
-                <span className="min-w-0"><span className="block truncate">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span><span className="as-muted as-small">{t('privateLabel')}</span></span>
+                <span className="min-w-0"><span className="block truncate">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span><span className="as-muted as-small">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></span>
                 <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
               </button>
             </li>)}
@@ -242,9 +252,12 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         {scopeNote}
       </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
         <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} />
+        {current.saveState === 'failed' && <p role="alert" className="as-note">{t('saveFailed')}</p>}
         <h2 className="sr-only">{t('conversationLabel')}</h2>
         <div className="as-discussion-grid">
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
+          {!current.turnsLoaded && !current.turnsError && <p className="as-muted as-small">{t('loadingThreads')}</p>}
+          {current.turnsError && <p className="as-note">{t('readUnavailable')}</p>}
           {current.turns.map(({ id, prompt, reply, task, live: liveTurn, attached }, index) => <div key={id} className="space-y-5">
             <div className="as-question p-4">
               <p className="as-muted as-small mb-2 font-semibold">{t('youLabel')}</p>
