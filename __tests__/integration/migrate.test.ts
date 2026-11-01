@@ -80,6 +80,8 @@ describe('migration runner against a real branch', () => {
       'stripe_subscription_processing_leases',
       'stripe_webhook_events',
       'studio_live_weekly_usage',
+      'studio_thread_turns',
+      'studio_threads',
     ])
   })
 

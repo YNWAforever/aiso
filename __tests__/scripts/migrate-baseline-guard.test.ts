@@ -143,6 +143,8 @@ function allRelations() {
     'enterprise_adapters','enterprise_adapter_runs','enterprise_adapter_observations','enterprise_webhooks','enterprise_events','enterprise_deliveries','enterprise_attempts',
     // 080: durable Studio LIVE answer quota; authored here and applied by the runner.
     'studio_live_weekly_usage',
+    // 081: private Studio threads; synthetic inventory, not hosted-migration proof.
+    'studio_threads','studio_thread_turns',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
