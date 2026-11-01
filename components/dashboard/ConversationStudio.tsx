@@ -138,7 +138,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     <textarea ref={composer} id="studio-composer" value={draft} maxLength={live ? STUDIO_PROMPT_LIMIT : undefined} onChange={event => updateDraft(event.target.value)} rows={4} placeholder={t(home ? 'composerPlaceholder' : 'followUpPlaceholder')} aria-describedby="studio-composer-help" className="block w-full min-w-0 resize-y" />
     <div className="as-composer-footer">
       <div className="as-composer-tools">
-        <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId || attachCandidates === null} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>
+        <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>
         {attachment && <>
           <span className="as-badge">{t('attach.badge')} · {attachment.label}</span>
           <button type="button" onClick={() => setAttachment(null)} className="as-button px-2 text-sm">{t('attach.clear')}</button>

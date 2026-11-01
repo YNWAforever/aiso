@@ -63,5 +63,5 @@ The existing Prod `FEATURE_CONVERSATION_STUDIO=1` does **not** authorize LIVE/ca
 ## Verification
 
 - Unit: fence/truncation, attach resolution via tenancy predicates, no-attach parity, foreign/unusable rejection, quota short-circuit, oversized fixture.
-- Component/e2e: picker enabled, select + badge, clear, empty/unavailable honesty, request carries only `attachedSourceId`.
+- Component/e2e: picker enabled (including unavailable reads — trigger stays enabled so picker can show `attach.unavailable`), select + badge, clear, empty/unavailable honesty, request carries only `attachedSourceId`.
 - `npm run lint`, `npm run typecheck`, focused Vitest suites, and the Studio e2e spec.

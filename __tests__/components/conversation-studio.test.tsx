@@ -32,8 +32,20 @@ it.each(['en', 'zh-HK'])('starts on home with six tasks, five filters and no con
   expect(html).not.toContain('role="log"')
   expect(html.match(/class="as-template /g)).toHaveLength(6)
   expect(html.match(/aria-pressed="(?:true|false)"/g)).toHaveLength(5)
-  expect(html).toContain('disabled=""') // document attachment stays held
+  expect(html).toContain('disabled=""') // Choose documents disabled without clientId (no brand context)
   expect(html).not.toMatch(/Harbour Home|Harbour Tea|WI-DEMO/)
+})
+it.each(['en', 'zh-HK'])('keeps Choose documents enabled when attach candidates are unavailable in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const html = renderWithIntl(
+    <ConversationStudio brandName="Example Brand" clientId="11111111-1111-4111-8111-111111111111" evidence={emptyStudioEvidence} attachCandidates={null} />,
+    lang,
+  )
+  // Trigger stays clickable so the picker can disclose attach.unavailable honesty.
+  expect(html).toContain(copy.chooseDocuments)
+  const attachBtn = html.match(/<button type="button"[^>]*aria-controls="studio-attach-picker"[^>]*>/)
+  expect(attachBtn?.[0]).toBeTruthy()
+  expect(attachBtn?.[0]).not.toMatch(/\sdisabled(=|\s|>)/)
 })
 it.each(['bound', 'unbound', 'reconnect', 'rebind', 'unavailable'] as const)('renders the supplied GSC %s status without pretending a query ran', sourceStatus => {
   for (const lang of ['en', 'zh-HK']) {
