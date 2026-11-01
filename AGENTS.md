@@ -17,3 +17,7 @@ this repo, not a Claude-only file. Two things bite immediately:
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the system and risk map,
 and [`docs/development.md`](./docs/development.md) for run, test and deploy procedures.
+
+## UI
+
+Avoid unnecessary secondary labels and descriptions. Let the layout do the explaining.
