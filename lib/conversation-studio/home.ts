@@ -6,9 +6,9 @@ export const STUDIO_HOME_TEMPLATES = ['opportunity', 'improve', 'brief', 'compet
 export type StudioHomeTemplate = typeof STUDIO_HOME_TEMPLATES[number]
 export type StudioSourceStatus = 'bound' | 'unbound' | 'reconnect' | 'rebind' | 'unavailable'
 
-// Task presentation maps to B1's existing capabilities; no new analysis runs.
+// Task presentation maps to the read-only capabilities the saved result can render.
 export const HOME_TASKS: Record<StudioHomeTemplate, { category: Exclude<StudioFilter, 'all'>; capability: StudioTemplate; destination?: 'opportunities' | 'reports' }> = {
-  opportunity: { category: 'discover', capability: 'brief', destination: 'opportunities' },
+  opportunity: { category: 'discover', capability: 'opportunity', destination: 'opportunities' },
   improve: { category: 'improve', capability: 'brief' },
   brief: { category: 'improve', capability: 'brief' },
   competitors: { category: 'discover', capability: 'competitors' },

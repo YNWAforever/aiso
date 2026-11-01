@@ -21,18 +21,31 @@ function StudioResultLinks({ clientId }: { clientId: string }) {
 export function StudioReplyView({ reply, clientId, number = 1, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
   const t = useTranslations('conversationStudio.evidence')
   const studio = useTranslations('conversationStudio')
+  const opportunityTask = reply.template === 'opportunity'
   return <article aria-label={t('replyLabel')} className="as-saved-reply min-w-0 space-y-3 [overflow-wrap:anywhere]">
     <details className="as-research">
       <summary>{t('stepsTitle')}</summary>
-      {reply.researchSteps.length ? <ol className="list-decimal space-y-2 pb-3 pl-5">{reply.researchSteps.map(step => <li key={step.kind}>{step.kind === 'loadWeek' ? t('stepLoad', { week: step.week, count: step.count }) : t(step.kind === 'selectRecords' ? 'stepSelect' : 'stepCompose')}</li>)}</ol> : <p className="as-muted pb-3">{t('noSteps')}</p>}
+      {reply.researchSteps.length ? <ol className="list-decimal space-y-2 pb-3 pl-5">{reply.researchSteps.map(step => <li key={step.kind}>{step.kind === 'loadWeek' ? t('stepLoad', { week: step.week, count: step.count }) : step.kind === 'loadOpportunities' ? studio('templates.opportunity.stepLoad', { count: step.count }) : t(step.kind === 'selectRecords' ? 'stepSelect' : 'stepCompose')}</li>)}</ol> : <p className="as-muted pb-3">{t('noSteps')}</p>}
     </details>
     <section className="as-result space-y-3">
     <p className="as-result-kicker">{t('savedSummary')}</p>
-    <h3>{t(reply.status === 'evidenced' ? 'savedSummary' : 'insufficient')}</h3>
-    <p className="as-note">{t(reply.template === 'competitors' ? 'comparisonLimit' : reply.template ? 'summaryScope' : 'questionLimit')}</p>
+    <h3>{opportunityTask ? studio('templates.opportunity.label') : t(reply.status === 'evidenced' ? 'savedSummary' : 'insufficient')}</h3>
+    <p className="as-note">{opportunityTask ? studio('templates.opportunity.limit') : t(reply.template === 'competitors' ? 'comparisonLimit' : reply.template ? 'summaryScope' : 'questionLimit')}</p>
     <div className="flex flex-wrap gap-2"><span className="as-badge as-badge-amber">{studio('honesty.searchDemandPending')}</span></div>
+    {opportunityTask && reply.opportunities && <>
+      {reply.opportunities.partial && reply.opportunities.suggestions.length > 0 && <p className="as-badge as-badge-amber">{studio('templates.opportunity.partial')}</p>}
+      {reply.opportunities.state === 'ready' ? <ul className="space-y-3">{reply.opportunities.suggestions.map(suggestion => <li key={suggestion.key} className="as-result space-y-2">
+        <h4>{suggestion.title}</h4>
+        <p className="whitespace-pre-wrap">{suggestion.action}</p>
+        <p className="as-muted as-small">{t('sourcesTitle')}</p>
+        <ul className="flex flex-wrap gap-2">{suggestion.evidenceRefs.map(ref => <li key={`${ref.kind}-${ref.id}-${ref.checkKey ?? ''}`} className="as-badge [overflow-wrap:anywhere]">
+          {t(ref.kind === 'pulse-metric' ? 'coverage.pulse' : 'coverage.scan')}: <code>{ref.id}{ref.checkKey ? ` · ${ref.checkKey}` : ''}</code>
+        </li>)}</ul>
+        {suggestion.recordedAt && <p className="as-muted as-small">{t('recordedAt')}: <time dateTime={suggestion.recordedAt}>{suggestion.recordedAt}</time></p>}
+      </li>)}</ul> : <p className="as-note">{studio(`templates.opportunity.${reply.opportunities.state}`)}</p>}
+    </>}
     {reply.template === 'report' && <p className="as-badge">{t('reportDraft')}</p>}
-    <div className="as-result-actions"><button type="button" className="as-button px-3" onClick={event => onOpenEvidence?.(event.currentTarget)} aria-haspopup="dialog">{t('open')}</button>{onBranchBrief && <button type="button" className="as-button as-primary px-3" onClick={onBranchBrief}>{studio('branchBrief')}</button>}</div>
+    <div className="as-result-actions">{!opportunityTask && <button type="button" className="as-button px-3" onClick={event => onOpenEvidence?.(event.currentTarget)} aria-haspopup="dialog">{t('open')}</button>}{onBranchBrief && <button type="button" className="as-button as-primary px-3" onClick={onBranchBrief}>{studio('branchBrief')}</button>}</div>
     {clientId && <StudioResultLinks clientId={clientId} />}
     </section>
     {reply.observations.length > 0 && <>

@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { Activity, ArrowLeft, ArrowUpRight, FilePenLine, FileText, Globe2, Lock, NotebookPen, Paperclip, ScanSearch, Search, Send, Sparkles } from 'lucide-react'
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
 import { composeBriefDraft } from '@/lib/conversation-studio/brief'
-import { type StudioEvidence, type StudioEvidenceTarget, type StudioInspectorReads } from '@/lib/conversation-studio/types'
+import { type StudioEvidence, type StudioEvidenceTarget, type StudioInspectorReads, type StudioOpportunities } from '@/lib/conversation-studio/types'
 import { StudioReplyView } from './StudioReply'
 import { StudioEvidenceInspector } from '@/components/dashboard/StudioEvidenceInspector'
 import { StudioLiveReplyView } from '@/components/dashboard/StudioLiveReply'
@@ -32,12 +32,12 @@ export function StudioThreadHeader({ thread, onHome }: { thread: Pick<StudioThre
 }
 
 /** Saved evidence is local; the optional B2 transport sends one question only. */
-type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads }
+type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; opportunities?: StudioOpportunities; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
   return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName}><StudioConversation {...props} /></StudioSessionProvider>
 }
-function StudioConversation({ brandName, evidence, clientId, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, embedded = false }: Props & { embedded?: boolean }) {
+function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, embedded = false }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
@@ -95,7 +95,7 @@ function StudioConversation({ brandName, evidence, clientId, live, sourceStatus 
     setFeedback(null)
     const id = current?.id ?? allocateId()
     const task = current ? current.template : newTemplate
-    const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task)), ...(askLive ? { live: { pending: true } } : {}) }
+    const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(askLive ? { live: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
       setFeedback({ id: turn.id, threadId: id, key: 'followUpSent' })
