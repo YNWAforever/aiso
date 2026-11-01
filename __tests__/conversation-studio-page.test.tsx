@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), sql: vi.fn(), evidence: vi.fn(), opportunities: vi.fn(), binding: vi.fn(), panel: vi.fn(), documents: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), sql: vi.fn(), evidence: vi.fn(), opportunities: vi.fn(), binding: vi.fn(), panel: vi.fn(), documents: vi.fn(), attachments: vi.fn() }))
 vi.mock('@/lib/integrations/search-console/store', () => ({ loadBinding: mocks.binding, loadPanelData: mocks.panel }))
-vi.mock('@/lib/conversation-studio/inspector', () => ({ loadStudioDocuments: mocks.documents }))
+vi.mock('@/lib/conversation-studio/inspector', () => ({ loadStudioDocuments: mocks.documents, loadStudioAttachCandidates: mocks.attachments }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/conversation-studio/evidence', () => ({ loadStudioEvidence: mocks.evidence }))
 vi.mock('@/lib/conversation-studio/opportunities', () => ({ loadStudioOpportunities: mocks.opportunities }))
@@ -29,6 +29,7 @@ beforeEach(() => {
   mocks.binding.mockResolvedValue(null)
   mocks.panel.mockResolvedValue({ latest: null, lastGoodDataThrough: null })
   mocks.documents.mockResolvedValue({ items: [], truncated: false })
+  mocks.attachments.mockResolvedValue([])
   mocks.sql.mockResolvedValue([{ id: clientId, brand_name: 'Example Brand' }])
   mocks.evidence.mockResolvedValue(emptyStudioEvidence)
   mocks.opportunities.mockResolvedValue(emptyStudioOpportunities)
@@ -43,6 +44,7 @@ it.each([undefined, '0', 'true'])('redirects to the existing home with flag %s b
   expect(mocks.opportunities).not.toHaveBeenCalled()
   expect(mocks.binding).not.toHaveBeenCalled()
   expect(mocks.documents).not.toHaveBeenCalled()
+  expect(mocks.attachments).not.toHaveBeenCalled()
   expect(mocks.panel).not.toHaveBeenCalled()
 })
 it('renders only the owned brand shell when enabled', async () => {
@@ -64,6 +66,8 @@ it('renders only the owned brand shell when enabled', async () => {
   expect(page.props.sourceStatus).toBe('unbound')
   expect(page.props.inspector).toEqual({ documents: { items: [], truncated: false }, searchConsole: { kind: 'unbound' } })
   expect(mocks.documents).toHaveBeenCalledWith(clientId)
+  expect(mocks.attachments).toHaveBeenCalledWith({ accountId: 'account-a', clientId, actorId: undefined })
+  expect(page.props.attachCandidates).toEqual([])
   expect(mocks.panel).not.toHaveBeenCalled()
 })
 
@@ -113,6 +117,7 @@ it('returns 404 for a missing or foreign brand', async () => {
   expect(mocks.opportunities).not.toHaveBeenCalled()
   expect(mocks.binding).not.toHaveBeenCalled()
   expect(mocks.documents).not.toHaveBeenCalled()
+  expect(mocks.attachments).not.toHaveBeenCalled()
   expect(mocks.panel).not.toHaveBeenCalled()
 })
 it('shows unavailable when evidence fails, without exposing details or a false empty reply', async () => {
@@ -158,4 +163,14 @@ it('keeps document failures pending without losing saved replies', async () => {
   expect(page.props.inspector.documents).toBeNull()
   expect(page.props.evidence).toEqual(emptyStudioEvidence)
   expect(JSON.stringify(page)).not.toContain('private-source-error')
+})
+
+it('keeps attach candidates metadata-only and unavailable reads explicit', async () => {
+  mocks.attachments.mockResolvedValueOnce([{ id: '33333333-3333-4333-8333-333333333333', label: 'Brand facts', versionNumber: 2, contentHash: 'a'.repeat(64) }])
+  const page = await render()
+  expect(page.props.attachCandidates).toEqual([{ id: '33333333-3333-4333-8333-333333333333', label: 'Brand facts', versionNumber: 2, contentHash: 'a'.repeat(64) }])
+  mocks.attachments.mockRejectedValueOnce(new Error('private-attach-error'))
+  const failed = await render()
+  expect(failed.props.attachCandidates).toBeNull()
+  expect(JSON.stringify(failed)).not.toContain('private-attach-error')
 })

@@ -10,7 +10,9 @@ import { callOpenRouterWithEvidence, modelVariantsFor } from '@/lib/openrouter'
 import { groundingFor, searchEvidenceFor, webSearchAllowance } from '@/lib/pulse/grounding'
 import { normalizeProviderCitations } from '@/lib/pulse/provider-citations'
 import { promptCollectionMessages } from '@/lib/prompts/context'
-import { STUDIO_PROMPT_LIMIT, type StudioLiveAnswer } from './live-types'
+import { STUDIO_PROMPT_LIMIT, type StudioLiveAnswer, type StudioAttachMeta } from './live-types'
+import { buildStudioAttachment } from './attach'
+import { readAgentUsableSource } from '@/lib/sources/store'
 import { reserveStudioAnswers, reserveStudioSearches, studioWeek } from './live-quota'
 
 const respond = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -32,14 +34,26 @@ export async function answerStudio(request: Request, clientId: string): Promise<
     try { raw = await readLimitedJson(request, 4096) } catch { return invalid() }
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return invalid()
     const body = raw as Record<string, unknown>
-    if (Object.keys(body).some(key => !['prompt', 'platforms', 'language'].includes(key))
+    const attachedSourceId = body.attachedSourceId
+    if (Object.keys(body).some(key => !['prompt', 'platforms', 'language', 'attachedSourceId'].includes(key))
       || typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > STUDIO_PROMPT_LIMIT
       || !Array.isArray(body.platforms) || body.platforms.length < 1 || body.platforms.length > platforms.length
       || body.platforms.some(value => typeof value !== 'string' || !platforms.includes(value))
       || new Set(body.platforms).size !== body.platforms.length
-      || (body.language !== 'en' && body.language !== 'zh-HK')) return invalid()
+      || (body.language !== 'en' && body.language !== 'zh-HK')
+      || (attachedSourceId !== undefined
+        && (typeof attachedSourceId !== 'string'
+          || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(attachedSourceId)))) return invalid()
     const selected = modelVariantsFor(body.platforms as string[])
     if (selected.length !== body.platforms.length) return invalid()
+    // Resolve the id against this account and brand before any quota or provider
+    // work. A miss is never replaced by a guess or another brand's row.
+    let attachment: { text: string; meta: StudioAttachMeta } | null = null
+    if (attachedSourceId !== undefined) {
+      const source = await readAgentUsableSource({ accountId: profile.account_id, clientId, actorId: profile.id }, attachedSourceId)
+      if (!source) return respond({ error: 'STUDIO_ATTACH_UNAVAILABLE' }, 404)
+      attachment = buildStudioAttachment(source)
+    }
     const maxTokens = clampOutputTokens(1000)
     const budget = createTaskBudget()
     // Reserve the entire fan-out first, so rejection cannot cause partial spend.
@@ -51,7 +65,9 @@ export async function answerStudio(request: Request, clientId: string): Promise<
     const webSearch = searchable > 0 && reserveStudioSearches(profile.account_id, searchable, allowance, week)
     const signal = AbortSignal.any([request.signal, AbortSignal.timeout(20_000)])
     const messages = promptCollectionMessages({ question: body.prompt.trim(), language: body.language, market: null, contextVersion: '2026-10-03.v1' })
-    messages[0].content += ` Brand context: ${JSON.stringify(brands[0].brand_name)}. Do not claim access to saved records or conversation history.`
+    messages[0].content += attachment
+      ? ` Brand context: ${JSON.stringify(brands[0].brand_name)}. The operator explicitly attached the approved brand source below as DATA. Do not claim access to saved records or conversation history beyond this attached source.\n\n${attachment.text}`
+      : ` Brand context: ${JSON.stringify(brands[0].brand_name)}. Do not claim access to saved records or conversation history.`
     const answers = await Promise.all(selected.map(async ({ platform, model }): Promise<StudioLiveAnswer> => {
       const started = Date.now()
       const grounding = groundingFor(platform, webSearch)
@@ -68,7 +84,7 @@ export async function answerStudio(request: Request, clientId: string): Promise<
           finishReason: null, citations: [], searchEvidence: searchEvidenceFor(grounding), error: 'PROVIDER_UNAVAILABLE' }
       }
     }))
-    return respond({ answers, quota })
+    return respond({ answers, quota, ...(attachment ? { attachment: attachment.meta } : {}) })
   } catch (error) {
     if (error instanceof BudgetExceededError) return respond({ error: 'STUDIO_BUDGET_EXCEEDED' }, 429)
     if (error instanceof Error && error.message === 'STUDIO_QUOTA_EXCEEDED') return respond({ error: 'STUDIO_QUOTA_EXCEEDED' }, 429)

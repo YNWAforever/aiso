@@ -1,19 +1,19 @@
 {
-  "git": { "deploymentEnabled": { "codex/aiso-full-remediation-20261003": false, "fix/onboarding-brand-draft-schema-20261027": false, "feat/roadmap-phase3-visibility": false, "feat/roadmap-phase4-enterprise": false, "codex/conversation-studio-stage-a": false, "codex/conversation-studio-stage-b": false, "codex/conversation-studio-stage-b2": false, "codex/conversation-studio-design-stage-0": false, "codex/conversation-studio-design-stage-1": false, "codex/conversation-studio-design-stage-2": false, "codex/conversation-studio-design-stage-3": false, "codex/conversation-studio-design-stage-4": false, "codex/conversation-studio-design-stage-5": false, "codex/conversation-studio-keep-dev-kd1": false, "codex/conversation-studio-keep-dev-kd2": false, "codex/conversation-studio-keep-dev-kd3": false, "codex/conversation-studio-stage-6h": false, "codex/conversation-studio-stage-6g": false, "codex/conversation-studio-default-home": false } },
+  "git": { "deploymentEnabled": { "codex/aiso-full-remediation-20261003": false, "fix/onboarding-brand-draft-schema-20261027": false, "feat/roadmap-phase3-visibility": false, "feat/roadmap-phase4-enterprise": false, "codex/conversation-studio-stage-a": false, "codex/conversation-studio-stage-b": false, "codex/conversation-studio-stage-b2": false, "codex/conversation-studio-design-stage-0": false, "codex/conversation-studio-design-stage-1": false, "codex/conversation-studio-design-stage-2": false, "codex/conversation-studio-design-stage-3": false, "codex/conversation-studio-design-stage-4": false, "codex/conversation-studio-design-stage-5": false, "codex/conversation-studio-keep-dev-kd1": false, "codex/conversation-studio-keep-dev-kd2": false, "codex/conversation-studio-keep-dev-kd3": false, "codex/conversation-studio-stage-6h": false, "codex/conversation-studio-stage-6g": false, "codex/conversation-studio-default-home": false, "codex/conversation-studio-stage-6a": false } },
   "regions": ["sin1"],
   "functions": {
-    "app/api/dashboard/clients/[clientId]/studio/answer/route.ts": { "maxDuration": 30 },
-    "app/api/scan/route.ts": { "maxDuration": 60 },
-    "app/api/fix/route.ts": { "maxDuration": 30 },
-    "app/api/fix/cluster-map/route.ts": { "maxDuration": 60 },
-    "app/api/fix/content-brief/route.ts": { "maxDuration": 60 },
-    "app/api/pulse/run/route.ts": { "maxDuration": 60 },
-    "app/api/cron/pulse/route.ts": { "maxDuration": 60 },
-    "app/api/cron/evaluate-alerts/route.ts": { "maxDuration": 60 },
-    "app/api/cron/trial-emails/route.ts": { "maxDuration": 60 },
-    "app/api/cron/search-console/route.ts": { "maxDuration": 60 },
-    "app/api/cron/outcomes/route.ts": { "maxDuration": 60 },
-    "app/api/clients/[clientId]/outcomes/[action]/route.ts": { "maxDuration": 30 },
-    "app/api/clients/[clientId]/visibility/[action]/route.ts": { "maxDuration": 30 }
+    "app/api/dashboard/clients/[clientId]/studio/answer/route.ts": {"maxDuration": 30},
+    "app/api/scan/route.ts": {"maxDuration": 60},
+    "app/api/fix/route.ts": {"maxDuration": 30},
+    "app/api/fix/cluster-map/route.ts": {"maxDuration": 60},
+    "app/api/fix/content-brief/route.ts": {"maxDuration": 60},
+    "app/api/pulse/run/route.ts": {"maxDuration": 60},
+    "app/api/cron/pulse/route.ts": {"maxDuration": 60},
+    "app/api/cron/evaluate-alerts/route.ts": {"maxDuration": 60},
+    "app/api/cron/trial-emails/route.ts": {"maxDuration": 60},
+    "app/api/cron/search-console/route.ts": {"maxDuration": 60},
+    "app/api/cron/outcomes/route.ts": {"maxDuration": 60},
+    "app/api/clients/[clientId]/outcomes/[action]/route.ts": {"maxDuration": 30},
+    "app/api/clients/[clientId]/visibility/[action]/route.ts": {"maxDuration": 30}
   }
 }

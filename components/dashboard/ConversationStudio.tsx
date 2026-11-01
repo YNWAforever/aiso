@@ -9,7 +9,7 @@ import { type StudioEvidence, type StudioEvidenceTarget, type StudioInspectorRea
 import { StudioReplyView } from './StudioReply'
 import { StudioEvidenceInspector } from '@/components/dashboard/StudioEvidenceInspector'
 import { StudioLiveReplyView } from '@/components/dashboard/StudioLiveReply'
-import { STUDIO_PROMPT_LIMIT, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
+import { STUDIO_PROMPT_LIMIT, type StudioAttachCandidate, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
 import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type StudioThread, type StudioTurn } from '@/components/dashboard/StudioSession'
 import Link from 'next/link'
@@ -17,7 +17,7 @@ import './conversation-studio.css'
 
 const templateIcons = { opportunity: Search, improve: FilePenLine, brief: NotebookPen, competitors: ScanSearch, pulse: Activity, report: FileText }
 
-export function StudioThreadHeader({ thread, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle'>; onHome: () => void }) {
+export function StudioThreadHeader({ thread, attachment, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle'>; attachment?: StudioAttachCandidate | null; onHome: () => void }) {
   const t = useTranslations('conversationStudio')
   return <header className="space-y-3">
     <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
@@ -26,22 +26,25 @@ export function StudioThreadHeader({ thread, onHome }: { thread: Pick<StudioThre
     <div className="flex flex-wrap gap-2" aria-label={t('threadScope')}>
       <span className="as-badge">{t('localeBadge')}</span>
       {thread.week && <span className="as-badge">{t('savedWeek', { week: thread.week })}</span>}
+      {attachment && <span className="as-badge">{t('attach.badge')} · {attachment.label}</span>}
     </div>
     {thread.sourceTitle && <div className="as-note space-y-1 [overflow-wrap:anywhere]"><p>{t('briefContext', { title: thread.sourceTitle })}</p><p>{thread.goal}</p><p>{t('briefTemporary')}</p></div>}
   </header>
 }
 
 /** Saved evidence is local; the optional B2 transport sends one question only. */
-type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; opportunities?: StudioOpportunities; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads }
+type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; opportunities?: StudioOpportunities; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads; attachCandidates?: StudioAttachCandidate[] | null }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
   return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName}><StudioConversation {...props} /></StudioSessionProvider>
 }
-function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, embedded = false }: Props & { embedded?: boolean }) {
+function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
   const [liveExhausted, setLiveExhausted] = useState(false)
+  const [attachment, setAttachment] = useState<StudioAttachCandidate | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
   const [inspection, setInspection] = useState<{ navigationVersion: number; turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
@@ -96,7 +99,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     setFeedback(null)
     const id = current?.id ?? allocateId()
     const task = current ? current.template : newTemplate
-    const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(askLive ? { live: { pending: true } } : {}) }
+    const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(attachment ? { attached: { label: attachment.label, versionNumber: attachment.versionNumber } } : {}), ...(askLive ? { live: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
       setFeedback({ id: turn.id, threadId: id, key: 'followUpSent' })
@@ -113,7 +116,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
       try {
         const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId!)}/studio/answer`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
-          body: JSON.stringify({ prompt, platforms, language }), signal: AbortSignal.timeout(25_000),
+          body: JSON.stringify({ prompt, platforms, language, ...(attachment ? { attachedSourceId: attachment.id } : {}) }), signal: AbortSignal.timeout(25_000),
         })
         const data = await response.json()
         if (response.ok) {
@@ -135,7 +138,11 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     <textarea ref={composer} id="studio-composer" value={draft} maxLength={live ? STUDIO_PROMPT_LIMIT : undefined} onChange={event => updateDraft(event.target.value)} rows={4} placeholder={t(home ? 'composerPlaceholder' : 'followUpPlaceholder')} aria-describedby="studio-composer-help" className="block w-full min-w-0 resize-y" />
     <div className="as-composer-footer">
       <div className="as-composer-tools">
-        <button type="button" disabled className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>
+        <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>
+        {attachment && <>
+          <span className="as-badge">{t('attach.badge')} · {attachment.label}</span>
+          <button type="button" onClick={() => setAttachment(null)} className="as-button px-2 text-sm">{t('attach.clear')}</button>
+        </>}
         <span className="as-badge">{t('localeBadge')}</span>
         {live && <details className="as-platform-picker">
           <summary>{t('live.selector', { count: platforms.length })}</summary>
@@ -151,6 +158,19 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         <Send className="size-4" aria-hidden="true" />{t(home ? 'send' : 'followUpSend')}
       </button>
     </div>
+    {pickerOpen && <div id="studio-attach-picker" role="group" aria-label={t('attach.pickerLabel')} className="as-note space-y-2">
+      {attachCandidates === null
+        ? <p>{t('attach.unavailable')}</p>
+        : attachCandidates.length === 0
+          ? <p>{t('attach.empty')}{basePath && <> <Link href={`${basePath}/sources`} className="underline">{t('attach.manageSources')}</Link></>}</p>
+          : <ul className="space-y-2">{attachCandidates.map(candidate => <li key={candidate.id}>
+            <button type="button" aria-pressed={attachment?.id === candidate.id} onClick={() => { setAttachment(candidate); setPickerOpen(false) }} className="as-button flex w-full items-center justify-between gap-3 px-3 text-left">
+              <span className="[overflow-wrap:anywhere]">{candidate.label}</span>
+              <span className="as-muted as-small shrink-0">{t('attach.version', { version: candidate.versionNumber })}</span>
+            </button>
+          </li>)}</ul>}
+    </div>}
+    {!live && attachment && <p className="as-muted as-small">{t('attach.savedNote')}</p>}
     {!live && <p className="as-note">{t('featureShellNote')}</p>}
     {live && <p className="as-muted as-small">{t(liveExhausted ? 'live.exhausted' : !live.platforms.length ? 'live.upgrade' : live.cap === 0 ? 'live.disabled' : 'live.usesQuota', { count: platforms.length, cap: live.cap })}</p>}
     <p id="studio-composer-help" className="as-muted as-small">{t(live ? 'live.composerHelp' : 'composerHelp')}</p>
@@ -221,14 +241,15 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </section>
         {scopeNote}
       </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
-        <StudioThreadHeader thread={current} onHome={openHome} />
+        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} />
         <h2 className="sr-only">{t('conversationLabel')}</h2>
         <div className="as-discussion-grid">
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
-          {current.turns.map(({ id, prompt, reply, task, live: liveTurn }, index) => <div key={id} className="space-y-5">
+          {current.turns.map(({ id, prompt, reply, task, live: liveTurn, attached }, index) => <div key={id} className="space-y-5">
             <div className="as-question p-4">
               <p className="as-muted as-small mb-2 font-semibold">{t('youLabel')}</p>
               <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{prompt}</p>
+              {attached && <p className="as-muted as-small mt-2">{t('attach.badge')} · {attached.label}{!live ? ` — ${t('attach.savedNote')}` : ''}</p>}
             </div>
             <div className="as-answer space-y-3">
             <p className="as-answer-label"><Sparkles className="size-4" aria-hidden="true" />{t('answerLabel')}</p>
