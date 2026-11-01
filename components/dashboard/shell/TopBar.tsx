@@ -8,7 +8,7 @@ import { Check, ChevronDown, ChevronRight, CircleHelp, Search } from 'lucide-rea
 import type { CommandItem } from '@/components/ui/command-palette'
 import { NotificationBell } from '@/components/dashboard/NotificationBell'
 import { MenuButton } from '@/components/dashboard/shell/MenuButton'
-import { buildDashboardNav, locateDashboard, type NavFeatures } from '@/lib/dashboard-nav'
+import { brandHomeHref, buildDashboardNav, locateDashboard, type NavFeatures } from '@/lib/dashboard-nav'
 
 // The palette (Radix Dialog) loads on first use, not with every dashboard page.
 const CommandPalette = dynamic(() => import('@/components/ui/command-palette').then(m => m.CommandPalette), { ssr: false })
@@ -62,7 +62,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
 
   // Brands › Brand › Section › Page. The last crumb is the current page.
   const crumbs: { label: string; href: string }[] = [{ label: shell('brands'), href: root }]
-  if (clientId) crumbs.push({ label: brand?.name ?? shell('brands'), href: `${root}/${clientId}?step=home` })
+  if (clientId) crumbs.push({ label: brand?.name ?? shell('brands'), href: brandHomeHref({ lang, clientId, conversationStudio }) })
   // Resolve against every section, so a hidden one's pages (Monitor's question
   // bank, observations, …) still get a trail; the hidden section itself gets no
   // crumb, because a link to it would advertise it.
@@ -81,10 +81,10 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
       { id: `section-${s.key}`, label: t(s.labelKey), group: shell('group_go'), href: s.href },
       ...s.items.filter(i => i.href !== s.href).map(i => ({ id: `item-${s.key}-${i.key}`, label: `${t(s.labelKey)} › ${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
     ]),
-    ...(brands ?? []).map(b => ({ id: `brand-${b.id}`, label: b.name, keywords: b.domain ? [b.domain] : [], group: shell('group_brands'), href: `${root}/${b.id}?step=home` })),
+    ...(brands ?? []).map(b => ({ id: `brand-${b.id}`, label: b.name, keywords: b.domain ? [b.domain] : [], group: shell('group_brands'), href: brandHomeHref({ lang, clientId: b.id, conversationStudio }) })),
     { id: 'action-scan', label: shell('action_scan'), group: shell('group_actions'), href: clientId ? `${root}/${clientId}?step=scan${scanId ? `&scanId=${encodeURIComponent(scanId)}` : ''}` : `/${lang}#scan` },
     ...(clientId ? [{ id: 'action-report', label: shell('action_report'), group: shell('group_actions'), href: `${root}/${clientId}/reports/new${scanQuery}` }] : []),
-  ], [nav, brands, clientId, lang, root, shell, t, scanId, scanQuery])
+  ], [nav, brands, clientId, conversationStudio, lang, root, shell, t, scanId, scanQuery])
 
   return (
     <header className="print:hidden flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2 sm:px-6">
@@ -101,7 +101,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
                 {(brands ?? []).map(b => (
                   <li key={b.id}>
                     <Link
-                      href={`${root}/${b.id}?step=home`}
+                      href={brandHomeHref({ lang, clientId: b.id, conversationStudio })}
                       onClick={close}
                       aria-current={b.id === clientId ? 'true' : undefined}
                       className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-foreground hover:bg-secondary"

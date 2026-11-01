@@ -40,12 +40,12 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
     if (pathname !== base) router.push(base)
   }
   function openThread(id: number) { session.setActiveId(id); closeMenu(); if (pathname !== base) router.push(base) }
-  const tools = buildStudioTools({ lang, clientId, features, admin })
+  const tools = buildStudioTools({ lang, clientId, features, admin, conversationStudio: true })
   const commands = [
     ...entries.map(entry => ({ id: `studio${entry.path}`, label: t(entry.key), href: base + entry.path, ...(!entry.path ? { onSelect: () => goHome() } : {}) })),
     { id: 'studio-new', label: t('newThread'), onSelect: () => goHome(true) },
     ...(brands ?? []).map(brand => ({ id: `brand-${brand.id}`, label: brand.name, href: `/${lang}/dashboard/${brand.id}/studio`, ...(brand.id === clientId ? { onSelect: () => goHome() } : {}) })),
-    ...buildDashboardNav({ lang, clientId, features }).flatMap(section => [
+    ...buildDashboardNav({ lang, clientId, features, conversationStudio: true }).flatMap(section => [
       { id: section.key, label: dashboard(section.labelKey), href: section.href },
       ...section.items.filter(item => item.href !== section.href).map(item => ({ id: `${section.key}-${item.key}`, label: dashboard(item.labelKey), href: item.href })),
     ]),
@@ -75,7 +75,7 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
         <p className="as-muted as-small">{t('temporaryLabel')}</p>
         {session.threads.length ? <ul>{session.threads.slice(0, 4).map(thread => <li key={thread.id}><button type="button" className="as-thread w-full px-2 text-left" aria-pressed={discussion && session.activeId === thread.id} onClick={() => openThread(thread.id)}><span className="block truncate">{thread.title}</span><span className="as-muted as-small">{t('temporaryLabel')}</span></button></li>)}</ul> : <p className="as-muted as-small">{t('recentThreadsEmpty')}</p>}
       </section>
-      <footer className="as-sidefoot as-muted as-small space-y-2"><p>{t('sidebarScope')} · {t('sidebarFlow')}</p><Link href={`/${lang}/dashboard/${clientId}?step=home`} className="flex items-center gap-2 underline">{t('backToDashboard')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link></footer>
+      <footer className="as-sidefoot as-muted as-small space-y-2"><p>{t('sidebarScope')} · {t('sidebarFlow')}</p><Link href={`/${lang}/dashboard/${clientId}?step=overview`} className="flex items-center gap-2 underline">{t('backToDashboard')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link></footer>
     </aside>
     <div className="as-main">
       <header className="as-topbar">

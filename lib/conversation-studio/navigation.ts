@@ -1,8 +1,8 @@
 import { buildDashboardNav, type NavFeatures, type NavItem } from '@/lib/dashboard-nav'
 
 /** Existing destinations and visibility rules; no hidden Monitor advertising. */
-export function buildStudioTools({ lang, clientId, features, admin }: { lang: string; clientId: string; features: NavFeatures; admin: boolean }): NavItem[] {
-  const nav = buildDashboardNav({ lang, clientId, features })
+export function buildStudioTools({ lang, clientId, features, admin, conversationStudio = false }: { lang: string; clientId: string; features: NavFeatures; admin: boolean; conversationStudio?: boolean }): NavItem[] {
+  const nav = buildDashboardNav({ lang, clientId, features, conversationStudio })
   const item = (section: string, key?: string) => {
     const group = nav.find(s => s.key === section)
     return key ? group?.items.find(i => i.key === key) : group && { key: group.key, labelKey: group.labelKey, href: group.href }

@@ -20,6 +20,7 @@ it.each(['/en/dashboard', '/en/dashboard/11111111-1111-4111-8111-111111111111?st
 it('uses the dashboard nav destinations and keeps hidden Monitor and admin gated', () => {
   const items = buildStudioTools({ lang: 'en', clientId: '11111111-1111-4111-8111-111111111111', features: {}, admin: false })
   expect(items.find(i => i.key === 'overview')?.href).toBe('/en/dashboard/11111111-1111-4111-8111-111111111111?step=home')
+  expect(buildStudioTools({ lang: 'en', clientId: '11111111-1111-4111-8111-111111111111', features: {}, admin: false, conversationStudio: true }).find(i => i.key === 'overview')?.href).toBe('/en/dashboard/11111111-1111-4111-8111-111111111111?step=overview')
   expect(items.find(i => i.key === 'improve')?.locked).toBe(true)
   expect(items.find(i => i.key === 'roi')?.href).toBe('/en/dashboard/11111111-1111-4111-8111-111111111111?step=roi')
   for (const key of ['monitor', 'prompts', 'competitors', 'observations', 'citations', 'admin']) expect(items.some(i => i.key === key)).toBe(false)

@@ -13,7 +13,10 @@ describe('conversation studio navigation', () => {
     const oldNav = buildDashboardNav(args)
     const newNav = buildDashboardNav({ ...args, conversationStudio: true })
     expect(newNav.find(section => section.key === 'studio')).toMatchObject({ href: `/${lang}/dashboard/c1/studio`, labelKey: 'nav_start_work' })
-    expect(newNav.filter(section => section.key !== 'studio')).toEqual(oldNav)
+    expect(newNav.find(section => section.key === 'overview')!.href).toBe(`/${lang}/dashboard/c1?step=overview&scanId=s1`)
+    expect(oldNav.find(section => section.key === 'overview')!.href).toBe(`/${lang}/dashboard/c1?step=home&scanId=s1`)
+    expect(newNav.filter(section => section.key !== 'studio' && section.key !== 'overview'))
+      .toEqual(oldNav.filter(section => section.key !== 'overview'))
   })
   it('hides the entry by default, when disabled and outside a brand', () => {
     for (const args of [{ clientId: 'c1' }, { clientId: 'c1', conversationStudio: false }, { conversationStudio: true }]) {
@@ -23,6 +26,7 @@ describe('conversation studio navigation', () => {
   it('locates studio independently of overview', () => {
     expect(locateDashboard('/zh-HK/dashboard/c1/studio', null)).toEqual({ section: 'studio', item: 'studio', clientId: 'c1' })
     expect(locateDashboard('/zh-HK/dashboard/c1', 'home')).toEqual({ section: 'overview', item: null, clientId: 'c1' })
+    expect(locateDashboard('/zh-HK/dashboard/c1', 'overview')).toEqual({ section: 'overview', item: null, clientId: 'c1' })
   })
 })
 

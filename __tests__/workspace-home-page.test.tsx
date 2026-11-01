@@ -9,7 +9,7 @@ vi.mock('@/lib/workspace/load-owned-workspace', () => ({ loadOwnedWorkspace: moc
 vi.mock('@/lib/view-models/workspace-home', () => ({ buildWorkspaceHome: mocks.project }))
 vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
 vi.mock('@/lib/localTrust/store', () => ({ getLocalTrustProfile: vi.fn(), getOrCreateLocalTrustSnapshot: mocks.roi }))
-vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NOT_FOUND') } }))
+vi.mock('next/navigation', () => ({ redirect: (href: string) => { throw new Error(`REDIRECT:${href}`) }, notFound: () => { throw new Error('NOT_FOUND') } }))
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 vi.mock('@/components/dashboard/WorkspaceHome', () => ({ WorkspaceHome: () => null }))
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
@@ -18,13 +18,12 @@ import type { ReactElement } from 'react'
 import Page from '@/app/[lang]/dashboard/[clientId]/page'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
 afterEach(() => vi.unstubAllEnvs())
-it.each(['0', '1'])('keeps explicit home on WorkspaceHome with studio flag %s', async value => {
-  vi.stubEnv('FEATURE_CONVERSATION_STUDIO', value)
-  expect((await render({ step: 'home' })).type).toBe(WorkspaceHome)
-})
 const profile = { account_id: 'account-a', accounts: { plan: 'free' } }
 const render = (search = {}) => Page({ params: Promise.resolve({ lang: 'en', clientId: 'client-a' }), searchParams: Promise.resolve(search) })
-beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null) })
+beforeEach(() => { vi.clearAllMocks(); vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '0'); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null) })
+it('keeps explicit home on WorkspaceHome when the flag is off', async () => {
+  expect((await render({ step: 'home' })).type).toBe(WorkspaceHome)
+})
 it('defaults to the independently authenticated read-only home and preserves selected scan', async () => {
   const page = await render({ scanId: 'selected-scan' })
   expect(mocks.auth).toHaveBeenCalledWith('en')
@@ -32,6 +31,29 @@ it('defaults to the independently authenticated read-only home and preserves sel
   expect(page.props.workspace.client.id).toBe('client-a')
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.roi).not.toHaveBeenCalled()
+})
+it.each([{}, { step: 'home' }, { step: '' }])('lands a bare or home brand entry in Studio when the flag is on %o', async search => {
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+  await expect(render(search)).rejects.toThrow('REDIRECT:/en/dashboard/client-a/studio')
+  expect(mocks.auth).toHaveBeenCalledWith('en')
+  expect(mocks.load).not.toHaveBeenCalled()
+  expect(mocks.sql).not.toHaveBeenCalled()
+})
+it('keeps WorkspaceHome reachable through the overview alias when the flag is on', async () => {
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+  expect((await render({ step: 'overview' })).type).toBe(WorkspaceHome)
+  expect(mocks.load).toHaveBeenCalledWith({ clientId: 'client-a', profile, scanId: undefined, withTaskCount: true })
+})
+it.each(['scan', 'results', 'improve', 'roi', 'monitor'])('never redirects explicit %s routing when the flag is on', async step => {
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+  await expect(render({ step })).rejects.toThrow('NOT_FOUND')
+})
+it('authenticates before the Studio default redirect', async () => {
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+  mocks.auth.mockRejectedValueOnce(new Error('AUTH_REDIRECT'))
+  await expect(render()).rejects.toThrow('AUTH_REDIRECT')
+  expect(mocks.load).not.toHaveBeenCalled()
+  expect(mocks.sql).not.toHaveBeenCalled()
 })
 it('stops before owned data lookup when auth fails', async () => {
   mocks.auth.mockRejectedValueOnce(new Error('AUTH_REDIRECT'))
@@ -54,7 +76,8 @@ it.each(['scan', 'results', 'improve', 'roi'])('preserves explicit legacy %s rou
 it('provides a home navigation entry without removing explicit legacy links', () => {
   const source = readFileSync('components/dashboard/DashboardSidebar.tsx', 'utf8')
   // Overview is the brand's home step; a URL without ?step= lands on it.
-  expect(readFileSync('lib/dashboard-nav.ts', 'utf8')).toContain("href: `${brand}?step=home`")
+  const navSource = readFileSync('lib/dashboard-nav.ts', 'utf8')
+  expect(navSource).toContain("conversationStudio ? `${brand}?step=overview` : `${brand}?step=home`")
   expect(source).toContain("?? 'home'")
   expect(source).toContain('md:w-60')
   expect(source).toContain('aria-expanded')

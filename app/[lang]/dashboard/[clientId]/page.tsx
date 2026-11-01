@@ -5,9 +5,11 @@ import { buildPulseView } from '@/lib/view-models/pulse'
 import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
 import { projectScanStatus } from '@/lib/view-models/scan-status'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
+import { isFeatureEnabled } from '@/lib/flags'
+import { STUDIO_DEFAULT_HOME } from '@/lib/dashboard-nav'
 import { db } from '@/lib/db'
 import { redactSecrets } from '@/lib/security/redact-secrets'
 import { resolveCommercialEntitlement } from '@/lib/tier'
@@ -92,11 +94,17 @@ export default async function DashboardPage({
   searchParams: Promise<{ step?: string; scanId?: string }>
 }) {
   const { lang, clientId } = await params
-  const { step = 'home', scanId } = await searchParams
+  // Read the raw step before defaulting: FEATURE ON must tell an absent/home
+  // landing apart from the explicit `?step=overview` WorkspaceHome alias.
+  const { step: rawStep, scanId } = await searchParams
+  const step = rawStep === 'overview' ? 'home' : rawStep ?? 'home'
   const t = await getTranslations('dashboard')
   const reportT = await getTranslations('reports')
   const portfolioT = await getTranslations('portfolio')
   const profile  = await requireAuth(lang)
+  if (STUDIO_DEFAULT_HOME && isFeatureEnabled('conversation_studio') && (rawStep === undefined || rawStep === '' || rawStep === 'home')) {
+    redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}/studio`)
+  }
   const entitlement = resolveCommercialEntitlement(profile.accounts)
   const { features } = entitlement
 

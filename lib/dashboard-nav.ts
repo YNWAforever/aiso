@@ -4,7 +4,8 @@
  * one and be missing from another. URLs are the existing ones; this only
  * groups them (docs/ux/target-ia.md, Phase 4 decision: keep today's routes).
  *
- *   Overview      ?step=home (Local visibility, ?step=roi, is a card there)
+ *   Overview      ?step=overview (alias of ?step=home) when Conversation Studio
+ *                 is enabled, otherwise ?step=home; ?step=roi is a card there
  *   Scan & Fix    ?step=scan · ?step=results · ?step=improve · /opportunities · /tasks
  *   Monitor       hidden until Pulse is scheduled (MONITOR_VISIBLE)
  *   Reports       /reports
@@ -16,6 +17,21 @@
  * (decision 2026-10-22). Its pages still work for anyone holding a link.
  */
 export const MONITOR_VISIBLE = false
+
+/**
+ * FEATURE ON: a brand dashboard URL with no step (or ?step=home) lands in
+ * Conversation Studio instead of WorkspaceHome. WorkspaceHome stays reachable
+ * through the explicit ?step=overview alias, so Overview and Studio's back
+ * link cannot redirect-loop. Setting this to false restores the WorkspaceHome
+ * default without touching the feature flag or the environment.
+ */
+export const STUDIO_DEFAULT_HOME = true
+
+/** Where a brand dashboard entry point goes for the current feature state. */
+export function brandHomeHref({ lang, clientId, conversationStudio = false }: { lang: string; clientId: string; conversationStudio?: boolean }): string {
+  const brand = `/${lang}/dashboard/${clientId}`
+  return conversationStudio ? `${brand}/studio` : `${brand}?step=home`
+}
 
 export type SectionKey = 'overview' | 'studio' | 'scan' | 'monitor' | 'reports' | 'settings'
 
@@ -65,7 +81,7 @@ export function buildDashboardNav({ lang, clientId, features, scanId, includeHid
   }
   const brand = `${root}/${clientId}`
   const sections: NavSection[] = [
-    { key: 'overview', labelKey: 'nav_overview', descKey: 'nav_overview_desc', href: `${brand}?step=home`, needsBrand: false, items: [] },
+    { key: 'overview', labelKey: 'nav_overview', descKey: 'nav_overview_desc', href: conversationStudio ? `${brand}?step=overview` : `${brand}?step=home`, needsBrand: false, items: [] },
     ...(conversationStudio ? [{ key: 'studio' as const, labelKey: 'nav_start_work', descKey: 'nav_start_work_desc', href: `${brand}/studio`, needsBrand: true, items: [] }] : []),
     { key: 'scan', labelKey: 'nav_scan_fix', descKey: 'nav_scan_fix_desc', href: `${brand}?step=scan`, needsBrand: true, items: [
       { key: 'scan', labelKey: 'nav_scan', href: `${brand}?step=scan` },
@@ -99,7 +115,7 @@ export function buildDashboardNav({ lang, clientId, features, scanId, includeHid
 }
 
 const STEP_LOCATION: Record<string, [SectionKey, string | null]> = {
-  home: ['overview', null], roi: ['overview', 'roi'],
+  home: ['overview', null], overview: ['overview', null], roi: ['overview', 'roi'],
   scan: ['scan', 'scan'], results: ['scan', 'results'], improve: ['scan', 'improve'],
   monitor: ['monitor', 'monitor'],
 }
