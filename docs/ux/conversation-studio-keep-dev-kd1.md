@@ -1,5 +1,9 @@
 # Conversation Studio keep-dev KD1 fidelity polish
 
+Durable follow-up: [Studio visual/a11y matrix](conversation-studio-visual-a11y-matrix.md)
+defines the 72 cells, committed sanitized receipt/schema and local proof commands.
+This KD1 record retains its historical evidence and validation boundaries.
+
 DESIGN only, under the existing Stages 0–5 approval (Rio Ask `t130s893`).
 Base: `4ea7943519100d6b71ee4829d5108dbc58b34234` (#125, Stage 5).
 Branch: `codex/conversation-studio-keep-dev-kd1`.

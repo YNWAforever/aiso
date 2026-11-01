@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Studio offline visual/a11y numeric receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "evidenceMode", "productRevision", "productionCssSha256", "reportSha256", "project", "viewportHeight", "hostedNeonAuth", "cells"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "evidenceMode": { "const": "offline-component-fixture" },
+    "productRevision": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "productionCssSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "reportSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "project": { "const": "chromium" },
+    "viewportHeight": { "const": 1000 },
+    "hostedNeonAuth": { "const": "N/A-not-run" },
+    "cells": {
+      "type": "array",
+      "minItems": 72,
+      "maxItems": 72,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["locale", "width", "theme", "view", "axeViolations", "axeSerious", "axeCritical", "horizontalOverflowPx", "textBelow12px", "controlsBelow44px", "unexpectedRequests"],
+        "properties": {
+          "locale": { "enum": ["en", "zh-HK"] },
+          "width": { "enum": [1440, 900, 390] },
+          "theme": { "enum": ["light", "dark"] },
+          "view": { "enum": ["home", "discussion", "threads", "documents", "connections", "tools"] },
+          "axeViolations": { "type": "integer", "minimum": 0 },
+          "axeSerious": { "type": "integer", "minimum": 0 },
+          "axeCritical": { "type": "integer", "minimum": 0 },
+          "horizontalOverflowPx": { "type": "integer", "minimum": 0 },
+          "textBelow12px": { "type": "integer", "minimum": 0 },
+          "controlsBelow44px": { "type": "integer", "minimum": 0 },
+          "unexpectedRequests": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
