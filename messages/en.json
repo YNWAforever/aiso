@@ -293,6 +293,31 @@
         "misconfigured": "Configuration problem"
       }
     },
+    "firecrawl": {
+      "title": "Firecrawl · Public page",
+      "pending": "Checking the public page with Firecrawl…",
+      "failed": "Firecrawl could not be checked this turn.",
+      "empty": "No readable page content was returned. Missing is not zero.",
+      "url": "Page",
+      "contentType": "Content type: {contentType}",
+      "emptyUrl": "Add a public page URL to this turn.",
+      "invalidUrl": "That page URL is not valid.",
+      "urlTooLong": "The page URL is longer than 2048 characters. Shorten it and try again.",
+      "publicOnly": "Public http/https pages only. Private or local addresses are not scraped.",
+      "researchStep": "Checked Firecrawl public page “{url}”.",
+      "status": {
+        "ok": "Checked this turn",
+        "empty": "No readable page content",
+        "disabled": "Off for this brand",
+        "disconnected": "Not connected",
+        "unavailable": "Unavailable this turn",
+        "auth": "Authentication failed",
+        "payment": "Vendor payment required",
+        "rate_limit": "Vendor rate limit reached",
+        "invalid": "Request rejected",
+        "misconfigured": "Configuration problem"
+      }
+    },
     "destinations": {
       "opportunities": "Open content opportunities",
       "reports": "Open client reports"
@@ -302,7 +327,8 @@
       "mentionsCoverage": "HK / Traditional Chinese: DataForSEO’s ChatGPT LLM Mentions currently lists US / English coverage only. No Hong Kong ChatGPT score is shown here.",
       "missingIsNotZero": "Do not count unanswered questions as zero mentions",
       "searchDemandPending": "Search demand: pending verification",
-      "pending": "Pending verification"
+      "pending": "Pending verification",
+      "firecrawlScope": "Firecrawl checks public pages only; private properties are never scraped."
     },
     "filters": {
       "all": "All",
@@ -343,7 +369,7 @@
       "completenessPending": "Data completeness requires verification",
       "viewScope": "View connection scope",
       "savedOnly": "Saved binding and sync status only. No search data query, sync or Hong Kong filter ran here.",
-      "firecrawlScope": "Public page URL, retrieval time and cited passages; currently not connected. No pages were retrieved.",
+      "firecrawlScope": "Public page URL, retrieval time and cited passages only; one URL per turn. No crawl or private pages.",
       "dfsSerpPending": "Hong Kong / Traditional Chinese SERP support pending verification",
       "dfsSettingsNote": "Off by default. At most one Live Google Organic SERP call per turn and 20 per brand per Hong Kong week.",
       "dfsEnable": "Enable for this brand",
@@ -352,7 +378,15 @@
       "dfsDisabled": "Off for this brand",
       "dfsCredentialsMissing": "Preview credentials are not configured",
       "dfsSettingsSaved": "DataForSEO setting saved.",
-      "dfsSettingsError": "Could not save this setting. Please try again."
+      "dfsSettingsError": "Could not save this setting. Please try again.",
+      "firecrawlSettingsNote": "Off by default. At most one public-page scrape per turn; no crawl, map, batch or search.",
+      "firecrawlEnable": "Enable for this brand",
+      "firecrawlDisable": "Turn off for this brand",
+      "firecrawlEnabled": "Enabled for this brand",
+      "firecrawlDisabled": "Off for this brand",
+      "firecrawlCredentialsMissing": "Preview credentials are not configured",
+      "firecrawlSettingsSaved": "Firecrawl setting saved.",
+      "firecrawlSettingsError": "Could not save this setting. Please try again."
     },
     "nav": {
       "documents": "Documents & outputs",

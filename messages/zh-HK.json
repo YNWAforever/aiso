@@ -293,6 +293,31 @@
         "misconfigured": "設定有問題"
       }
     },
+    "firecrawl": {
+      "title": "Firecrawl · 公開頁面",
+      "pending": "正在以 Firecrawl 檢查公開頁面…",
+      "failed": "本次未能查詢 Firecrawl。",
+      "empty": "未有可讀頁面內容。缺失不等於零。",
+      "url": "頁面",
+      "contentType": "內容類型：{contentType}",
+      "emptyUrl": "請在本次加入公開頁面 URL。",
+      "invalidUrl": "此頁面 URL 無效。",
+      "urlTooLong": "頁面 URL 超過 2048 字元，請縮短後再試。",
+      "publicOnly": "只限公開 http／https 頁面；不會擷取私人或本地位址。",
+      "researchStep": "已用 Firecrawl 檢查公開頁面「{url}」。",
+      "status": {
+        "ok": "本次已查詢",
+        "empty": "未有可讀頁面內容",
+        "disabled": "此品牌未啟用",
+        "disconnected": "未連接",
+        "unavailable": "本次暫時無法使用",
+        "auth": "驗證失敗",
+        "payment": "供應商需要付款",
+        "rate_limit": "供應商速率上限已滿（額滿）",
+        "invalid": "請求被拒",
+        "misconfigured": "設定有問題"
+      }
+    },
     "destinations": {
       "opportunities": "前往內容機會",
       "reports": "前往客戶報告"
@@ -302,7 +327,8 @@
       "mentionsCoverage": "HK／繁中：DataForSEO 的 ChatGPT LLM Mentions 目前只標示美國／英文覆蓋，此處不顯示香港 ChatGPT 分數。",
       "missingIsNotZero": "不將沒有回應的問題計作零提及",
       "searchDemandPending": "搜尋需求：待核實",
-      "pending": "待核實"
+      "pending": "待核實",
+      "firecrawlScope": "Firecrawl 只檢查公開頁面，絕不擷取私人資源。"
     },
     "filters": {
       "all": "全部",
@@ -343,7 +369,7 @@
       "completenessPending": "資料完整度需驗證",
       "viewScope": "查看連接範圍",
       "savedOnly": "只讀取已儲存的綁定及同步狀態。本次未查詢搜尋資料，未執行同步或香港篩選。",
-      "firecrawlScope": "公開頁面 URL、擷取時間、引用段落；目前未連接，沒有擷取頁面。",
+      "firecrawlScope": "只限公開頁面 URL、擷取時間及引用段落；每回合一個 URL。不會爬取網站或私人頁面。",
       "dfsSerpPending": "香港／繁中 SERP 支援待核實",
       "dfsSettingsNote": "預設關閉。每回合最多一次 Live Google 自然搜尋 SERP 呼叫，每個品牌每個香港週最多 20 次。",
       "dfsEnable": "為此品牌啟用",
@@ -352,7 +378,15 @@
       "dfsDisabled": "此品牌未啟用",
       "dfsCredentialsMissing": "Preview 憑證未設定",
       "dfsSettingsSaved": "已儲存 DataForSEO 設定。",
-      "dfsSettingsError": "未能儲存此設定，請再試一次。"
+      "dfsSettingsError": "未能儲存此設定，請再試一次。",
+      "firecrawlSettingsNote": "預設關閉。每回合最多擷取一個公開頁面；不支援 crawl、map、batch 或 search。",
+      "firecrawlEnable": "為此品牌啟用",
+      "firecrawlDisable": "為此品牌關閉",
+      "firecrawlEnabled": "此品牌已啟用",
+      "firecrawlDisabled": "此品牌未啟用",
+      "firecrawlCredentialsMissing": "Preview 憑證未設定",
+      "firecrawlSettingsSaved": "已儲存 Firecrawl 設定。",
+      "firecrawlSettingsError": "未能儲存此設定，請再試一次。"
     },
     "nav": {
       "documents": "文件與成果",

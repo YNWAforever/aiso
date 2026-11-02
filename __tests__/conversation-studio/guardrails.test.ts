@@ -35,14 +35,15 @@ it('disables deployment for the exact Stage 6a branch without changing other ent
 })
 
 
-it('disables deployment for the exact Stage 6d and 6e branches and keeps the 24-key set', () => {
+it('disables deployment for the exact Stage 6d, 6e and 6f branches and keeps the 25-key set', () => {
   const config = JSON.parse(readFileSync('vercel.json', 'utf8'))
   expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6d']).toBe(false)
   expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6e']).toBe(false)
+  expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6f']).toBe(false)
   expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6c']).toBe(false)
   expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6h']).toBe(false)
   expect(config.git.deploymentEnabled['codex/conversation-studio-default-home']).toBe(false)
-  expect(Object.keys(config.git.deploymentEnabled)).toHaveLength(24)
+  expect(Object.keys(config.git.deploymentEnabled)).toHaveLength(25)
   expect(config.functions).not.toHaveProperty('app/api/dashboard/clients/[clientId]/studio/search-console/route.ts')
 })
 

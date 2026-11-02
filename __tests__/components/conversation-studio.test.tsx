@@ -13,6 +13,7 @@ import { STUDIO_TEMPLATES } from '@/lib/conversation-studio/types'
 import { StudioEvidenceRows } from '@/components/dashboard/StudioEvidenceInspector'
 import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
 import { StudioDfsSnapshotView } from '@/components/dashboard/StudioDfsSnapshot'
+import { StudioFirecrawlSnapshotView } from '@/components/dashboard/StudioFirecrawlSnapshot'
 import { StudioConnections } from '@/components/dashboard/StudioSecondaryViews'
 import { StudioReplyView, StudioSavedEvidence } from '@/components/dashboard/StudioReply'
 import { StudioLiveReplyView, StudioLiveEvidence } from '@/components/dashboard/StudioLiveReply'
@@ -322,6 +323,48 @@ it.each(['en', 'zh-HK'])('renders the DataForSEO SERP snapshot, cap and 待核�
   const rows = renderWithIntl(<StudioEvidenceRows reads={{ documents: null, searchConsole: null }} sourceStatus="bound" dfs={dfs} />, lang)
   expect(rows).toContain(copy.dfs.title)
   expect(rows).toContain(copy.dfs.status.ok)
+})
+
+it.each(['en', 'zh-HK'])('renders the Firecrawl public-page snapshot and claims a check only for ok or empty in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const firecrawl = {
+    snapshot: {
+      status: 'ok' as const, url: 'https://example.com/a', title: 'Example page',
+      excerpt: 'Readable page body.', contentType: 'text/html',
+    },
+  }
+  const snapshot = renderWithIntl(<StudioFirecrawlSnapshotView firecrawl={firecrawl} />, lang)
+  expect(snapshot).toContain(copy.firecrawl.title)
+  expect(snapshot).toContain(copy.firecrawl.status.ok)
+  expect(snapshot).toContain('https://example.com/a')
+  expect(snapshot).toContain('Readable page body.')
+  expect(snapshot).not.toMatch(/\$\d/)
+
+  const reply = composeSavedReply('question', null, emptyStudioEvidence)
+  const withStep = renderWithIntl(<StudioReplyView id="firecrawl" evidence={emptyStudioEvidence} reply={reply} firecrawl={firecrawl} />, lang)
+  expect(withStep).toContain(copy.firecrawl.researchStep.replace('{url}', 'https://example.com/a'))
+  const failed = renderWithIntl(<StudioReplyView id="firecrawl-failed" evidence={emptyStudioEvidence} reply={reply} firecrawl={{ snapshot: { ...firecrawl.snapshot, status: 'auth' } }} />, lang)
+  expect(failed).not.toContain(copy.firecrawl.researchStep.replace('{url}', 'https://example.com/a'))
+
+  const invalid = renderWithIntl(<StudioFirecrawlSnapshotView firecrawl={{ snapshot: { status: 'invalid', messageKey: 'firecrawl.publicOnly' } }} />, lang)
+  expect(invalid).toContain(copy.firecrawl.publicOnly)
+  const rows = renderWithIntl(<StudioEvidenceRows reads={{ documents: null, searchConsole: null }} sourceStatus="bound" firecrawl={firecrawl} />, lang)
+  expect(rows).toContain(copy.firecrawl.title)
+  expect(rows).toContain(copy.firecrawl.status.ok)
+})
+
+it.each(['en', 'zh-HK'])('renders the Firecrawl settings toggle with public-only honesty in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const html = renderWithIntl(<StudioConnections clientId="11111111-1111-4111-8111-111111111111" connection={{
+    sourceStatus: 'bound', state: { kind: 'synced', dataThrough: '2026-10-26' },
+    firecrawl: { enabled: false, credentialsConfigured: false },
+  }} />, lang)
+  expect(html).toContain(copy.connections.firecrawlDisabled)
+  expect(html).toContain(copy.connections.firecrawlSettingsNote)
+  expect(html).toContain(copy.connections.firecrawlCredentialsMissing)
+  expect(html).toContain(copy.connections.firecrawlEnable)
+  expect(html).toContain(copy.honesty.firecrawlScope)
+  expect(html).not.toMatch(/\$\d/)
 })
 
 it.each(['en', 'zh-HK'])('keeps Firecrawl disconnected while the DataForSEO switch is explicit in %s', lang => {
