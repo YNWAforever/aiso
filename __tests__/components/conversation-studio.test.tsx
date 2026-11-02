@@ -260,8 +260,8 @@ import {emptyStudioOpportunities,pendingStudioOpportunities,savedStudioOpportuni
 import en from '@/messages/en.json'; import zh from '@/messages/zh-HK.json';
 
 // Offline thread transport for the standalone fixture. It is deliberately
-// page-scoped, so the fixture can still show a reload starting from an empty
-// saved list without pretending the real API was called.
+// page-scoped so reload resets this fixture; production reload persistence is
+// covered by studio-shell-fixture, so specs must not assert reload emptiness.
 const fixtureThreads=new Map();
 const fixtureJson=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
 const fixtureFetch=window.fetch.bind(window);

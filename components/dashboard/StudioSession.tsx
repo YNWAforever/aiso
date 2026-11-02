@@ -143,6 +143,7 @@ function useSessionState(clientId?: string) {
       setThreads(previous => previous.map(thread => thread.id === localId
         ? { ...thread, id: record.id, saveState: 'persisted', updatedAt: record.updatedAt }
         : thread))
+      setReadFailed(false)
       setNavigation(previous => previous.activeId === localId ? { ...previous, activeId: record.id } : previous)
       setFeedback(previous => previous && previous.threadId === localId ? { ...previous, threadId: record.id } : previous)
       return record.id
@@ -165,16 +166,19 @@ function useSessionState(clientId?: string) {
       return { ok: false }
     }
     const record = result.data.turn
-    setThreads(previous => previous.map(thread => thread.turns.some(turn => turn.id === turnId)
-      ? {
-          ...thread,
-          saveState: 'persisted',
-          updatedAt: new Date().toISOString(),
-          turns: thread.turns.map(turn => turn.id === turnId
-            ? { ...turn, serverId: record.id, position: record.position, saveState: 'saved' }
-            : turn),
-        }
-      : thread))
+    setThreads(previous => previous.map(thread => {
+      if (!thread.turns.some(turn => turn.id === turnId)) return thread
+      const turns = thread.turns.map(turn => turn.id === turnId
+        ? { ...turn, serverId: record.id, position: record.position, saveState: 'saved' as const }
+        : turn)
+      return {
+        ...thread,
+        saveState: turns.some(turn => turn.saveState === 'failed') ? 'failed' as const : 'persisted' as const,
+        updatedAt: new Date().toISOString(),
+        turns,
+      }
+    }))
+    setReadFailed(false)
     return { ok: true, position: record.position, threadId }
   }
 

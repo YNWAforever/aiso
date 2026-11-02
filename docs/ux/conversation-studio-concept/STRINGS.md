@@ -214,8 +214,8 @@ In particular, live output stays unverified; citations/requests alone do not
 prove search execution; B1 remains bounded saved evidence; B2’s cap remains
 process-local. Stage 6c persists threads under the owning account + brand + creator profile;
 “私人” means only that creator profile, and sharing remains future work. Composer drafts and
-source bodies stay client-only.
-or persistence. Keep the existing temporary-memory notice visible/reachable
-until separately approved work changes the behavior. Never copy Harbour Home,
+source bodies stay client-only. Stage 6c persists successfully written threads, so the saved
+private label applies only after the write succeeds; keep the temporary-memory notice visible
+and reachable for unsaved or failed writes. Never copy Harbour Home,
 Harbour Tea, version IDs, fake bindings or research steps claiming queries that
 did not occur into product fallbacks. Stage 6 save/attachment controls stay held.

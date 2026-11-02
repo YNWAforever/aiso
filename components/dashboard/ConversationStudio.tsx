@@ -16,6 +16,15 @@ import Link from 'next/link'
 import './conversation-studio.css'
 
 const templateIcons = { opportunity: Search, improve: FilePenLine, brief: NotebookPen, competitors: ScanSearch, pulse: Activity, report: FileText }
+const THREAD_TITLE_LIMIT = 200
+
+/** Server caps thread titles at 200 characters; keep the full prompt in `goal`. */
+function boundedTitle(value: string): string {
+  if (value.length <= THREAD_TITLE_LIMIT) return value
+  const clipped = value.slice(0, THREAD_TITLE_LIMIT).replace(/[\uD800-\uDBFF]$/u, '')
+  const wordEnd = clipped.lastIndexOf(' ')
+  return wordEnd > 0 ? clipped.slice(0, wordEnd) : clipped
+}
 
 export function StudioThreadHeader({ thread, attachment, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState'>; attachment?: StudioAttachCandidate | null; onHome: () => void }) {
   const t = useTranslations('conversationStudio')
@@ -45,7 +54,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const [liveExhausted, setLiveExhausted] = useState(false)
   const [attachment, setAttachment] = useState<StudioAttachCandidate | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, saveLive, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId } = useStudioSession()
+  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, saveLive, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId, hydrated, readFailed } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
   const [inspection, setInspection] = useState<{ navigationVersion: number; turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
@@ -74,17 +83,17 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
 
   function branchBrief(source: StudioThread, turn: StudioTurn) {
     const id = allocateThreadId()
-    const title = t('briefThreadTitle', { title: source.title })
+    const title = boundedTitle(t('briefThreadTitle', { title: source.title }))
     const summary = [t(turn.reply.status === 'evidenced' ? 'evidence.savedSummary' : 'evidence.insufficient'),
       t(turn.reply.template === 'competitors' ? 'evidence.comparisonLimit' : turn.reply.template ? 'evidence.summaryScope' : 'evidence.questionLimit'),
       t('honesty.searchDemandPending')].join(' ')
     const seed = composeBriefDraft({ goal: source.goal, prompt: turn.prompt, summary }, context => t('briefContextPrompt', context))
     // The thread is saved; the editable composer draft stays client-only.
     setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: seed, template: 'brief', saveState: 'unsaved', turnsLoaded: true }, ...previous])
-    void saveThread(id, { kind: 'brief', title, goal: source.goal, week: source.week, sourceTitle: source.title })
+    const saving = saveThread(id, { kind: 'brief', title, goal: source.goal, week: source.week, sourceTitle: source.title })
     focusBriefStart.current = true
     openThread(id)
-    setFeedback({ id: turn.id, threadId: id, key: 'briefOpened' })
+    void saving.then(saved => { if (saved) setFeedback({ id: turn.id, threadId: saved, key: 'briefOpened' }) })
   }
 
   function updateDraft(value: string, template: StudioHomeTemplate | null = null) {
@@ -97,16 +106,15 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     const prompt = draft.trim()
     if (!prompt || isInFlight()) return
     const askLive = Boolean(live && live.cap > 0 && !liveExhausted && platforms.length && clientId)
-    if (askLive && prompt.length > STUDIO_PROMPT_LIMIT) return
+    if (prompt.length > STUDIO_PROMPT_LIMIT) return
     setFeedback(null)
     const id = current?.id ?? allocateThreadId()
     const task = current ? current.template : newTemplate
-    const title = task ? t(`templates.${task}.label`) : prompt
+    const title = boundedTitle(task ? t(`templates.${task}.label`) : prompt)
     const kind = task === 'brief' ? 'brief' : 'research'
     const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(attachment ? { attached: { label: attachment.label, versionNumber: attachment.versionNumber } } : {}), ...(askLive ? { live: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
-      setFeedback({ id: turn.id, threadId: id, key: 'followUpSent' })
     } else {
       setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true }, ...previous])
       void saveThread(id, { kind, title, goal: prompt, week: evidence.week, sourceTitle: null })
@@ -116,6 +124,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     }
     composer.current?.focus()
     const persist = saveTurn(id, turn.id, { prompt, task, reply: turn.reply, attached: turn.attached ?? null })
+      .then(result => {
+        if (result.ok) setFeedback({ id: turn.id, threadId: result.threadId, key: 'followUpSent' })
+        return result
+      })
     if (askLive) {
       beginLive()
       let result: NonNullable<StudioTurn['live']>
@@ -145,7 +157,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
 
   const composerForm = <form onSubmit={submit} className="as-composer space-y-3">
     <label htmlFor="studio-composer" className="as-muted as-small block font-semibold">{t(home ? 'composerLabel' : 'followUpLabel')}</label>
-    <textarea ref={composer} id="studio-composer" value={draft} maxLength={live ? STUDIO_PROMPT_LIMIT : undefined} onChange={event => updateDraft(event.target.value)} rows={4} placeholder={t(home ? 'composerPlaceholder' : 'followUpPlaceholder')} aria-describedby="studio-composer-help" className="block w-full min-w-0 resize-y" />
+    <textarea ref={composer} id="studio-composer" value={draft} maxLength={STUDIO_PROMPT_LIMIT} onChange={event => updateDraft(event.target.value)} rows={4} placeholder={t(home ? 'composerPlaceholder' : 'followUpPlaceholder')} aria-describedby="studio-composer-help" className="block w-full min-w-0 resize-y" />
     <div className="as-composer-footer">
       <div className="as-composer-tools">
         <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>
@@ -240,7 +252,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </section>
         <section aria-labelledby="studio-continue-title" className="space-y-3">
           <div className="as-section-heading"><h2 id="studio-continue-title">{t('continueTitle')}</h2>{embedded && basePath && <Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link>}</div>
-          {threads.length === 0 ? <p className="as-muted">{t('threadsEmpty')}</p> : <ul className="as-continue-list">
+          {readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : threads.length === 0 ? <p className="as-muted">{t('threadsEmpty')}</p> : <ul className="as-continue-list">
             {threads.map(thread => <li key={thread.id}>
               <button type="button" onClick={() => openThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">
                 <span className="min-w-0"><span className="block truncate">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span><span className="as-muted as-small">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></span>
