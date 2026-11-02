@@ -35,15 +35,31 @@ it('disables deployment for the exact Stage 6a branch without changing other ent
 })
 
 
-it('disables deployment for the exact Stage 6d and 6e branches and keeps the 24-key set', () => {
+it('disables deployment for the exact Stage 6d and 6e branches', () => {
   const config = JSON.parse(readFileSync('vercel.json', 'utf8'))
   expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6d']).toBe(false)
   expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6e']).toBe(false)
   expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6c']).toBe(false)
   expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6h']).toBe(false)
   expect(config.git.deploymentEnabled['codex/conversation-studio-default-home']).toBe(false)
-  expect(Object.keys(config.git.deploymentEnabled)).toHaveLength(24)
   expect(config.functions).not.toHaveProperty('app/api/dashboard/clients/[clientId]/studio/search-console/route.ts')
+})
+
+it('disables deployment for the exact Stage 6f branch and keeps the 25-key set', () => {
+  const config = JSON.parse(readFileSync('vercel.json', 'utf8'))
+  expect(config.git.deploymentEnabled['claude/stage-6f-firecrawl-1mqfrv']).toBe(false)
+  expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6e']).toBe(false)
+  expect(Object.keys(config.git.deploymentEnabled)).toHaveLength(25)
+  expect(config.functions).not.toHaveProperty('app/api/dashboard/clients/[clientId]/studio/firecrawl/route.ts')
+})
+
+it('keeps Firecrawl scrape-only, single-URL and markdown-only', () => {
+  const client = readFileSync('lib/integrations/firecrawl/client.ts', 'utf8')
+  expect(client).toContain("'https://api.firecrawl.dev/v2/scrape'")
+  expect(client).not.toMatch(/\/v[12]\/(crawl|map|batch|search|extract)/)
+  expect(client).not.toMatch(/formats: \[[^\]]*'json'/)
+  expect(client).not.toMatch(/retry|autoResume/i)
+  expect(readFileSync('.env.example', 'utf8')).toMatch(/^FIRECRAWL_API_KEY=$/m)
 })
 
 it('uses the durable account-week honesty strings from the Hazel pack', () => {

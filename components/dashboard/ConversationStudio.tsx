@@ -11,8 +11,11 @@ import { StudioEvidenceInspector } from '@/components/dashboard/StudioEvidenceIn
 import { StudioLiveReplyView } from '@/components/dashboard/StudioLiveReply'
 import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
 import { StudioDfsSnapshotView } from '@/components/dashboard/StudioDfsSnapshot'
+import { StudioFirecrawlSnapshotView } from '@/components/dashboard/StudioFirecrawlSnapshot'
 import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
+import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
+import { extractTurnUrl } from '@/lib/conversation-studio/firecrawl-url'
 import { STUDIO_PROMPT_LIMIT, type StudioAttachCandidate, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
 import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type StudioThread, type StudioTurn } from '@/components/dashboard/StudioSession'
@@ -118,7 +121,9 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     const kind = task === 'brief' ? 'brief' : 'research'
     const wantsGsc = Boolean(clientId && sourceStatus === 'bound')
     const wantsDfs = Boolean(clientId)
-    const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(attachment ? { attached: { label: attachment.label, versionNumber: attachment.versionNumber } } : {}), ...(askLive ? { live: { pending: true } } : {}), ...(wantsGsc ? { gsc: { pending: true } } : {}), ...(wantsDfs ? { dfs: { pending: true } } : {}) }
+    // One explicit public URL per turn; a turn without one never calls Firecrawl.
+    const scrapeUrl = clientId ? extractTurnUrl(prompt) : null
+    const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(attachment ? { attached: { label: attachment.label, versionNumber: attachment.versionNumber } } : {}), ...(askLive ? { live: { pending: true } } : {}), ...(wantsGsc ? { gsc: { pending: true } } : {}), ...(wantsDfs ? { dfs: { pending: true } } : {}), ...(scrapeUrl ? { firecrawl: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
     } else {
@@ -137,6 +142,11 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     function applyDfs(next: StudioDfsRead) {
       setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id)
         ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, dfs: next } : item) }
+        : thread))
+    }
+    function applyFirecrawl(next: StudioFirecrawlRead) {
+      setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id)
+        ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, firecrawl: next } : item) }
         : thread))
     }
     // On-demand only: never on page load. Saved and LIVE turns both ask once.
@@ -164,6 +174,20 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           applyDfs(response.ok && data?.snapshot ? { snapshot: data.snapshot } : { error: data?.error ?? 'STUDIO_UNAVAILABLE' })
         } catch {
           applyDfs({ error: 'STUDIO_UNAVAILABLE' })
+        }
+      })()
+    }
+    if (scrapeUrl && clientId) {
+      void (async () => {
+        try {
+          const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId)}/studio/firecrawl`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+            body: JSON.stringify({ url: scrapeUrl }), signal: AbortSignal.timeout(20_000),
+          })
+          const data = await response.json().catch(() => null) as { snapshot?: StudioFirecrawlRead['snapshot']; error?: string } | null
+          applyFirecrawl(response.ok && data?.snapshot ? { snapshot: data.snapshot } : { error: data?.error ?? 'STUDIO_UNAVAILABLE' })
+        } catch {
+          applyFirecrawl({ error: 'STUDIO_UNAVAILABLE' })
         }
       })()
     }
@@ -314,7 +338,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
           {!current.turnsLoaded && !current.turnsError && <p className="as-muted as-small">{t('loadingThreads')}</p>}
           {current.turnsError && <p className="as-note">{t('readUnavailable')}</p>}
-          {current.turns.map(({ id, prompt, reply, task, live: liveTurn, gsc, dfs, attached }, index) => <div key={id} className="space-y-5">
+          {current.turns.map(({ id, prompt, reply, task, live: liveTurn, gsc, dfs, firecrawl, attached }, index) => <div key={id} className="space-y-5">
             <div className="as-question p-4">
               <p className="as-muted as-small mb-2 font-semibold">{t('youLabel')}</p>
               <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{prompt}</p>
@@ -326,15 +350,16 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               <p>{t(`templates.${task}.limit`)}</p>
             </div>}
             <div className="min-w-0 space-y-4">
-              <StudioReplyView clientId={clientId} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} onBranchBrief={() => branchBrief(current, current.turns[index])} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
+              <StudioReplyView clientId={clientId} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={() => branchBrief(current, current.turns[index])} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
               {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />}
               <StudioGscSnapshotView gsc={gsc} />
               <StudioDfsSnapshotView dfs={dfs} />
+              <StudioFirecrawlSnapshotView firecrawl={firecrawl} />
             </div>
             </div>
           </div>)}
         </div>
-        {inspection && inspectedTurn && <StudioEvidenceInspector reply={inspectedTurn.reply} evidence={evidenceForHomeTask(evidence, inspectedTurn.task)} liveReply={inspectedTurn.live?.reply} liveEnabled={Boolean(live)} gsc={inspectedTurn.gsc} dfs={inspectedTurn.dfs} reads={inspector} sourceStatus={sourceStatus} prompt={inspectedTurn.prompt} target={inspection.target} trigger={inspection.trigger} onClose={() => setInspection(null)} />}
+        {inspection && inspectedTurn && <StudioEvidenceInspector reply={inspectedTurn.reply} evidence={evidenceForHomeTask(evidence, inspectedTurn.task)} liveReply={inspectedTurn.live?.reply} liveEnabled={Boolean(live)} gsc={inspectedTurn.gsc} dfs={inspectedTurn.dfs} firecrawl={inspectedTurn.firecrawl} reads={inspector} sourceStatus={sourceStatus} prompt={inspectedTurn.prompt} target={inspection.target} trigger={inspection.trigger} onClose={() => setInspection(null)} />}
         </div>
         {composerForm}
         {scopeNote}
