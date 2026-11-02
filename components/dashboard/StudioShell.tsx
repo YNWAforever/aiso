@@ -39,7 +39,7 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
     closeMenu()
     if (pathname !== base) router.push(base)
   }
-  function openThread(id: number) { session.setActiveId(id); closeMenu(); if (pathname !== base) router.push(base) }
+  function openThread(id: string) { session.selectThread(id); closeMenu(); if (pathname !== base) router.push(base) }
   const tools = buildStudioTools({ lang, clientId, features, admin, conversationStudio: true })
   const commands = [
     ...entries.map(entry => ({ id: `studio${entry.path}`, label: t(entry.key), href: base + entry.path, ...(!entry.path ? { onSelect: () => goHome() } : {}) })),
@@ -72,8 +72,7 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
       </li>)}</ul></nav>
       <section className="as-recent space-y-2" aria-labelledby="studio-recent-title">
         <h2 id="studio-recent-title">{t('recentThreadsTitle')}</h2>
-        <p className="as-muted as-small">{t('temporaryLabel')}</p>
-        {session.threads.length ? <ul>{session.threads.slice(0, 4).map(thread => <li key={thread.id}><button type="button" className="as-thread w-full px-2 text-left" aria-pressed={discussion && session.activeId === thread.id} onClick={() => openThread(thread.id)}><span className="block truncate">{thread.title}</span><span className="as-muted as-small">{t('temporaryLabel')}</span></button></li>)}</ul> : <p className="as-muted as-small">{t('recentThreadsEmpty')}</p>}
+        {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted as-small" aria-busy="true">{t('loadingThreads')}</p> : session.threads.length ? <ul>{session.threads.slice(0, 4).map(thread => <li key={thread.id}><button type="button" className="as-thread w-full px-2 text-left" aria-pressed={discussion && session.activeId === thread.id} onClick={() => openThread(thread.id)}><span className="block truncate">{thread.title}</span><span className="as-muted as-small">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></button></li>)}</ul> : <p className="as-muted as-small">{t('recentThreadsEmpty')}</p>}
       </section>
       <footer className="as-sidefoot as-muted as-small space-y-2"><p>{t('sidebarScope')} · {t('sidebarFlow')}</p><Link href={`/${lang}/dashboard/${clientId}?step=overview`} className="flex items-center gap-2 underline">{t('backToDashboard')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link></footer>
     </aside>

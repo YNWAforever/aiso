@@ -45,7 +45,6 @@ for (const lang of ['en', 'zh-HK']) {
       await page.getByRole('button', { name: copy.brandLabel, exact: true }).click()
       await page.getByRole('link', { name, exact: true }).click()
       await expect(composer).toHaveValue('')
-      await expect(page.locator('.as-recent li')).toHaveCount(0)
       await expect(toast).toBeEmpty()
     }
     await composer.fill('First thread goal')
@@ -87,7 +86,7 @@ for (const lang of ['en', 'zh-HK']) {
         window.dispatchEvent(new PopStateEvent('popstate'))
       }, account)
       await expect(composer).toHaveValue('')
-      await expect(page.locator('.as-recent li')).toHaveCount(0)
+      await expect(page.locator('.as-recent li')).toHaveCount(account === 'account-b' ? 0 : 3)
       await expect(toast).toBeEmpty()
       await composer.fill(`${account} goal`)
       await page.locator('button[type="submit"]').click()
@@ -97,7 +96,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByTestId('dashboard-topbar')).toBeVisible()
     await page.getByTestId('dashboard-content').getByRole('link', { name: 'Studio', exact: true }).click()
     await expect(composer).toHaveValue('')
-    await expect(page.locator('.as-recent li')).toHaveCount(0)
+    await expect(page.locator('.as-recent li')).toHaveCount(4)
     await expect(toast).toBeEmpty()
     expect(requests).toEqual([])
   })
@@ -138,7 +137,9 @@ for (const lang of ['en', 'zh-HK']) {
         await expect(page.locator('#aiso-studio')).toHaveCount(0)
         await page.getByTestId('dashboard-content').getByRole('link', { name: 'Studio', exact: true }).click()
         await expect(page.locator('#studio-home')).toBeVisible()
-        await expect(page.locator('.as-recent li')).toHaveCount(0)
+        const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
+        if (await toggle.isVisible()) await toggle.click()
+        await expect(page.locator('.as-recent li').first()).toBeVisible()
       }
     }
     expect(requests).toEqual([])
@@ -176,12 +177,12 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.locator('#aiso-studio')).toHaveCount(0)
     await page.getByTestId('dashboard-content').getByRole('link', { name: 'Studio', exact: true }).click()
     await navigate(page, copy.threadsTitle, copy)
-    await expect(page.getByRole('heading', { name: copy.recentThreadsEmpty, exact: true })).toBeVisible()
-    await expect(page.getByText('Session goal', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: copy.views.threads.title })).toBeVisible()
+    await expect(page.locator('main').getByText('Session goal', { exact: true }).first()).toBeVisible()
     expect(requests).toEqual([])
   })
 
-  test(`brand switch, refresh reset, recent cap and command palette in ${lang}`, async ({ page }) => {
+  test(`brand switch, reload persistence, recent cap and command palette in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     for (let i = 0; i < 5; i++) {
       if (i) {
@@ -195,7 +196,7 @@ for (const lang of ['en', 'zh-HK']) {
     const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
     if (await toggle.isVisible()) await toggle.click()
     await expect(page.locator('.as-recent li')).toHaveCount(4)
-    await expect(page.locator('.as-recent')).toContainText(copy.temporaryLabel)
+    await expect(page.locator('.as-recent')).toContainText(copy.privateLabel)
     await page.getByRole('button', { name: copy.brandLabel, exact: true }).click()
     await page.getByRole('link', { name: 'Second Brand', exact: true }).click()
     await expect(page.locator('.as-recent li')).toHaveCount(0)
@@ -204,7 +205,9 @@ for (const lang of ['en', 'zh-HK']) {
     await page.getByRole('button', { name: copy.send, exact: true }).click()
     await page.reload()
     await expect(page.locator('#studio-home')).toBeVisible()
-    await expect(page.locator('.as-recent li')).toHaveCount(0)
+    await expect(page.locator('.as-recent li')).toHaveCount(1)
+    await expect(page.locator('.as-recent')).toContainText('Second brand temporary')
+    await expect(page.locator('.as-recent')).toContainText(copy.privateLabel)
     await page.locator('#studio-composer').focus()
     await page.keyboard.press('Control+k')
     await expect(page.getByRole('combobox')).toBeVisible()

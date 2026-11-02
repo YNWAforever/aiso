@@ -9,9 +9,9 @@
     "featureShellNote": "已可進入開始工作。即時模型回答尚未開啟；期間請用已儲存證據及範本。",
     "threadsTitle": "討論串",
     "newThread": "開始新討論",
-    "threadsEmpty": "這個品牌未有討論。從上方的工作目標開始。",
-    "privateLabel": "預設私人 · 暫存",
-    "privacyBody": "訊息只暫存在目前品牌工作室的記憶體，離開工作室、切換品牌或重新整理後便會消失。儲存、分享及私人存取權限功能將於日後提供。",
+    "threadsEmpty": "這個品牌未有已儲存討論。從上方的工作目標開始。",
+    "privateLabel": "只供你查看 · 已儲存在此品牌工作室",
+    "privacyBody": "討論會儲存在此品牌工作室，只有你可見（不包括團隊成員），重新整理後仍會保留。輸入中的草稿不會儲存。分享功能尚未提供。",
     "templatesTitle": "從一個任務開始",
     "conversationLabel": "品牌證據對話",
     "emptyTitle": "你想處理甚麼工作？",
@@ -72,7 +72,7 @@
       }
     },
     "savedBadge": "階段 B1 · 已儲存證據",
-    "savedNotice": "回覆只使用此品牌已儲存資料的快照。不會查詢 AI 模型或即時資料來源，訊息只保留在本頁。",
+    "savedNotice": "回覆只使用此品牌已儲存資料的快照。不會查詢 AI 模型或即時資料來源。",
     "evidence": {
       "replyLabel": "已儲存證據回覆",
       "savedSummary": "已儲存證據摘要",
@@ -256,8 +256,8 @@
     "threadScope": "討論範圍",
     "savedWeek": "已儲存週次：{week}",
     "branchBrief": "另開 brief 討論",
-    "briefOpened": "已另開 brief 討論，只暫存於本次工作階段。",
-    "followUpSent": "訊息已加入這個暫存討論。",
+    "briefOpened": "已另開 brief 討論，並儲存在此品牌工作室。",
+    "followUpSent": "訊息已儲存在此討論。",
   "saveWorkItemDraft": "保存為工作項目草稿",
   "savingWorkItemDraft": "正在儲存草稿…",
   "workItemDraftSaved": "草稿已儲存，待審閱",
@@ -275,7 +275,7 @@
     "briefThreadTitle": "brief · {title}",
     "briefContextPrompt": "請根據這個工作目標建立有來源的 brief：{goal}\n\n先前問題：{prompt}\n\n先前已儲存結果：{summary}",
     "briefContext": "承接討論：{title}",
-    "briefTemporary": "這是一個新的暫存討論。上下文只保留在本頁記憶體，重新整理會清除兩個討論。傳送草稿後才開始。",
+    "briefTemporary": "這是一個私人簡報討論。輸入中的草稿不會儲存；傳送後訊息會儲存在此品牌工作室。",
     "connections": {
       "disconnected": "未連接",
       "searchConsoleTitle": "Google Search Console",
@@ -298,8 +298,10 @@
     "closeNavigation": "關閉導航",
     "sidebarLabel": "品牌工作室導航",
     "mainNavigationLabel": "主要功能",
-    "recentThreadsEmpty": "這個品牌未有討論",
-    "temporaryLabel": "暫存",
+    "recentThreadsEmpty": "這個品牌未有已儲存討論",
+    "temporaryLabel": "未儲存",
+    "loadingThreads": "正在載入已儲存討論…",
+    "saveFailed": "未能儲存此變更，重新整理後會消失。",
     "backToDashboard": "返回品牌概覽",
     "readUnavailable": "待核實：目前無法讀取已儲存紀錄，請重新載入再試。",
     "planRequired": "需要升級方案",
@@ -308,7 +310,7 @@
     "views": {
       "threads": {
         "title": "每件工作，各有脈絡",
-        "description": "討論只暫存在目前品牌工作室。離開工作室或重新整理後便會消失。",
+        "description": "討論會儲存在此品牌工作室，只有你可見，重新整理後仍會保留。輸入中的草稿不會儲存。",
         "empty": "從工作目標開始，或選一個範本開始新討論。"
       },
       "documents": {

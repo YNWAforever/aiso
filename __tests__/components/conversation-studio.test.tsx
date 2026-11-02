@@ -96,14 +96,19 @@ it.each(['en', 'zh-HK'])('renders insufficient and evidenced replies with honest
 
 it.each(['en', 'zh-HK'])('renders thread scope and brief context without invented dates or documents in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio
-  const thread = { title: 'Source goal', goal: 'Original question', kind: 'research' as const, week: '2026-10-26' }
+  const thread = { title: 'Source goal', goal: 'Original question', kind: 'research' as const, week: '2026-10-26', saveState: 'persisted' as const }
   const html = renderWithIntl(<StudioThreadHeader thread={thread} onHome={() => {}} />, lang)
   expect(html).toContain(copy.discussionEyebrow)
+  expect(html).toContain(copy.privateLabel)
+  expect(html).not.toContain(copy.temporaryLabel)
   expect(html).toContain('<h1 class="[overflow-wrap:anywhere]">Source goal</h1>')
   expect(html).toContain(copy.localeBadge)
   expect(html).toContain(copy.savedWeek.replace('{week}', thread.week))
   expect(html).not.toMatch(/28 days|產品資料|Selected documents/)
   const brief = renderWithIntl(<StudioThreadHeader thread={{ ...thread, kind: 'brief', week: null, sourceTitle: 'Source discussion' }} onHome={() => {}} />, lang)
+  const unsaved = renderWithIntl(<StudioThreadHeader thread={{ ...thread, saveState: 'failed' }} onHome={() => {}} />, lang)
+  expect(unsaved).toContain(copy.temporaryLabel)
+  expect(unsaved).not.toContain(copy.privateLabel)
   expect(brief).toContain(copy.briefEyebrow)
   expect(brief).toContain('Original question')
   expect(brief).toContain('Source discussion')
@@ -253,6 +258,14 @@ import {ConversationStudio} from '@/components/dashboard/ConversationStudio';
 import {emptyStudioEvidence,savedStudioEvidence,savedStudioScan} from '@/__tests__/helpers/studio-evidence';
 import {emptyStudioOpportunities,pendingStudioOpportunities,savedStudioOpportunities} from '@/__tests__/helpers/studio-opportunities';
 import en from '@/messages/en.json'; import zh from '@/messages/zh-HK.json';
+
+// Offline thread transport for the standalone fixture. It is deliberately
+// page-scoped so reload resets this fixture; production reload persistence is
+// covered by studio-shell-fixture, so specs must not assert reload emptiness.
+const fixtureThreads=new Map();
+const fixtureJson=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
+const fixtureFetch=window.fetch.bind(window);
+window.fetch=async(input,init={})=>{const url=typeof input==='string'?input:input.url;const match=url.match(new RegExp('/api/dashboard/clients/([^/]+)/studio/threads(?:/([^/]+))?(?:/turns)?$'));if(!match)return fixtureFetch(input,init);const method=(init.method||'GET').toUpperCase();if(!match[2]){if(method==='GET')return fixtureJson({threads:[],truncated:false});const body=JSON.parse(init.body);const now=new Date().toISOString();const created={id:crypto.randomUUID(),title:body.title,goal:body.goal,week:body.week==null?null:body.week,kind:body.kind,sourceTitle:body.sourceTitle==null?null:body.sourceTitle,turns:[],createdAt:now,updatedAt:now};fixtureThreads.set(created.id,created);return fixtureJson({thread:{...created,turnCount:0}},201)}const found=fixtureThreads.get(match[2]);if(!found)return fixtureJson({error:'NOT_FOUND'},404);if(method==='GET')return fixtureJson({thread:{...found,turnCount:found.turns.length},turns:found.turns});if(method==='POST'){const body=JSON.parse(init.body);const turn={id:crypto.randomUUID(),position:found.turns.length,prompt:body.prompt,task:body.task==null?null:body.task,reply:body.reply,attached:body.attached==null?null:body.attached,live:null,createdAt:new Date().toISOString()};found.turns.push(turn);return fixtureJson({turn},201)}if(method==='PATCH'){const body=JSON.parse(init.body);const turn=found.turns.find(item=>item.position===body.position);if(!turn)return fixtureJson({error:'NOT_FOUND'},404);turn.live=body.live;return fixtureJson({turn})}return fixtureJson({error:'INVALID_STUDIO_THREAD'},400)};
 const locale=document.documentElement.lang;
 const evidence=location.search.includes('empty=1')?emptyStudioEvidence:location.search.includes('scan=1')?{...savedStudioEvidence,scan:savedStudioScan}:savedStudioEvidence;
 const params=new URLSearchParams(location.search);
