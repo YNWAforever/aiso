@@ -12,6 +12,8 @@ import { composeSavedReply } from '@/lib/conversation-studio/reply'
 import { STUDIO_TEMPLATES } from '@/lib/conversation-studio/types'
 import { StudioEvidenceRows } from '@/components/dashboard/StudioEvidenceInspector'
 import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
+import { StudioDfsSnapshotView } from '@/components/dashboard/StudioDfsSnapshot'
+import { StudioConnections } from '@/components/dashboard/StudioSecondaryViews'
 import { StudioReplyView, StudioSavedEvidence } from '@/components/dashboard/StudioReply'
 import { StudioLiveReplyView, StudioLiveEvidence } from '@/components/dashboard/StudioLiveReply'
 
@@ -285,6 +287,57 @@ it.each(['en', 'zh-HK'])('shows honest empty, quota and unbound snapshot states 
   expect(renderWithIntl(<StudioGscSnapshotView gsc={{ error: 'STUDIO_UNAVAILABLE' }} />, lang)).toContain(copy.gsc.failed)
 })
 
+it.each(['en', 'zh-HK'])('renders the DataForSEO SERP snapshot, cap and 待核實 chrome in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const dfs = {
+    snapshot: {
+      status: 'ok' as const, locationPending: true as const, keyword: 'buy widgets',
+      locationCode: 2344, languageCode: 'zh-TW',
+      week: { weekStart: '2026-11-02', timeZone: 'Asia/Hong_Kong' as const, remaining: 19, cap: 20 },
+      items: [{ rank: 1, title: 'Example result', url: 'https://example.com/a', domain: 'example.com' }],
+    },
+  }
+  const snapshot = renderWithIntl(<StudioDfsSnapshotView dfs={dfs} />, lang)
+  expect(snapshot).toContain(copy.dfs.title)
+  expect(snapshot).toContain(copy.dfs.status.ok)
+  expect(snapshot).toContain(copy.dfs.weeklyCap.replace('{remaining}', '19').replace('{cap}', '20'))
+  expect(snapshot).toContain('2344')
+  expect(snapshot).toContain('zh-TW')
+  expect(snapshot).toContain(copy.honesty.pending)
+  expect(snapshot).toContain('buy widgets')
+  expect(snapshot).toContain('Example result')
+  expect(snapshot).not.toMatch(/\$\d/)
+
+  const capped = renderWithIntl(<StudioDfsSnapshotView dfs={{ snapshot: { ...dfs.snapshot, status: 'capped', week: { ...dfs.snapshot.week, remaining: 0 } } }} />, lang)
+  expect(capped).toContain(copy.dfs.capped)
+  expect(capped).toContain(copy.dfs.status.capped)
+  const disconnected = renderWithIntl(<StudioDfsSnapshotView dfs={{ snapshot: { status: 'disconnected', locationPending: true } }} />, lang)
+  expect(disconnected).toContain(copy.dfs.status.disconnected)
+
+  const reply = composeSavedReply('question', null, emptyStudioEvidence)
+  const withStep = renderWithIntl(<StudioReplyView id="dfs" evidence={emptyStudioEvidence} reply={reply} dfs={dfs} />, lang)
+  expect(withStep).toContain(copy.dfs.researchStep.replace('{keyword}', 'buy widgets'))
+  const rows = renderWithIntl(<StudioEvidenceRows reads={{ documents: null, searchConsole: null }} sourceStatus="bound" dfs={dfs} />, lang)
+  expect(rows).toContain(copy.dfs.title)
+  expect(rows).toContain(copy.dfs.status.ok)
+})
+
+it.each(['en', 'zh-HK'])('keeps Firecrawl disconnected while the DataForSEO switch is explicit in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const html = renderWithIntl(<StudioConnections clientId="11111111-1111-4111-8111-111111111111" connection={{
+    sourceStatus: 'bound', state: { kind: 'synced', dataThrough: '2026-10-26' },
+    dfs: { enabled: false, credentialsConfigured: false, locationCode: 2344, languageCode: 'zh-TW' },
+  }} />, lang)
+  expect(html).toContain(copy.connections.dfsDisabled)
+  expect(html).toContain(copy.connections.dfsSerpPending)
+  expect(html).toContain(copy.connections.dfsSettingsNote)
+  expect(html).toContain(copy.connections.dfsCredentialsMissing)
+  expect(html).toContain(copy.connections.dfsEnable)
+  expect(html).toContain(copy.honesty.mentionsCoverage)
+  expect(html).toContain(copy.evidence.firecrawl)
+  expect(html).toContain(copy.connections.disconnected)
+})
+
 // Real interactive production component in an offline browser fixture. This
 // never bypasses dashboard authentication or constructs SQL/Auth clients.
 afterAll(async () => {
@@ -310,7 +363,7 @@ import en from '@/messages/en.json'; import zh from '@/messages/zh-HK.json';
 const fixtureThreads=new Map();
 const fixtureJson=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
 const fixtureFetch=window.fetch.bind(window);
-window.fetch=async(input,init={})=>{const url=typeof input==='string'?input:input.url;if(url.includes('/studio/search-console'))return fixtureJson({snapshot:{status:'ok',country:'hkg',completeness:'complete',window:{startDate:'2026-10-03',endDate:'2026-10-30',timeZone:'America/Los_Angeles',lagDays:3},totals:{clicks:20,impressions:500,ctr:0.04,position:4.9},topQueries:[{query:'buy widgets',clicks:5,impressions:100}]}});const match=url.match(new RegExp('/api/dashboard/clients/([^/]+)/studio/threads(?:/([^/]+))?(?:/turns)?$'));if(!match)return fixtureFetch(input,init);const method=(init.method||'GET').toUpperCase();if(!match[2]){if(method==='GET')return fixtureJson({threads:[],truncated:false});const body=JSON.parse(init.body);const now=new Date().toISOString();const created={id:crypto.randomUUID(),title:body.title,goal:body.goal,week:body.week==null?null:body.week,kind:body.kind,sourceTitle:body.sourceTitle==null?null:body.sourceTitle,turns:[],createdAt:now,updatedAt:now};fixtureThreads.set(created.id,created);return fixtureJson({thread:{...created,turnCount:0}},201)}const found=fixtureThreads.get(match[2]);if(!found)return fixtureJson({error:'NOT_FOUND'},404);if(method==='GET')return fixtureJson({thread:{...found,turnCount:found.turns.length},turns:found.turns});if(method==='POST'){const body=JSON.parse(init.body);const turn={id:crypto.randomUUID(),position:found.turns.length,prompt:body.prompt,task:body.task==null?null:body.task,reply:body.reply,attached:body.attached==null?null:body.attached,live:null,createdAt:new Date().toISOString()};found.turns.push(turn);return fixtureJson({turn},201)}if(method==='PATCH'){const body=JSON.parse(init.body);const turn=found.turns.find(item=>item.position===body.position);if(!turn)return fixtureJson({error:'NOT_FOUND'},404);turn.live=body.live;return fixtureJson({turn})}return fixtureJson({error:'INVALID_STUDIO_THREAD'},400)};
+window.fetch=async(input,init={})=>{const url=typeof input==='string'?input:input.url;if(url.includes('/studio/dataforseo/settings'))return studioJson({enabled:true});if(url.includes('/studio/dataforseo'))return studioJson({snapshot:{status:'ok',locationPending:true,week:{weekStart:'2026-11-02',timeZone:'Asia/Hong_Kong',remaining:19,cap:20},locationCode:2344,languageCode:'zh-TW',keyword:'fixture',items:[]}});if(url.includes('/studio/search-console'))return fixtureJson({snapshot:{status:'ok',country:'hkg',completeness:'complete',window:{startDate:'2026-10-03',endDate:'2026-10-30',timeZone:'America/Los_Angeles',lagDays:3},totals:{clicks:20,impressions:500,ctr:0.04,position:4.9},topQueries:[{query:'buy widgets',clicks:5,impressions:100}]}});const match=url.match(new RegExp('/api/dashboard/clients/([^/]+)/studio/threads(?:/([^/]+))?(?:/turns)?$'));if(!match)return fixtureFetch(input,init);const method=(init.method||'GET').toUpperCase();if(!match[2]){if(method==='GET')return fixtureJson({threads:[],truncated:false});const body=JSON.parse(init.body);const now=new Date().toISOString();const created={id:crypto.randomUUID(),title:body.title,goal:body.goal,week:body.week==null?null:body.week,kind:body.kind,sourceTitle:body.sourceTitle==null?null:body.sourceTitle,turns:[],createdAt:now,updatedAt:now};fixtureThreads.set(created.id,created);return fixtureJson({thread:{...created,turnCount:0}},201)}const found=fixtureThreads.get(match[2]);if(!found)return fixtureJson({error:'NOT_FOUND'},404);if(method==='GET')return fixtureJson({thread:{...found,turnCount:found.turns.length},turns:found.turns});if(method==='POST'){const body=JSON.parse(init.body);const turn={id:crypto.randomUUID(),position:found.turns.length,prompt:body.prompt,task:body.task==null?null:body.task,reply:body.reply,attached:body.attached==null?null:body.attached,live:null,createdAt:new Date().toISOString()};found.turns.push(turn);return fixtureJson({turn},201)}if(method==='PATCH'){const body=JSON.parse(init.body);const turn=found.turns.find(item=>item.position===body.position);if(!turn)return fixtureJson({error:'NOT_FOUND'},404);turn.live=body.live;return fixtureJson({turn})}return fixtureJson({error:'INVALID_STUDIO_THREAD'},400)};
 const locale=document.documentElement.lang;
 const evidence=location.search.includes('empty=1')?emptyStudioEvidence:location.search.includes('scan=1')?{...savedStudioEvidence,scan:savedStudioScan}:savedStudioEvidence;
 const params=new URLSearchParams(location.search);
