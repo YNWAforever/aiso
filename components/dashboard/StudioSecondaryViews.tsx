@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ArrowUpRight, FileText, Lock, MessageSquare, Unplug } from 'lucide-react'
 import { useStudioSession } from '@/components/dashboard/StudioSession'
 import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
-import type { StudioConnection, StudioOutputs } from '@/lib/conversation-studio/secondary'
+import type { StudioConnection, StudioDriveConnection, StudioOutputs } from '@/lib/conversation-studio/secondary'
 import type { StudioDfsBrandSettings } from '@/lib/conversation-studio/dfs-query'
 import type { StudioFirecrawlBrandSettings } from '@/lib/conversation-studio/firecrawl-query'
 import { buildStudioTools } from '@/lib/conversation-studio/navigation'
@@ -110,7 +110,43 @@ function FirecrawlSettings({ clientId, settings }: { clientId: string; settings:
   </section>
 }
 
-export function StudioConnections({ clientId, connection }: { clientId: string; connection: StudioConnection }) {
+export type StudioDriveNotice = 'connected' | 'failed' | 'scope'
+
+/** The member's own Drive for the act/edit path. Connecting is their own account, not a vendor purchase. */
+function DriveConnectionCard({ clientId, drive, notice }: { clientId: string; drive: StudioDriveConnection; notice?: StudioDriveNotice }) {
+  const t = useTranslations('conversationStudio')
+  const lang = useLocale()
+  const [status, setStatus] = useState(drive.status)
+  const [state, setState] = useState<'idle' | 'saving' | 'error' | 'removeInGoogle'>('idle')
+  const returnPath = `/${lang}/dashboard/${clientId}/studio/connections`
+  const connectHref = `/api/integrations/google/drive/start?return=${encodeURIComponent(returnPath)}`
+  async function disconnect() {
+    if (state === 'saving') return
+    setState('saving')
+    try {
+      const response = await fetch('/api/account/integrations/google-drive', { method: 'DELETE', cache: 'no-store' })
+      const data = await response.json().catch(() => null) as { googleRevoked?: boolean } | null
+      if (!response.ok) { setState('error'); return }
+      setStatus('disconnected')
+      setState(data?.googleRevoked === false ? 'removeInGoogle' : 'idle')
+    } catch { setState('error') }
+  }
+  return <section className="as-card space-y-3" aria-labelledby="studio-drive-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-drive-title">{t('connections.driveTitle')}</h2>
+    {notice === 'connected' && <p role="status" className="as-note">{t('connections.driveNoticeConnected')}</p>}
+    {(notice === 'failed' || notice === 'scope') && <p role="alert" className="as-note">{t(notice === 'scope' ? 'connections.driveNoticeScope' : 'connections.driveNoticeFailed')}</p>}
+    <p className="as-badge">{status === 'active'
+      ? (drive.googleEmail ? t('connections.driveConnectedAs', { email: drive.googleEmail }) : t('connections.driveConnected'))
+      : status === 'needs_reconnect' ? t('connections.driveReconnectNeeded') : t('connections.disconnected')}</p>
+    <p className="as-muted">{t('connections.driveScope')}</p>
+    {status === 'active'
+      ? <button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={disconnect}>{t('connections.driveDisconnect')}</button>
+      : <a href={connectHref} className="as-button inline-flex items-center gap-2 px-3">{t(status === 'needs_reconnect' ? 'connections.driveReconnect' : 'connections.driveConnect')}</a>}
+    {state === 'error' && <p role="alert" className="as-note">{t('connections.driveDisconnectError')}</p>}
+    {state === 'removeInGoogle' && <p role="status" className="as-note">{t('connections.driveRemoveInGoogle')}</p>}
+  </section>
+}
+
+export function StudioConnections({ clientId, connection, driveNotice }: { clientId: string; connection: StudioConnection; driveNotice?: StudioDriveNotice }) {
   const t = useTranslations('conversationStudio')
   const lang = useLocale()
   const state = connection.state
@@ -129,6 +165,7 @@ export function StudioConnections({ clientId, connection }: { clientId: string; 
       {connection.firecrawl
         ? <FirecrawlSettings clientId={clientId} settings={connection.firecrawl} />
         : <section className="as-card space-y-3" aria-labelledby="studio-firecrawl-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-firecrawl-title">{t('evidence.firecrawl')}</h2><p className="as-badge">{t('connections.disconnected')}</p><p className="as-muted">{t('connections.firecrawlScope')}</p></section>}
+      {connection.drive && <DriveConnectionCard clientId={clientId} drive={connection.drive} notice={driveNotice} />}
     </div>
   </main>
 }

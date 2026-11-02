@@ -5,7 +5,8 @@ export type DriveConnectionStatus = 'active' | 'needs_reconnect' | 'revoked'
 
 /** What a member may see about their own connection. Never the token. */
 export type DriveConnectionSummary = {
-  status: DriveConnectionStatus
+  /** A revoked row is reported as no connection (null), never as a status. */
+  status: Exclude<DriveConnectionStatus, 'revoked'>
   googleEmail: string | null
 }
 
@@ -46,7 +47,7 @@ export async function loadDriveConnection(accountId: string, profileId: string):
   `
   const row = rows[0]
   if (!row || row.status === 'revoked') return null
-  return { status: row.status as DriveConnectionStatus, googleEmail: (row.google_email as string | null) ?? null }
+  return { status: row.status as DriveConnectionSummary['status'], googleEmail: (row.google_email as string | null) ?? null }
 }
 
 export async function loadDriveSecret(accountId: string, profileId: string): Promise<SealedToken | null> {

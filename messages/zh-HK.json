@@ -383,7 +383,20 @@
       "firecrawlEnabled": "此品牌已啟用",
       "firecrawlDisabled": "此品牌未啟用",
       "firecrawlSettingsSaved": "已儲存設定。",
-      "firecrawlSettingsError": "未能儲存此設定，請再試一次。"
+      "firecrawlSettingsError": "未能儲存此設定，請再試一次。",
+      "driveTitle": "Google Drive",
+      "driveConnectedAs": "已連接：{email}",
+      "driveConnected": "已連接",
+      "driveReconnectNeeded": "需要重新連接",
+      "driveScope": "Fimmick AISO 只能開啟它在你的 Drive 建立的檔案。",
+      "driveConnect": "連接 Google Drive",
+      "driveReconnect": "重新連接",
+      "driveDisconnect": "中斷連接",
+      "driveDisconnectError": "未能中斷連接，請再試一次。",
+      "driveRemoveInGoogle": "請同時在 Google 帳戶設定中移除 Fimmick AISO。",
+      "driveNoticeConnected": "已連接 Google Drive。",
+      "driveNoticeFailed": "未能連接 Google Drive。",
+      "driveNoticeScope": "請允許存取 Fimmick AISO 建立的檔案，然後再試。"
     },
     "nav": {
       "documents": "文件與成果",

@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), sql: vi.fn(), documents: vi.fn(), work: vi.fn(), binding: vi.fn(), panel: vi.fn(), brands: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), sql: vi.fn(), documents: vi.fn(), work: vi.fn(), binding: vi.fn(), panel: vi.fn(), brands: vi.fn(), drive: vi.fn() }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth }))
 vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
@@ -8,6 +8,7 @@ vi.mock('@/lib/conversation-studio/inspector', () => ({ loadStudioDocuments: moc
 vi.mock('@/lib/work-items/service', () => ({ listAuthenticatedDrafts: mocks.work }))
 vi.mock('@/lib/integrations/search-console/store', () => ({ loadBinding: mocks.binding, loadPanelData: mocks.panel }))
 vi.mock('@/lib/workspace/list-owned-brands', () => ({ listOwnedBrands: mocks.brands }))
+vi.mock('@/lib/integrations/google-drive/store', () => ({ loadDriveConnection: mocks.drive }))
 vi.mock('next/navigation', () => ({ redirect: (href: string) => { throw Error(`REDIRECT:${href}`) }, notFound: () => { throw Error('NOT_FOUND') } }))
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 import { requireStudioBrand, loadStudioOutputs, loadStudioConnection } from '@/lib/conversation-studio/secondary'
@@ -23,12 +24,13 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
   vi.stubEnv('FEATURE_SEARCH_CONSOLE', '1')
-  mocks.auth.mockResolvedValue({ account_id: 'account-a', accounts: { override_plan: 'pro' } })
+  mocks.auth.mockResolvedValue({ id: 'profile-a', account_id: 'account-a', accounts: { override_plan: 'pro' } })
   mocks.sql.mockResolvedValue([{ id: clientId, brand_name: 'Owned Brand' }])
   mocks.documents.mockResolvedValue({ items: [], truncated: false })
   mocks.work.mockResolvedValue({ items: [], nextCursor: null })
   mocks.binding.mockResolvedValue(null)
   mocks.brands.mockResolvedValue([{ id: clientId, name: 'Owned Brand' }])
+  mocks.drive.mockResolvedValue(null)
 })
 afterEach(() => vi.unstubAllEnvs())
 
@@ -53,6 +55,7 @@ it.each([ThreadsPage, DocumentsPage, ConnectionsPage, ToolsPage])('treats failed
   mocks.sql.mockRejectedValueOnce(Error('DB_UNAVAILABLE'))
   await expect(Page({ params })).rejects.toThrow('DB_UNAVAILABLE')
   expect(mocks.work).not.toHaveBeenCalled()
+  expect(mocks.drive).not.toHaveBeenCalled()
   expect(mocks.documents).not.toHaveBeenCalled()
   expect(mocks.binding).not.toHaveBeenCalled()
 })
@@ -69,6 +72,7 @@ it.each([ThreadsPage, DocumentsPage, ConnectionsPage, ToolsPage])('denies foreig
   mocks.sql.mockResolvedValue([])
   await expect(Page({ params })).rejects.toThrow('NOT_FOUND')
   expect(mocks.work).not.toHaveBeenCalled()
+  expect(mocks.drive).not.toHaveBeenCalled()
   expect(mocks.documents).not.toHaveBeenCalled()
   expect(mocks.binding).not.toHaveBeenCalled()
 })
@@ -99,16 +103,33 @@ it('reads saved GSC state with session account and never exposes binding/metrics
   mocks.panel.mockResolvedValue({ latest: { outcome: 'ok', dataThrough: '2026-10-26', ranAt: '2026-10-28T00:00:00Z' }, lastGoodDataThrough: '2026-10-26', clicks: 888 })
   const dfs = { enabled: false, credentialsConfigured: false, locationCode: 2344, languageCode: 'zh-TW' }
   const firecrawl = { enabled: false, keyConfigured: false }
-  expect(await loadStudioConnection(profile, clientId)).toEqual({ sourceStatus: 'bound', state: { kind: 'synced', dataThrough: '2026-10-26' }, dfs, firecrawl })
+  const drive = { status: 'disconnected', googleEmail: null }
+  expect(await loadStudioConnection(profile, clientId)).toEqual({ sourceStatus: 'bound', state: { kind: 'synced', dataThrough: '2026-10-26' }, dfs, firecrawl, drive })
   expect(mocks.binding).toHaveBeenCalledWith('account-a', clientId)
   expect(mocks.panel).toHaveBeenCalledWith('account-a', clientId)
   mocks.panel.mockRejectedValueOnce(Error('private-error'))
-  expect(await loadStudioConnection(profile, clientId)).toEqual({ sourceStatus: 'bound', state: null, dfs, firecrawl })
+  expect(await loadStudioConnection(profile, clientId)).toEqual({ sourceStatus: 'bound', state: null, dfs, firecrawl, drive })
   vi.stubEnv('FEATURE_SEARCH_CONSOLE', '0')
   mocks.binding.mockClear()
-  expect(await loadStudioConnection(profile, clientId)).toEqual({ sourceStatus: 'unavailable', state: null, dfs, firecrawl })
+  expect(await loadStudioConnection(profile, clientId)).toEqual({ sourceStatus: 'unavailable', state: null, dfs, firecrawl, drive })
   expect(mocks.binding).not.toHaveBeenCalled()
   vi.stubEnv('FEATURE_SEARCH_CONSOLE', '1')
   expect(await loadStudioConnection({ ...profile, accounts: { plan: 'free' } }, clientId)).toEqual({ sourceStatus: 'unavailable', state: null, dfs, firecrawl })
   expect(mocks.binding).not.toHaveBeenCalled()
+  // The member's own Drive only, by account AND profile; a failed read shows no card.
+  expect(mocks.drive).toHaveBeenCalledWith('account-a', 'profile-a')
+  mocks.drive.mockResolvedValueOnce({ status: 'needs_reconnect', googleEmail: 'member@example.com' })
+  expect((await loadStudioConnection(profile, clientId)).drive).toEqual({ status: 'needs_reconnect', googleEmail: 'member@example.com' })
+  mocks.drive.mockRejectedValueOnce(Error('relation does not exist'))
+  expect((await loadStudioConnection(profile, clientId)).drive).toBeUndefined()
+})
+
+it('maps the Google callback query to a closed Drive notice vocabulary', async () => {
+  const notice = async (search: Record<string, string>) =>
+    ((await ConnectionsPage({ params, searchParams: Promise.resolve(search) })) as { props: { driveNotice?: string } }).props.driveNotice
+  expect(await notice({ drive: 'connected' })).toBe('connected')
+  expect(await notice({ drive: 'error', reason: 'scope_missing' })).toBe('scope')
+  expect(await notice({ drive: 'error', reason: 'denied' })).toBe('failed')
+  expect(await notice({ drive: '<script>' })).toBeUndefined()
+  expect(await notice({})).toBeUndefined()
 })

@@ -166,8 +166,8 @@ Recommended: a **separate table**, so Search Console code and `054` stay untouch
 
 ## 7. Slicing (default: two PRs)
 
-1. **Connect:** migration `084` (both tables), OAuth start + callback dispatch, disconnect, the connections card, and tests.
-2. **Save to Google Docs:** the export route, the document builder, the turn action, ledger writes, and tests.
+1. **Connect:** migration `084` (the connections table only; built in PR 1, so the export ledger moves to PR 2 as `085`), OAuth start + callback dispatch, disconnect, the connections card, and tests.
+2. **Save to Google Docs:** migration `085` (`studio_drive_exports` ledger), the export route, the document builder, the turn action, ledger writes, and tests.
 
 Each PR: draft, `vercel.json` +1 for its branch if it's a new branch name, a Ready packet for Willy.
 

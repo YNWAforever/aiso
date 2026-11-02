@@ -330,3 +330,22 @@ Removed: `dfs.location`, `dfs.language` (they printed vendor codes such as
 `connections.firecrawlKeyMissing` (the card shows the existing 未連接 badge
 instead). `guardrails.test.ts` fails if a vendor name, or vendor/Preview/
 credential wording in the evidence-backend keys, comes back.
+
+## Post–Stage 6 — Google Drive connection (act/edit path)
+
+Keys live in `conversationStudio.connections.drive*`. The card is the member's
+own Google account (allowed; it is not a vendor purchase). It appears only when
+the connection read succeeds.
+
+| Key | zh-HK | English |
+| --- | --- | --- |
+| `driveTitle` | Google Drive | Google Drive |
+| `driveConnectedAs` / `driveConnected` | 已連接：{email} / 已連接 | Connected: {email} / Connected |
+| `driveReconnectNeeded` | 需要重新連接 | Reconnect needed |
+| `driveScope` | Fimmick AISO 只能開啟它在你的 Drive 建立的檔案。 | Fimmick AISO can only open files it creates in your Drive. |
+| `driveConnect` / `driveReconnect` / `driveDisconnect` | 連接 Google Drive / 重新連接 / 中斷連接 | Connect Google Drive / Reconnect / Disconnect |
+| `driveDisconnectError` | 未能中斷連接，請再試一次。 | Could not disconnect. Please try again. |
+| `driveRemoveInGoogle` | 請同時在 Google 帳戶設定中移除 Fimmick AISO。 | Also remove Fimmick AISO in your Google Account settings. |
+| `driveNoticeConnected` / `driveNoticeFailed` / `driveNoticeScope` | 已連接 Google Drive。 / 未能連接 Google Drive。 / 請允許存取 Fimmick AISO 建立的檔案，然後再試。 | Google Drive connected. / Google Drive was not connected. / Allow access to files Fimmick AISO creates, then try again. |
+
+Disconnected reuses `connections.disconnected` (未連接).
