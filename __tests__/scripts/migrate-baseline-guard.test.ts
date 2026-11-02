@@ -147,6 +147,8 @@ function allRelations() {
     'studio_threads','studio_thread_turns',
     // 082: Stage 6e DataForSEO weekly quota and per-brand switch; authored only.
     'studio_dataforseo_weekly_usage','studio_dataforseo_brand_settings',
+    // 083: Stage 6f Firecrawl per-brand switch; authored only.
+    'studio_firecrawl_brand_settings',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
