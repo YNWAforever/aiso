@@ -51,5 +51,11 @@ begin
   if to_regrole('service_role') is not null then
     execute 'revoke all on public.google_drive_connections from service_role';
   end if;
+  -- As 054's google_connections: the app reads, inserts and updates (revoke
+  -- nulls the credential, keeping the row), and never deletes.
+  if to_regrole('aeo_app') is not null then
+    execute 'revoke all on public.google_drive_connections from aeo_app';
+    execute 'grant select, insert, update on public.google_drive_connections to aeo_app';
+  end if;
 end
 $acl$;
