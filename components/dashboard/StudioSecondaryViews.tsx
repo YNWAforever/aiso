@@ -2,11 +2,13 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowUpRight, FileText, Lock, MessageSquare, Unplug } from 'lucide-react'
 import { useStudioSession } from '@/components/dashboard/StudioSession'
 import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
 import type { StudioConnection, StudioOutputs } from '@/lib/conversation-studio/secondary'
+import type { StudioDfsBrandSettings } from '@/lib/conversation-studio/dfs-query'
 import { buildStudioTools } from '@/lib/conversation-studio/navigation'
 import type { NavFeatures } from '@/lib/dashboard-nav'
 
@@ -51,6 +53,35 @@ export function StudioDocuments({ clientId, documents, outputs }: { clientId: st
   </main>
 }
 
+function DfsSettings({ clientId, settings }: { clientId: string; settings: StudioDfsBrandSettings }) {
+  const t = useTranslations('conversationStudio')
+  const [enabled, setEnabled] = useState(settings.enabled)
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  async function toggle() {
+    if (state === 'saving') return
+    setState('saving')
+    try {
+      const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId)}/studio/dataforseo/settings`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+        body: JSON.stringify({ enabled: !enabled }),
+      })
+      if (!response.ok) { setState('error'); return }
+      setEnabled(!enabled)
+      setState('saved')
+    } catch { setState('error') }
+  }
+  return <section className="as-card space-y-3" aria-labelledby="studio-dfs-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-dfs-title">{t('evidence.dataForSeo')}</h2>
+    <p className="as-badge">{t(enabled ? 'connections.dfsEnabled' : 'connections.dfsDisabled')}</p>
+    <p className="as-badge as-pending">{t('connections.dfsSerpPending')}</p>
+    {!settings.credentialsConfigured && <p className="as-note">{t('connections.dfsCredentialsMissing')}</p>}
+    <p className="as-muted">{t('connections.dfsSettingsNote')}</p>
+    <button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={toggle}>{t(enabled ? 'connections.dfsDisable' : 'connections.dfsEnable')}</button>
+    {state === 'saved' && <p className="as-note">{t('connections.dfsSettingsSaved')}</p>}
+    {state === 'error' && <p role="alert" className="as-note">{t('connections.dfsSettingsError')}</p>}
+    <p className="as-muted">{t('honesty.mentionsCoverage')}</p>
+  </section>
+}
+
 export function StudioConnections({ clientId, connection }: { clientId: string; connection: StudioConnection }) {
   const t = useTranslations('conversationStudio')
   const lang = useLocale()
@@ -64,7 +95,9 @@ export function StudioConnections({ clientId, connection }: { clientId: string; 
         <p className="as-muted">{t('connections.completenessPending')}</p><p className="as-note">{t('connections.savedOnly')}</p>
         <Link href={`/${lang}/dashboard/${clientId}/assets`} className="as-button inline-flex items-center gap-2 px-3">{t('connections.viewScope')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link>
       </section>
-      <section className="as-card space-y-3" aria-labelledby="studio-dfs-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-dfs-title">{t('evidence.dataForSeo')}</h2><p className="as-badge as-pending">{t('connections.hkEndpointPending')}</p><p>{t('connections.disconnected')}</p><p className="as-muted">{t('honesty.mentionsCoverage')}</p></section>
+      {connection.dfs
+        ? <DfsSettings clientId={clientId} settings={connection.dfs} />
+        : <section className="as-card space-y-3" aria-labelledby="studio-dfs-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-dfs-title">{t('evidence.dataForSeo')}</h2><p className="as-badge as-pending">{t('connections.hkEndpointPending')}</p><p>{t('connections.disconnected')}</p><p className="as-muted">{t('honesty.mentionsCoverage')}</p></section>}
       <section className="as-card space-y-3" aria-labelledby="studio-firecrawl-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-firecrawl-title">{t('evidence.firecrawl')}</h2><p className="as-badge">{t('connections.disconnected')}</p><p className="as-muted">{t('connections.firecrawlScope')}</p></section>
     </div>
   </main>

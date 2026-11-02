@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import type { StudioReply } from '@/lib/conversation-studio/types'
 import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
+import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 import { appendStudioTurn, createStudioThread, fetchStudioThread, fetchStudioThreads, finalizeStudioTurn } from '@/lib/conversation-studio/threads-client'
 import type {
@@ -22,6 +23,7 @@ export type StudioTurn = {
   attached?: { label: string; versionNumber: number }
   live?: { pending?: boolean; reply?: StudioLiveReply; error?: string }
   gsc?: StudioGscRead
+  dfs?: StudioDfsRead
   serverId?: string
   position?: number
   saveState?: 'saved' | 'failed'

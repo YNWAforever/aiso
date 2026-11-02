@@ -145,6 +145,8 @@ function allRelations() {
     'studio_live_weekly_usage',
     // 081: private Studio threads; synthetic inventory, not hosted-migration proof.
     'studio_threads','studio_thread_turns',
+    // 082: Stage 6e DataForSEO weekly quota and per-brand switch; authored only.
+    'studio_dataforseo_weekly_usage','studio_dataforseo_brand_settings',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

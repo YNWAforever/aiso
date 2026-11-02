@@ -244,3 +244,26 @@ Keep the country and Pacific calendar visible in the snapshot chrome. Saved Neon
 sync figures are property-wide; never label them as Hong Kong metrics. If LIVE
 and GSC copy both change later, the rule remains: a query step appears only when
 that turn actually queried the connector.
+
+## Stage 6e — DataForSEO Live SERP keys
+
+Stage 6e additions live in `conversationStudio.dfs.*` and
+`conversationStudio.connections.dfs*`. They describe one on-demand Live Google
+Organic SERP Advanced call per turn, a per-brand 20-call Hong Kong-week cap, and
+a per-brand switch that defaults OFF. The geo/language pair remains **待核實**
+(`locationPending: true`). Do not add Mentions HK scores or dollar amounts.
+
+| zh-HK copy | Key | English draft |
+| --- | --- | --- |
+| DataForSEO · Google 自然搜尋 SERP | `conversationStudio.dfs.title` | DataForSEO · Google Organic SERP |
+| 正在查詢本次 DataForSEO 資料… | `conversationStudio.dfs.pending` | Checking DataForSEO for this turn… |
+| 本次未能查詢 DataForSEO。 | `conversationStudio.dfs.failed` | DataForSEO could not be checked this turn. |
+| 此品牌本週剩餘呼叫：{remaining}／{cap}（香港週）。 | `conversationStudio.dfs.weeklyCap` | Weekly calls left for this brand: {remaining} of {cap} (Hong Kong week). |
+| 此品牌本週 DataForSEO 額度已滿，未有呼叫供應商。 | `conversationStudio.dfs.capped` | This brand’s weekly DataForSEO cap is used up. No vendor call ran. |
+| 此關鍵字未有自然搜尋結果。缺失不等於零。 | `conversationStudio.dfs.empty` | No organic results for this keyword. Missing is not zero. |
+| 本次已查詢 / 未有自然搜尋結果 / 本週額滿 / 此品牌未啟用 / 未連接 / 待核實 | `conversationStudio.dfs.status.*` | Checked / No organic results / Weekly cap reached / Off for this brand / Not connected / Pending verification |
+| 已查詢 DataForSEO Google 自然搜尋 SERP：「{keyword}」（深度 10，香港週）。 | `conversationStudio.dfs.researchStep` | Checked DataForSEO Google Organic SERP for “{keyword}” (depth 10, Hong Kong week). |
+| 香港／繁中 SERP 支援待核實 | `conversationStudio.connections.dfsSerpPending` | Hong Kong / Traditional Chinese SERP support pending verification |
+| 預設關閉。每回合最多一次…每個品牌每個香港週最多 20 次。 | `conversationStudio.connections.dfsSettingsNote` | Off by default. At most one … call per turn and 20 per brand per Hong Kong week. |
+| 為此品牌啟用 / 為此品牌關閉 | `conversationStudio.connections.dfsEnable` / `dfsDisable` | Enable for this brand / Turn off for this brand |
+| Preview 憑證未設定 | `conversationStudio.connections.dfsCredentialsMissing` | Preview credentials are not configured |
