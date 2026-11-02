@@ -3,7 +3,8 @@ import { appOrigin } from '@/lib/app-origin'
 import { authorizeSearchConsoleAccount } from '@/lib/integrations/search-console/guard'
 import { upsertConnection } from '@/lib/integrations/search-console/store'
 import { sealToken, VaultError } from '@/lib/integrations/google/vault'
-import { GOOGLE_CONSENT_COOKIE, verifyConsentState } from '@/lib/integrations/google/consent-state'
+import { GOOGLE_CONSENT_COOKIE, GOOGLE_DRIVE_CONSENT_COOKIE, verifyConsentState } from '@/lib/integrations/google/consent-state'
+import { finishDriveConsent } from '@/lib/integrations/google-drive/callback'
 import type { ConsentErrorReason as Reason } from '@/lib/integrations/google/consent-reasons'
 import {
   GoogleApiError, SEARCH_CONSOLE_SCOPE, exchangeCode, googleOAuthConfig, type TokenGrant,
@@ -21,6 +22,13 @@ const ERROR_CODE_RE = /^[a-z_]{1,64}$/
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const origin = appOrigin().replace(/\/$/, '')
+  // Drive consent shares this registered redirect URI. Hand off only when the
+  // Drive-signed cookie verifies AND its state is the one Google returned;
+  // anything else falls through to the unchanged Search Console path below.
+  const driveConsent = verifyConsentState(req.cookies.get(GOOGLE_DRIVE_CONSENT_COOKIE)?.value, Date.now(), 'drive')
+  if (driveConsent && req.nextUrl.searchParams.get('state') === driveConsent.state) {
+    return finishDriveConsent(req, driveConsent, origin)
+  }
   const consent = verifyConsentState(req.cookies.get(GOOGLE_CONSENT_COOKIE)?.value)
   const back = (reason: Reason | null) => {
     const path = consent?.returnPath ?? '/en/dashboard/settings'

@@ -12,6 +12,8 @@ import { createHash, randomBytes } from 'node:crypto'
  */
 
 export const SEARCH_CONSOLE_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly'
+/** Post–Stage 6 act/edit path: only files this app creates. Never a broader Drive scope. */
+export const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
 export const CALLBACK_PATH = '/api/integrations/google/callback'
 export const GOOGLE_TIMEOUT_MS = 10_000
 
@@ -59,13 +61,16 @@ export function randomState(): string {
   return randomBytes(32).toString('base64url')
 }
 
-export function buildConsentUrl(cfg: GoogleOAuthConfig, input: { state: string; challenge: string }): string {
+export function buildConsentUrl(
+  cfg: GoogleOAuthConfig,
+  input: { state: string; challenge: string; scope?: typeof SEARCH_CONSOLE_SCOPE | typeof DRIVE_FILE_SCOPE },
+): string {
   const url = new URL(AUTH_URL)
   url.search = new URLSearchParams({
     client_id: cfg.clientId,
     redirect_uri: cfg.redirectUri,
     response_type: 'code',
-    scope: `openid email ${SEARCH_CONSOLE_SCOPE}`,
+    scope: `openid email ${input.scope ?? SEARCH_CONSOLE_SCOPE}`,
     access_type: 'offline',
     prompt: 'consent',
     include_granted_scopes: 'false',

@@ -405,6 +405,38 @@ it.each(['en', 'zh-HK'])('shows the default-OFF Firecrawl brand switch in %s', l
   expect(disconnectedCount(on)).toBe(disconnectedCount(html) - 1)
 })
 
+it.each(['en', 'zh-HK'])('shows the member’s own Google Drive card for the act/edit path in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const base = { sourceStatus: 'bound' as const, state: null }
+  const clientId = '11111111-1111-4111-8111-111111111111'
+  const off = renderWithIntl(<StudioConnections clientId={clientId} connection={{ ...base, drive: { status: 'disconnected', googleEmail: null } }} />, lang)
+  expect(off).toContain(copy.connections.driveTitle)
+  expect(off).toContain(copy.connections.driveScope)
+  expect(off).toContain(copy.connections.driveConnect)
+  const returnPath = encodeURIComponent(`/${lang}/dashboard/${clientId}/studio/connections`)
+  expect(off).toContain(`href="/api/integrations/google/drive/start?return=${returnPath}"`)
+  expect(off).not.toContain(copy.connections.driveDisconnect)
+
+  const on = renderWithIntl(<StudioConnections clientId={clientId} connection={{ ...base, drive: { status: 'active', googleEmail: 'member@example.com' } }} />, lang)
+  expect(on).toContain(copy.connections.driveConnectedAs.replace('{email}', 'member@example.com'))
+  expect(on).toContain(copy.connections.driveDisconnect)
+  expect(on).not.toContain('/api/integrations/google/drive/start')
+
+  const stale = renderWithIntl(<StudioConnections clientId={clientId} connection={{ ...base, drive: { status: 'needs_reconnect', googleEmail: 'member@example.com' } }} />, lang)
+  expect(stale).toContain(copy.connections.driveReconnectNeeded)
+  expect(stale).toContain(copy.connections.driveReconnect)
+
+  const drive = { status: 'disconnected' as const, googleEmail: null }
+  expect(renderWithIntl(<StudioConnections clientId={clientId} connection={{ ...base, drive }} driveNotice="connected" />, lang)).toContain(copy.connections.driveNoticeConnected)
+  expect(renderWithIntl(<StudioConnections clientId={clientId} connection={{ ...base, drive }} driveNotice="failed" />, lang)).toContain(copy.connections.driveNoticeFailed)
+  expect(renderWithIntl(<StudioConnections clientId={clientId} connection={{ ...base, drive }} driveNotice="scope" />, lang)).toContain(copy.connections.driveNoticeScope)
+
+  // An unknown read (no drive field) shows no card rather than a false 未連接.
+  const unknown = renderWithIntl(<StudioConnections clientId={clientId} connection={base} />, lang)
+  expect(unknown).not.toContain(copy.connections.driveTitle)
+  expect(off + on).not.toMatch(/DataForSEO|Firecrawl|\$\d/)
+})
+
 // Real interactive production component in an offline browser fixture. This
 // never bypasses dashboard authentication or constructs SQL/Auth clients.
 afterAll(async () => {

@@ -383,7 +383,20 @@
       "firecrawlEnabled": "Enabled for this brand",
       "firecrawlDisabled": "Off for this brand",
       "firecrawlSettingsSaved": "Setting saved.",
-      "firecrawlSettingsError": "Could not save this setting. Please try again."
+      "firecrawlSettingsError": "Could not save this setting. Please try again.",
+      "driveTitle": "Google Drive",
+      "driveConnectedAs": "Connected: {email}",
+      "driveConnected": "Connected",
+      "driveReconnectNeeded": "Reconnect needed",
+      "driveScope": "Fimmick AISO can only open files it creates in your Drive.",
+      "driveConnect": "Connect Google Drive",
+      "driveReconnect": "Reconnect",
+      "driveDisconnect": "Disconnect",
+      "driveDisconnectError": "Could not disconnect. Please try again.",
+      "driveRemoveInGoogle": "Also remove Fimmick AISO in your Google Account settings.",
+      "driveNoticeConnected": "Google Drive connected.",
+      "driveNoticeFailed": "Google Drive was not connected.",
+      "driveNoticeScope": "Allow access to files Fimmick AISO creates, then try again."
     },
     "nav": {
       "documents": "Documents & outputs",
