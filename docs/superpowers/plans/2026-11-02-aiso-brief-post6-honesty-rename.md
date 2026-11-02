@@ -49,7 +49,7 @@ Inventory taken from `messages/en.json` and `messages/zh-HK.json` at `8dd3a21e`.
 | Key | Now (en / zh) | Proposed (en / zh) | Rule |
 | --- | --- | --- | --- |
 | `conversationStudio.evidence.dataForSeo` | DataForSEO / DataForSEO | Search results (in plan) / 搜尋結果（計劃內） | Locked label |
-| `conversationStudio.evidence.firecrawl` | Firecrawl / Firecrawl | Public page fetch (in plan) / 公開頁擷取（計劃內） | Locked label |
+| `conversationStudio.evidence.firecrawl` | Firecrawl / Firecrawl | Public page retrieval (in plan) / 公開頁擷取（計劃內） | Locked label |
 
 ### 3.2 DataForSEO turn snapshot — `conversationStudio.dfs.*`
 

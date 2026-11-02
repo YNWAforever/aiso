@@ -152,3 +152,5 @@ values are committed and no Vercel env is written by this PR.
 - New Studio nav / parallel DFS page / default-home flip.
 - 6a/6b/6c schema changes, 6g LIVE quota semantics, 6h beyond display fold-in.
 - CloudAgent; merge; logging Basic credentials.
+
+> **Post–Stage 6:** operator copy for this slice was renamed to plan-generic names with no vendor names — see `docs/ux/conversation-studio-honesty-rename.md`. Vendor names in this ops doc are intentional.

@@ -296,3 +296,37 @@ Changed in 6f: `conversationStudio.evidence.liveLimit` and
 `conversationStudio.live.savedScope` no longer say Firecrawl is never queried.
 They now say a Firecrawl public page appears only when a turn fetched one; the
 DataForSEO Mentions US/EN honesty is unchanged.
+
+## Post–Stage 6 — operator honesty rename (vendor opacity)
+
+Locked by Willy answering **t223s832**: operators must not see or buy the
+evidence vendors. Operator copy now uses plan-generic names; ops/eng docs (this
+file included) may keep vendor names. Key paths are unchanged on purpose (Willy,
+2026-11-02). This section supersedes the 6e/6f rows above for operator copy.
+
+| Key | zh-HK | English |
+| --- | --- | --- |
+| `conversationStudio.evidence.dataForSeo` | 搜尋結果（計劃內） | Search results (in plan) |
+| `conversationStudio.evidence.firecrawl` | 公開頁擷取（計劃內） | Public page retrieval (in plan) |
+| `conversationStudio.dfs.title` | 搜尋結果 · Google 自然搜尋 | Search results · Google organic |
+| `conversationStudio.dfs.pending` | 正在查詢本次搜尋結果… | Checking search results for this turn… |
+| `conversationStudio.dfs.failed` | 本次未能查詢搜尋結果。 | Search results could not be checked this turn. |
+| `conversationStudio.dfs.weeklyCap` | 此品牌本週計劃內剩餘查詢：{remaining}／{cap}（香港週）。 | Searches left in your plan for this brand this week: {remaining} of {cap} (Hong Kong week). |
+| `conversationStudio.dfs.capped` | 此品牌本週計劃內的查詢額度已用完，本次未有查詢。 | This brand’s weekly search allowance in your plan is used up. Nothing was checked. |
+| `conversationStudio.dfs.researchStep` | 已查詢 Google 自然搜尋結果：「{keyword}」（前 10 名，香港週）。 | Checked Google organic results for “{keyword}” (top 10, Hong Kong week). |
+| `conversationStudio.dfs.market` (new; replaces `location` / `language`) | 香港 · 繁中 | Hong Kong · Traditional Chinese |
+| `conversationStudio.dfs.status.payment`, `firecrawl.status.payment` | 暫時無法使用 | Unavailable right now |
+| `conversationStudio.dfs.status.rate_limit`, `firecrawl.status.rate_limit` | 請求過多，請稍後再試。 | Too many requests. Try again shortly. |
+| `conversationStudio.firecrawl.title` | 公開頁擷取 · 頁面內容 | Public page · page content |
+| `conversationStudio.firecrawl.researchStep` | 已擷取一個公開頁面：{url} | Fetched one public page: {url} |
+| `conversationStudio.connections.dfsSettingsNote` | 預設關閉。計劃內：每回合最多查詢一次，每個品牌每個香港週最多 20 次。 | Off by default. In your plan: at most one search per turn and 20 per brand per Hong Kong week. |
+| `conversationStudio.connections.dfsSerpPending` | 香港／繁中搜尋結果待核實 | Hong Kong / Traditional Chinese results pending verification |
+| `conversationStudio.connections.dfsSettingsSaved`, `firecrawlSettingsSaved` | 已儲存設定。 | Setting saved. |
+| `conversationStudio.honesty.mentionsCoverage` | HK／繁中：ChatGPT 提及覆蓋目前只限美國／英文，此處不顯示香港 ChatGPT 分數。 | HK / Traditional Chinese: ChatGPT mention coverage is currently US / English only. No Hong Kong ChatGPT score is shown here. |
+| `conversationStudio.evidence.liveLimit`, `live.savedScope` | vendor names removed; every honesty clause kept | vendor names removed; every honesty clause kept |
+
+Removed: `dfs.location`, `dfs.language` (they printed vendor codes such as
+`2344` / `zh-TW`), `connections.dfsCredentialsMissing`,
+`connections.firecrawlKeyMissing` (the card shows the existing 未連接 badge
+instead). `guardrails.test.ts` fails if a vendor name, or vendor/Preview/
+credential wording in the evidence-backend keys, comes back.

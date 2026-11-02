@@ -441,6 +441,8 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(inspector).toContainText(`${copy.gsc.impressions}: 500`)
     await expect(inspector).not.toContainText(copy.evidence.notQueried)
     await expect(inspector).not.toContainText(copy.gsc.notRun)
+    // Post–Stage 6 vendor opacity: evidence backends appear under plan-generic names only.
+    await expect(inspector).not.toContainText(/DataForSEO|Firecrawl/)
     await expect(inspector).toContainText(copy.evidence.coverageMeaning)
     await expect(inspector).toContainText(copy.honesty.noEstimatedNumbers)
     await expect(inspector).toContainText('40000000-0000-4000-8000-000000000001')
