@@ -68,6 +68,40 @@ describe('querySearchAnalytics', () => {
       .toEqual([{ filters: [{ dimension: 'page', operator: 'equals', expression: 'https://example.com/p' }] }])
   })
 
+  it('sends the Hong Kong country filter in the same dimensionFilterGroups shape', async () => {
+    const f = json(200, { rows: [] })
+    await querySearchAnalytics('t', 'sc-domain:example.com', {
+      startDate: '2026-10-01', endDate: '2026-10-30', dimensions: ['date'], countryEquals: 'hkg',
+    }, f)
+    const body = JSON.parse(f.mock.calls[0]![1].body)
+    expect(body.dimensions).toEqual(['date'])
+    expect(body.dimensionFilterGroups)
+      .toEqual([{ filters: [{ dimension: 'country', operator: 'equals', expression: 'hkg' }] }])
+  })
+
+  it('keeps page and appearance filters alongside the country filter', async () => {
+    const f = json(200, { rows: [] })
+    await querySearchAnalytics('t', 'sc-domain:example.com', {
+      startDate: '2026-10-01', endDate: '2026-10-30', dimensions: ['date', 'page'],
+      pageEquals: 'https://example.com/a', searchAppearanceEquals: 'RICH_RESULTS', countryEquals: 'hkg',
+    }, f)
+    expect(JSON.parse(f.mock.calls[0]![1].body).dimensionFilterGroups).toEqual([{
+      filters: [
+        { dimension: 'page', operator: 'equals', expression: 'https://example.com/a' },
+        { dimension: 'searchAppearance', operator: 'equals', expression: 'RICH_RESULTS' },
+        { dimension: 'country', operator: 'equals', expression: 'hkg' },
+      ],
+    }])
+  })
+
+  it('allows requesting the country dimension explicitly', async () => {
+    const f = json(200, { rows: [] })
+    await querySearchAnalytics('t', 'sc-domain:example.com', {
+      startDate: '2026-10-01', endDate: '2026-10-30', dimensions: ['country'], countryEquals: 'hkg',
+    }, f)
+    expect(JSON.parse(f.mock.calls[0]![1].body).dimensions).toEqual(['country'])
+  })
+
   it('returns no rows when Google has none', async () => {
     expect(await querySearchAnalytics('t', 'sc-domain:e.com', { startDate: 'a', endDate: 'b', dimensions: ['date'] }, json(200, {})))
       .toEqual([])
