@@ -1,7 +1,7 @@
 import { useTranslations } from 'next-intl'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 
-/** Chrome for one turn's Live Google Organic SERP read; never a Mentions score. */
+/** Chrome for one turn's in-plan Google organic search read; never a Mentions score. */
 export function StudioDfsSnapshotView({ dfs }: { dfs?: StudioDfsRead }) {
   const t = useTranslations('conversationStudio.dfs')
   const honesty = useTranslations('conversationStudio.honesty')
@@ -14,9 +14,8 @@ export function StudioDfsSnapshotView({ dfs }: { dfs?: StudioDfsRead }) {
   return <section className="as-note space-y-2">
     <p className="as-small font-semibold">{t('title')}</p>
     <p className="as-muted as-small">
-      {snapshot.locationCode !== undefined ? t('location', { code: snapshot.locationCode }) : null}
-      {snapshot.languageCode ? ` · ${t('language', { language: snapshot.languageCode })}` : ''}
-      {' · '}<span className="as-badge as-badge-amber">{honesty('pending')}</span>
+      {/* Vendor location/language codes stay server-side (post–Stage 6 vendor opacity). */}
+      {t('market')}{' · '}<span className="as-badge as-badge-amber">{honesty('pending')}</span>
     </p>
     <p className="as-small">{t(`status.${snapshot.status}`)}</p>
     {week && week.remaining !== undefined && <p className="as-muted as-small">{t('weeklyCap', { remaining: week.remaining, cap: week.cap })}</p>}

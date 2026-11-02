@@ -178,3 +178,5 @@ no Vercel env is written. `vercel.json` appends only
 - Scraping private or credentialed pages; new Studio nav or a Firecrawl page.
 - DataForSEO semantic changes; the post–Stage 6 vendor-name rename.
 - Merge.
+
+> **Post–Stage 6:** operator copy for this slice was renamed to plan-generic names with no vendor names — see `docs/ux/conversation-studio-honesty-rename.md`. Vendor names in this ops doc are intentional.

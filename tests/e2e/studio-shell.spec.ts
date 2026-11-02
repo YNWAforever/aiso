@@ -264,6 +264,8 @@ for (const lang of ['en', 'zh-HK']) {
         }
         const result = await new AxeBuilder({ page }).analyze()
         expect(result.violations, view).toEqual([])
+        // Post–Stage 6 vendor opacity: no evidence-vendor names on any Studio screen.
+        if (view === 'connections') await expect(page.locator('#aiso-studio')).not.toContainText(/DataForSEO|Firecrawl/)
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), view).toBe(true)
         const targets = await page.locator('#aiso-studio').evaluate(root => [...root.querySelectorAll('a,button,input,textarea,summary')].filter(el => el.getBoundingClientRect().width && el.getBoundingClientRect().height).filter(el => { const box = el.getBoundingClientRect(); return box.width < 44 || box.height < 44 }).map(el => el.textContent))
         expect(targets, view).toEqual([])

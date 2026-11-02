@@ -75,3 +75,34 @@ it('uses the durable account-week honesty strings from the Hazel pack', () => {
   expect(JSON.stringify(en.conversationStudio.live)).not.toMatch(/process-local|per process|this process|responding process/i)
   expect(JSON.stringify(zh.conversationStudio.live)).not.toMatch(/程序|執行個體獨立/)
 })
+
+// Post–Stage 6 honesty rename (t223s832): operators never see the evidence
+// vendors' names, vendor billing, or vendor credentials. 「供應商」 elsewhere in
+// conversationStudio means the AI answer providers and is deliberately allowed.
+function studioStrings(messages: unknown, path: string[] = []): Array<[string, string]> {
+  if (typeof messages === 'string') return [[path.join('.'), messages]]
+  if (!messages || typeof messages !== 'object') return []
+  return Object.entries(messages as Record<string, unknown>).flatMap(([key, value]) => studioStrings(value, [...path, key]))
+}
+const EVIDENCE_BACKEND_KEY = /^(dfs|firecrawl)\.|^connections\.(dfs|firecrawl)/
+
+it.each([['en', en], ['zh-HK', zh]] as const)('shows no evidence-vendor names or vendor accounts in %s operator copy', (_lang, messages) => {
+  const strings = studioStrings(messages.conversationStudio)
+  const named = strings.filter(([, value]) => /DataForSEO|Firecrawl/i.test(value)).map(([key]) => key)
+  expect(named).toEqual([])
+  const vendorish = strings
+    .filter(([key, value]) => EVIDENCE_BACKEND_KEY.test(key) && /vendor|供應商|Preview|憑證|金鑰|credential/i.test(value))
+    .map(([key]) => key)
+  expect(vendorish).toEqual([])
+})
+
+it('keeps the US/EN-only Mentions and missing-is-not-zero honesty after the rename', () => {
+  expect(en.conversationStudio.honesty.mentionsCoverage).toContain('US / English')
+  expect(zh.conversationStudio.honesty.mentionsCoverage).toContain('美國／英文')
+  expect(en.conversationStudio.evidence.liveLimit).toMatch(/never means zero/)
+  expect(zh.conversationStudio.evidence.liveLimit).toContain('不等於零')
+  expect(en.conversationStudio.evidence.dataForSeo).toBe('Search results (in plan)')
+  expect(zh.conversationStudio.evidence.dataForSeo).toBe('搜尋結果（計劃內）')
+  expect(en.conversationStudio.evidence.firecrawl).toBe('Public page retrieval (in plan)')
+  expect(zh.conversationStudio.evidence.firecrawl).toBe('公開頁擷取（計劃內）')
+})

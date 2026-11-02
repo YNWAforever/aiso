@@ -74,7 +74,7 @@ function DfsSettings({ clientId, settings }: { clientId: string; settings: Studi
   return <section className="as-card space-y-3" aria-labelledby="studio-dfs-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-dfs-title">{t('evidence.dataForSeo')}</h2>
     <p className="as-badge">{t(enabled ? 'connections.dfsEnabled' : 'connections.dfsDisabled')}</p>
     <p className="as-badge as-pending">{t('connections.dfsSerpPending')}</p>
-    {!settings.credentialsConfigured && <p className="as-note">{t('connections.dfsCredentialsMissing')}</p>}
+    {!settings.credentialsConfigured && <p className="as-badge">{t('connections.disconnected')}</p>}
     <p className="as-muted">{t('connections.dfsSettingsNote')}</p>
     <button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={toggle}>{t(enabled ? 'connections.dfsDisable' : 'connections.dfsEnable')}</button>
     {state === 'saved' && <p className="as-note">{t('connections.dfsSettingsSaved')}</p>}
@@ -102,7 +102,7 @@ function FirecrawlSettings({ clientId, settings }: { clientId: string; settings:
   }
   return <section className="as-card space-y-3" aria-labelledby="studio-firecrawl-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-firecrawl-title">{t('evidence.firecrawl')}</h2>
     <p className="as-badge">{t(enabled ? 'connections.firecrawlEnabled' : 'connections.firecrawlDisabled')}</p>
-    {!settings.keyConfigured && <p className="as-note">{t('connections.firecrawlKeyMissing')}</p>}
+    {!settings.keyConfigured && <p className="as-badge">{t('connections.disconnected')}</p>}
     <p className="as-muted">{t('connections.firecrawlSettingsNote')}</p>
     <button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={toggle}>{t(enabled ? 'connections.firecrawlDisable' : 'connections.firecrawlEnable')}</button>
     {state === 'saved' && <p className="as-note">{t('connections.firecrawlSettingsSaved')}</p>}

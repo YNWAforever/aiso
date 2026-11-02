@@ -302,8 +302,11 @@ it.each(['en', 'zh-HK'])('renders the DataForSEO SERP snapshot, cap and 待核�
   expect(snapshot).toContain(copy.dfs.title)
   expect(snapshot).toContain(copy.dfs.status.ok)
   expect(snapshot).toContain(copy.dfs.weeklyCap.replace('{remaining}', '19').replace('{cap}', '20'))
-  expect(snapshot).toContain('2344')
-  expect(snapshot).toContain('zh-TW')
+  expect(snapshot).toContain(copy.dfs.market)
+  // Vendor location/language codes never reach operators (post–Stage 6 rename).
+  expect(snapshot).not.toContain('2344')
+  expect(snapshot).not.toContain('zh-TW')
+  expect(snapshot).not.toMatch(/DataForSEO|Firecrawl/)
   expect(snapshot).toContain(copy.honesty.pending)
   expect(snapshot).toContain('buy widgets')
   expect(snapshot).toContain('Example result')
@@ -334,7 +337,7 @@ it.each(['en', 'zh-HK'])('keeps Firecrawl disconnected while the DataForSEO swit
   expect(html).toContain(copy.connections.dfsDisabled)
   expect(html).toContain(copy.connections.dfsSerpPending)
   expect(html).toContain(copy.connections.dfsSettingsNote)
-  expect(html).toContain(copy.connections.dfsCredentialsMissing)
+  expect(html).not.toMatch(/DataForSEO|Firecrawl|Preview/)
   expect(html).toContain(copy.connections.dfsEnable)
   expect(html).toContain(copy.honesty.mentionsCoverage)
   expect(html).toContain(copy.evidence.firecrawl)
@@ -386,7 +389,8 @@ it.each(['en', 'zh-HK'])('shows the default-OFF Firecrawl brand switch in %s', l
     firecrawl: { enabled: false, keyConfigured: false },
   }} />, lang)
   expect(html).toContain(copy.connections.firecrawlDisabled)
-  expect(html).toContain(copy.connections.firecrawlKeyMissing)
+  expect(html).toContain(copy.connections.disconnected)
+  expect(html).not.toMatch(/DataForSEO|Firecrawl|Preview/)
   expect(html).toContain(copy.connections.firecrawlSettingsNote)
   expect(html).toContain(copy.connections.firecrawlEnable)
   expect(html).not.toContain(copy.connections.firecrawlScope)
@@ -396,7 +400,9 @@ it.each(['en', 'zh-HK'])('shows the default-OFF Firecrawl brand switch in %s', l
   }} />, lang)
   expect(on).toContain(copy.connections.firecrawlEnabled)
   expect(on).toContain(copy.connections.firecrawlDisable)
-  expect(on).not.toContain(copy.connections.firecrawlKeyMissing)
+  // Only the DataForSEO fallback card (no settings passed) still says 未連接.
+  const disconnectedCount = (markup: string) => markup.split(copy.connections.disconnected).length - 1
+  expect(disconnectedCount(on)).toBe(disconnectedCount(html) - 1)
 })
 
 // Real interactive production component in an offline browser fixture. This
