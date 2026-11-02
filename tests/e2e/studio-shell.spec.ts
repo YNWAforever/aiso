@@ -137,6 +137,8 @@ for (const lang of ['en', 'zh-HK']) {
         await expect(page.locator('#aiso-studio')).toHaveCount(0)
         await page.getByTestId('dashboard-content').getByRole('link', { name: 'Studio', exact: true }).click()
         await expect(page.locator('#studio-home')).toBeVisible()
+        const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
+        if (await toggle.isVisible()) await toggle.click()
         await expect(page.locator('.as-recent li').first()).toBeVisible()
       }
     }
@@ -176,7 +178,7 @@ for (const lang of ['en', 'zh-HK']) {
     await page.getByTestId('dashboard-content').getByRole('link', { name: 'Studio', exact: true }).click()
     await navigate(page, copy.threadsTitle, copy)
     await expect(page.getByRole('heading', { name: copy.views.threads.title })).toBeVisible()
-    await expect(page.getByText('Session goal', { exact: true }).first()).toBeVisible()
+    await expect(page.locator('main').getByText('Session goal', { exact: true }).first()).toBeVisible()
     expect(requests).toEqual([])
   })
 
