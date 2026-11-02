@@ -1,8 +1,9 @@
 # AISO brief — post–Stage 6: Drive/Docs act/edit path (first "operator MCP" job)
 
 > **For the coding agent:** read `CLAUDE.md` → `AGENTS.md` → `ARCHITECTURE.md` →
-> `docs/development.md`, then this brief. **§2 has blocking decisions.** Do not start
-> coding until Willy has answered Q1–Q4 there. Draft PRs only. Never merge.
+> `docs/development.md`, then this brief. §2's blocking decisions were answered by Willy
+> on 2026-11-02 (A · Save to Google Docs · per profile · no new flag). Coding still needs
+> a named start and a lane. Draft PRs only. Never merge.
 
 | | |
 | --- | --- |
@@ -39,7 +40,9 @@ UI rule (AGENTS.md, t342s1437): «Avoid unnecessary secondary labels and descrip
   - work-item drafts (6b, `lib/work-items/`)
   - client reports (`lib/reports/`)
 
-## 2. Blocking decisions（ask Willy before coding）
+## 2. Decisions
+
+**Decided by Willy, 2026-11-02: Q1 = A, Q2 = Save to Google Docs, Q3 = per profile, Q4 = no new flag.** The options are kept below for the record.
 
 **Q1 — What does "MCP" mean in this slice?** The lock names an "MCP path", but there is no MCP runtime to build on. There are three readings:
 
@@ -49,20 +52,20 @@ UI rule (AGENTS.md, t342s1437): «Avoid unnecessary secondary labels and descrip
 | B | AISO acts as an **MCP client** to a hosted Google Drive/Docs MCP server and calls its tools. | Needs an MCP client runtime and a hosted server we trust. Unclear auth story. |
 | C | AISO exposes **its own MCP server**, so operators' AI clients (Claude, ChatGPT) can act on their AISO workspace and Drive. | Largest: a new public surface, auth and rate limits. Overlaps "customer MCP", which the lock forbids for SERP/scrape. |
 
-This brief is written for **A**. If Willy picks B or C, §4–§6 need rewriting.
+**Decided: A.** B and C are out of scope for this slice.
 
-**Q2 — What is the first job?** The design leaves this open: draft in Studio, attach to an answer, or export a brief. **Recommended: "Save to Google Docs".** It creates a **new** Google Doc in the operator's Drive from one Studio thread's saved answer. It is write-only, creates rather than edits, and never reads existing Drive content. That honours «act／edit, not 攞資料». Editing an existing Doc and attaching Drive files to answers come later.
+**Q2 — What is the first job? Decided: Save to Google Docs.** The design leaves this open: draft in Studio, attach to an answer, or export a brief. **Recommended: "Save to Google Docs".** It creates a **new** Google Doc in the operator's Drive from one Studio thread's saved answer. It is write-only, creates rather than edits, and never reads existing Drive content. That honours «act／edit, not 攞資料». Editing an existing Doc and attaching Drive files to answers come later.
 
-**Q3 — Who owns the connection?** **Recommended: per profile.** Each member saves into their own Drive, with an `account_id` composite FK for tenancy. Per account, as Search Console does it, would put one person's Drive behind every member's button.
+**Q3 — Who owns the connection? Decided: per profile.** **Recommended: per profile.** Each member saves into their own Drive, with an `account_id` composite FK for tenancy. Per account, as Search Console does it, would put one person's Drive behind every member's button.
 
-**Q4 — Gate.** The pack forbids new `FEATURE_*` / `PlanFeatures` keys without a Prod flip. **Recommended:** the existing `conversation_studio` flag, plus `resolveCommercialEntitlement(...).features.platform_access.length`, plus a live Drive connection. Nothing happens until a member connects. Willy confirms there is no new flag.
+**Q4 — Gate. Decided: no new flag.** The pack forbids new `FEATURE_*` / `PlanFeatures` keys without a Prod flip. **Recommended:** the existing `conversation_studio` flag, plus `resolveCommercialEntitlement(...).features.platform_access.length`, plus a live Drive connection. Nothing happens until a member connects. Confirmed: no new flag.
 
 **Non-blocking (defaults below unless Willy says otherwise):**
 - Q5: Is the Drive scope `drive.file` alone enough? (Default: yes; see §4.2.)
 - Q6: Two PRs or one? (Default: two; see §7.)
 - Q7: Where does a saved Doc go: Drive root, or a folder named "AISO"? (Default: root, so no folder lookup is needed.)
 
-## 3. Outcome (under A + the recommended answers)
+## 3. Outcome
 
 A Studio member connects **their own** Google Drive once. That gives AISO a `drive.file` grant only, stored sealed and per profile. Each saved answer then has a **儲存至 Google 文件 / Save to Google Docs** action. One click creates one new Google Doc in their Drive containing the thread title, the question, the saved answer with its citations (URLs and record ids), every honesty caveat exactly as displayed (未有／待核實／缺失不等於零), and a provenance footer (AISO, brand, ISO time). The turn then shows a link to the Doc.
 
