@@ -11,6 +11,7 @@ import { deriveOwnerState } from '@/lib/integrations/search-console/state'
 import type { OwnerState } from '@/lib/integrations/search-console/state'
 import type { StudioSourceStatus } from './home'
 import { loadStudioDfsBrandSettings, type StudioDfsBrandSettings } from './dfs-query'
+import { loadStudioFirecrawlBrandSettings, type StudioFirecrawlBrandSettings } from './firecrawl-query'
 
 export async function requireStudioBrand(lang: string, clientId: string) {
   const profile = await requireAuth(lang)
@@ -31,13 +32,17 @@ export async function loadStudioOutputs(clientId: string): Promise<StudioOutputs
   } catch { return null }
 }
 
-export type StudioConnection = { sourceStatus: StudioSourceStatus; state: OwnerState | null; dfs?: StudioDfsBrandSettings }
+export type StudioConnection = { sourceStatus: StudioSourceStatus; state: OwnerState | null; dfs?: StudioDfsBrandSettings; firecrawl?: StudioFirecrawlBrandSettings }
 export async function loadStudioConnection(profile: Awaited<ReturnType<typeof requireAuth>>, clientId: string): Promise<StudioConnection> {
   const result: StudioConnection = { sourceStatus: 'unavailable', state: null }
   try {
     // Saved per-brand switch only; this never calls DataForSEO.
     result.dfs = await loadStudioDfsBrandSettings(profile.account_id, clientId)
   } catch { /* A failed settings read stays unavailable rather than claiming off. */ }
+  try {
+    // Saved per-brand switch only; this never calls Firecrawl.
+    result.firecrawl = await loadStudioFirecrawlBrandSettings(profile.account_id, clientId)
+  } catch { /* Same: unknown, not off. */ }
   if (!isFeatureEnabled('search_console') || !resolveCommercialEntitlement(profile.accounts).features.search_console) return result
   try {
     const binding = await loadBinding(profile.account_id, clientId)

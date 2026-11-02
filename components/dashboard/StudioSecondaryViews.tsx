@@ -9,6 +9,7 @@ import { useStudioSession } from '@/components/dashboard/StudioSession'
 import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
 import type { StudioConnection, StudioOutputs } from '@/lib/conversation-studio/secondary'
 import type { StudioDfsBrandSettings } from '@/lib/conversation-studio/dfs-query'
+import type { StudioFirecrawlBrandSettings } from '@/lib/conversation-studio/firecrawl-query'
 import { buildStudioTools } from '@/lib/conversation-studio/navigation'
 import type { NavFeatures } from '@/lib/dashboard-nav'
 
@@ -82,6 +83,33 @@ function DfsSettings({ clientId, settings }: { clientId: string; settings: Studi
   </section>
 }
 
+function FirecrawlSettings({ clientId, settings }: { clientId: string; settings: StudioFirecrawlBrandSettings }) {
+  const t = useTranslations('conversationStudio')
+  const [enabled, setEnabled] = useState(settings.enabled)
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  async function toggle() {
+    if (state === 'saving') return
+    setState('saving')
+    try {
+      const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId)}/studio/firecrawl/settings`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+        body: JSON.stringify({ enabled: !enabled }),
+      })
+      if (!response.ok) { setState('error'); return }
+      setEnabled(!enabled)
+      setState('saved')
+    } catch { setState('error') }
+  }
+  return <section className="as-card space-y-3" aria-labelledby="studio-firecrawl-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-firecrawl-title">{t('evidence.firecrawl')}</h2>
+    <p className="as-badge">{t(enabled ? 'connections.firecrawlEnabled' : 'connections.firecrawlDisabled')}</p>
+    {!settings.keyConfigured && <p className="as-note">{t('connections.firecrawlKeyMissing')}</p>}
+    <p className="as-muted">{t('connections.firecrawlSettingsNote')}</p>
+    <button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={toggle}>{t(enabled ? 'connections.firecrawlDisable' : 'connections.firecrawlEnable')}</button>
+    {state === 'saved' && <p className="as-note">{t('connections.firecrawlSettingsSaved')}</p>}
+    {state === 'error' && <p role="alert" className="as-note">{t('connections.firecrawlSettingsError')}</p>}
+  </section>
+}
+
 export function StudioConnections({ clientId, connection }: { clientId: string; connection: StudioConnection }) {
   const t = useTranslations('conversationStudio')
   const lang = useLocale()
@@ -98,7 +126,9 @@ export function StudioConnections({ clientId, connection }: { clientId: string; 
       {connection.dfs
         ? <DfsSettings clientId={clientId} settings={connection.dfs} />
         : <section className="as-card space-y-3" aria-labelledby="studio-dfs-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-dfs-title">{t('evidence.dataForSeo')}</h2><p className="as-badge as-pending">{t('connections.hkEndpointPending')}</p><p>{t('connections.disconnected')}</p><p className="as-muted">{t('honesty.mentionsCoverage')}</p></section>}
-      <section className="as-card space-y-3" aria-labelledby="studio-firecrawl-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-firecrawl-title">{t('evidence.firecrawl')}</h2><p className="as-badge">{t('connections.disconnected')}</p><p className="as-muted">{t('connections.firecrawlScope')}</p></section>
+      {connection.firecrawl
+        ? <FirecrawlSettings clientId={clientId} settings={connection.firecrawl} />
+        : <section className="as-card space-y-3" aria-labelledby="studio-firecrawl-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-firecrawl-title">{t('evidence.firecrawl')}</h2><p className="as-badge">{t('connections.disconnected')}</p><p className="as-muted">{t('connections.firecrawlScope')}</p></section>}
     </div>
   </main>
 }

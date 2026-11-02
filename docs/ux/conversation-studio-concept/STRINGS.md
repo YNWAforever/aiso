@@ -267,3 +267,32 @@ a per-brand switch that defaults OFF. The geo/language pair remains **待核實*
 | 預設關閉。每回合最多一次…每個品牌每個香港週最多 20 次。 | `conversationStudio.connections.dfsSettingsNote` | Off by default. At most one … call per turn and 20 per brand per Hong Kong week. |
 | 為此品牌啟用 / 為此品牌關閉 | `conversationStudio.connections.dfsEnable` / `dfsDisable` | Enable for this brand / Turn off for this brand |
 | Preview 憑證未設定 | `conversationStudio.connections.dfsCredentialsMissing` | Preview credentials are not configured |
+
+## Stage 6f — Firecrawl public page keys
+
+Stage 6f additions live in `conversationStudio.firecrawl.*` and
+`conversationStudio.connections.firecrawl*`. They describe at most one public
+page scrape per turn, only when the turn contains its URL, behind a per-brand
+switch that defaults OFF. Do not add dollar amounts or credit counts.
+
+| zh-HK copy | Key | English draft |
+| --- | --- | --- |
+| Firecrawl · 公開頁面 | `conversationStudio.firecrawl.title` | Firecrawl · Public page |
+| 正在擷取本次的公開頁面… | `conversationStudio.firecrawl.pending` | Fetching the public page for this turn… |
+| 本次未能擷取公開頁面。 | `conversationStudio.firecrawl.failed` | The public page could not be fetched this turn. |
+| 已用 Firecrawl 擷取一個公開頁面：{url} | `conversationStudio.firecrawl.researchStep` | Fetched one public page with Firecrawl: {url} |
+| 本次未有公開網址。 | `conversationStudio.firecrawl.notes.noUrl` | No public URL in this turn. |
+| 網址超過 2,048 字元，未有擷取。 | `conversationStudio.firecrawl.notes.urlTooLong` | URL is longer than 2,048 characters. Nothing was fetched. |
+| 只可擷取公開 http／https 頁面，未有擷取。 | `conversationStudio.firecrawl.notes.urlNotPublic` | Only public http/https pages can be fetched. Nothing was fetched. |
+| 找不到此網址，未有擷取。 | `conversationStudio.firecrawl.notes.urlUnresolved` | This address could not be found. Nothing was fetched. |
+| 頁面回應錯誤，不顯示其內容。 | `conversationStudio.firecrawl.notes.pageError` | The page answered with an error. Its content is not shown. |
+| 此頁面未有可讀的主要內容。缺失不等於零。 | `conversationStudio.firecrawl.notes.empty` | No readable main content on this page. Missing is not zero. |
+| 本次已擷取 / 未有 / 未啟用 / 未連接 / 無效網址 / 本次暫時無法使用 | `conversationStudio.firecrawl.status.*` | Fetched this turn / No content / Off for this brand / Not connected / Invalid URL / Unavailable this turn |
+| 預設關閉。每回合最多擷取一個公開頁面，只在該回合包含網址時進行。 | `conversationStudio.connections.firecrawlSettingsNote` | Off by default. At most one public page per turn, only when the turn includes its URL. |
+| 為此品牌啟用 / 為此品牌關閉 | `conversationStudio.connections.firecrawlEnable` / `firecrawlDisable` | Enable for this brand / Turn off for this brand |
+| Preview 金鑰未設定 | `conversationStudio.connections.firecrawlKeyMissing` | Preview key is not configured |
+
+Changed in 6f: `conversationStudio.evidence.liveLimit` and
+`conversationStudio.live.savedScope` no longer say Firecrawl is never queried.
+They now say a Firecrawl public page appears only when a turn fetched one; the
+DataForSEO Mentions US/EN honesty is unchanged.

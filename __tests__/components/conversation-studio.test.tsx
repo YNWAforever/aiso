@@ -13,6 +13,7 @@ import { STUDIO_TEMPLATES } from '@/lib/conversation-studio/types'
 import { StudioEvidenceRows } from '@/components/dashboard/StudioEvidenceInspector'
 import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
 import { StudioDfsSnapshotView } from '@/components/dashboard/StudioDfsSnapshot'
+import { StudioFirecrawlSnapshotView } from '@/components/dashboard/StudioFirecrawlSnapshot'
 import { StudioConnections } from '@/components/dashboard/StudioSecondaryViews'
 import { StudioReplyView, StudioSavedEvidence } from '@/components/dashboard/StudioReply'
 import { StudioLiveReplyView, StudioLiveEvidence } from '@/components/dashboard/StudioLiveReply'
@@ -338,6 +339,64 @@ it.each(['en', 'zh-HK'])('keeps Firecrawl disconnected while the DataForSEO swit
   expect(html).toContain(copy.honesty.mentionsCoverage)
   expect(html).toContain(copy.evidence.firecrawl)
   expect(html).toContain(copy.connections.disconnected)
+})
+
+it.each(['en', 'zh-HK'])('renders the Firecrawl public-page snapshot and honest soft-fails in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const firecrawl = {
+    snapshot: { status: 'ok' as const, url: 'https://example.com/a', title: 'Example page', excerpt: 'Main content excerpt', contentType: 'text/html' },
+  }
+  const html = renderWithIntl(<StudioFirecrawlSnapshotView firecrawl={firecrawl} />, lang)
+  expect(html).toContain(copy.firecrawl.title)
+  expect(html).toContain(copy.firecrawl.status.ok)
+  expect(html).toContain('href="https://example.com/a"')
+  expect(html).toContain('Example page')
+  expect(html).toContain('Main content excerpt')
+  expect(html).not.toMatch(/\$\d|credit/i)
+
+  for (const [status, note] of [['invalid', 'urlNotPublic'], ['invalid', 'urlTooLong'], ['invalid', 'urlUnresolved'], ['empty', 'pageError'], ['empty', 'empty']] as const) {
+    const soft = renderWithIntl(<StudioFirecrawlSnapshotView firecrawl={{ snapshot: { status, messageKey: `firecrawl.${note}` } }} />, lang)
+    expect(soft).toContain(copy.firecrawl.status[status])
+    expect(soft).toContain(copy.firecrawl.notes[note])
+  }
+  for (const status of ['disabled', 'disconnected', 'auth', 'payment', 'rate_limit', 'unavailable', 'misconfigured'] as const) {
+    expect(renderWithIntl(<StudioFirecrawlSnapshotView firecrawl={{ snapshot: { status } }} />, lang)).toContain(copy.firecrawl.status[status])
+  }
+  expect(renderWithIntl(<StudioFirecrawlSnapshotView firecrawl={{ pending: true }} />, lang)).toContain(copy.firecrawl.pending)
+  expect(renderWithIntl(<StudioFirecrawlSnapshotView firecrawl={{ error: 'STUDIO_UNAVAILABLE' }} />, lang)).toContain(copy.firecrawl.failed)
+  const unsafe = renderWithIntl(<StudioFirecrawlSnapshotView firecrawl={{ snapshot: { status: 'ok', url: 'javascript:alert(1)', excerpt: 'x' } }} />, lang)
+  expect(unsafe).not.toContain('javascript:')
+
+  const reply = composeSavedReply('question', null, emptyStudioEvidence)
+  const step = copy.firecrawl.researchStep.replace('{url}', 'https://example.com/a')
+  expect(renderWithIntl(<StudioReplyView id="fc" evidence={emptyStudioEvidence} reply={reply} firecrawl={firecrawl} />, lang)).toContain(step)
+  for (const status of ['invalid', 'disabled', 'disconnected', 'auth'] as const) {
+    const failed = renderWithIntl(<StudioReplyView id="fc-failed" evidence={emptyStudioEvidence} reply={reply} firecrawl={{ snapshot: { status, url: 'https://example.com/a' } }} />, lang)
+    expect(failed).not.toContain(step)
+  }
+  const rows = renderWithIntl(<StudioEvidenceRows reads={{ documents: null, searchConsole: null }} sourceStatus="bound" firecrawl={firecrawl} />, lang)
+  expect(rows).toContain(copy.firecrawl.title)
+  expect(rows).toContain('Main content excerpt')
+})
+
+it.each(['en', 'zh-HK'])('shows the default-OFF Firecrawl brand switch in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const html = renderWithIntl(<StudioConnections clientId="11111111-1111-4111-8111-111111111111" connection={{
+    sourceStatus: 'bound', state: { kind: 'synced', dataThrough: '2026-10-26' },
+    firecrawl: { enabled: false, keyConfigured: false },
+  }} />, lang)
+  expect(html).toContain(copy.connections.firecrawlDisabled)
+  expect(html).toContain(copy.connections.firecrawlKeyMissing)
+  expect(html).toContain(copy.connections.firecrawlSettingsNote)
+  expect(html).toContain(copy.connections.firecrawlEnable)
+  expect(html).not.toContain(copy.connections.firecrawlScope)
+  expect(html).not.toMatch(/\$\d/)
+  const on = renderWithIntl(<StudioConnections clientId="11111111-1111-4111-8111-111111111111" connection={{
+    sourceStatus: 'bound', state: null, firecrawl: { enabled: true, keyConfigured: true },
+  }} />, lang)
+  expect(on).toContain(copy.connections.firecrawlEnabled)
+  expect(on).toContain(copy.connections.firecrawlDisable)
+  expect(on).not.toContain(copy.connections.firecrawlKeyMissing)
 })
 
 // Real interactive production component in an offline browser fixture. This
