@@ -349,3 +349,21 @@ the connection read succeeds.
 | `driveNoticeConnected` / `driveNoticeFailed` / `driveNoticeScope` | 已連接 Google Drive。 / 未能連接 Google Drive。 / 請允許存取 Fimmick AISO 建立的檔案，然後再試。 | Google Drive connected. / Google Drive was not connected. / Allow access to files Fimmick AISO creates, then try again. |
 
 Disconnected reuses `connections.disconnected` (未連接).
+
+## Post–Stage 6 — Save to Google Docs
+
+Keys live in `conversationStudio.drive.*`. The `doc.*` keys appear inside the
+saved Google Doc, not in the Studio UI.
+
+| Key | zh-HK | English |
+| --- | --- | --- |
+| `save` / `saving` / `saved` | 儲存至 Google 文件 / 正在儲存至 Google 文件… / 已儲存至 Google 文件 | Save to Google Docs / Saving to Google Docs… / Saved to Google Docs |
+| `open` / `openDrive` | 在 Google 文件開啟 / 開啟 Google Drive | Open in Google Docs / Open Google Drive |
+| `unknown` | 文件可能已經建立。請先查看你的 Google Drive，再重試。 | The Doc may have been created. Check your Google Drive before trying again. |
+| `notConnected` / `reconnect` / `goToConnections` | 請先連接 Google Drive。 / 請重新連接 Google Drive 以儲存。 / 前往連接 | Connect Google Drive first. / Reconnect Google Drive to save. / Go to connections |
+| `failed` | 未能儲存至 Google 文件，未有建立任何檔案。 | Could not save to Google Docs. Nothing was created. |
+| `quota` | Google Drive 目前繁忙，未有建立任何檔案。請稍後再試。 | Google Drive is busy right now. Nothing was created. Try again later. |
+| `ledgerFailed` | 文件已建立，但 Fimmick AISO 未能記錄。 | The Doc was created, but Fimmick AISO could not record it. |
+| `doc.question` / `doc.answer` | 問題 / 已儲存回答 | Question / Saved answer |
+| `doc.generated` | 於 {time} 從 Fimmick AISO 儲存 | Saved from Fimmick AISO at {time} |
+| `doc.provenance` | 由 Fimmick AISO 只根據本回合已儲存的證據建立。 | Created by Fimmick AISO from this turn's saved evidence only. |

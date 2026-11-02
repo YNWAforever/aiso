@@ -12,6 +12,7 @@ import { StudioLiveReplyView } from '@/components/dashboard/StudioLiveReply'
 import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
 import { StudioDfsSnapshotView } from '@/components/dashboard/StudioDfsSnapshot'
 import { StudioFirecrawlSnapshotView } from '@/components/dashboard/StudioFirecrawlSnapshot'
+import { StudioSaveToDocs } from '@/components/dashboard/StudioSaveToDocs'
 import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
@@ -338,7 +339,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
           {!current.turnsLoaded && !current.turnsError && <p className="as-muted as-small">{t('loadingThreads')}</p>}
           {current.turnsError && <p className="as-note">{t('readUnavailable')}</p>}
-          {current.turns.map(({ id, prompt, reply, task, live: liveTurn, gsc, dfs, firecrawl, attached }, index) => <div key={id} className="space-y-5">
+          {current.turns.map(({ id, prompt, reply, task, live: liveTurn, gsc, dfs, firecrawl, attached, saveState: turnSaveState, position }, index) => <div key={id} className="space-y-5">
             <div className="as-question p-4">
               <p className="as-muted as-small mb-2 font-semibold">{t('youLabel')}</p>
               <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{prompt}</p>
@@ -355,6 +356,9 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               <StudioGscSnapshotView gsc={gsc} />
               <StudioDfsSnapshotView dfs={dfs} />
               <StudioFirecrawlSnapshotView firecrawl={firecrawl} />
+              {/* Only a turn saved to the member's own thread can be saved to their Drive. */}
+              {clientId && current.saveState === 'persisted' && turnSaveState === 'saved' && position !== undefined
+                && <StudioSaveToDocs clientId={clientId} threadId={current.id} position={position} />}
             </div>
             </div>
           </div>)}
