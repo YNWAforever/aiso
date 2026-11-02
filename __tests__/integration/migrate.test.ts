@@ -62,10 +62,11 @@ describe('migration runner against a real branch', () => {
   it('keeps RLS enabled on exactly the deliberate default-deny tables', async () => {
     // 027 chose RLS-on-with-no-policies for the report tables as default-deny,
     // pinned by __tests__/db/client-report-migration.test.ts. 036 leaves these
-    // alone. 082's two DataForSEO tables were reviewed the same way as 080/081:
-    // server-side app-role tables with no client policies, so RLS-on is a
-    // deliberate default-deny. Pinning the exact set fails both ways: a table
-    // losing the posture, and a new table quietly enabling RLS without review.
+    // alone. 082's two DataForSEO tables and 083's Firecrawl switch were
+    // reviewed the same way as 080/081: server-side app-role tables with no
+    // client policies, so RLS-on is a deliberate default-deny. Pinning the
+    // exact set fails both ways: a table losing the posture, and a new table
+    // quietly enabling RLS without review.
     const rows = await sql`
       select c.relname as table_name
       from pg_class c
@@ -83,6 +84,7 @@ describe('migration runner against a real branch', () => {
       'stripe_webhook_events',
       'studio_dataforseo_brand_settings',
       'studio_dataforseo_weekly_usage',
+      'studio_firecrawl_brand_settings',
       'studio_live_weekly_usage',
       'studio_thread_turns',
       'studio_threads',
