@@ -265,6 +265,34 @@
         "disabled": "Search Console is off"
       }
     },
+    "dfs": {
+      "title": "DataForSEO · Google Organic SERP",
+      "pending": "Checking DataForSEO for this turn…",
+      "failed": "DataForSEO could not be checked this turn.",
+      "weeklyCap": "Weekly calls left for this brand: {remaining} of {cap} (Hong Kong week).",
+      "capped": "This brand’s weekly DataForSEO cap is used up. No vendor call ran.",
+      "empty": "No organic results for this keyword. Missing is not zero.",
+      "keyword": "Keyword",
+      "items": "Organic results",
+      "rank": "Rank",
+      "location": "Location {code}",
+      "language": "Language {language}",
+      "researchStep": "Checked DataForSEO Google Organic SERP for “{keyword}” (depth 10, Hong Kong week).",
+      "status": {
+        "ok": "Checked this turn",
+        "empty": "No organic results",
+        "capped": "Weekly cap reached",
+        "disabled": "Off for this brand",
+        "disconnected": "Not connected",
+        "unauthorized": "Not authorised",
+        "unavailable": "Unavailable this turn",
+        "auth": "Authentication failed",
+        "payment": "Vendor payment required",
+        "rate_limit": "Vendor rate limit reached",
+        "invalid": "Request rejected",
+        "misconfigured": "Configuration problem"
+      }
+    },
     "destinations": {
       "opportunities": "Open content opportunities",
       "reports": "Open client reports"
@@ -315,7 +343,16 @@
       "completenessPending": "Data completeness requires verification",
       "viewScope": "View connection scope",
       "savedOnly": "Saved binding and sync status only. No search data query, sync or Hong Kong filter ran here.",
-      "firecrawlScope": "Public page URL, retrieval time and cited passages; currently not connected. No pages were retrieved."
+      "firecrawlScope": "Public page URL, retrieval time and cited passages; currently not connected. No pages were retrieved.",
+      "dfsSerpPending": "Hong Kong / Traditional Chinese SERP support pending verification",
+      "dfsSettingsNote": "Off by default. At most one Live Google Organic SERP call per turn and 20 per brand per Hong Kong week.",
+      "dfsEnable": "Enable for this brand",
+      "dfsDisable": "Turn off for this brand",
+      "dfsEnabled": "Enabled for this brand",
+      "dfsDisabled": "Off for this brand",
+      "dfsCredentialsMissing": "Preview credentials are not configured",
+      "dfsSettingsSaved": "DataForSEO setting saved.",
+      "dfsSettingsError": "Could not save this setting. Please try again."
     },
     "nav": {
       "documents": "Documents & outputs",
