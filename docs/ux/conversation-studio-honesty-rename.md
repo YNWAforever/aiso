@@ -3,7 +3,7 @@
 - Brief: `docs/superpowers/plans/2026-11-02-aiso-brief-post6-honesty-rename.md`
 - ClickUp: [z8qgvcahq4](https://app.clickup.com/t/z8qgvcahq4)
 - Lock: Willy answering **t223s832** — «Operators must **not** see or buy DataForSEO / Firecrawl.» «Those APIs stay **internal** to AISO backend.» «**Tokens／quota are pre-packaged in the commercial plan** (plan caps), not customer-owned vendor accounts.» UI rule t342s1437.
-- Decisions (Willy, 2026-11-02): Claude Code builds it; message key paths stay; no admin flag for vendor names.
+- Decisions (Willy, 2026-11-02): Claude Code builds it; message key paths stay; no admin flag for vendor names; headings-only 「（計劃內）」, 暫時無法使用, drop SERP.
 - Base: `8dd3a21e447699bdd79fa236509f0c91b481f5b8` (Stage 6f #139)
 
 ## What changed
@@ -41,11 +41,11 @@ vendor's location and language codes, and the settings cards show the existing
 - e2e: the inspector (`conversation-studio.spec.ts`) and connections view
   (`studio-shell.spec.ts`) contain no vendor names.
 
-## Defaults pending confirmation
+## Confirmed copy decisions (Willy, 2026-11-02)
 
-- 「（計劃內）」 on headings only, not on each status line.
+- 「（計劃內）」 on the inspector and connections headings only, not on each status line.
 - `status.payment` → 暫時無法使用 (no separate "setup issue" wording).
-- "SERP" removed from the copy this PR touched; not added to the guard.
+- "SERP" dropped from operator copy; not added to the guard.
 
 ## HOLD / NO_GO
 
