@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ScanEvidencePanel } from '@/components/result/ScanEvidencePanel'
 import { buildDashboardNav } from '@/lib/dashboard-nav'
 import type { OpenStudioEvidence, StudioEvidence, StudioOpportunitySuggestion, StudioReply } from '@/lib/conversation-studio/types'
+import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import { buildWorkItemDraftBody, readSavedDraftId, workItemDraftErrorKey } from '@/lib/conversation-studio/work-item-draft'
 
 function StudioResultLinks({ clientId }: { clientId: string }) {
@@ -67,7 +68,7 @@ function OpportunityDraftAction({ clientId, suggestion, locale }: { clientId: st
   </div>
 }
 
-export function StudioReplyView({ reply, clientId, number = 1, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
+export function StudioReplyView({ reply, clientId, number = 1, gsc, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; gsc?: StudioGscRead; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
   const t = useTranslations('conversationStudio.evidence')
   const studio = useTranslations('conversationStudio')
   const lang = useLocale()
@@ -75,7 +76,7 @@ export function StudioReplyView({ reply, clientId, number = 1, onBranchBrief, on
   return <article aria-label={t('replyLabel')} className="as-saved-reply min-w-0 space-y-3 [overflow-wrap:anywhere]">
     <details className="as-research">
       <summary>{t('stepsTitle')}</summary>
-      {reply.researchSteps.length ? <ol className="list-decimal space-y-2 pb-3 pl-5">{reply.researchSteps.map(step => <li key={step.kind}>{step.kind === 'loadWeek' ? t('stepLoad', { week: step.week, count: step.count }) : step.kind === 'loadOpportunities' ? studio('templates.opportunity.stepLoad', { count: step.count }) : t(step.kind === 'selectRecords' ? 'stepSelect' : 'stepCompose')}</li>)}</ol> : <p className="as-muted pb-3">{t('noSteps')}</p>}
+      {reply.researchSteps.length || gsc?.snapshot?.window ? <ol className="list-decimal space-y-2 pb-3 pl-5">{reply.researchSteps.map(step => <li key={step.kind}>{step.kind === 'loadWeek' ? t('stepLoad', { week: step.week, count: step.count }) : step.kind === 'loadOpportunities' ? studio('templates.opportunity.stepLoad', { count: step.count }) : t(step.kind === 'selectRecords' ? 'stepSelect' : 'stepCompose')}</li>)}{gsc?.snapshot?.window && <li>{studio('gsc.researchStep', gsc.snapshot.window)}</li>}</ol> : <p className="as-muted pb-3">{t('noSteps')}</p>}
     </details>
     <section className="as-result space-y-3">
     <p className="as-result-kicker">{t('savedSummary')}</p>

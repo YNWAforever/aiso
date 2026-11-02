@@ -219,3 +219,28 @@ private label applies only after the write succeeds; keep the temporary-memory n
 and reachable for unsaved or failed writes. Never copy Harbour Home,
 Harbour Tea, version IDs, fake bindings or research steps claiming queries that
 did not occur into product fallbacks. Stage 6 save/attachment controls stay held.
+
+## Stage 6d — in-answer GSC snapshot
+
+Stage 6d adds `conversationStudio.gsc.*` in both catalogs. The turn inspector
+shows the snapshot only for a turn that actually queried Search Console; page
+load and connection-only views keep `sources.notQueried` / `connections.savedOnly`.
+
+| zh-HK copy | Key | English draft |
+| --- | --- | --- |
+| Search Console · 香港 | `conversationStudio.gsc.title` | Search Console · Hong Kong |
+| 香港（hkg） | `conversationStudio.gsc.country` | Hong Kong (hkg) |
+| 太平洋日曆 | `conversationStudio.gsc.timeZone` | Pacific calendar |
+| {startDate} – {endDate} | `conversationStudio.gsc.period` | {startDate} – {endDate} |
+| 完整至 {date} | `conversationStudio.gsc.complete` | Complete through {date} |
+| 正在查詢 Google Search Console 香港資料… | `conversationStudio.gsc.pending` | Checking Search Console for Hong Kong… |
+| 本次未能查詢 Search Console。 | `conversationStudio.gsc.failed` | Search Console could not be checked this turn. |
+| 此期間未有香港資料。缺失不等於零。 | `conversationStudio.gsc.empty` | No Hong Kong data for this period. Missing is not zero. |
+| 本次未查詢 Search Console。 | `conversationStudio.gsc.notRun` | No Search Console query ran for this turn. |
+| 本次已查詢 / 未有資料 / 配額已滿… | `conversationStudio.gsc.status.*` | Checked this turn / No data / Quota reached… |
+| 已查詢 Search Console 香港資料（…，太平洋時間）。 | `conversationStudio.gsc.researchStep` | Checked Search Console for Hong Kong (…, Pacific). |
+
+Keep the country and Pacific calendar visible in the snapshot chrome. Saved Neon
+sync figures are property-wide; never label them as Hong Kong metrics. If LIVE
+and GSC copy both change later, the rule remains: a query step appears only when
+that turn actually queried the connector.
