@@ -12,7 +12,7 @@ export function StudioGscSnapshotView({ gsc }: { gsc?: StudioGscRead }) {
   const window = snapshot.window
   const neverQueried = snapshot.status === 'unbound' || snapshot.status === 'reconnect'
     || snapshot.status === 'rebind' || snapshot.status === 'unentitled' || snapshot.status === 'disabled'
-  return <section className="as-note space-y-2" aria-label={t('title')}>
+  return <section className="as-note space-y-2">
     <p className="as-small font-semibold">{t('title')}</p>
     <p className="as-muted as-small">{t('country')} · {t('timeZone')}{window ? ` · ${t('period', window)}` : ''}</p>
     <p className="as-small">{t(`status.${snapshot.status}`)}{window && snapshot.completeness !== 'unknown' ? ` · ${t('complete', { date: window.endDate })}` : ''}</p>
