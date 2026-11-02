@@ -65,7 +65,7 @@ have RLS enabled and public/anon/authenticated/service-role revoked, mirroring
 
 ```ts
 {
-  status: 'ok' | 'empty' | 'capped' | 'disabled' | 'disconnected' | 'unauthorized'
+  status: 'ok' | 'empty' | 'capped' | 'disabled' | 'disconnected'
         | 'unavailable' | 'auth' | 'payment' | 'rate_limit' | 'invalid' | 'misconfigured'
   week?: { weekStart: string; timeZone: 'Asia/Hong_Kong'; remaining?: number; cap: 20 }
   locationCode?: number
@@ -80,7 +80,8 @@ have RLS enabled and public/anon/authenticated/service-role revoked, mirroring
 Order of checks:
 
 1. Credentials present and non-blank, otherwise `disconnected` — no fetch.
-2. Keyword trimmed and capped at 500 characters; empty is `invalid` — no fetch.
+2. Keyword trimmed; empty is `invalid`, and longer than 500 characters is
+   `invalid` / `dfs.keywordTooLong` — no fetch and no quota reservation.
 3. Per-brand `enabled=true`, otherwise `disabled` — no fetch.
 4. Atomic reservation `call_count + 1 <= 20`, otherwise `capped` / 本週額滿 — no fetch.
 5. Exactly one Live Advanced call. Failure after reservation keeps the charge and
@@ -93,19 +94,22 @@ Order of checks:
 
 ## Routes and UI
 
-`POST …/studio/dataforseo` uses `getProfile` + account-owned **active** brand,
-reads only optional `{ keyword?: string }`, and returns `Cache-Control: no-store`.
-It is called once per turn submit for saved and LIVE turns; page load, layout and
-the connections view never call DataForSEO.
+`POST …/studio/dataforseo` runs feature flag → profile → commercial entitlement
+(`features.platform_access`) → account-owned **active** brand, reads only
+optional `{ keyword?: string }`, and returns `Cache-Control: no-store`. It is
+called once per turn submit for saved and LIVE turns; page load, layout and the
+connections view never call DataForSEO.
 
-`POST …/studio/dataforseo/settings` accepts only `{ enabled: boolean }`.
-Account membership can toggle; platform `is_admin` may also toggle. The default
-remains OFF.
+`POST …/studio/dataforseo/settings` accepts only `{ enabled: boolean }`, uses the
+same feature → profile → entitlement → owned active brand order, and only the
+owning account can toggle. Platform `is_admin` has no cross-account toggle. The
+default remains OFF.
 
 The inspector's DataForSEO section shows the turn snapshot when one exists and
 keeps the existing disconnected copy until a turn or settings state is known.
-The connections card shows the per-brand switch, remaining weekly calls, status
-honesty and the geo/language **待核實** badge. Firecrawl remains disconnected and
+The connections card shows the per-brand switch, status honesty and the
+geo/language **待核實** badge; remaining weekly calls appear on turn snapshots,
+not the card. Firecrawl remains disconnected and
 the Mentions US/EN-only coverage string is unchanged. No `$` amounts appear in
 product UI; the Approve's ops facts (top-up / daily limit) are not product
 prices. Hazel: polish the bilingual copy; the status and cap behaviour above is

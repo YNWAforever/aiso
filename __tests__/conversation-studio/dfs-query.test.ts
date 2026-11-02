@@ -58,10 +58,22 @@ describe('queryStudioDfs', () => {
     expect(DFS_WEEKLY_CAP_PER_BRAND).toBe(20)
   })
 
-  it('trims keywords to the documented limit', async () => {
+  it('refuses an over-long keyword before settings, reservation or network', async () => {
     const d = deps()
-    const snapshot = await queryStudioDfs({ accountId: 'a', clientId: 'c', keyword: ` ${'x'.repeat(DFS_KEYWORD_LIMIT + 50)} ` }, d)
-    expect(snapshot.keyword).toHaveLength(DFS_KEYWORD_LIMIT)
+    const keyword = 'x'.repeat(DFS_KEYWORD_LIMIT + 1)
+    const snapshot = await queryStudioDfs({ accountId: 'a', clientId: 'c', keyword: ` ${keyword} ` }, d)
+    expect(snapshot).toMatchObject({ status: 'invalid', keyword, messageKey: 'dfs.keywordTooLong' })
+    expect(d.isEnabled).not.toHaveBeenCalled()
+    expect(d.reserve).not.toHaveBeenCalled()
+    expect(d.search).not.toHaveBeenCalled()
+  })
+
+  it('accepts a keyword at the documented limit after trimming', async () => {
+    const d = deps()
+    const keyword = 'x'.repeat(DFS_KEYWORD_LIMIT)
+    const snapshot = await queryStudioDfs({ accountId: 'a', clientId: 'c', keyword: ` ${keyword} ` }, d)
+    expect(snapshot).toMatchObject({ status: 'ok', keyword })
+    expect(d.search).toHaveBeenCalledWith({ keyword, locationCode: 2344, languageCode: 'zh-TW', depth: 10 })
   })
 
   it('returns disconnected before settings or network when env credentials are absent', async () => {

@@ -1,6 +1,8 @@
 import 'server-only'
 import { db } from '@/lib/db'
 import {
+  DATAFORSEO_DEFAULT_LANGUAGE_CODE,
+  DATAFORSEO_DEFAULT_LOCATION_CODE,
   DATAFORSEO_DEPTH,
   dataForSeoConfig,
   liveGoogleOrganicAdvanced,
@@ -108,8 +110,8 @@ export async function loadStudioDfsBrandSettings(
   return {
     enabled: rows[0]?.enabled === true,
     credentialsConfigured: config !== null,
-    locationCode: config?.locationCode ?? 2344,
-    languageCode: config?.languageCode ?? 'zh-TW',
+    locationCode: config?.locationCode ?? DATAFORSEO_DEFAULT_LOCATION_CODE,
+    languageCode: config?.languageCode ?? DATAFORSEO_DEFAULT_LANGUAGE_CODE,
   }
 }
 
@@ -162,7 +164,7 @@ function weekState(weekStart: string, remaining?: number): NonNullable<StudioDfs
 }
 
 function normalizeKeyword(value: string | undefined): string {
-  return typeof value === 'string' ? value.trim().slice(0, DFS_KEYWORD_LIMIT) : ''
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 const STATUS_FOR_FAILURE: Record<string, StudioDfsStatus> = {
@@ -198,6 +200,9 @@ export async function queryStudioDfs(
   const keyword = normalizeKeyword(input.keyword)
   if (!keyword) {
     return { status: 'invalid', week: weekState(weekStart), ...base, messageKey: 'dfs.emptyKeyword' }
+  }
+  if (keyword.length > DFS_KEYWORD_LIMIT) {
+    return { status: 'invalid', week: weekState(weekStart), ...base, keyword, messageKey: 'dfs.keywordTooLong' }
   }
 
   if (!(await deps.isEnabled(input.accountId, input.clientId))) {

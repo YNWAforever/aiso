@@ -1,7 +1,7 @@
 export const DFS_TIME_ZONE = 'Asia/Hong_Kong' as const
 
 export type StudioDfsStatus =
-  | 'ok' | 'empty' | 'capped' | 'disabled' | 'disconnected' | 'unauthorized'
+  | 'ok' | 'empty' | 'capped' | 'disabled' | 'disconnected'
   | 'unavailable' | 'auth' | 'payment' | 'rate_limit' | 'invalid' | 'misconfigured'
 
 export type StudioDfsItem = {

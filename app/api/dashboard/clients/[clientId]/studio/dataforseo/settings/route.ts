@@ -1,6 +1,7 @@
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { isFeatureEnabled } from '@/lib/flags'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import { readLimitedJson } from '@/lib/approvals/request'
 import { setStudioDfsBrandEnabled } from '@/lib/conversation-studio/dfs-query'
 
@@ -16,6 +17,9 @@ export async function POST(request: Request, context: Ctx): Promise<Response> {
   const { clientId } = await context.params
   const profile = await getProfile()
   if (!profile) return respond({ error: 'Unauthorized' }, 401)
+  if (!resolveCommercialEntitlement(profile.accounts).features.platform_access.length) {
+    return respond({ error: 'UPGRADE_REQUIRED' }, 403)
+  }
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(clientId)) return respond({ error: 'Not found' }, 404)
 
   try {
@@ -27,16 +31,14 @@ export async function POST(request: Request, context: Ctx): Promise<Response> {
       return respond({ error: 'INVALID_STUDIO_INPUT' }, 400)
     }
 
-    // Owning-account membership is the enable right; platform admins may also
-    // toggle a brand, but never a brand that does not exist or is inactive.
-    const brands = profile.is_admin
-      ? await db()`select id, account_id, status from clients where id = ${clientId}::uuid`
-      : await db()`select id, account_id, status from clients where id = ${clientId}::uuid and account_id = ${profile.account_id}`
-    const brand = brands[0] as { account_id: string; status: string } | undefined
+    // Owning-account membership is the only enable right; platform admins do
+    // not get a cross-account toggle.
+    const brands = await db()`select id, status from clients where id = ${clientId}::uuid and account_id = ${profile.account_id}`
+    const brand = brands[0] as { status: string } | undefined
     if (!brand || brand.status !== 'active') return respond({ error: 'Not found' }, 404)
 
     await setStudioDfsBrandEnabled({
-      accountId: String(brand.account_id),
+      accountId: profile.account_id,
       clientId,
       enabled: body.enabled,
       updatedBy: profile.id,

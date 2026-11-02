@@ -60,6 +60,24 @@ describe('liveGoogleOrganicAdvanced', () => {
     expect(init.body).not.toContain('UNIT_TEST_CREDENTIAL')
   })
 
+  it('keeps only organic rows with a numeric vendor rank', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(response({
+      status_code: 20000,
+      tasks: [{ status_code: 20000, result: [{ items: [
+        { type: 'featured_snippet', rank_group: 0, rank_absolute: 0, title: 'Snippet', url: 'https://snippet.example' },
+        { type: 'people_also_ask', title: 'Question', url: 'https://question.example' },
+        { type: 'organic', title: 'No rank', url: 'https://norank.example' },
+        { type: 'organic', rank_group: '2', title: 'String rank', url: 'https://string.example' },
+        { type: 'organic', rank_group: 7, title: 'Grouped', url: 'https://grouped.example' },
+        { type: 'organic', rank_absolute: 3, rank_group: 5, domain: 'example.com', title: 'Absolute', url: 'https://example.com/a' },
+      ] }] }],
+    }))
+    expect((await liveGoogleOrganicAdvanced(input, env, fetchImpl)).items).toEqual([
+      { rank: 7, title: 'Grouped', url: 'https://grouped.example' },
+      { rank: 3, title: 'Absolute', url: 'https://example.com/a', domain: 'example.com' },
+    ])
+  })
+
   it('does not fetch when credentials are missing', async () => {
     const fetchImpl = vi.fn()
     await expect(liveGoogleOrganicAdvanced(input, {}, fetchImpl)).rejects.toMatchObject({ kind: 'misconfigured' })

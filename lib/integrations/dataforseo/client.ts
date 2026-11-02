@@ -85,11 +85,15 @@ function organicItems(response: SerpResponse): DataForSeoOrganicItem[] {
   for (const task of response.tasks ?? []) {
     for (const result of task.result ?? []) {
       for (const item of result.items ?? []) {
+        if (item.type !== 'organic') continue
         if (typeof item.title !== 'string' || !item.title.trim()) continue
         if (typeof item.url !== 'string' || !item.url.trim()) continue
-        const rank = typeof item.rank_absolute === 'number' ? item.rank_absolute
-          : typeof item.rank_group === 'number' ? item.rank_group
-          : items.length + 1
+        const rank = typeof item.rank_absolute === 'number' && Number.isFinite(item.rank_absolute)
+          ? item.rank_absolute
+          : typeof item.rank_group === 'number' && Number.isFinite(item.rank_group)
+            ? item.rank_group
+            : null
+        if (rank === null) continue
         items.push({
           rank,
           title: item.title,

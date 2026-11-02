@@ -69,7 +69,7 @@ function OpportunityDraftAction({ clientId, suggestion, locale }: { clientId: st
   </div>
 }
 
-const DFS_RAN = new Set(['ok', 'empty', 'unavailable', 'auth', 'payment', 'rate_limit', 'misconfigured'])
+const DFS_RAN = new Set(['ok', 'empty'])
 
 export function StudioReplyView({ reply, clientId, number = 1, gsc, dfs, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; gsc?: StudioGscRead; dfs?: StudioDfsRead; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
   const t = useTranslations('conversationStudio.evidence')

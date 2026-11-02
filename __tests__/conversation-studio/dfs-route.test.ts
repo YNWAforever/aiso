@@ -5,11 +5,13 @@ const sql = vi.hoisted(() => vi.fn())
 const queryStudioDfs = vi.hoisted(() => vi.fn())
 const setStudioDfsBrandEnabled = vi.hoisted(() => vi.fn())
 const isFeatureEnabled = vi.hoisted(() => vi.fn())
+const resolveCommercialEntitlement = vi.hoisted(() => vi.fn())
 
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/auth', () => ({ getProfile }))
 vi.mock('@/lib/db', () => ({ db: () => sql }))
 vi.mock('@/lib/flags', () => ({ isFeatureEnabled }))
+vi.mock('@/lib/tier', () => ({ resolveCommercialEntitlement }))
 vi.mock('@/lib/conversation-studio/dfs-query', () => ({ queryStudioDfs, setStudioDfsBrandEnabled }))
 
 const clientId = '11111111-1111-4111-8111-111111111111'
@@ -39,6 +41,7 @@ beforeEach(() => {
   queryStudioDfs.mockReset().mockResolvedValue({ status: 'ok', locationPending: true, week: { weekStart: '2026-11-02', timeZone: 'Asia/Hong_Kong', remaining: 19, cap: 20 } })
   setStudioDfsBrandEnabled.mockReset().mockResolvedValue(undefined)
   isFeatureEnabled.mockReset().mockReturnValue(true)
+  resolveCommercialEntitlement.mockReset().mockReturnValue({ features: { platform_access: ['gemini'] } })
 })
 
 describe('POST studio dataforseo', () => {
@@ -71,6 +74,27 @@ describe('POST studio dataforseo', () => {
   it('rejects extra or non-string body keys', async () => {
     expect((await dataRoute(post({ keyword: 'q', secret: 'x' }))).status).toBe(400)
     expect((await dataRoute(post({ keyword: 4 }))).status).toBe(400)
+    expect(queryStudioDfs).not.toHaveBeenCalled()
+  })
+
+  it('is 400 for malformed JSON instead of an unavailable snapshot', async () => {
+    const request = new Request('https://app.test/api/studio/dataforseo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{',
+    })
+    const response = await dataRoute(request)
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'INVALID_STUDIO_INPUT' })
+    expect(queryStudioDfs).not.toHaveBeenCalled()
+  })
+
+  it('is 403 UPGRADE_REQUIRED for a non-entitled account before brand or quota work', async () => {
+    resolveCommercialEntitlement.mockReturnValue({ features: { platform_access: [] } })
+    const response = await dataRoute()
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'UPGRADE_REQUIRED' })
+    expect(sql).not.toHaveBeenCalled()
     expect(queryStudioDfs).not.toHaveBeenCalled()
   })
 
@@ -117,12 +141,20 @@ describe('POST studio dataforseo settings', () => {
     expect(setStudioDfsBrandEnabled).not.toHaveBeenCalled()
   })
 
-  it('lets a platform admin toggle an existing active brand', async () => {
+  it('does not let a platform admin toggle a brand from another account', async () => {
     getProfile.mockResolvedValue({ ...profile, is_admin: true, account_id: 'account-other' })
-    expect((await settingsRoute(post({ enabled: true }))).status).toBe(200)
-    expect(setStudioDfsBrandEnabled).toHaveBeenCalledWith({
-      accountId: 'account-a', clientId, enabled: true, updatedBy: 'p',
-    })
+    sql.mockResolvedValue([])
+    expect((await settingsRoute(post({ enabled: true }))).status).toBe(404)
+    expect(setStudioDfsBrandEnabled).not.toHaveBeenCalled()
+  })
+
+  it('is 403 UPGRADE_REQUIRED for a non-entitled account before brand work', async () => {
+    resolveCommercialEntitlement.mockReturnValue({ features: { platform_access: [] } })
+    const response = await settingsRoute()
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'UPGRADE_REQUIRED' })
+    expect(sql).not.toHaveBeenCalled()
+    expect(setStudioDfsBrandEnabled).not.toHaveBeenCalled()
   })
 
   it('is 401 unauthenticated and 404 when the feature is off', async () => {

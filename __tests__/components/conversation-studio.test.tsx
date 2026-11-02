@@ -317,6 +317,8 @@ it.each(['en', 'zh-HK'])('renders the DataForSEO SERP snapshot, cap and 待核�
   const reply = composeSavedReply('question', null, emptyStudioEvidence)
   const withStep = renderWithIntl(<StudioReplyView id="dfs" evidence={emptyStudioEvidence} reply={reply} dfs={dfs} />, lang)
   expect(withStep).toContain(copy.dfs.researchStep.replace('{keyword}', 'buy widgets'))
+  const failed = renderWithIntl(<StudioReplyView id="dfs-failed" evidence={emptyStudioEvidence} reply={reply} dfs={{ snapshot: { ...dfs.snapshot, status: 'auth' } }} />, lang)
+  expect(failed).not.toContain(copy.dfs.researchStep.replace('{keyword}', 'buy widgets'))
   const rows = renderWithIntl(<StudioEvidenceRows reads={{ documents: null, searchConsole: null }} sourceStatus="bound" dfs={dfs} />, lang)
   expect(rows).toContain(copy.dfs.title)
   expect(rows).toContain(copy.dfs.status.ok)
