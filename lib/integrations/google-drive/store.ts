@@ -71,3 +71,28 @@ export async function revokeDriveConnectionRow(accountId: string, profileId: str
   `
   return Boolean(rows[0]?.id)
 }
+
+/** The credential plus its status, for the export path (a needs_reconnect row is refused before any Google call). */
+export async function loadDriveCredential(
+  accountId: string,
+  profileId: string,
+): Promise<{ status: Exclude<DriveConnectionStatus, 'revoked'>; sealed: SealedToken } | null> {
+  const rows = await db()`
+    select status, token_ciphertext, token_key_id from google_drive_connections
+    where account_id = ${accountId} and profile_id = ${profileId} and status <> 'revoked'
+  `
+  const row = rows[0]
+  if (!row || !row.token_ciphertext || typeof row.token_key_id !== 'string') return null
+  return {
+    status: row.status as Exclude<DriveConnectionStatus, 'revoked'>,
+    sealed: { ciphertext: Buffer.from(row.token_ciphertext as Uint8Array), keyId: row.token_key_id },
+  }
+}
+
+/** Google said the grant is dead or under-scoped: the member must reconnect. Only an active row flips. */
+export async function markDriveNeedsReconnect(accountId: string, profileId: string): Promise<void> {
+  await db()`
+    update google_drive_connections set status = 'needs_reconnect', updated_at = now()
+    where account_id = ${accountId} and profile_id = ${profileId} and status = 'active'
+  `
+}

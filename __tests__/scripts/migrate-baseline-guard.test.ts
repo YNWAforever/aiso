@@ -151,6 +151,8 @@ function allRelations() {
     'studio_firecrawl_brand_settings',
     // 084: per-member Google Drive connection (post–Stage 6 act/edit); authored only.
     'google_drive_connections',
+    // 085: "Save to Google Docs" insert-only ledger; authored only.
+    'studio_drive_exports',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

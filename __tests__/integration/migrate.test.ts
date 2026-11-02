@@ -64,8 +64,9 @@ describe('migration runner against a real branch', () => {
     // pinned by __tests__/db/client-report-migration.test.ts. 036 leaves these
     // alone. 082's two DataForSEO tables were reviewed the same way as 080/081:
     // server-side app-role tables with no client policies, so RLS-on is a
-    // deliberate default-deny. 083's Firecrawl brand switch and 084's per-member
-    // Google Drive connection follow the same posture. Pinning the exact set fails both ways: a table
+    // deliberate default-deny. 083's Firecrawl brand switch, 084's per-member
+    // Google Drive connection and 085's insert-only export ledger follow the
+    // same posture. Pinning the exact set fails both ways: a table
     // losing the posture, and a new table quietly enabling RLS without review.
     const rows = await sql`
       select c.relname as table_name
@@ -85,6 +86,7 @@ describe('migration runner against a real branch', () => {
       'stripe_webhook_events',
       'studio_dataforseo_brand_settings',
       'studio_dataforseo_weekly_usage',
+      'studio_drive_exports',
       'studio_firecrawl_brand_settings',
       'studio_live_weekly_usage',
       'studio_thread_turns',
