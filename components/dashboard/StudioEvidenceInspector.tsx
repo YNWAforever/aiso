@@ -6,8 +6,10 @@ import { StudioLiveEvidence } from '@/components/dashboard/StudioLiveReply'
 import type { StudioEvidence, StudioEvidenceTarget, StudioInspectorReads, StudioReply } from '@/lib/conversation-studio/types'
 import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import type { StudioSourceStatus } from '@/lib/conversation-studio/home'
+import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
+import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
 
-export function StudioEvidenceRows({ reads, sourceStatus }: { reads: StudioInspectorReads; sourceStatus: StudioSourceStatus }) {
+export function StudioEvidenceRows({ reads, sourceStatus, gsc }: { reads: StudioInspectorReads; sourceStatus: StudioSourceStatus; gsc?: StudioGscRead }) {
   const t = useTranslations('conversationStudio')
   const sync = reads.searchConsole
   return <div className="as-evidence-rows">
@@ -31,7 +33,7 @@ export function StudioEvidenceRows({ reads, sourceStatus }: { reads: StudioInspe
       <p>{t(`sources.${sourceStatus}`)}</p>
       <p>{t('evidence.syncStatus')}: {sync ? t(`evidence.sync.${sync.kind}`) : t('honesty.pending')}</p>
       {sync && 'dataThrough' in sync && sync.dataThrough && <p>{t('evidence.dataThrough')}: <time dateTime={sync.dataThrough}>{sync.dataThrough}</time></p>}
-      <p className="as-badge as-badge-amber">{t('evidence.notQueried')}</p>
+      {gsc ? <StudioGscSnapshotView gsc={gsc} /> : <p className="as-badge as-badge-amber">{t('evidence.notQueried')}</p>}
     </section>
     <section className="space-y-2"><h3>{t('evidence.dataForSeo')}</h3><p>{t('connections.disconnected')}</p></section>
     <section className="space-y-2"><h3>{t('evidence.firecrawl')}</h3><p>{t('connections.disconnected')}</p></section>
@@ -39,9 +41,9 @@ export function StudioEvidenceRows({ reads, sourceStatus }: { reads: StudioInspe
 }
 
 /** In-flow aside, using the existing dialog primitive for focus containment and Escape. */
-export function StudioEvidenceInspector({ reply, evidence, liveReply, liveEnabled, reads, sourceStatus, prompt, target, trigger, onClose }: {
+export function StudioEvidenceInspector({ reply, evidence, liveReply, liveEnabled, gsc, reads, sourceStatus, prompt, target, trigger, onClose }: {
   reply: StudioReply; evidence: StudioEvidence; liveReply?: StudioLiveReply; liveEnabled: boolean
-  reads: StudioInspectorReads; sourceStatus: StudioSourceStatus; prompt: string
+  reads: StudioInspectorReads; sourceStatus: StudioSourceStatus; gsc?: StudioGscRead; prompt: string
   target: StudioEvidenceTarget; trigger: HTMLButtonElement; onClose: () => void
 }) {
   const t = useTranslations('conversationStudio')
@@ -61,7 +63,7 @@ export function StudioEvidenceInspector({ reply, evidence, liveReply, liveEnable
         </header>
         <Dialog.Description asChild><p className="as-muted">{t('evidence.turnScope')}</p></Dialog.Description>
         <p className="as-evidence-prompt">{prompt}</p>
-        <StudioEvidenceRows reads={reads} sourceStatus={sourceStatus} />
+        <StudioEvidenceRows reads={reads} sourceStatus={sourceStatus} gsc={gsc} />
         <section className="as-evidence-citations space-y-3">
           <h3>{t('evidence.aiCitations')}</h3>
           <p className="as-muted">{t('evidence.aiCitationScope')}</p>

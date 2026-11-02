@@ -35,6 +35,16 @@ it('disables deployment for the exact Stage 6a branch without changing other ent
 })
 
 
+it('disables deployment for the exact Stage 6d branch and keeps the 23-key set', () => {
+  const config = JSON.parse(readFileSync('vercel.json', 'utf8'))
+  expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6d']).toBe(false)
+  expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6c']).toBe(false)
+  expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6h']).toBe(false)
+  expect(config.git.deploymentEnabled['codex/conversation-studio-default-home']).toBe(false)
+  expect(Object.keys(config.git.deploymentEnabled)).toHaveLength(23)
+  expect(config.functions).not.toHaveProperty('app/api/dashboard/clients/[clientId]/studio/search-console/route.ts')
+})
+
 it('uses the durable account-week honesty strings from the Hazel pack', () => {
   expect(en.conversationStudio.featureShellNote).toBe(
     'Studio is available. Live model answers stay off until LIVE is enabled; work from saved evidence and templates meanwhile.',

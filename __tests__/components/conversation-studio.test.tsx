@@ -11,6 +11,7 @@ import { emptyStudioOpportunities, savedStudioOpportunities } from '@/__tests__/
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
 import { STUDIO_TEMPLATES } from '@/lib/conversation-studio/types'
 import { StudioEvidenceRows } from '@/components/dashboard/StudioEvidenceInspector'
+import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
 import { StudioReplyView, StudioSavedEvidence } from '@/components/dashboard/StudioReply'
 import { StudioLiveReplyView, StudioLiveEvidence } from '@/components/dashboard/StudioLiveReply'
 
@@ -240,6 +241,50 @@ it.each(['en', 'zh-HK'])('renders inspector rows from loaded metadata or explici
   expect(synced).not.toMatch(/clicks|impressions|rankings|<button/)
 })
 
+it.each(['en', 'zh-HK'])('renders the Hong Kong Pacific snapshot for this turn and drops the not-queried badge in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const gsc = {
+    snapshot: {
+      status: 'ok' as const, country: 'hkg' as const, completeness: 'complete' as const,
+      window: { startDate: '2026-10-03', endDate: '2026-10-30', timeZone: 'America/Los_Angeles' as const, lagDays: 3 },
+      totals: { clicks: 20, impressions: 500, ctr: 0.04, position: 4.9 },
+      topQueries: [{ query: 'buy widgets', clicks: 5, impressions: 100 }],
+    },
+  }
+  const snapshot = renderWithIntl(<StudioGscSnapshotView gsc={gsc} />, lang)
+  expect(snapshot).toContain(copy.gsc.title)
+  expect(snapshot).toContain(copy.gsc.country)
+  expect(snapshot).toContain(copy.gsc.timeZone)
+  expect(snapshot).toContain('2026-10-03')
+  expect(snapshot).toContain('2026-10-30')
+  expect(snapshot).toContain(copy.gsc.status.ok)
+  expect(snapshot).toContain(copy.gsc.clicks + ': 20')
+  expect(snapshot).toContain(copy.gsc.impressions + ': 500')
+  expect(snapshot).toContain('4.00%')
+  expect(snapshot).toContain('buy widgets')
+  expect(snapshot).not.toContain(copy.sources.notQueried)
+
+  const reply = composeSavedReply('question', null, emptyStudioEvidence)
+  const withStep = renderWithIntl(<StudioReplyView id="gsc" evidence={emptyStudioEvidence} reply={reply} gsc={gsc} />, lang)
+  expect(withStep).toContain(copy.gsc.researchStep.replace('{startDate}', '2026-10-03').replace('{endDate}', '2026-10-30'))
+
+  const rows = renderWithIntl(<StudioEvidenceRows reads={{ documents: null, searchConsole: null }} sourceStatus="bound" gsc={gsc} />, lang)
+  expect(rows).toContain(copy.gsc.title)
+  expect(rows).not.toContain(copy.evidence.notQueried)
+})
+
+it.each(['en', 'zh-HK'])('shows honest empty, quota and unbound snapshot states without invented metrics in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const render = (status: string, extra: Record<string, unknown> = {}) => renderWithIntl(<StudioGscSnapshotView gsc={{ snapshot: { status, country: 'hkg', completeness: 'unknown', ...extra } as never }} />, lang)
+  expect(render('empty', { window: { startDate: '2026-10-03', endDate: '2026-10-30', timeZone: 'America/Los_Angeles', lagDays: 3 } })).toContain(copy.gsc.empty)
+  expect(render('quota')).toContain(copy.gsc.status.quota)
+  expect(render('unbound')).toContain(copy.gsc.status.unbound)
+  expect(render('unbound')).toContain(copy.gsc.notRun)
+  expect(render('quota')).not.toContain(copy.gsc.notRun)
+  expect(render('quota')).not.toMatch(/Clicks:|Impressions:/)
+  expect(renderWithIntl(<StudioGscSnapshotView gsc={{ error: 'STUDIO_UNAVAILABLE' }} />, lang)).toContain(copy.gsc.failed)
+})
+
 // Real interactive production component in an offline browser fixture. This
 // never bypasses dashboard authentication or constructs SQL/Auth clients.
 afterAll(async () => {
@@ -265,7 +310,7 @@ import en from '@/messages/en.json'; import zh from '@/messages/zh-HK.json';
 const fixtureThreads=new Map();
 const fixtureJson=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
 const fixtureFetch=window.fetch.bind(window);
-window.fetch=async(input,init={})=>{const url=typeof input==='string'?input:input.url;const match=url.match(new RegExp('/api/dashboard/clients/([^/]+)/studio/threads(?:/([^/]+))?(?:/turns)?$'));if(!match)return fixtureFetch(input,init);const method=(init.method||'GET').toUpperCase();if(!match[2]){if(method==='GET')return fixtureJson({threads:[],truncated:false});const body=JSON.parse(init.body);const now=new Date().toISOString();const created={id:crypto.randomUUID(),title:body.title,goal:body.goal,week:body.week==null?null:body.week,kind:body.kind,sourceTitle:body.sourceTitle==null?null:body.sourceTitle,turns:[],createdAt:now,updatedAt:now};fixtureThreads.set(created.id,created);return fixtureJson({thread:{...created,turnCount:0}},201)}const found=fixtureThreads.get(match[2]);if(!found)return fixtureJson({error:'NOT_FOUND'},404);if(method==='GET')return fixtureJson({thread:{...found,turnCount:found.turns.length},turns:found.turns});if(method==='POST'){const body=JSON.parse(init.body);const turn={id:crypto.randomUUID(),position:found.turns.length,prompt:body.prompt,task:body.task==null?null:body.task,reply:body.reply,attached:body.attached==null?null:body.attached,live:null,createdAt:new Date().toISOString()};found.turns.push(turn);return fixtureJson({turn},201)}if(method==='PATCH'){const body=JSON.parse(init.body);const turn=found.turns.find(item=>item.position===body.position);if(!turn)return fixtureJson({error:'NOT_FOUND'},404);turn.live=body.live;return fixtureJson({turn})}return fixtureJson({error:'INVALID_STUDIO_THREAD'},400)};
+window.fetch=async(input,init={})=>{const url=typeof input==='string'?input:input.url;if(url.includes('/studio/search-console'))return fixtureJson({snapshot:{status:'ok',country:'hkg',completeness:'complete',window:{startDate:'2026-10-03',endDate:'2026-10-30',timeZone:'America/Los_Angeles',lagDays:3},totals:{clicks:20,impressions:500,ctr:0.04,position:4.9},topQueries:[{query:'buy widgets',clicks:5,impressions:100}]}});const match=url.match(new RegExp('/api/dashboard/clients/([^/]+)/studio/threads(?:/([^/]+))?(?:/turns)?$'));if(!match)return fixtureFetch(input,init);const method=(init.method||'GET').toUpperCase();if(!match[2]){if(method==='GET')return fixtureJson({threads:[],truncated:false});const body=JSON.parse(init.body);const now=new Date().toISOString();const created={id:crypto.randomUUID(),title:body.title,goal:body.goal,week:body.week==null?null:body.week,kind:body.kind,sourceTitle:body.sourceTitle==null?null:body.sourceTitle,turns:[],createdAt:now,updatedAt:now};fixtureThreads.set(created.id,created);return fixtureJson({thread:{...created,turnCount:0}},201)}const found=fixtureThreads.get(match[2]);if(!found)return fixtureJson({error:'NOT_FOUND'},404);if(method==='GET')return fixtureJson({thread:{...found,turnCount:found.turns.length},turns:found.turns});if(method==='POST'){const body=JSON.parse(init.body);const turn={id:crypto.randomUUID(),position:found.turns.length,prompt:body.prompt,task:body.task==null?null:body.task,reply:body.reply,attached:body.attached==null?null:body.attached,live:null,createdAt:new Date().toISOString()};found.turns.push(turn);return fixtureJson({turn},201)}if(method==='PATCH'){const body=JSON.parse(init.body);const turn=found.turns.find(item=>item.position===body.position);if(!turn)return fixtureJson({error:'NOT_FOUND'},404);turn.live=body.live;return fixtureJson({turn})}return fixtureJson({error:'INVALID_STUDIO_THREAD'},400)};
 const locale=document.documentElement.lang;
 const evidence=location.search.includes('empty=1')?emptyStudioEvidence:location.search.includes('scan=1')?{...savedStudioEvidence,scan:savedStudioScan}:savedStudioEvidence;
 const params=new URLSearchParams(location.search);
