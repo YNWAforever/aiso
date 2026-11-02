@@ -5,6 +5,8 @@ import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
 
 const clientId = '11111111-1111-4111-8111-111111111111'
+// Bound Studio asks Search Console on submit only (AC-Q); that on-demand call is expected.
+const unexpectedRequests = (requests: string[]) => requests.filter(url => !url.includes('/studio/search-console'))
 async function fixture(page: Page, lang: string, view = '', dark = false) {
   const directory = process.env.STUDIO_HTML_DIR ?? '.next/component-fixtures/STUDIO'
   const js = readFileSync(`${directory}/shell-fixture.js`, 'utf8')
@@ -98,7 +100,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(composer).toHaveValue('')
     await expect(page.locator('.as-recent li')).toHaveCount(4)
     await expect(toast).toBeEmpty()
-    expect(requests).toEqual([])
+    expect(unexpectedRequests(requests)).toEqual([])
   })
 
   test(`the dashboard back link uses the WorkspaceHome overview alias in ${lang}`, async ({ page }) => {
@@ -142,7 +144,7 @@ for (const lang of ['en', 'zh-HK']) {
         await expect(page.locator('.as-recent li').first()).toBeVisible()
       }
     }
-    expect(requests).toEqual([])
+    expect(unexpectedRequests(requests)).toEqual([])
   })
 
   test(`Layout B navigation, temporary discussions, READ pages and dashboard escape in ${lang}`, async ({ page }) => {
@@ -179,7 +181,7 @@ for (const lang of ['en', 'zh-HK']) {
     await navigate(page, copy.threadsTitle, copy)
     await expect(page.getByRole('heading', { name: copy.views.threads.title })).toBeVisible()
     await expect(page.locator('main').getByText('Session goal', { exact: true }).first()).toBeVisible()
-    expect(requests).toEqual([])
+    expect(unexpectedRequests(requests)).toEqual([])
   })
 
   test(`brand switch, reload persistence, recent cap and command palette in ${lang}`, async ({ page }) => {
@@ -223,7 +225,7 @@ for (const lang of ['en', 'zh-HK']) {
     await page.getByRole('combobox').fill(copy.newThread)
     await page.keyboard.press('Enter')
     await expect(page.locator('#studio-composer')).toHaveValue('')
-    expect(requests).toEqual([])
+    expect(unexpectedRequests(requests)).toEqual([])
   })
 
   test(`mobile menu breakpoint, keyboard and 44px targets in ${lang}`, async ({ page }) => {
@@ -301,7 +303,7 @@ for (const lang of ['en', 'zh-HK']) {
           }
         }
       }
-      expect(requests).toEqual([])
+      expect(unexpectedRequests(requests)).toEqual([])
     })
   }
 }
