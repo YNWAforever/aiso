@@ -149,6 +149,8 @@ function allRelations() {
     'studio_dataforseo_weekly_usage','studio_dataforseo_brand_settings',
     // 083: Stage 6f Firecrawl per-brand switch; authored only.
     'studio_firecrawl_brand_settings',
+    // 084: per-member Google Drive connection (post–Stage 6 act/edit); authored only.
+    'google_drive_connections',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

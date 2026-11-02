@@ -9,6 +9,8 @@ import { shareSigningSecret } from '@/lib/security/share-secret'
  */
 
 export const GOOGLE_CONSENT_COOKIE = 'aiso_google_consent'
+/** Drive (post–Stage 6 act/edit) uses its own cookie and signing domain on the same callback path. */
+export const GOOGLE_DRIVE_CONSENT_COOKIE = 'aiso_google_drive_consent'
 export const CONSENT_TTL_MS = 10 * 60 * 1000
 export const RETURN_PATH = /^\/(en|zh-HK)\/dashboard(\/[A-Za-z0-9_-]+)*$/
 
@@ -21,15 +23,22 @@ export type ConsentState = {
   exp: number
 }
 
-const DOMAIN = 'aiso-google-consent:v1'
+export type ConsentPurpose = 'search_console' | 'drive'
+
+// Domain-separated so a Drive consent token can never verify as a Search
+// Console one (or the reverse). The Search Console domain is unchanged.
+const DOMAINS: Record<ConsentPurpose, string> = {
+  search_console: 'aiso-google-consent:v1',
+  drive: 'aiso-google-drive-consent:v1',
+}
 const SIGNATURE = /^[A-Za-z0-9_-]{43}$/
 
-function canonical(p: ConsentState): string {
-  return [DOMAIN, p.state, p.verifier, p.profileId, p.accountId, p.returnPath, p.exp].join(':')
+function canonical(p: ConsentState, purpose: ConsentPurpose): string {
+  return [DOMAINS[purpose], p.state, p.verifier, p.profileId, p.accountId, p.returnPath, p.exp].join(':')
 }
 
-function sign(p: ConsentState): string {
-  return createHmac('sha256', shareSigningSecret()).update(canonical(p)).digest('base64url')
+function sign(p: ConsentState, purpose: ConsentPurpose): string {
+  return createHmac('sha256', shareSigningSecret()).update(canonical(p, purpose)).digest('base64url')
 }
 
 const BASE64URL = /^[A-Za-z0-9_-]+$/
@@ -46,13 +55,21 @@ function isValid(value: unknown): value is ConsentState {
     && typeof v.exp === 'number' && Number.isSafeInteger(v.exp)
 }
 
-export function signConsentState(input: Omit<ConsentState, 'exp'>, nowMs = Date.now()): string {
+export function signConsentState(
+  input: Omit<ConsentState, 'exp'>,
+  nowMs = Date.now(),
+  purpose: ConsentPurpose = 'search_console',
+): string {
   const payload: ConsentState = { ...input, exp: nowMs + CONSENT_TTL_MS }
   if (!isValid(payload)) throw new Error('Invalid consent state')
-  return `${Buffer.from(JSON.stringify(payload)).toString('base64url')}.${sign(payload)}`
+  return `${Buffer.from(JSON.stringify(payload)).toString('base64url')}.${sign(payload, purpose)}`
 }
 
-export function verifyConsentState(token: string | undefined, nowMs = Date.now()): ConsentState | null {
+export function verifyConsentState(
+  token: string | undefined,
+  nowMs = Date.now(),
+  purpose: ConsentPurpose = 'search_console',
+): ConsentState | null {
   if (!token) return null
   const [encoded, signature, ...rest] = token.split('.')
   if (!encoded || !signature || rest.length || !SIGNATURE.test(signature)) return null
@@ -64,7 +81,7 @@ export function verifyConsentState(token: string | undefined, nowMs = Date.now()
   }
   if (!isValid(payload) || payload.exp <= nowMs) return null
   try {
-    const expected = Buffer.from(sign(payload), 'base64url')
+    const expected = Buffer.from(sign(payload, purpose), 'base64url')
     const received = Buffer.from(signature, 'base64url')
     return expected.length === received.length && timingSafeEqual(expected, received) ? payload : null
   } catch {
