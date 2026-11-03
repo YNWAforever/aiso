@@ -3,7 +3,8 @@ import {WorkOperationsPanel} from './WorkOperationsPanel'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
-import { EDIT_SPEC_SCHEMA_TYPES, type EditSpecSchemaType, type EditSpecV1 } from '@/lib/site-edit/edit-spec'
+import { EDIT_SPEC_SCHEMA_TYPES, type EditSpecSchemaType } from '@/lib/site-edit/edit-spec'
+import { specDirty as isSpecDirty, specPayloadText, specRequest } from '@/lib/site-edit/editor'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { EvidenceDetails } from '@/components/opportunities/EvidenceDetails'
 export function DraftEditor({
@@ -27,11 +28,10 @@ export function DraftEditor({
     [status, setStatus] = useState('')
   const lock = useRef(false)
   // Site-edit S1: one optional JSON-LD edit, saved with the draft and frozen into its review version.
-  const specText = (spec: EditSpecV1 | null | undefined) => spec ? JSON.stringify(spec.payload, null, 2) : ''
   const [specOn, setSpecOn] = useState(Boolean(item.editSpec)),
     [specType, setSpecType] = useState<EditSpecSchemaType>(item.editSpec?.schemaType ?? 'FAQPage'),
     [specUrl, setSpecUrl] = useState(item.editSpec?.targetUrl ?? ''),
-    [specPayload, setSpecPayload] = useState(specText(item.editSpec))
+    [specPayload, setSpecPayload] = useState(specPayloadText(item.editSpec))
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(item.id)}`
   function accept(next: WorkItem) {
     setSaved(next)
@@ -41,29 +41,27 @@ export function DraftEditor({
     setSpecOn(Boolean(next.editSpec))
     setSpecType(next.editSpec?.schemaType ?? 'FAQPage')
     setSpecUrl(next.editSpec?.targetUrl ?? '')
-    setSpecPayload(specText(next.editSpec))
+    setSpecPayload(specPayloadText(next.editSpec))
     onSaved(next)
   }
-  /** undefined = leave unchanged, null = clear, object = the spec to validate and store. */
-  function draftSpec(): unknown {
-    if (!specOn) return saved.editSpec ? null : undefined
-    return { schemaVersion: 1, kind: 'jsonld', targetUrl: specUrl, schemaType: specType, payload: JSON.parse(specPayload) }
-  }
+  const specDirty = isSpecDirty({ on: specOn, type: specType, url: specUrl, payload: specPayload }, saved.editSpec)
   async function save(event: FormEvent) {
     event.preventDefault()
     if (lock.current) return
+    const textInput = { title, action, notes, expectedRevision: saved.revision }
     let input
     try {
-      const editSpec = draftSpec()
-      input = parseDraftEdit({
-        title,
-        action,
-        notes,
-        expectedRevision: saved.revision,
-        ...(editSpec === undefined ? {} : { editSpec }),
-      })
+      // Text first, so a bad title is reported as a text error even with a spec ticked.
+      input = parseDraftEdit(textInput)
     } catch {
-      setError(specOn ? 'invalidEditSpec' : 'invalidEdit')
+      setError('invalidEdit')
+      return
+    }
+    try {
+      const editSpec = specRequest({ on: specOn, type: specType, url: specUrl, payload: specPayload }, saved.editSpec)
+      if (editSpec !== undefined) input = parseDraftEdit({ ...textInput, editSpec })
+    } catch {
+      setError('invalidEditSpec')
       return
     }
     lock.current = true
@@ -116,8 +114,6 @@ export function DraftEditor({
       setBusy(false)
     }
   }
-  const specDirty = specOn !== Boolean(saved.editSpec) || (specOn && (
-    specType !== saved.editSpec?.schemaType || specUrl !== saved.editSpec?.targetUrl || specPayload !== specText(saved.editSpec)))
   const dirty =
     title !== saved.title || action !== saved.action || notes !== saved.notes || specDirty
   const field =

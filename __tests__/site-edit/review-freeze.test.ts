@@ -66,9 +66,18 @@ describe('freezing a spec into the review version', () => {
     expect(frozen.content.editSpec).toEqual(spec)
   })
 
-  it('refuses a stored spec that is no longer canonical or valid', () => {
-    const reordered = { ...spec, payload: { mainEntity: spec.payload.mainEntity, '@type': 'FAQPage', '@context': 'https://schema.org' } }
-    expect(() => freezeReview({ ...draft(), editSpec: reordered })).toThrow('REVIEW_VALIDATION_FAILED')
+  it('freezes a key-reordered spec (jsonb reorders keys) to the same content and hash', () => {
+    const frozen = freezeReview({ ...draft(), editSpec: spec })
+    const reordered = { payload: { mainEntity: spec.payload.mainEntity, '@type': 'FAQPage', '@context': 'https://schema.org' }, targetUrl: spec.targetUrl, kind: 'jsonld', schemaVersion: 1, schemaType: 'FAQPage' } as never
+    const again = freezeReview({ ...draft(), editSpec: reordered })
+    expect(again.contentHash).toBe(frozen.contentHash)
+    expect(JSON.stringify(again.content)).toBe(JSON.stringify(frozen.content))
+  })
+
+  it('refuses a stored spec whose values are not canonical or not valid', () => {
+    const decomposed = { ...spec, payload: { ...spec.payload, name: 'Cafe\u0301' } }
+    expect(() => freezeReview({ ...draft(), editSpec: decomposed as never })).toThrow('REVIEW_VALIDATION_FAILED')
+    expect(() => freezeReview({ ...draft(), editSpec: { ...spec, targetUrl: 'https://WWW.example.com/faq' } })).toThrow('REVIEW_VALIDATION_FAILED')
     expect(() => freezeReview({ ...draft(), editSpec: { ...spec, schemaType: 'Organization' } as never })).toThrow('REVIEW_VALIDATION_FAILED')
   })
 

@@ -31,11 +31,16 @@ export function assertReviewPackageSize(value: unknown): void {
  * Site-edit S1: the spec is frozen exactly as stored, and only if it is
  * already canonical. Absent/null returns {} so the content object gains no
  * key at all, keeping every spec-less hash unchanged.
+ *
+ * "Canonical" is compared by canonical JSON (fingerprintEvidence), never by
+ * JSON.stringify: Postgres jsonb reorders object keys on storage, so a version
+ * read back from work_item_versions never has the key order it was written in.
+ * Values must still match exactly (NFC strings, the parsed URL).
  */
 function frozenEditSpec(spec: EditSpecV1 | null | undefined): { editSpec?: EditSpecV1 } {
   if (spec === null || spec === undefined) return {}
   const parsed = parseEditSpec(spec)
-  if (JSON.stringify(parsed) !== JSON.stringify(spec)) validationFailed()
+  if (fingerprintEvidence(parsed) !== fingerprintEvidence(spec)) validationFailed()
   return { editSpec: parsed }
 }
 

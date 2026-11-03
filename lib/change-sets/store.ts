@@ -7,7 +7,7 @@ import { freezeMultiSourceReview, freezeReview } from './validation'
 import type { ActorSnapshot, DecisionDTO, FrozenReview, StoreResult, VersionDetail, VersionSummary } from './types'
 import { listLiveSources } from '@/lib/work-items/sources'
 import { multiSourceEnabled } from '@/lib/work-items/multi-source-flag'
-import { checkEditSpecDomain } from '@/lib/site-edit/domain'
+import { checkEditSpecDomainPinned, type EditSpecDomainPin } from '@/lib/site-edit/domain'
 
 export function validIds(...ids: string[]): boolean {
   return ids.every(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
@@ -104,6 +104,7 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
   // read work_item_sources here is behaviour-preserving before the flag ever
   // turns on.
   let liveSnapshots: WorkItem['evidenceSnapshot'][] = []
+  let domainPin: EditSpecDomainPin | null = null
   // Defer validation outcome until after the locked replay lookup. Even a malformed
   // newer draft cannot prevent retrieval of an already saved revision.
   try {
@@ -123,7 +124,13 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
         frozen = multiSourceEnabled() ? freezeMultiSourceReview(draft, liveSnapshots) : freezeReview(draft)
         // Site-edit S1: re-check the verified domain at submit; an approval must
         // never cover a target the brand cannot currently prove it owns.
-        if (frozen.content.editSpec && await checkEditSpecDomain(accountId, clientId, frozen.content.editSpec) !== 'ok') frozen = null
+        // The pin is then required again inside the INSERT, so the check and the
+        // write see the same domain state.
+        if (frozen.content.editSpec) {
+          const domain = await checkEditSpecDomainPinned(accountId, clientId, frozen.content.editSpec)
+          if (domain.result === 'ok') domainPin = domain.pin
+          else frozen = null
+        }
         if (supplied && fingerprintEvidence(supplied) !== fingerprintEvidence(frozen)) frozen = null
       }
     }
@@ -162,6 +169,9 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
           AND d.revision = ${expectedRevision} AND d.title = ${content?.title ?? null} AND d.action = ${content?.action ?? null}
           AND d.notes = ${content?.notes ?? null} AND d.locale = ${content?.locale ?? null}
           AND d.edit_spec IS NOT DISTINCT FROM ${editSpecJson}::jsonb
+          AND (${editSpecJson === null} OR EXISTS (SELECT 1 FROM clients c JOIN client_domain_verifications v ON v.client_id = c.id AND v.account_id = c.account_id
+               WHERE c.id = d.client_id AND c.account_id = d.account_id AND v.verified_at IS NOT NULL
+                 AND c.domain = ${domainPin?.clientDomain ?? null}::text AND v.domain = ${domainPin?.verifiedDomain ?? null}::text))
           AND COALESCE((SELECT jsonb_agg(s.evidence_snapshot ORDER BY s.opportunity_key)
                FROM work_item_sources s
                WHERE s.work_item_id = d.id AND s.account_id = d.account_id AND s.client_id = d.client_id AND s.withdrawn_at IS NULL), '[]'::jsonb)

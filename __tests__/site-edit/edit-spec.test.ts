@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { EDIT_SPEC_MAX_DEPTH, EDIT_SPEC_PAYLOAD_MAX_BYTES, EditSpecError, editSpecTargetsDomain, parseEditSpec } from '@/lib/site-edit/edit-spec'
+import { EDIT_SPEC_MAX_DEPTH, EDIT_SPEC_PAYLOAD_MAX_BYTES, EditSpecError, parseEditSpec } from '@/lib/site-edit/edit-spec'
+import { editSpecTargetsDomain } from '@/lib/site-edit/target-domain'
 
 const faq = {
   schemaVersion: 1,
@@ -34,6 +35,7 @@ describe('parseEditSpec', () => {
     ['javascript URL', { ...faq, targetUrl: 'javascript:alert(1)' }, 'url'],
     ['credentials in URL', { ...faq, targetUrl: 'https://user:pw@www.example.com/' }, 'url'],
     ['fragment', { ...faq, targetUrl: 'https://www.example.com/faq#q1' }, 'url'],
+    ['bare trailing #', { ...faq, targetUrl: 'https://www.example.com/faq#' }, 'url'],
     ['explicit port', { ...faq, targetUrl: 'https://www.example.com:8443/faq' }, 'url'],
     ['single-label host', { ...faq, targetUrl: 'https://localhost/faq' }, 'url'],
     ['over-long URL', { ...faq, targetUrl: `https://www.example.com/${'a'.repeat(2100)}` }, 'url'],
@@ -45,6 +47,11 @@ describe('parseEditSpec', () => {
     ['comment opener in a value', { ...faq, payload: { ...faq.payload, name: 'x<!-- y' } }, 'markup'],
     ['breakout in a key', { ...faq, payload: { ...faq.payload, '</SCRIPT>': 1 } }, 'markup'],
     ['non-finite number', { ...faq, payload: { ...faq.payload, n: Number.POSITIVE_INFINITY } }, 'payload'],
+    // Postgres jsonb refuses these; they must be a 400 here, not a 503 at the write.
+    ['NUL in a value', { ...faq, payload: { ...faq.payload, name: 'a\u0000b' } }, 'payload'],
+    ['lone surrogate in a value', { ...faq, payload: { ...faq.payload, name: 'a\ud800b' } }, 'payload'],
+    ['NUL in a key', { ...faq, payload: { ...faq.payload, 'a\u0000': 1 } }, 'payload'],
+    ['other control char', { ...faq, payload: { ...faq.payload, name: 'a\u0007b' } }, 'payload'],
   ])('refuses %s', (_name, value, expected) => {
     expect(code(value)).toBe(expected)
   })
@@ -62,6 +69,10 @@ describe('parseEditSpec', () => {
   it('allows ordinary HTML-free text including angle brackets that cannot break out', () => {
     expect(code({ ...faq, payload: { ...faq.payload, description: 'Prices from 3 < 5 dollars' } })).toBeNull()
   })
+
+  it('allows tabs, newlines and paired surrogates (emoji, CJK extension)', () => {
+    expect(code({ ...faq, payload: { ...faq.payload, description: 'Line 1\n\tLine 2 😀 𠀀' } })).toBeNull()
+  })
 })
 
 describe('editSpecTargetsDomain', () => {
@@ -74,6 +85,12 @@ describe('editSpecTargetsDomain', () => {
     ['https://example.com.evil.net/faq', 'example.com', false],
     ['https://notexample.com/faq', 'example.com', false],
     ['https://example.com/faq', '', false],
+    // www/apex pair works either way round.
+    ['https://bakery.hk/faq', 'www.bakery.hk', true],
+    ['https://www.bakery.hk/faq', 'www.bakery.hk', true],
+    ['https://shop.bakery.hk/faq', 'www.bakery.hk', false],
+    ['https://www.www.example.com/', 'example.com', false],
+    ['https://1.2.3.4/', '1.2.3.4', false],
   ])('%s on verified %j → %s', (url, domain, expected) => {
     expect(editSpecTargetsDomain(spec(url), domain)).toBe(expected)
   })

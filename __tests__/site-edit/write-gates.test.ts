@@ -7,7 +7,13 @@ const m = vi.hoisted(() => ({
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({ db: () => Object.assign(m.sql, { transaction: m.transaction }) }))
 vi.mock('@/lib/auth', () => ({ getProfile: m.profile }))
-vi.mock('@/lib/site-edit/domain', () => ({ checkEditSpecDomain: m.domain }))
+vi.mock('@/lib/site-edit/domain', () => ({
+  checkEditSpecDomain: m.domain,
+  checkEditSpecDomainPinned: async (...args: unknown[]) => {
+    const result = await m.domain(...args)
+    return { result, pin: result === 'ok' ? { clientDomain: 'https://www.example.com', verifiedDomain: 'www.example.com' } : null }
+  },
+}))
 vi.mock('@/lib/work-items/store', () => ({
   readOwnedDraft: m.draft, loadOwnedDraftClient: m.owner, updateOwnedDraft: m.update,
   findOwnedDraft: vi.fn(), loadOwnedDraftSource: vi.fn(), createDraftIfEvidenceCurrent: vi.fn(), listOwnedDrafts: vi.fn(),
@@ -72,6 +78,10 @@ describe('version submit', () => {
     expect((call[0] as string[]).join('?')).toContain('d.edit_spec IS NOT DISTINCT FROM')
     expect(call.slice(1)).toContain(JSON.stringify(spec))
     expect(String(call.slice(1).find(v => typeof v === 'string' && v.includes('"editSpec"')))).toContain('Example Bakery')
+    // The domain state the check saw is required again inside the INSERT.
+    const text = (call[0] as string[]).join('?')
+    expect(text).toContain('client_domain_verifications v')
+    expect(call.slice(1)).toEqual(expect.arrayContaining(['https://www.example.com', 'www.example.com']))
   })
 
   it.each(['unverified', 'mismatch'] as const)('freezes nothing when the domain is %s at submit time', async result => {

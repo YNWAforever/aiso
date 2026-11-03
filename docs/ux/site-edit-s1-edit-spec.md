@@ -92,3 +92,22 @@ No new tables, no grants change. The number skips `085`, which is authored on op
 - No hosted Neon migrate.
 - No LIVE / env / Vercel change.
 - No merge.
+
+## Rebuild after #143 (review fixes)
+
+#143 was merged before 086 was applied and reverted in #144. This rebuild carries the
+Extra High review's fixes:
+
+- **Deploy order:** apply `086` to the target database *before* this code deploys. Every
+  work-item query reads `edit_spec`; without the column they all fail.
+- A frozen version is compared to its re-freeze by canonical JSON, not key order, because
+  jsonb reorders keys on storage. Covered by a PGlite round-trip test through `versionDTO`
+  and the delivery export.
+- Payload keys and values refuse U+0000, lone surrogates and the other control characters
+  the text fields refuse (400, not a 503 from the database). Tab/LF/CR stay allowed.
+- A target URL with a bare trailing `#` is refused.
+- The www/apex pair is accepted either way round, through the same host normalizer the
+  domain verification uses (`lib/site-edit/target-domain.ts`).
+- Submit pins the client domain and verified domain the check saw inside the INSERT.
+- The editor does not re-send an untouched spec (a text-only save skips the domain check),
+  and validates the text fields first so a bad title is not reported as a site-edit error.

@@ -107,3 +107,27 @@ it('enforces the frozen-version spec floor and leaves spec-less content alone', 
   await expect(insert({ schemaVersion: 1, editSpec: 'yes' })).rejects.toThrow()
   await expect(insert({ schemaVersion: 1, editSpec: null })).rejects.toThrow()
 })
+
+it('reads a spec-bearing version back through jsonb (keys reordered) and exports it', async () => {
+  const { freezeReview } = await import('@/lib/change-sets/validation')
+  const { versionDTO } = await import('@/lib/change-sets/store')
+  const { createDeliveryExport } = await import('@/lib/delivery/export')
+  const { saved } = await import('../change-sets/fixtures')
+  const { approvedVersion } = await import('../delivery/fixtures')
+  const faq = parseEditSpec({
+    schemaVersion: 1, kind: 'jsonld', targetUrl: 'https://www.example.com/faq', schemaType: 'FAQPage',
+    payload: { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: [{ '@type': 'Question', name: 'Sourdough?', acceptedAnswer: { '@type': 'Answer', text: 'Daily.' } }] },
+  })
+  const frozen = freezeReview({ ...draft(), editSpec: faq })
+  const [stored] = (await state.pg!.query<{ content: Record<string, unknown> }>(
+    'insert into work_item_versions(id, content) values (gen_random_uuid(), $1::jsonb) returning content', [JSON.stringify(frozen.content)],
+  )).rows
+  // Precondition: jsonb really did reorder the keys, or this test proves nothing.
+  expect(JSON.stringify(stored!.content.editSpec)).not.toBe(JSON.stringify(faq))
+  const version = versionDTO({ ...(await saved()), content: stored!.content, content_hash: frozen.contentHash })
+  expect(version.editSpec).toEqual(faq)
+  expect(version.contentHash).toBe(frozen.contentHash)
+  const approved = approvedVersion()
+  const exported = createDeliveryExport({ ...approved, ...version, submittedBy: approved.submittedBy, submittedAt: approved.submittedAt, decision: approved.decision }, 'json')
+  expect(JSON.parse(exported.body).content.editSpec).toEqual(faq)
+})

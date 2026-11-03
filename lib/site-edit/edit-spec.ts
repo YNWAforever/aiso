@@ -47,23 +47,33 @@ function record(value: unknown, code: EditSpecError['code']): Record<string, unk
  */
 const MARKUP_BREAKOUT = /<\/script|<!--/i
 
+/**
+ * Characters Postgres jsonb refuses (U+0000, lone surrogates) plus the other
+ * controls the draft text fields already refuse (lib/work-items/edit-input.ts).
+ * Tab, LF and CR stay allowed. Refusing them here makes a bad payload a 400,
+ * not a database error surfacing as 503.
+ */
+const FORBIDDEN_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\uD800-\uDFFF]/u
+
+function safeText(value: string): string {
+  if (MARKUP_BREAKOUT.test(value)) fail('markup')
+  if (FORBIDDEN_CHARS.test(value)) fail('payload')
+  return value
+}
+
 /** Deep copy with object keys sorted, so equal specs serialize (and hash) identically. */
 function canonicalPayload(value: unknown, depth: number, budget: { nodes: number }): unknown {
   if (--budget.nodes < 0) fail('size')
   if (depth > EDIT_SPEC_MAX_DEPTH) fail('payload')
   if (value === null || typeof value === 'boolean') return value
   if (typeof value === 'number') return Number.isFinite(value) ? value : fail('payload')
-  if (typeof value === 'string') {
-    if (MARKUP_BREAKOUT.test(value)) fail('markup')
-    return value.normalize('NFC')
-  }
+  if (typeof value === 'string') return safeText(value).normalize('NFC')
   if (Array.isArray(value)) return value.map(item => canonicalPayload(item, depth + 1, budget))
   if (typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>)
       .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
       .map(([key, entry]) => {
-        if (MARKUP_BREAKOUT.test(key)) fail('markup')
-        return [key, canonicalPayload(entry, depth + 1, budget)] as const
+        return [safeText(key), canonicalPayload(entry, depth + 1, budget)] as const
       })
     return Object.fromEntries(entries)
   }
@@ -77,7 +87,9 @@ function parseTargetUrl(value: unknown): string {
   let url: URL
   try { url = new URL(trimmed) } catch { return fail('url') }
   // https only: an edit lands on a public page the existing scan can re-fetch.
-  if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.port) fail('url')
+  // `url.hash` is '' for a bare trailing '#', yet href keeps it; '#' can only
+  // appear unencoded in href as the fragment delimiter.
+  if (url.protocol !== 'https:' || url.username || url.password || url.href.includes('#') || url.port) fail('url')
   if (!url.hostname.includes('.')) fail('url')
   return url.href
 }
@@ -104,17 +116,4 @@ export function parseEditSpec(value: unknown): EditSpecV1 {
   if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > EDIT_SPEC_PAYLOAD_MAX_BYTES) fail('size')
 
   return { schemaVersion: 1, kind: 'jsonld', targetUrl, schemaType, payload }
-}
-
-/**
- * The target must be on the brand's verified domain: the domain itself or its
- * `www.` host. Other subdomains are refused, so a verification of one host
- * never authorizes edits on another.
- */
-export function editSpecTargetsDomain(spec: Pick<EditSpecV1, 'targetUrl'>, verifiedDomain: string): boolean {
-  const domain = verifiedDomain.trim().toLowerCase().replace(/\.$/, '')
-  if (!domain) return false
-  let host: string
-  try { host = new URL(spec.targetUrl).hostname.toLowerCase().replace(/\.$/, '') } catch { return false }
-  return host === domain || host === `www.${domain}`
 }
