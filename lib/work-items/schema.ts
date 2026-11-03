@@ -1,5 +1,6 @@
 import { CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
 import type { DraftSnapshotV1, OpportunityLocale, OpportunitySourceKind, SourceRef } from '@/lib/opportunities/types'
+import type { EditSpecV1 } from '@/lib/site-edit/edit-spec'
 
 export const CREATE_DRAFT_BODY_LIMIT = 4 * 1024
 export { EDIT_DRAFT_BODY_LIMIT, parseDraftEdit, type DraftEditInput } from './edit-input'
@@ -15,6 +16,8 @@ export type WorkItem = {
   id: string; clientId: string; status: 'draft'; title: string; action: string; notes: string
   locale: OpportunityLocale; revision: number; createdAt: string; updatedAt: string
   evidenceSnapshot: DraftSnapshotV1
+  /** Site-edit S1: one structured JSON-LD edit. Absent or null = none. Frozen into the review version when present. */
+  editSpec?: EditSpecV1 | null
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i

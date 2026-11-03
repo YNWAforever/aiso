@@ -28,6 +28,8 @@ export type VerificationOutcome =
 export type VerificationRow = VerificationRecord & {
   /** The client's CURRENT domain, which may differ from the verified one. */
   currentDomain: string | null
+  /** clients.domain exactly as stored, for statements that must pin it. */
+  currentDomainRaw: string | null
   token: string
   lastCheckedAt: string | null
   lastOutcome: VerificationOutcome | null
@@ -63,6 +65,7 @@ export async function loadVerification(
   if (!row) return null
   return {
     currentDomain: normalizeVerificationDomain(row.current_domain as string | null),
+    currentDomainRaw: (row.current_domain as string | null) ?? null,
     verifiedDomain: (row.verified_domain as string | null) ?? '',
     verifiedAt: (row.verified_at as string | null) ?? null,
     token: (row.token as string | null) ?? '',
