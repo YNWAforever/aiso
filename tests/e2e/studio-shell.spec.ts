@@ -215,6 +215,27 @@ for (const lang of ['en', 'zh-HK']) {
     expect(unexpectedRequests(requests)).toEqual([])
   })
 
+  test(`redesign R1b: overview cards and weekly report from saved data in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang)
+    await navigate(page, copy.nav.overview, copy)
+    for (const title of [copy.overview.visibility, copy.overview.scan, copy.overview.searchConsole, copy.overview.opportunities]) {
+      await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
+    }
+    await expect(page.locator('main')).toContainText('37.5%')
+    await expect(page.locator('main')).toContainText('72 · B')
+    await expect(page.locator('main')).toContainText(copy.overview.unbound) // Search Console card, honestly
+    await expect(page.locator('main')).toContainText(copy.overview.empty) // opportunities card
+    // A card opens a fresh thread seeded with its skill.
+    await page.getByRole('region', { name: copy.overview.visibility }).getByRole('button', { name: copy.overview.openThread }).click()
+    await expect(page.locator('#studio-composer')).toHaveValue(copy.templates.pulse.prompt)
+    await expect(page.locator('.as-composer').getByText(copy.skillChip.label.replace('{skill}', copy.templates.pulse.label), { exact: true })).toBeVisible()
+    await navigate(page, copy.nav.weekly, copy)
+    await expect(page.getByRole('heading', { name: copy.weekly.title, exact: true })).toBeVisible()
+    await expect(page.locator('main tbody tr')).toHaveCount(3)
+    await expect(page.getByRole('link', { name: copy.weekly.clientReports })).toHaveAttribute('href', `/${lang}/dashboard/${clientId}/reports`)
+    expect(unexpectedRequests(requests)).toEqual([])
+  })
+
   test(`brand switch, reload persistence, recent cap and command palette in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     // One more than the sidebar shows, so the cap and the full-list link are both exercised.
@@ -281,6 +302,21 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(toggle).toBeHidden()
   })
 
+  for (const width of [1440, 900, 390]) for (const theme of ['light', 'dark'] as const) {
+    test(`Studio R1b views ${lang} ${width} ${theme}: reflow and axe`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1000 })
+      const { copy, requests } = await fixture(page, lang, '', theme === 'dark')
+      for (const view of ['overview', 'weekly'] as const) {
+        await navigate(page, copy.nav[view], copy)
+        const result = await new AxeBuilder({ page }).analyze()
+        expect(result.violations, view).toEqual([])
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), view).toBe(true)
+        const targets = await page.locator('#aiso-studio').evaluate(root => [...root.querySelectorAll('a,button,input,textarea,summary')].filter(el => el.getBoundingClientRect().width && el.getBoundingClientRect().height).filter(el => { const box = el.getBoundingClientRect(); return box.width < 44 || box.height < 44 }).map(el => el.textContent))
+        expect(targets, view).toEqual([])
+      }
+      expect(unexpectedRequests(requests)).toEqual([])
+    })
+  }
   for (const width of [1440, 900, 390]) for (const theme of ['light', 'dark']) {
     test(`Studio screens ${lang} ${width} ${theme}: reflow and axe`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 })

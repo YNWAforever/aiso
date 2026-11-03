@@ -191,3 +191,17 @@
 #aiso-studio .as-trace-steps li[data-status="done"] svg { color: var(--as-blue); }
 #aiso-studio .as-trace-steps li[data-status="unavailable"] svg { color: var(--as-warn); }
 #aiso-studio .as-search { min-height: 44px; border: 1px solid var(--as-line); border-radius: 8px; padding: 0 12px; background: var(--as-panel); color: var(--as-ink); }
+
+/* Studio redesign R1b: overview cards, weekly bars and table. Existing tokens only. */
+#aiso-studio .as-card-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+#aiso-studio .as-card { border: 1px solid var(--as-line); border-radius: 12px; padding: 20px; background: var(--as-panel); }
+#aiso-studio .as-metric { font-size: 28px; font-weight: 600; line-height: 1.2; color: var(--as-ink); }
+#aiso-studio .as-link { color: var(--as-blue); font-size: 14px; }
+#aiso-studio .as-link:hover { text-decoration: underline; }
+#aiso-studio .as-bars { display: flex; align-items: flex-end; gap: 4px; height: 48px; }
+#aiso-studio .as-bars span { flex: 1; min-width: 4px; border-radius: 3px 3px 0 0; background: var(--as-blue); opacity: .75; }
+#aiso-studio .as-table-scroll { overflow-x: auto; border: 1px solid var(--as-line); border-radius: 12px; background: var(--as-panel); }
+#aiso-studio .as-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+#aiso-studio .as-table th, #aiso-studio .as-table td { padding: 10px 16px; border-bottom: 1px solid var(--as-line); text-align: left; white-space: nowrap; }
+#aiso-studio .as-table thead th { color: var(--as-muted); font-weight: 600; font-size: 13px; }
+#aiso-studio .as-table tbody tr:last-child > * { border-bottom: 0; }

@@ -421,7 +421,9 @@
     "nav": {
       "documents": "文件與成果",
       "connections": "資料連接",
-      "tools": "全部 AISO 工具"
+      "tools": "全部 AISO 工具",
+      "overview": "總覽",
+      "weekly": "週報"
     },
     "brandLabel": "目前品牌",
     "recentThreadsTitle": "最近討論 · 私人",
@@ -493,7 +495,40 @@
       "label": "技能 · {skill}",
       "clear": "移除技能"
     },
-    "spaceLabel": "品牌"
+    "spaceLabel": "品牌",
+    "overview": {
+      "subtitle": "只顯示已儲存數字；打開此頁不會執行任何模型。",
+      "visibility": "AI 能見度",
+      "visibilityDetail": "{total} 個回答中提及 {mentions} 次 · {platforms} 個平台 · {week} 當週",
+      "scan": "網站掃描",
+      "scanDetail": "掃描於 {date}",
+      "scanState": {
+        "scored": "已評分",
+        "limited": "有限掃描",
+        "failed": "掃描失敗",
+        "unknown": "分數待核實"
+      },
+      "searchConsole": "Search Console 點擊",
+      "searchConsoleDetail": "{impressions} 次曝光 · 數據截至 {through}",
+      "opportunities": "內容機會",
+      "opportunitiesDetail": "來自 {week} 當週",
+      "openThread": "就此開對話",
+      "empty": "未有數據",
+      "unavailable": "暫時無法使用",
+      "unbound": "未連接",
+      "notEntitled": "此方案未啟用",
+      "connect": "連接"
+    },
+    "weekly": {
+      "title": "週報",
+      "subtitle": "按週的 AI 能見度，來自已儲存的每週彙總。",
+      "clientReports": "客戶報告",
+      "week": "週次",
+      "sov": "回答佔比",
+      "mentions": "品牌提及",
+      "mentionsValue": "{total} 中 {mentions}",
+      "actions": "操作"
+    }
   },
   "seo": {
     "home": {

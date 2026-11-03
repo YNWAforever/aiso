@@ -421,7 +421,9 @@
     "nav": {
       "documents": "Documents & outputs",
       "connections": "Data connections",
-      "tools": "All AISO tools"
+      "tools": "All AISO tools",
+      "overview": "Overview",
+      "weekly": "Weekly report"
     },
     "brandLabel": "Current brand",
     "recentThreadsTitle": "Recent discussions · Private",
@@ -493,7 +495,40 @@
       "label": "Skill · {skill}",
       "clear": "Remove skill"
     },
-    "spaceLabel": "Brand"
+    "spaceLabel": "Brand",
+    "overview": {
+      "subtitle": "Saved numbers only. Opening this page runs no model.",
+      "visibility": "AI visibility",
+      "visibilityDetail": "{mentions} of {total} answers · {platforms, plural, one {# platform} other {# platforms}} · week of {week}",
+      "scan": "Site scan",
+      "scanDetail": "Scanned {date}",
+      "scanState": {
+        "scored": "Scored",
+        "limited": "Limited scan",
+        "failed": "Scan failed",
+        "unknown": "Score pending verification"
+      },
+      "searchConsole": "Search Console clicks",
+      "searchConsoleDetail": "{impressions} impressions · data through {through}",
+      "opportunities": "Content opportunities",
+      "opportunitiesDetail": "From the week of {week}",
+      "openThread": "Open a thread on this",
+      "empty": "No data yet",
+      "unavailable": "Temporarily unavailable",
+      "unbound": "Not connected",
+      "notEntitled": "Not enabled on this plan",
+      "connect": "Connect"
+    },
+    "weekly": {
+      "title": "Weekly report",
+      "subtitle": "AI visibility by week, from the saved weekly rollup.",
+      "clientReports": "Client reports",
+      "week": "Week",
+      "sov": "Share of answers",
+      "mentions": "Brand mentions",
+      "mentionsValue": "{mentions} of {total}",
+      "actions": "Actions"
+    }
   },
   "seo": {
     "home": {
