@@ -318,6 +318,26 @@
         "misconfigured": "設定有問題"
       }
     },
+    "drive": {
+      "save": "儲存至 Google 文件",
+      "saving": "正在儲存至 Google 文件…",
+      "saved": "已儲存至 Google 文件",
+      "open": "在 Google 文件開啟",
+      "openDrive": "開啟 Google Drive",
+      "unknown": "文件可能已經建立。請先查看你的 Google Drive，再重試。",
+      "notConnected": "請先連接 Google Drive。",
+      "goToConnections": "前往連接",
+      "reconnect": "請重新連接 Google Drive 以儲存。",
+      "failed": "未能儲存至 Google 文件，未有建立任何檔案。",
+      "quota": "Google Drive 目前繁忙，未有建立任何檔案。請稍後再試。",
+      "ledgerFailed": "文件已建立，但 Fimmick AISO 未能記錄。",
+      "doc": {
+        "question": "問題",
+        "answer": "已儲存回答",
+        "generated": "於 {time} 從 Fimmick AISO 儲存",
+        "provenance": "由 Fimmick AISO 只根據本回合已儲存的證據建立。"
+      }
+    },
     "destinations": {
       "opportunities": "前往內容機會",
       "reports": "前往客戶報告"

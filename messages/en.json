@@ -318,6 +318,26 @@
         "misconfigured": "Configuration problem"
       }
     },
+    "drive": {
+      "save": "Save to Google Docs",
+      "saving": "Saving to Google Docs…",
+      "saved": "Saved to Google Docs",
+      "open": "Open in Google Docs",
+      "openDrive": "Open Google Drive",
+      "unknown": "The Doc may have been created. Check your Google Drive before trying again.",
+      "notConnected": "Connect Google Drive first.",
+      "goToConnections": "Go to connections",
+      "reconnect": "Reconnect Google Drive to save.",
+      "failed": "Could not save to Google Docs. Nothing was created.",
+      "quota": "Google Drive is busy right now. Nothing was created. Try again later.",
+      "ledgerFailed": "The Doc was created, but Fimmick AISO could not record it.",
+      "doc": {
+        "question": "Question",
+        "answer": "Saved answer",
+        "generated": "Saved from Fimmick AISO at {time}",
+        "provenance": "Created by Fimmick AISO from this turn's saved evidence only."
+      }
+    },
     "destinations": {
       "opportunities": "Open content opportunities",
       "reports": "Open client reports"

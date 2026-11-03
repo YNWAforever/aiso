@@ -14,6 +14,7 @@ import { StudioEvidenceRows } from '@/components/dashboard/StudioEvidenceInspect
 import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
 import { StudioDfsSnapshotView } from '@/components/dashboard/StudioDfsSnapshot'
 import { StudioFirecrawlSnapshotView } from '@/components/dashboard/StudioFirecrawlSnapshot'
+import { StudioSaveToDocs, saveStateFor, type SaveState } from '@/components/dashboard/StudioSaveToDocs'
 import { StudioConnections } from '@/components/dashboard/StudioSecondaryViews'
 import { StudioReplyView, StudioSavedEvidence } from '@/components/dashboard/StudioReply'
 import { StudioLiveReplyView, StudioLiveEvidence } from '@/components/dashboard/StudioLiveReply'
@@ -435,6 +436,41 @@ it.each(['en', 'zh-HK'])('shows the member’s own Google Drive card for the act
   const unknown = renderWithIntl(<StudioConnections clientId={clientId} connection={base} />, lang)
   expect(unknown).not.toContain(copy.connections.driveTitle)
   expect(off + on).not.toMatch(/DataForSEO|Firecrawl|\$\d/)
+})
+
+it('maps every export answer to an honest Save to Google Docs state', () => {
+  const link = 'https://docs.google.com/document/d/f/edit'
+  expect(saveStateFor(201, { link })).toEqual({ kind: 'saved', link })
+  expect(saveStateFor(201, { link: 'https://evil.example/doc' })).toEqual({ kind: 'saved', link: null })
+  expect(saveStateFor(202, null)).toEqual({ kind: 'unknown' })
+  expect(saveStateFor(409, { error: 'DRIVE_NOT_CONNECTED' })).toEqual({ kind: 'notConnected' })
+  expect(saveStateFor(409, { error: 'DRIVE_RECONNECT' })).toEqual({ kind: 'reconnect' })
+  expect(saveStateFor(429, { error: 'DRIVE_QUOTA' })).toEqual({ kind: 'quota' })
+  expect(saveStateFor(500, { error: 'DRIVE_LEDGER_FAILED', link })).toEqual({ kind: 'ledgerFailed', link })
+  expect(saveStateFor(502, { error: 'DRIVE_UNAVAILABLE' })).toEqual({ kind: 'failed' })
+  expect(saveStateFor(503, null)).toEqual({ kind: 'failed' })
+})
+
+it.each(['en', 'zh-HK'])('renders Save to Google Docs states in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio.drive
+  const clientId = '11111111-1111-4111-8111-111111111111'
+  const view = (initial: SaveState) => renderWithIntl(<StudioSaveToDocs clientId={clientId} threadId="t" position={0} initial={initial} />, lang)
+  expect(view({ kind: 'idle' })).toContain(copy.save)
+  expect(view({ kind: 'saving' })).toContain(copy.saving)
+  const saved = view({ kind: 'saved', link: 'https://docs.google.com/document/d/f/edit' })
+  expect(saved).toContain(copy.saved)
+  expect(saved).toContain('href="https://docs.google.com/document/d/f/edit"')
+  expect(saved).not.toContain(copy.save + '</button>')
+  const unknown = view({ kind: 'unknown' })
+  expect(unknown).toContain(copy.unknown)
+  expect(unknown).toContain('href="https://drive.google.com/drive/my-drive"')
+  const notConnected = view({ kind: 'notConnected' })
+  expect(notConnected).toContain(copy.notConnected)
+  expect(notConnected).toContain(`href="/${lang}/dashboard/${clientId}/studio/connections"`)
+  expect(view({ kind: 'reconnect' })).toContain(copy.reconnect)
+  expect(view({ kind: 'quota' })).toContain(copy.quota)
+  expect(view({ kind: 'failed' })).toContain(copy.failed)
+  expect(view({ kind: 'ledgerFailed', link: null })).toContain(copy.ledgerFailed)
 })
 
 // Real interactive production component in an offline browser fixture. This
