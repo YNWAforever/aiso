@@ -1,9 +1,9 @@
 # Brief — Studio redesign: skills, full threads, cross-account staff access
 
 Date: 2026-11-03 · Owner: Willy · Builder: Claude Code (after a named start)
-Status: **brief only — nothing built.** Reference product (ads-copilot) could not be
-fetched from the build session (host blocked by the session's network policy), so
-its layout is 待核實 until screenshots are supplied.
+Status: **brief only — nothing built.** Reference: four Ads Copilot screenshots supplied by
+Willy on 2026-11-03 (conversation, overview, settings, weekly report). They show a third
+party's client data, so they are described here and **not committed**.
 
 ## Decisions recorded (Willy, 2026-11-03)
 
@@ -12,6 +12,19 @@ its layout is 待核實 until screenshots are supplied.
 | "Studio all open for other brand" | **Across accounts**: Fimmick staff can open Studio for client brands in other accounts. |
 | What a skill is | **Preset task modes**: named mode with starter prompt, allowed evidence/tools, output format; a thread starts from a skill. |
 | Thread organisation | **Per brand, full list**: brand switcher acts as the space; full searchable thread list, date-grouped, each tagged with its skill. |
+
+## Reference: Ads Copilot (from the screenshots)
+
+| Area | What it does | AISO equivalent |
+|---|---|---|
+| Sidebar | Product mark · **space switcher** (client, avatar) · **New conversation** · nav: Overview / Conversations / Weekly report / Settings · **Recent conversations** (title + relative time) · footer: master-account authorization, my spaces, sign out | Brand switcher = space (#15); New thread; nav Overview / Threads / Weekly report / Connections & settings; full thread list (#3); footer: Tools (#17), back to dashboard, language (#20) |
+| Conversation | Header: space + thread title · user turn as a bubble · collapsible "thought for a few seconds" · **execution trace** ("17 tools": each step ✓ with its scope line, e.g. account level · date range; "9 more steps") · answer **conclusion first** (先講結論), numbered findings, tables · composer with attachments · footer "AI can be wrong; check key numbers" | Reply cards (#4) gain a trace listing the evidence reads that **actually ran** (Pulse, scan, Search Console #6, DataForSEO #7, Firecrawl #8, attached source #9) with their scope; conclusion-first layout; composer keeps attach (#9) and LIVE (#2) |
+| Overview | Per-account cards: 30-day snapshot (spend, clicks, conversions, CPA), 14-day daily bars, "Open conversation analysis →". **No model call**, opens instantly | Brand snapshot cards from saved data only (scan score, Pulse share of voice, Search Console clicks, opportunities #10), each with "Open a thread on this →" |
+| Weekly report | Report list → week, status **pending review**, "Mark as publishable", evidence summary cards, conclusion first, check → result table, "needs your confirmation" | Pulse weekly rollup + client reports, reusing the existing approval chain (#12) |
+| Settings | **Account allowlist**: only enabled accounts are queryable in conversations; accounts come from a one-time admin authorization and are assigned to spaces, so members need no re-grant · per-account caps · space name / ID · **members & invites** | Connections (#18) + brand settings (DataForSEO/Firecrawl caps) + members. **Its authorization → assign-to-space → members model is the shape of A2** below |
+
+Skills (#1) are not visible in the reference sidebar. Recommended placement: skill cards on the
+**New thread** screen and as a chip in the composer, keeping the sidebar as clean as the reference.
 
 ## Preservation and focus (Willy, 2026-11-03)
 
@@ -107,7 +120,8 @@ Target information architecture (to be matched against the reference screenshots
 
 | Slice | Scope | Schema | Gate |
 |---|---|---|---|
-| **R1** | New shell: sidebar (brand, New thread, Skills, full Threads + search), right evidence panel, skill entry points | none | existing `conversation_studio` flag; e2e + axe in both locales |
+| **R1** | New shell after the reference: sidebar (brand-as-space switcher, New thread, nav Overview / Threads / Weekly report / Connections, recent threads with relative time, full searchable thread list), New-thread screen with skill cards, conversation view with conclusion-first reply and an honest evidence trace, evidence panel | none | existing `conversation_studio` flag; e2e + axe in both locales |
+| **R1b** | Overview snapshot cards from saved data (no model call) and Weekly report view over the existing rollup and approval chain | none | — |
 | **R2** | Skill-scoped composer and output formats; skill tag on thread list | none (or `087 studio_threads.skill` if derivation is not enough — applied **before** merge, the schema gate now enforces it) | — |
 | **R3** | Cross-account staff access (A1 or A2 per Q1) | A2: new migration + tenancy inventory | named Approve for the migration |
 
