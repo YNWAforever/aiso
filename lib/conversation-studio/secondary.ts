@@ -14,14 +14,35 @@ import { loadStudioDfsBrandSettings, type StudioDfsBrandSettings } from './dfs-q
 import { loadStudioFirecrawlBrandSettings, type StudioFirecrawlBrandSettings } from './firecrawl-query'
 import { loadDriveConnection } from '@/lib/integrations/google-drive/store'
 
-export async function requireStudioBrand(lang: string, clientId: string) {
+/**
+ * The Studio gate. A brand of the signed-in account is always allowed.
+ *
+ * R3 A1 (staff view): with `allowStaff`, a platform administrator
+ * (`profiles.is_admin`, whose only writer is `npm run grant-admin`) may also
+ * open a brand of another account. That view is read-only and temporary by
+ * construction: every Studio API route still scopes to the session's own
+ * account, so nothing a staff viewer does can write into the client's
+ * account, and threads are never saved. The open is logged as a structured
+ * audit line; a durable audit table arrives with A2's delegated grants.
+ * A non-admin asking for another account's brand gets the same 404 as a
+ * brand that does not exist, so the id reveals nothing.
+ */
+export async function requireStudioBrand(lang: string, clientId: string, { allowStaff = false }: { allowStaff?: boolean } = {}) {
   const profile = await requireAuth(lang)
   if (!isFeatureEnabled('conversation_studio')) redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}?step=home`)
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(clientId)) notFound()
   // A failed query propagates as unavailable; only a confirmed absence is 404.
   const brands = await db()`select id, brand_name from clients where id = ${clientId} and account_id = ${profile.account_id}`
-  if (!brands[0]) notFound()
-  return { profile, brand: { id: String(brands[0].id), name: String(brands[0].brand_name) } }
+  if (brands[0]) return { profile, brand: { id: String(brands[0].id), name: String(brands[0].brand_name) }, accountId: String(profile.account_id), staff: false as const }
+  if (!allowStaff || profile.is_admin !== true) notFound()
+  const other = await db()`select id, brand_name, account_id from clients where id = ${clientId}`
+  if (!other[0]) notFound()
+  return { profile, brand: { id: String(other[0].id), name: String(other[0].brand_name) }, accountId: String(other[0].account_id), staff: true as const }
+}
+
+/** One structured line per staff open, so who looked at which account is answerable from the logs. */
+export function auditStudioStaffOpen(input: { actorId: string; accountId: string; clientId: string }) {
+  console.info(JSON.stringify({ event: 'studio_staff_open', actor: input.actorId, account: input.accountId, client: input.clientId, at: new Date().toISOString() }))
 }
 
 export type StudioOutputs = { items: { id: string; title: string; status: string; revision: number; updatedAt: string }[]; truncated: boolean }

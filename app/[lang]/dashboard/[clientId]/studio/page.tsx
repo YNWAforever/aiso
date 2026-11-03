@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { isFeatureEnabled } from '@/lib/flags'
+import { requireStudioBrand } from '@/lib/conversation-studio/secondary'
 import { ConversationStudio } from '@/components/dashboard/ConversationStudio'
 import { loadStudioEvidence } from '@/lib/conversation-studio/evidence'
 import { loadStudioOpportunities } from '@/lib/conversation-studio/opportunities'
@@ -44,6 +45,9 @@ export default async function StudioPage({ params }: {
     </main>
   }
   const brand = brands[0]
+  // R3 A1: not this account's brand. A platform admin may still open it as a
+  // read-only staff view; anyone else gets the same 404 as a missing brand.
+  if (!brand && profile.is_admin === true) return staffStudio(lang, clientId)
   if (!brand || !evidence || opportunities === null) notFound()
   const inspector: StudioInspectorReads = { documents: null, searchConsole: null }
   try { inspector.documents = await loadStudioDocuments(clientId) } catch { /* Failed reads stay pending verification. */ }
@@ -78,4 +82,20 @@ export default async function StudioPage({ params }: {
     cap: studioLiveCap(),
   } : undefined
   return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} />
+}
+
+/**
+ * Staff view (R3 A1): saved evidence of the brand's own account, read-only.
+ * No LIVE answer, no provider or Google read, no attach, nothing saved. The
+ * gate re-resolves the brand across accounts and 404s anything not found.
+ */
+async function staffStudio(lang: string, clientId: string) {
+  const gate = await requireStudioBrand(lang, clientId, { allowStaff: true })
+  let evidence
+  try { evidence = await loadStudioEvidence(gate.accountId, clientId) } catch { evidence = null }
+  if (!evidence) {
+    const t = await getTranslations('conversationStudio')
+    return <main className="mx-auto w-full max-w-3xl space-y-4 p-6"><h1 className="text-2xl font-bold">{t('title')}</h1><p role="alert">{t('loadError')}</p></main>
+  }
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={gate.brand.name} evidence={evidence} staffView />
 }

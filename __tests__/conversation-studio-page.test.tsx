@@ -174,3 +174,26 @@ it('keeps attach candidates metadata-only and unavailable reads explicit', async
   expect(failed.props.attachCandidates).toBeNull()
   expect(JSON.stringify(failed)).not.toContain('private-attach-error')
 })
+
+it('R3 A1: a platform admin opens another account’s brand read-only, with that account’s saved evidence and no paid or Google read', async () => {
+  mocks.auth.mockResolvedValue({ id: 'admin', account_id: 'account-a', is_admin: true, accounts: { override_plan: 'pro' } })
+  mocks.sql
+    .mockResolvedValueOnce([]) // not this account's brand
+    .mockResolvedValueOnce([]) // the gate's own-account check
+    .mockResolvedValueOnce([{ id: clientId, brand_name: 'Client Brand', account_id: 'account-b' }])
+  const page = await render()
+  expect(page.type).toBe(ConversationStudio)
+  expect(page.props).toMatchObject({ brandName: 'Client Brand', staffView: true })
+  expect(page.props.live).toBeUndefined()
+  expect(page.props.attachCandidates).toBeUndefined()
+  expect(mocks.evidence).toHaveBeenLastCalledWith('account-b', clientId)
+  expect(mocks.binding).not.toHaveBeenCalled()
+  expect(mocks.attachments).not.toHaveBeenCalled()
+})
+
+it('R3 A1: anyone else gets the same 404 for another account’s brand', async () => {
+  mocks.auth.mockResolvedValue({ id: 'member', account_id: 'account-a', is_admin: false })
+  mocks.sql.mockResolvedValueOnce([])
+  await expect(render()).rejects.toThrow('NOT_FOUND')
+  expect(mocks.sql).toHaveBeenCalledTimes(1)
+})

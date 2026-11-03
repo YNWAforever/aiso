@@ -239,6 +239,28 @@ for (const lang of ['en', 'zh-HK']) {
     expect(unexpectedRequests(requests)).toEqual([])
   })
 
+  test(`R3 A1 staff view: read-only banner, own-account views hidden, nothing read from providers or saved in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang, '?staff=1')
+    await expect(page.getByRole('note').filter({ hasText: copy.staff.banner })).toBeVisible()
+    const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
+    if (await toggle.isVisible()) await toggle.click()
+    const nav = page.getByRole('navigation', { name: copy.mainNavigationLabel, includeHidden: true })
+    for (const hidden of [copy.nav.documents, copy.nav.connections, copy.nav.tools]) await expect(nav.getByRole('link', { name: hidden, exact: true, includeHidden: true })).toHaveCount(0)
+    await expect(page.locator('#studio-sidebar').getByRole('link', { name: copy.staff.backToAdmin })).toHaveAttribute('href', `/admin?lang=${lang}&view=brands`)
+    if (await toggle.isVisible()) await page.keyboard.press('Escape')
+    await expect(page.getByRole('button', { name: copy.chooseDocuments })).toHaveCount(0) // no attach
+    await page.locator('#studio-composer').fill('Explain saved observations')
+    await page.getByRole('button', { name: copy.send, exact: true }).click()
+    // The trace proves which reads ran: saved evidence only, no Search Console or provider call.
+    const trace = page.locator('.as-trace').first()
+    await trace.locator('summary').click()
+    await expect(trace.locator('li')).toHaveCount(1)
+    await expect(trace.locator('li').first()).toContainText(copy.savedDataLabel)
+    // Nothing was written to the thread store, and nothing left the page.
+    expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('studio-threads:')).map(key => localStorage.getItem(key)).filter(value => value && value !== '[]'))).toEqual([])
+    expect(requests).toEqual([])
+  })
+
   test(`brand switch, reload persistence, recent cap and command palette in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     // One more than the sidebar shows, so the cap and the full-list link are both exercised.

@@ -18,6 +18,18 @@ party's client data, so they are described here and **not committed**.
 Skills confirmed (FAQ/schema, content brief, competitor gap, AI visibility, report, improve).
 Rollout: **replace in place** behind the existing `conversation_studio` flag. **R1 started.**
 
+## R3 decision (Willy, 2026-11-03)
+
+**A1 first, platform admins only.** A platform administrator (`profiles.is_admin`, whose only
+writer is `npm run grant-admin`) may open another account's brand in Studio as a **read-only
+staff view**: saved evidence, Overview and Weekly report of that account; no LIVE answer, no
+Search Console or provider read, no attach, no draft or Drive save, and threads are never saved
+(they live only in the viewer's tab). Every Studio API route still scopes to the session's own
+account, so nothing a staff viewer does can write into the client's account. Each open writes
+one structured `studio_staff_open` log line (actor, account, brand); a durable audit table and
+saved staff threads come with **A2** (delegated grants), which needs its own migration.
+Entry point: Admin → Brands → "Open in Studio".
+
 ## Reference: Ads Copilot (from the screenshots)
 
 | Area | What it does | AISO equivalent |

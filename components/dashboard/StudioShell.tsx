@@ -20,8 +20,13 @@ const entries = [{ path: '/overview', key: 'nav.overview', Icon: Home }, { path:
 /** Recent threads shown in the sidebar; the full, searchable list lives at /studio/threads. */
 const RECENT_LIMIT = 8
 
-export function StudioShell({ children, clientId, brandName, brands, features, admin }: {
+/** Views a staff viewer may open (R3 A1); the rest read through the viewer's own account. */
+const STAFF_VIEWS = new Set(['', '/overview', '/threads', '/weekly'])
+
+export function StudioShell({ children, clientId, brandName, brands, features, admin, staff = false }: {
   children: ReactNode; clientId: string; brandName: string; brands: { id: string; name: string }[] | null; features: NavFeatures; admin: boolean
+  /** R3 A1: a platform administrator viewing another account's brand, read-only. */
+  staff?: boolean
 }) {
   const t = useTranslations('conversationStudio')
   const dashboard = useTranslations('dashboard')
@@ -47,10 +52,11 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
   function openThread(id: string) { session.selectThread(id); closeMenu(); if (pathname !== base) router.push(base) }
   const tools = buildStudioTools({ lang, clientId, features, admin, conversationStudio: true })
   const commands = [
-    ...entries.map(entry => ({ id: `studio${entry.path}`, label: t(entry.key), href: base + entry.path, ...(!entry.path ? { onSelect: () => goHome() } : {}) })),
+    ...entries.filter(entry => !staff || STAFF_VIEWS.has(entry.path)).map(entry => ({ id: `studio${entry.path}`, label: t(entry.key), href: base + entry.path, ...(!entry.path ? { onSelect: () => goHome() } : {}) })),
     { id: 'studio-new', label: t('newThread'), onSelect: () => goHome(true) },
     ...(brands ?? []).map(brand => ({ id: `brand-${brand.id}`, label: brand.name, href: `/${lang}/dashboard/${brand.id}/studio`, ...(brand.id === clientId ? { onSelect: () => goHome() } : {}) })),
-    ...buildDashboardNav({ lang, clientId, features, conversationStudio: true }).flatMap(section => [
+    // A staff viewer's dashboard is their own account's, not this brand's: no deep links into it.
+    ...(staff ? [] : buildDashboardNav({ lang, clientId, features, conversationStudio: true })).flatMap(section => [
       { id: section.key, label: dashboard(section.labelKey), href: section.href },
       ...section.items.filter(item => item.href !== section.href).map(item => ({ id: `${section.key}-${item.key}`, label: dashboard(item.labelKey), href: item.href })),
     ]),
@@ -72,7 +78,7 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
         </MenuButton>
       </div>
       <button type="button" className="as-button as-primary flex items-center gap-2 px-3 font-semibold" onClick={() => goHome(true)}><Plus className="size-4 shrink-0" aria-hidden="true" />{t('newThread')}</button>
-      <nav aria-label={t('mainNavigationLabel')}><ul className="space-y-1">{entries.map(({ path, key, Icon }) => <li key={key}>
+      <nav aria-label={t('mainNavigationLabel')}><ul className="space-y-1">{entries.filter(entry => !staff || STAFF_VIEWS.has(entry.path)).map(({ path, key, Icon }) => <li key={key}>
         <Link href={base + path} className="as-nav-link" aria-current={current.key === key ? 'page' : undefined} onClick={() => { if (!path) session.setActiveId(null); closeMenu() }}><Icon className="size-4 shrink-0" aria-hidden="true" />{t(key)}</Link>
       </li>)}</ul></nav>
       <section className="as-recent space-y-2" aria-labelledby="studio-recent-title">
@@ -80,7 +86,9 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
         {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted as-small" aria-busy="true">{t('loadingThreads')}</p> : session.threads.length ? <><ul>{session.threads.slice(0, RECENT_LIMIT).map(thread => <li key={thread.id}><button type="button" className="as-thread w-full px-2 text-left" aria-pressed={discussion && session.activeId === thread.id} onClick={() => openThread(thread.id)}><span className="block truncate">{thread.title}</span><span className="as-muted as-small">{(thread.saveState === 'persisted' && relativeTime(thread.updatedAt, new Date(), lang)) || t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></button></li>)}</ul>
           {session.threads.length > RECENT_LIMIT && <Link href={`${base}/threads`} className="as-small block px-2 underline" onClick={closeMenu}>{t('allThreads')}</Link>}</> : <p className="as-muted as-small">{t('recentThreadsEmpty')}</p>}
       </section>
-      <footer className="as-sidefoot as-muted as-small space-y-2"><p>{t('sidebarScope')} · {t('sidebarFlow')}</p><Link href={`/${lang}/dashboard/${clientId}?step=overview`} className="flex items-center gap-2 underline">{t('backToDashboard')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link></footer>
+      <footer className="as-sidefoot as-muted as-small space-y-2"><p>{t('sidebarScope')} · {t('sidebarFlow')}</p>{staff
+        ? <Link href={`/admin?lang=${lang}&view=brands`} className="flex items-center gap-2 underline">{t('staff.backToAdmin')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link>
+        : <Link href={`/${lang}/dashboard/${clientId}?step=overview`} className="flex items-center gap-2 underline">{t('backToDashboard')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link>}</footer>
     </aside>
     <div className="as-main">
       <header className="as-topbar">
@@ -91,6 +99,7 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
           <Link href={pathname.replace(`/${lang}/`, `/${otherLang}/`)} className="as-button inline-flex items-center px-3" hrefLang={otherLang}>{t('otherLanguage')}</Link>
         </div>
       </header>
+      {staff && <p role="note" className="as-staff-banner">{t('staff.banner')}</p>}
       {children}
     </div>
     <CommandPalette items={commands} open={paletteOpen} onOpenChange={setPaletteOpen} />

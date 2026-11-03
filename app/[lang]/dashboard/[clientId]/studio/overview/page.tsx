@@ -5,9 +5,11 @@ import { loadStudioOverview } from '@/lib/conversation-studio/overview'
 
 export default async function StudioOverviewPage({ params }: { params: Promise<{ lang: string; clientId: string }> }) {
   const { lang, clientId } = await params
-  const { profile, brand } = await requireStudioBrand(lang, clientId)
-  // Saved data only: no model, provider or Google call on this page.
-  const opportunities = await loadStudioOpportunities(clientId, lang).catch(() => null)
-  const overview = await loadStudioOverview(profile, clientId, opportunities)
+  const { profile, brand, accountId, staff } = await requireStudioBrand(lang, clientId, { allowStaff: true })
+  // Saved data only: no model, provider or Google call on this page. A staff view
+  // reads the brand's own account; opportunities and Search Console resolve through
+  // the viewer's session, so they read as unavailable there rather than as empty.
+  const opportunities = staff ? null : await loadStudioOpportunities(clientId, lang).catch(() => null)
+  const overview = await loadStudioOverview(staff ? { account_id: accountId } : profile, clientId, opportunities, { staff })
   return <StudioOverviewView clientId={clientId} brandName={brand.name} overview={overview} />
 }

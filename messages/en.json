@@ -546,6 +546,10 @@
       "competitorsUnverified": "Competitor comparison is pending verification: saved records carry no verified competitor measurement.",
       "questionMatched": "{count, plural, one {# saved answer matches} other {# saved answers match}} your question.",
       "questionNone": "No saved answer matches your question."
+    },
+    "staff": {
+      "banner": "Staff view · read-only. You are viewing another account’s brand: nothing is saved, and no live answer, Search Console or provider data is read.",
+      "backToAdmin": "Back to admin"
     }
   },
   "seo": {
@@ -3622,7 +3626,9 @@
         "work": "Grouped improvement work"
       }
     },
-    "currentScope": "Current scope"
+    "currentScope": "Current scope",
+    "openStudio": "Open in Studio",
+    "openStudioFor": "Open {name} in Studio (staff view)"
   },
   "notFound": {
     "eyebrow": "Error 404",
