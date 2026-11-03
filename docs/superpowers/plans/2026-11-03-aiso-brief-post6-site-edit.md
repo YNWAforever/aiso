@@ -1,12 +1,11 @@
 # AISO brief — post–Stage 6: site-edit (act/edit on the brand's own website)
 
 > **Scoping brief.** Willy decided on 2026-11-03: **option E (executor hand-off)**,
-> **JSON-LD first**, **no new flag**. One blocker remains: **Q1, the executor's
-> interface** (what Rick work pass／Rap FED are, how a job reaches them, and what
-> receipt comes back). S1 (the edit spec inside review versions, §6) makes no
-> remote call and can start on a named start. Nothing that talks to an executor is
-> built before Q1 is answered and a named Approve covers any spend. Draft PRs only.
-> Never merge.
+> **JSON-LD first**, **no new flag**, and answered **Q1**: **Rick is a Fimmick dev
+> agency**; jobs go by **webhook**; completions come back as **signed receipts**.
+> S1 is in [YNWAforever/aiso#143](https://github.com/YNWAforever/aiso/pull/143).
+> S2/S3 follow the contract in §3a once Rick agrees it and Willy names a start.
+> Draft PRs only. Never merge.
 
 | | |
 | --- | --- |
@@ -55,7 +54,12 @@ exactly the «unbounded "change any website"» the lock forbids.
 **Decided by Willy, 2026-11-03: Q2 = E (executor hand-off), Q4 = JSON-LD first, Q7 = no new flag.**
 Still open: **Q1 (blocking for S2+)**, Q3, Q5, Q6. The options are kept below for the record.
 
-**Q1 — What are "Rick work pass" and "Rap FED"?** They appear only in the lock's
+**Q1 — Answered (Willy, 2026-11-03): Rick is a Fimmick dev agency** and is the
+executor. Hand-off is a **webhook**; completion comes back as a **signed receipt**.
+"Rap FED" is not yet defined; it is out of S2–S4 until named. The original
+question is kept below.
+
+**Q1 (original) — What are "Rick work pass" and "Rap FED"?** They appear only in the lock's
 one line. Nothing in the repo, the dev pack or the specs defines them. Before
 anything else we need:
 - What each one is: Fimmick-internal tools, a client delivery service, or third-party products.
@@ -151,6 +155,67 @@ executor until S2 exists, and that needs Q1 plus a named start.
 5. **Revert:** after publish, revert is a new approved version whose edit spec removes the
    block, handed off the same way. There is no silent rollback.
 
+## 3a. Hand-off and receipt contract (proposed defaults; Rick to confirm)
+
+**Outbound: AISO → Rick (S2).** One `POST` to Rick's endpoint per approved
+version, made only when a member clicks "Send to Rick".
+
+- Body (JSON, canonical key order):
+  - `jobId` (AISO's ledger id, a UUID)
+  - `versionId`, `contentHash`
+  - `client` `{ id, name, verifiedDomain }`
+  - `editSpec` (the frozen S1 spec, unchanged)
+  - `approvedAt`
+  - `receiptUrl` (where to send the receipt)
+- Headers:
+  - `X-AISO-Timestamp` (unix seconds)
+  - `X-AISO-Signature: v1=<hex HMAC-SHA256(secret, timestamp + "." + body)>`
+  - `X-AISO-Job-Id`
+- Rules:
+  - One attempt, 10 s deadline, no automatic retry.
+  - A 2xx means Rick accepted the job (`sent`). A 4xx/5xx means `failed`. A timeout or transport error means `unknown`.
+  - Rick must treat `jobId` as an idempotency key, so a manual re-send of the same job is a no-op on their side.
+
+**Inbound: Rick → AISO (S3).** `POST /api/site-edit/receipts`, public, **authenticated only by signature**,
+like `webhooks/neon` is by payload proof.
+
+- Body:
+  - `jobId`, `status` (`completed` | `rejected`)
+  - `url`
+  - `completedAt` (ISO time)
+  - optional `note` (plain text, at most 2,000 characters)
+- Headers: `X-Rick-Timestamp`, and `X-Rick-Signature: v1=<hex HMAC-SHA256(receiptSecret, timestamp + "." + rawBody)>`.
+- AISO checks, in order:
+  1. Constant-time signature check over the **raw** body.
+  2. Timestamp within ±5 minutes.
+  3. Body ≤ 8 KiB with strict keys.
+  4. `jobId` exists and is `sent` or `unknown`.
+  5. `url` equals the job's frozen `editSpec.targetUrl`.
+  6. An identical replay returns the same 200 without a second write; a different body for a closed job is a 409.
+- A receipt only records Rick's **claim**. "Verified" still needs S4's live-page check.
+
+**Secrets (names only; values are ops' to set, Preview first):**
+- `SITE_EDIT_EXECUTOR_URL`
+- `SITE_EDIT_EXECUTOR_SECRET` (AISO signs outbound)
+- `SITE_EDIT_RECEIPT_SECRET` (Rick signs receipts)
+
+Two separate secrets, so a leak of one direction cannot forge the other.
+Missing values mean the send button is disabled (未連接), with no request made.
+Key rotation: accept `v1=` signatures from a `_PREVIOUS` secret during a rotation
+window, as `GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS` does.
+
+**Ledger (S2 migration, file-only):** `site_edit_jobs`, insert-only for `aeo_app`, with columns
+`(id, account_id, client_id, version_id, content_hash, outcome, created_at)`.
+
+`outcome` is one of `sent | failed | unknown`. Receipts go to a separate insert-only `site_edit_receipts` table,
+so neither table is ever rewritten. Current state is the newest row, derived on
+read, as `search_console_sync_runs` does it.
+
+**Still to confirm with Rick:** endpoint URL per environment, whether they can
+sign receipts with HMAC-SHA256 as above, their idempotency handling of `jobId`,
+and the turnaround they commit to (shown to members as "sent", never "done",
+until a receipt arrives).
+
 ## 4. Guardrails (non-negotiable for any option)
 
 - **Owned and verified only.** The target host must match the brand's verified domain. There is no free-form URL from the
@@ -180,13 +245,12 @@ executor until S2 exists, and that needs Q1 plus a named start.
 
 ## 6. Slicing
 
-- **S0 — Q1 discovery (no code):** what Rick work pass／Rap FED are, how a job reaches them,
-  and the receipt they can sign. Output: an amended brief with the transport and receipt contract.
+- **S0 — Q1 discovery: done** (Rick = Fimmick dev agency, webhook, signed receipts). Contract in §3a, pending Rick's confirmation of the open items listed there.
 - **S1 — edit spec in review versions (can start now, on a named start):** `editSpec` on drafts and
   versions, JSON-LD validation, domain check, hash, approval and export. No remote calls and no
   migration beyond the review-content schema version.
-- **S2 — hand-off (needs S0):** single send, ledger (file-only migration), idempotency, UI states.
-- **S3 — signed receipts (needs S0):** receipt endpoint, signature verification, ledger update.
+- **S2 — hand-off (needs Rick's confirmation of §3a + a named start):** single send, ledger (file-only migration), idempotency, UI states.
+- **S3 — signed receipts (same):** receipt endpoint, signature verification, ledger update.
 - **S4 — check live → verified attestation:** public fetch + payload check, C9e provenance field, C9f anchor.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
