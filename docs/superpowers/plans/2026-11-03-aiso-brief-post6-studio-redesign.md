@@ -13,6 +13,31 @@ its layout is 待核實 until screenshots are supplied.
 | What a skill is | **Preset task modes**: named mode with starter prompt, allowed evidence/tools, output format; a thread starts from a skill. |
 | Thread organisation | **Per brand, full list**: brand switcher acts as the space; full searchable thread list, date-grouped, each tagged with its skill. |
 
+## Preservation and focus (Willy, 2026-11-03)
+
+**Keep all 23 existing Studio features**; the redesign changes layout and presentation, never
+removes capability. Inventory (main@f001c91e):
+
+| # | Feature | # | Feature |
+|---|---|---|---|
+| 1 | Six task starters (brief, competitors, Pulse, report, opportunity, improve) | 13 | Save to Google Docs (per-member Drive) |
+| 2 | LIVE platform answers + weekly quota (6g) | 14 | Site edit JSON-LD on drafts (S1) |
+| 3 | Private saved/temporary threads (6c) | 15 | Brand switcher |
+| 4 | Evidence-grounded reply cards, honesty states | 16 | ⌘K palette |
+| 5 | Evidence inspector (scan + Pulse) | 17 | Tools page (≈15 dashboard tools) |
+| 6 | Search Console in-answer (6d) + binding state | 18 | Connections page |
+| 7 | DataForSEO live SERP (6e) | 19 | Studio as brand default home |
+| 8 | Firecrawl, 1 URL/turn (6f) | 20 | en / zh-HK, zh-HK typography |
+| 9 | Attach one approved source (6a) | 21 | Dark mode, full-bleed layout, mobile drawer |
+| 10 | HK content opportunities (6h) | 22 | 72-cell visual/a11y matrix |
+| 11 | Documents view | 23 | Honesty naming (no vendor names) |
+| 12 | Save as work-item draft (6b) | | |
+
+**R1 focus: #1 (task starters → skills), #3 (threads → full list), #15 (brand switcher → space).**
+Every other feature keeps working unchanged inside the new shell; R1's e2e must exercise each
+of them at least once (open, use, no regression) in both locales, and the a11y matrix (#22)
+must stay green.
+
 ## Today (verified in code, main@f001c91e)
 
 - `app/[lang]/dashboard/[clientId]/studio/page.tsx`: `requireAuth` → global flag
