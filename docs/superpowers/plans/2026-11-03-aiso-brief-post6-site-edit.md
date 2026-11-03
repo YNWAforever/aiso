@@ -1,10 +1,12 @@
 # AISO brief — post–Stage 6: site-edit (act/edit on the brand's own website)
 
-> **This is a scoping brief, not a build brief.** The locked design names site-edit
-> only as a later, Approve-gated backlog item, and the products it names (Rick work
-> pass／Rap FED) are not in the repo or this brief's sources. §2 lists the blocking
-> decisions. **No code, branch or spend until Willy answers them and names a start**
-> (the design requires a named Approve before spend/scope). Draft PRs only. Never merge.
+> **Scoping brief.** Willy decided on 2026-11-03: **option E (executor hand-off)**,
+> **JSON-LD first**, **no new flag**. One blocker remains: **Q1, the executor's
+> interface** (what Rick work pass／Rap FED are, how a job reaches them, and what
+> receipt comes back). S1 (the edit spec inside review versions, §6) makes no
+> remote call and can start on a named start. Nothing that talks to an executor is
+> built before Q1 is answered and a named Approve covers any spend. Draft PRs only.
+> Never merge.
 
 | | |
 | --- | --- |
@@ -48,7 +50,10 @@ spec** that is itself part of the approved version. Without that, "apply the
 approved change" would mean an LLM improvising edits on a live site, which is
 exactly the «unbounded "change any website"» the lock forbids.
 
-## 2. Blocking decisions（Willy; don't invent）
+## 2. Decisions
+
+**Decided by Willy, 2026-11-03: Q2 = E (executor hand-off), Q4 = JSON-LD first, Q7 = no new flag.**
+Still open: **Q1 (blocking for S2+)**, Q3, Q5, Q6. The options are kept below for the record.
 
 **Q1 — What are "Rick work pass" and "Rap FED"?** They appear only in the lock's
 one line. Nothing in the repo, the dev pack or the specs defines them. Before
@@ -72,10 +77,9 @@ in Q2).
 | D. Snippet / tag (one AISO-hosted JSON-LD or llms.txt endpoint the site includes once) | Serves the approved content; the site pulls it | None on the site | AISO becomes part of the client's page delivery path; uptime and trust |
 | **E. Executor hand-off (Rick work pass／Rap FED, if Q1 confirms)** | Sends the approved edit spec to the executor; ingests a signed completion receipt | None on the site | Depends on Q1; receipt authenticity |
 
-**Recommendation (pending Q1):**
-- If Rick/Rap FED is an executor, go with **E first**.
-- Otherwise, go with **B or A, drafts/PRs only**, whichever platform most current clients run.
-- In every option a human publishes in their own system. **AISO never publishes.**
+**Decided: E.** AISO holds no credential on any client site. Options A–D stay
+recorded but are not in this slice. AISO never publishes or edits a site itself;
+the executor does the work, and AISO verifies the result from the public page.
 
 **Q3 — What does "Google properties" mean here?** Google Business Profile
 (posts/Q&A/attributes), Search Console actions (sitemap submit, URL inspection —
@@ -89,8 +93,8 @@ to existing AEO checks (`lib/checks/`):
 - one JSON-LD block (FAQPage / Organization / LocalBusiness) on one page;
 - `llms.txt` content.
 
-**Default: JSON-LD on one page.** It is additive, it is verifiable afterwards by
-the existing scan (public fetch + check), and it is easy to revert.
+**Decided: JSON-LD on one page.** It is additive, the existing scan can verify it
+afterwards (public fetch + check), and it is easy to revert.
 
 **Q5 — Who may trigger an edit?** Options:
 - any account member, as C9e allows for delivery reports;
@@ -105,47 +109,47 @@ it, mirroring C9e.
 cap, as the lock's «pre-packaged in the commercial plan» suggests? Is there vendor
 cost (executor fees, platform API tiers)? **No spend without a named Approve.**
 
-**Q7 — Flag.** Remote writes to a client's website are a new risk class.
-Unlike Drive, an unknown outcome here touches a public site. Confirm whether this
-slice may ship behind a **new** `FEATURE_SITE_EDIT` flag (default off, Preview
-first). That would be a deliberate exception to "no new flags", and it needs a
-named Approve.
+**Q7 — Flag. Decided: no new flag.** This is lower-risk under option E: AISO
+never writes to a site, it sends a hand-off to an executor. The surface is gated
+like the rest of the work-item/version flow: existing auth, account ownership,
+commercial entitlement, and the C9d approval requirement. Nothing reaches an
+executor until S2 exists, and that needs Q1 plus a named start.
 
-## 3. Proposed shape (defaults; changes with Q1/Q2)
+## 3. Proposed shape (option E; executor details pending Q1)
 
-1. **Structured edit spec in the review version.** Extend C9c drafts and C9d versions with an optional
+1. **Structured edit spec in the review version (S1).** Extend C9c drafts and C9d versions with an optional
    `editSpec` field:
-   - It contains `{ kind: 'jsonld', targetUrl, schemaType, payload }` for the first kind.
-   - It is validated server-side: the payload must be valid JSON-LD of an allowlisted type, the
-     size is bounded, and `targetUrl` must be on the brand's verified domain.
-   - It is frozen into the version's content hash, and approval covers exactly this spec.
-   - Existing prose-only versions stay valid. They are simply not "sendable to site".
-2. **Connection per brand** (not per profile: the site belongs to the brand):
-   - A sealed credential, vault AAD `site:<clientId>`.
-   - It binds only if the connected site covers the brand's domain (reuse the binding check).
-   - Least scope, plus revoke/disconnect like Drive.
-3. **Send:** `POST …/work-items/[id]/versions/[versionId]/site-edit` runs these checks:
-   - feature gate → entitlement
-   - ownership (account → client → item)
+   - First kind: `{ kind: 'jsonld', targetUrl, schemaType, payload }`.
+   - Validated server-side: the payload must be valid JSON-LD of an allowlisted type
+     (FAQPage / Organization / LocalBusiness to start), the size is bounded, and
+     `targetUrl` must be on the brand's verified domain (`clients.domain`).
+   - Frozen into the version's content hash, so approval covers exactly this spec.
+   - Existing prose-only versions stay valid. They are simply not "sendable".
+   - The approved-package export (C9e) carries the spec as machine-readable JSON, so
+     even before any executor integration a human delivering by hand gets exact markup.
+2. **Hand-off (S2, needs Q1).** `POST …/work-items/[id]/versions/[versionId]/handoff` runs these checks:
+   - auth → entitlement → ownership (account → client → item)
    - **approved latest version** whose hash matches the request
    - edit spec present
-   - live connection bound to the domain
-   - **exactly one** provider write that creates a draft/PR, with no retries
-   - an insert-only ledger row: `requested | created | failed | unknown`, holding the provider
-     reference (draft id / PR URL)
+   - **exactly one** hand-off to the executor, with no retries
+   - an insert-only ledger row: `sent | failed | unknown`, holding the executor's job reference
 
-   Idempotency: **at most one live draft per version**. A second send returns the existing reference.
-4. **Delivery:** when the member publishes in their own system, AISO does not take their word for
-   it. A "Check live" action:
-   - fetches the target URL through `fetchPublicUrl`;
-   - runs the relevant AEO check;
-   - if the frozen payload is present, records a C9e attestation with **verified** provenance
-     (new provenance field; manual attestations stay labelled self-reported).
+   Idempotency: **at most one open hand-off per version**. A second send returns the existing reference.
 
-   C9f then anchors on a verified time.
-5. **Revert:** for A/C, a draft that was never published can be discarded via the provider. After
-   publish, revert is a new approved version (an edit spec that removes the block). There is no
-   silent rollback.
+   The transport depends on Q1: an API call, a signed webhook, an email/ticket, or a
+   queue the executor polls. AISO holds no client-site credential in any of them.
+3. **Receipt (S3, needs Q1).** The executor reports completion with a **signed** receipt
+   (job reference, URL, completion time). AISO verifies the signature, then treats the
+   receipt as a *claim*, not proof.
+4. **Check live → verified delivery (S4).** AISO fetches the target URL through
+   `fetchPublicUrl` and checks that the frozen JSON-LD payload is present (and the
+   relevant AEO check passes).
+   - Only then does it record a C9e attestation with **verified** provenance (new
+     provenance field; manual attestations stay labelled self-reported).
+   - C9f then anchors on a verified time.
+   - A receipt without the payload on the live page stays "reported, not verified".
+5. **Revert:** after publish, revert is a new approved version whose edit spec removes the
+   block, handed off the same way. There is no silent rollback.
 
 ## 4. Guardrails (non-negotiable for any option)
 
@@ -153,9 +157,9 @@ named Approve.
   operator at send time; the URL comes from the approved spec.
 - **Approved input only.** The exact approved version hash, frozen edit spec, no LLM edits at send time, and no
   instructions read from page content.
-- **Drafts/PRs, never publish.** AISO never deletes pages, installs plugins/themes or runs code on the
-  client's site.
-- **One write, no retries.** An unknown outcome says "may have been created; check your CMS".
+- **AISO never touches the site.** Under option E, AISO holds no client-site credential and never
+  publishes, deletes pages, installs plugins/themes or runs code there. The executor does the work.
+- **One hand-off, no retries.** An unknown outcome says "may have been sent; check with the executor".
 - **Never 2xx over a failed ledger write.** Never log credentials or connection strings.
 - **Tenancy:** composite FKs `(client_id, account_id)` and an account filter on every query; no admin
   cross-account path.
@@ -166,20 +170,24 @@ named Approve.
 
 | Risk | Why it matters | Mitigation in this shape |
 | --- | --- | --- |
-| Credential blast radius | A CMS credential can often edit the whole site | Drafts-only scopes where possible; per-brand seal; option D or E avoids holding one |
-| Wrong-site edit | Agencies manage many brands | Domain binding at connect time and at send time; target URL frozen in the approved spec |
+| Credential blast radius | A CMS credential can often edit the whole site | **Removed by option E**: AISO holds none |
+| Wrong-site edit | Agencies manage many brands | Target URL frozen in the approved spec and checked against the brand's verified domain at validation and at send time |
 | Content injection | Approved text originates from LLM-assisted drafts | JSON-LD payload schema-validated and escaped; human approval of the exact spec; human publish |
-| Unknown outcomes on a public site | A lost response may leave a draft | Ledger `unknown`, no retry, provider reference lookup |
-| Platform variance | Each CMS differs | One platform per slice; adapters behind one interface |
-| Legal/contractual | Editing a client's site on their behalf | Operator-owned connection, explicit consent screen, audit ledger; contract terms 待確認 with Willy |
+| Unknown hand-off outcome | A lost response may leave a job queued | Ledger `unknown`, no retry, executor job-reference lookup |
+| Forged or wrong receipt | A receipt claims work that isn't live | Signed receipt **and** live-page verification before any "verified" status |
+| Executor availability | A human/agency workflow has its own SLA | Hand-off state stays honest (`sent`, not `done`) until a receipt and live check |
+| Legal/contractual | The executor edits a client's site on their behalf | Approved-spec audit trail and ledger; contract terms between Fimmick, the executor and clients 待確認 with Willy |
 
-## 6. Slicing (after decisions)
+## 6. Slicing
 
-- **S0 — discovery (no code):** answer Q1–Q3. If option E, get Rick/Rap FED's interface and receipt format. Output: an amended brief.
-- **S1 — edit spec in review versions:** `editSpec` on drafts/versions, validation, hash, approval UI. No remote calls. Useful on its own: exports carry a machine-readable spec for manual delivery.
-- **S2 — connection:** connect/disconnect, domain binding, sealed credential, migration (file-only).
-- **S3 — send as draft/PR:** single write, ledger, idempotency, UI states.
-- **S4 — check live → verified attestation:** public fetch + check, C9e provenance field, C9f anchor.
+- **S0 — Q1 discovery (no code):** what Rick work pass／Rap FED are, how a job reaches them,
+  and the receipt they can sign. Output: an amended brief with the transport and receipt contract.
+- **S1 — edit spec in review versions (can start now, on a named start):** `editSpec` on drafts and
+  versions, JSON-LD validation, domain check, hash, approval and export. No remote calls and no
+  migration beyond the review-content schema version.
+- **S2 — hand-off (needs S0):** single send, ledger (file-only migration), idempotency, UI states.
+- **S3 — signed receipts (needs S0):** receipt endpoint, signature verification, ledger update.
+- **S4 — check live → verified attestation:** public fetch + payload check, C9e provenance field, C9f anchor.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 
@@ -193,7 +201,7 @@ Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, a
 
 ## 8. HOLD / NO_GO
 
-- Prod/Preview LIVE, `STUDIO_LIVE_ANSWERS_PER_WEEK`, any `FEATURE_*` (Q7 needs its own named Approve), any Vercel env, GCP or CMS console changes.
+- Prod/Preview LIVE, `STUDIO_LIVE_ANSWERS_PER_WEEK`, any `FEATURE_*` (Q7 decided: no new flag), any Vercel env, GCP or CMS console changes.
 - Hosted Neon migrate of 054 / 081 / 082 / 083 / 084 / 085 / any new migration.
 - Live writes to any real website from tests or CI.
 - Merge, undraft, force-push shared branches.
