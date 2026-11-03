@@ -528,6 +528,24 @@
       "mentions": "Brand mentions",
       "mentionsValue": "{mentions} of {total}",
       "actions": "Actions"
+    },
+    "conclusion": {
+      "title": "Conclusion first",
+      "pulseMentions": "The brand appears in {mentioned} of {classified} classified saved answers.",
+      "pulseNone": "No classified saved answer can say yet whether the brand appears.",
+      "pulsePlatforms": "Platforms with classified answers: {platforms}.",
+      "pulseUnclassified": "{count, plural, one {# saved answer is} other {# saved answers are}} not classified, so not counted.",
+      "scanNeedsWork": "Latest scan: {fail} checks failing and {warn} with warnings.",
+      "scanPassing": "{pass} of {assessed} assessed checks pass.",
+      "scanNone": "The latest scan has no assessed checks to count.",
+      "opportunityReady": "{count, plural, one {# content opportunity is} other {# content opportunities are}} ready from saved evidence.",
+      "opportunityWeek": "Built from the week of {week}.",
+      "opportunityNone": "No content opportunity is ready from saved evidence yet.",
+      "reportReady": "Saved evidence is enough for a draft report; check it before sending.",
+      "reportInsufficient": "Saved evidence is not enough for a report yet.",
+      "competitorsUnverified": "Competitor comparison is pending verification: saved records carry no verified competitor measurement.",
+      "questionMatched": "{count, plural, one {# saved answer matches} other {# saved answers match}} your question.",
+      "questionNone": "No saved answer matches your question."
     }
   },
   "seo": {

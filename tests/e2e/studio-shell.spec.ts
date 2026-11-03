@@ -190,6 +190,9 @@ for (const lang of ['en', 'zh-HK']) {
     const chip = copy.skillChip.label.replace('{skill}', copy.templates.competitors.label)
     await expect(page.locator('.as-composer').getByText(chip, { exact: true })).toBeVisible()
     await page.getByRole('button', { name: copy.send, exact: true }).click()
+    // R2: the answer leads with its conclusion; a comparison is never claimed as verified.
+    await expect(page.locator('.as-conclusion').first()).toContainText(copy.conclusion.title)
+    await expect(page.locator('.as-conclusion').first()).toContainText(copy.conclusion.competitorsUnverified)
     const trace = page.locator('.as-trace').first()
     await expect(trace).toBeVisible()
     await expect(trace.locator('li').first()).toBeHidden() // collapsed until asked
