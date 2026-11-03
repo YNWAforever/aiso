@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/schema-gate.ts && next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern \".claude/\" --ignore-pattern \".superpowers/\" --ignore-pattern \".codebase-memory/**\" --ignore-pattern \"coverage/\" --ignore-pattern \"cloudflare/**\" --ignore-pattern \".playwright-ci-server/**\" --ignore-pattern \".worktrees/\" --ignore-pattern \".codex/\" --ignore-pattern \"artifacts/\"",
     "audit:text": "node scripts/text-audit.mjs",

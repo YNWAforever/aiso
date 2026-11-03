@@ -146,6 +146,11 @@ npm --prefix cloudflare/cron-worker run typecheck
    the target via `MIGRATE_DATABASE_URL`; use it only for the reviewed release.
    Re-verify afterward. Existing unledgered schemas need baseline reconciliation,
    not blindly replaying all files. See the [release packet](remediation/2026-10-11/release-runbook.md).
+   **Apply before merging.** `npm run build` runs `scripts/schema-gate.ts` first: on a
+   Vercel production build it fails the build if `schema_migrations` lacks any file in
+   `supabase/migrations/`, so the live deployment keeps serving (preview builds only
+   warn; local and CI builds skip). A hand-applied migration must also get its ledger
+   row. `SCHEMA_GATE=off` in the Vercel environment is the deliberate emergency bypass.
 3. **Deploy the app candidate through the project's Vercel Git integration.**
    PR/branch builds are previews when enabled by project settings; merging to the
    configured production branch can deploy production. Verify those settings
