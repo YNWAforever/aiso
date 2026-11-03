@@ -7,7 +7,6 @@ import { freezeMultiSourceReview, freezeReview } from './validation'
 import type { ActorSnapshot, DecisionDTO, FrozenReview, StoreResult, VersionDetail, VersionSummary } from './types'
 import { listLiveSources } from '@/lib/work-items/sources'
 import { multiSourceEnabled } from '@/lib/work-items/multi-source-flag'
-import { checkEditSpecDomain } from '@/lib/site-edit/domain'
 
 export function validIds(...ids: string[]): boolean {
   return ids.every(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
@@ -31,9 +30,9 @@ export function versionDTO(row: Record<string, unknown>): VersionDetail {
     // on write, never re-validated on read) -- both branches must be readable,
     // not just the one new code writes.
     const frozen = c.schemaVersion === 1
-      ? freezeReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale, evidenceSnapshot: c.evidenceSnapshot, editSpec: c.editSpec } as WorkItem)
+      ? freezeReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale, evidenceSnapshot: c.evidenceSnapshot } as WorkItem)
       : c.schemaVersion === 2
-        ? freezeMultiSourceReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale, editSpec: c.editSpec }, c.evidenceSnapshots)
+        ? freezeMultiSourceReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale }, c.evidenceSnapshots)
         : invalidSaved()
     if (frozen.contentHash !== row.content_hash || fingerprintEvidence(c) !== frozen.contentHash || fingerprintEvidence(row.validation) !== fingerprintEvidence(frozen.validation)) invalidSaved()
     const submittedBy = actor(row.submitter)
@@ -121,9 +120,6 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
         // with the flag off this is byte-identical to today's freezeReview
         // call, so an existing submission's hash never moves under it.
         frozen = multiSourceEnabled() ? freezeMultiSourceReview(draft, liveSnapshots) : freezeReview(draft)
-        // Site-edit S1: re-check the verified domain at submit; an approval must
-        // never cover a target the brand cannot currently prove it owns.
-        if (frozen.content.editSpec && await checkEditSpecDomain(accountId, clientId, frozen.content.editSpec) !== 'ok') frozen = null
         if (supplied && fingerprintEvidence(supplied) !== fingerprintEvidence(frozen)) frozen = null
       }
     }
@@ -132,7 +128,6 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
     if (!/SNAPSHOT|VALIDATION|EVIDENCE|INVALID/.test(message)) throw new Error('CHANGE_SET_UNAVAILABLE')
   }
   const content = frozen?.content
-  const editSpecJson = content?.editSpec ? JSON.stringify(content.editSpec) : null
   return retryWrite(async () => {
     const sql = db()
     const result = await sql.transaction([
@@ -161,7 +156,6 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
         FROM owned d CROSS JOIN member p WHERE NOT EXISTS (SELECT 1 FROM replay) AND ${frozen !== null}
           AND d.revision = ${expectedRevision} AND d.title = ${content?.title ?? null} AND d.action = ${content?.action ?? null}
           AND d.notes = ${content?.notes ?? null} AND d.locale = ${content?.locale ?? null}
-          AND d.edit_spec IS NOT DISTINCT FROM ${editSpecJson}::jsonb
           AND COALESCE((SELECT jsonb_agg(s.evidence_snapshot ORDER BY s.opportunity_key)
                FROM work_item_sources s
                WHERE s.work_item_id = d.id AND s.account_id = d.account_id AND s.client_id = d.client_id AND s.withdrawn_at IS NULL), '[]'::jsonb)

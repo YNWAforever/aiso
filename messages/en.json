@@ -2683,16 +2683,7 @@
     "notComparable": "Cannot directly compare: {reasons}",
     "operationsConflict": "This work record changed in another session. Your unsaved changes are retained. Reload the saved version to reconcile before saving.",
     "reloadOperations": "Reload saved work record",
-    "emptyAction": "Run a scan",
-    "editSpecTitle": "Site edit (JSON-LD)",
-    "editSpecInclude": "Include a JSON-LD edit for one page",
-    "editSpecType": "Schema type",
-    "editSpecUrl": "Page URL (https, on this brand's verified domain)",
-    "editSpecPayload": "JSON-LD",
-    "editSpecRules": "One block on one page. Its @type must match the schema type. Approval covers exactly this markup.",
-    "invalidEditSpec": "Check the site edit: an https page URL, valid JSON with a schema.org @context, and a matching @type. Your edits are preserved.",
-    "editSpecUnverified": "Verify this brand's domain before adding a site edit. Your edits are preserved.",
-    "editSpecMismatch": "The page URL must be on this brand's verified domain. Your edits are preserved."
+    "emptyAction": "Run a scan"
   },
   "changeSets": {
     "title": "Version review",
@@ -2738,8 +2729,7 @@
     "check_content_size": "Package size",
     "pass": "Passed",
     "contentHash": "Content hash",
-    "discardReason": "Discard entered reason",
-    "editSpecTitle": "Site edit (JSON-LD)"
+    "discardReason": "Discard entered reason"
   },
   "approverAccess": {
     "title": "Account approvers",
