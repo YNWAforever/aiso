@@ -3246,6 +3246,44 @@
       "MEMBER_NOT_FOUND": "That person is not in this workspace."
     }
   },
+  "staffAccess": {
+    "title": "Fimmick staff access",
+    "emailLabel": "Staff email",
+    "emailPlaceholder": "name@fimmick.com",
+    "grant": "Grant 90 days",
+    "granting": "Granting",
+    "renew": "Renew",
+    "renewing": "Renewing",
+    "renewFor": "Renew access for {name}",
+    "revoke": "Revoke",
+    "revoking": "Revoking",
+    "revokeFor": "Revoke access for {name}",
+    "none": "No staff have access.",
+    "unknown": "Unknown",
+    "expiresOn": "Expires",
+    "revokedOn": "Revoked",
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    },
+    "auditHeading": "Recent activity",
+    "audit": {
+      "grant": "granted access",
+      "renew": "renewed access",
+      "revoke": "revoked access",
+      "open": "opened Studio for",
+      "thread": "saved a thread for"
+    },
+    "errors": {
+      "INVALID_STAFF_GRANT": "That does not look like an email address.",
+      "STAFF_GRANT_BODY_TOO_LARGE": "That request was too large.",
+      "STAFF_NOT_ELIGIBLE": "That address is not Fimmick staff who can be granted access.",
+      "STAFF_GRANT_EXISTS": "That person already has access. Renew it instead.",
+      "STAFF_GRANT_NOT_FOUND": "That access is no longer there.",
+      "STAFF_GRANTS_UNAVAILABLE": "Staff access could not be loaded just now. Try again."
+    }
+  },
   "maintenance": {
     "runTitle": "Collection work items",
     "runUnavailable": "The complete run record is unavailable. No work was changed.",

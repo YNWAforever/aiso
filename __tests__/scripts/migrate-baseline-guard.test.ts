@@ -153,6 +153,8 @@ function allRelations() {
     'google_drive_connections',
     // 085: "Save to Google Docs" insert-only ledger; authored only.
     'studio_drive_exports',
+    // 087: Studio R3 A2a staff access grants and their audit; authored only.
+    'studio_staff_grants','studio_staff_audit',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

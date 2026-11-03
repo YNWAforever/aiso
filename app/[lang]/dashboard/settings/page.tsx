@@ -5,6 +5,8 @@ import { loadReportBranding } from '@/lib/reports/store'
 import Link from 'next/link'
 import { SettingsView, normalizeSettingsStatus } from '@/components/dashboard/SettingsView'
 import { MembersPanel } from '@/components/dashboard/MembersPanel'
+import { StaffAccessPanel } from '@/components/dashboard/StaffAccessPanel'
+import { listStaffAudit, listStaffGrants } from '@/lib/staff-grants/store'
 import { MAX_ACCOUNT_MEMBERS } from '@/lib/members/schema'
 import { loadAccountMembers } from '@/lib/members/store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
@@ -52,6 +54,17 @@ export default async function SettingsPage({
       connectionsLoadFailed = true
     }
   }
+  // Studio staff access (R3 A2a). Like connections, a failed read (or 087 not
+  // yet applied) shows the panel's unavailable state, never a broken page.
+  let staffGrants: Awaited<ReturnType<typeof listStaffGrants>> = []
+  let staffAudit: Awaited<ReturnType<typeof listStaffAudit>> = []
+  let staffLoadFailed = false
+  try {
+    ;[staffGrants, staffAudit] = await Promise.all([listStaffGrants(profile.account_id), listStaffAudit(profile.account_id)])
+  } catch (error) {
+    console.error('[settings] staff grants failed', { name: error instanceof Error ? error.name : typeof error })
+    staffLoadFailed = true
+  }
   // Only a reason the callback itself generates is shown; anything else is ignored.
   const reason = search.google === 'error' ? search.reason : undefined
   const notice = isConsentErrorReason(reason) ? reason : null
@@ -64,6 +77,7 @@ export default async function SettingsPage({
           members={membership.members}
           invitations={membership.invitations}
         />
+        <StaffAccessPanel grants={staffGrants} audit={staffAudit} loadFailed={staffLoadFailed} />
         {searchConsoleOn && (
           <GoogleConnectionsPanel
             lang={lang}

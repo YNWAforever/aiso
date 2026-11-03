@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-const mocks=vi.hoisted(()=>({auth:vi.fn(),branding:vi.fn(),members:vi.fn(),connections:vi.fn()}))
+const mocks=vi.hoisted(()=>({auth:vi.fn(),branding:vi.fn(),members:vi.fn(),connections:vi.fn(),staffGrants:vi.fn(),staffAudit:vi.fn()}))
 // `server-only` is a Next build-time alias with no package to resolve under
 // Vitest; stubbing it is the convention the rest of the suite already uses.
 vi.mock('server-only',()=>({}))
@@ -7,11 +7,13 @@ vi.mock('@/lib/auth',()=>({requireAuth:mocks.auth}))
 vi.mock('@/lib/reports/store',()=>({loadReportBranding:mocks.branding}))
 vi.mock('@/lib/members/store',()=>({loadAccountMembers:mocks.members}))
 vi.mock('@/lib/integrations/search-console/store',()=>({listConnections:mocks.connections}))
+vi.mock('@/lib/staff-grants/store',()=>({listStaffGrants:mocks.staffGrants,listStaffAudit:mocks.staffAudit}))
 vi.mock('next-intl/server',()=>({getTranslations:async()=>(key:string)=>key}))
 import Page from '@/app/[lang]/dashboard/settings/page'
 import { GoogleConnectionsPanel } from '@/components/integrations/GoogleConnectionsPanel'
+import { StaffAccessPanel } from '@/components/dashboard/StaffAccessPanel'
 const render=()=>Page({params:Promise.resolve({lang:'zh-HK'}),searchParams:Promise.resolve({})})
-beforeEach(()=>{vi.clearAllMocks();mocks.auth.mockResolvedValue({id:'profile-a',account_id:'account-a',accounts:{plan:'free'}});mocks.branding.mockResolvedValue(null);mocks.members.mockResolvedValue({members:[],invitations:[]})})
+beforeEach(()=>{vi.clearAllMocks();mocks.auth.mockResolvedValue({id:'profile-a',account_id:'account-a',accounts:{plan:'free'}});mocks.branding.mockResolvedValue(null);mocks.members.mockResolvedValue({members:[],invitations:[]});mocks.staffGrants.mockResolvedValue([]);mocks.staffAudit.mockResolvedValue([])})
 it('keeps independent authentication ahead of branding data',async()=>{
  mocks.auth.mockRejectedValue(new Error('AUTH_REDIRECT'))
  await expect(render()).rejects.toThrow('AUTH_REDIRECT');expect(mocks.branding).not.toHaveBeenCalled()
@@ -63,5 +65,23 @@ describe('Google connections on Settings',()=>{
     expect(JSON.stringify(spy.mock.calls)).not.toContain('hunter2')
     // The rest of the page still renders.
     expect(mocks.members).toHaveBeenCalledWith('account-a')
+  })
+})
+
+describe('Fimmick staff access on Settings',()=>{
+  const staffPanel=(page:{props:{children:unknown}})=>[page.props.children].flat(3)
+    .find((child):child is {props:Record<string,unknown>}=>Boolean(child)&&(child as {type?:unknown}).type===StaffAccessPanel)
+  it('reads grants and audit for the session account',async()=>{
+    const panel=staffPanel(await render())
+    expect(mocks.staffGrants).toHaveBeenCalledWith('account-a');expect(mocks.staffAudit).toHaveBeenCalledWith('account-a')
+    expect(panel?.props.loadFailed).toBe(false)
+  })
+  it('keeps the page up when the read fails (087 not applied), and says so in the panel',async()=>{
+    const spy=vi.spyOn(console,'error').mockImplementation(()=>{})
+    mocks.staffGrants.mockRejectedValue(new Error('relation "studio_staff_grants" does not exist'))
+    const panel=staffPanel(await render())
+    expect(panel?.props.loadFailed).toBe(true);expect(panel?.props.grants).toEqual([])
+    expect(JSON.stringify(spy.mock.calls)).not.toContain('studio_staff_grants')
+    spy.mockRestore()
   })
 })

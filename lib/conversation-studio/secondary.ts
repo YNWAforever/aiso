@@ -13,6 +13,7 @@ import type { StudioSourceStatus } from './home'
 import { loadStudioDfsBrandSettings, type StudioDfsBrandSettings } from './dfs-query'
 import { loadStudioFirecrawlBrandSettings, type StudioFirecrawlBrandSettings } from './firecrawl-query'
 import { loadDriveConnection } from '@/lib/integrations/google-drive/store'
+import { recordStaffAudit } from '@/lib/staff-grants/store'
 
 /**
  * The Studio gate. A brand of the signed-in account is always allowed.
@@ -41,8 +42,16 @@ export async function requireStudioBrand(lang: string, clientId: string, { allow
 }
 
 /** One structured line per staff open, so who looked at which account is answerable from the logs. */
-export function auditStudioStaffOpen(input: { actorId: string; accountId: string; clientId: string }) {
+/**
+ * Every staff open is recorded where the client account can read it
+ * (studio_staff_audit, 087, shown under Settings → Fimmick staff access), plus
+ * one structured log line. The durable write fails CLOSED: a staff view whose
+ * open could not be recorded does not render, because "every staff open
+ * writes an audit row" is a non-negotiable of the brief.
+ */
+export async function auditStudioStaffOpen(input: { actorId: string; accountId: string; clientId: string }) {
   console.info(JSON.stringify({ event: 'studio_staff_open', actor: input.actorId, account: input.accountId, client: input.clientId, at: new Date().toISOString() }))
+  await recordStaffAudit({ accountId: input.accountId, clientId: input.clientId, actorId: input.actorId, action: 'open' })
 }
 
 export type StudioOutputs = { items: { id: string; title: string; status: string; revision: number; updatedAt: string }[]; truncated: boolean }

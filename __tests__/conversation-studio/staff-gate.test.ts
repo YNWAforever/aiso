@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const m = vi.hoisted(() => ({ profile: null as null | Record<string, unknown>, rows: [] as Record<string, unknown>[][], queries: [] as string[] }))
+const m = vi.hoisted(() => ({ profile: null as null | Record<string, unknown>, rows: [] as Record<string, unknown>[][], queries: [] as string[], fail: false }))
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({
   notFound: () => { throw new Error('NOT_FOUND') },
@@ -9,7 +9,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/auth', () => ({ requireAuth: async () => m.profile }))
 vi.mock('@/lib/flags', () => ({ isFeatureEnabled: () => true }))
 vi.mock('@/lib/db', () => ({
-  db: () => async (strings: TemplateStringsArray) => { m.queries.push(strings.join('?')); return m.rows.shift() ?? [] },
+  db: () => async (strings: TemplateStringsArray) => { if (m.fail) throw new Error('db down'); m.queries.push(strings.join('?')); return m.rows.shift() ?? [] },
 }))
 
 import { auditStudioStaffOpen, requireStudioBrand } from '@/lib/conversation-studio/secondary'
@@ -49,10 +49,20 @@ describe('requireStudioBrand', () => {
     await expect(requireStudioBrand('en', brand, { allowStaff: true })).rejects.toThrow('NOT_FOUND')
   })
 
-  it('writes one structured audit line naming actor, account and brand', () => {
+  it('records each open in the client account’s audit, plus one structured log line', async () => {
     const spy = vi.spyOn(console, 'info').mockImplementation(() => {})
-    auditStudioStaffOpen({ actorId: 'admin', accountId: other, clientId: brand })
+    await auditStudioStaffOpen({ actorId: 'admin', accountId: other, clientId: brand })
     expect(JSON.parse(String(spy.mock.calls[0]![0]))).toMatchObject({ event: 'studio_staff_open', actor: 'admin', account: other, client: brand })
+    expect(m.queries).toHaveLength(1)
+    expect(m.queries[0]).toMatch(/insert into studio_staff_audit/)
+    spy.mockRestore()
+  })
+
+  it('fails closed: a staff open that could not be recorded does not render', async () => {
+    const spy = vi.spyOn(console, 'info').mockImplementation(() => {})
+    m.fail = true
+    await expect(auditStudioStaffOpen({ actorId: 'admin', accountId: other, clientId: brand })).rejects.toThrow('db down')
+    m.fail = false
     spy.mockRestore()
   })
 })

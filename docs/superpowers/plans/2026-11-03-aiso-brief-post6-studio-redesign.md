@@ -30,6 +30,24 @@ one structured `studio_staff_open` log line (actor, account, brand); a durable a
 saved staff threads come with **A2** (delegated grants), which needs its own migration.
 Entry point: Admin → Brands → "Open in Studio".
 
+## A2 decisions (Willy, 2026-11-03)
+
+| Question | Answer |
+|---|---|
+| Who grants | **Any active member** of the client account |
+| Who receives | **Platform admins only** (`profiles.is_admin`) of another account |
+| Staff powers with a live grant | **Saved threads, no paid calls** (no LIVE, Search Console or provider read) |
+| Expiry | **90 days, renewable** |
+
+Split in two because each needs its own migration, applied and `--verify`-ed **before** its code merges:
+
+- **A2a** (migration `087`): `studio_staff_grants` + insert-only `studio_staff_audit`.
+  Settings → *Fimmick staff access* grants by email, renews, revokes and shows recent activity.
+  Every staff open of a brand writes an `open` audit row; the write **fails closed** (no audit
+  row, no staff view). The A1 read-only view itself is unchanged.
+- **A2b** (migration `088`): saved staff threads keyed by a live grant, each save audited as
+  `thread`; still no paid calls.
+
 ## Reference: Ads Copilot (from the screenshots)
 
 | Area | What it does | AISO equivalent |

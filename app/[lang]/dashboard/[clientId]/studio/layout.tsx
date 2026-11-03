@@ -7,8 +7,9 @@ import { resolveCommercialEntitlement } from '@/lib/tier'
 export default async function StudioLayout({ children, params }: { children: React.ReactNode; params: Promise<{ lang: string; clientId: string }> }) {
   const { lang, clientId } = await params
   const { profile, brand, accountId, staff } = await requireStudioBrand(lang, clientId, { allowStaff: true })
-  // Staff view (R3 A1): the switcher lists only this brand, and the session never saves.
-  if (staff) auditStudioStaffOpen({ actorId: profile.id, accountId, clientId })
+  // Staff view (R3): the switcher lists only this brand, the session never saves,
+  // and the open is recorded in the client account's audit before anything renders.
+  if (staff) await auditStudioStaffOpen({ actorId: profile.id, accountId, clientId })
   let brands = null
   if (!staff) try { brands = await listOwnedBrands(profile.account_id) } catch { /* Current owned brand is still usable. */ }
   return <StudioSessionProvider key={`${accountId}:${clientId}`} clientId={clientId} persist={!staff}>
