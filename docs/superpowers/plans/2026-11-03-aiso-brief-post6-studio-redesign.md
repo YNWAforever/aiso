@@ -13,6 +13,11 @@ party's client data, so they are described here and **not committed**.
 | What a skill is | **Preset task modes**: named mode with starter prompt, allowed evidence/tools, output format; a thread starts from a skill. |
 | Thread organisation | **Per brand, full list**: brand switcher acts as the space; full searchable thread list, date-grouped, each tagged with its skill. |
 
+## Start (Willy, 2026-11-03)
+
+Skills confirmed (FAQ/schema, content brief, competitor gap, AI visibility, report, improve).
+Rollout: **replace in place** behind the existing `conversation_studio` flag. **R1 started.**
+
 ## Reference: Ads Copilot (from the screenshots)
 
 | Area | What it does | AISO equivalent |
