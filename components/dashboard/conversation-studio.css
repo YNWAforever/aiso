@@ -180,3 +180,14 @@
   #aiso-studio .as-inspector { position: static; }
   #aiso-studio .as-inspector-body { max-height: 80dvh; }
 }
+
+/* Studio redesign R1: brand avatar, evidence trace, thread search. Existing tokens only. */
+#aiso-studio .as-avatar { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 9999px; background: var(--as-ink); color: var(--as-bg); font-size: 13px; font-weight: 600; }
+#aiso-studio .as-brand-switcher button { gap: 10px; }
+#aiso-studio .as-trace { border: 1px solid var(--as-line); border-radius: 8px; background: var(--as-panel); }
+#aiso-studio .as-trace > summary { display: flex; min-height: 44px; align-items: center; padding: 0 12px; cursor: pointer; color: var(--as-muted); font-size: 13px; }
+#aiso-studio .as-trace-steps { display: grid; gap: 4px; margin: 0; padding: 0 12px 12px; list-style: none; }
+#aiso-studio .as-trace-steps li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 32px; color: var(--as-ink); font-size: 13px; }
+#aiso-studio .as-trace-steps li[data-status="done"] svg { color: var(--as-blue); }
+#aiso-studio .as-trace-steps li[data-status="unavailable"] svg { color: var(--as-warn); }
+#aiso-studio .as-search { min-height: 44px; border: 1px solid var(--as-line); border-radius: 8px; padding: 0 12px; background: var(--as-panel); color: var(--as-ink); }

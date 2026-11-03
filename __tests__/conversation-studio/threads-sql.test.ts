@@ -203,3 +203,21 @@ it('cascades turns when the owning brand is deleted', async () => {
   expect((await state.pg!.query('select count(*)::int as n from studio_thread_turns')).rows).toEqual([{ n: 0 }])
   await state.pg!.query('insert into clients(id, account_id) values($1,$2)', [brandA2, accountA])
 })
+
+it('tags each thread with the skill of its first turn, derived on read through the real statements', async () => {
+  asA()
+  const plain = (await create()).data.thread.id
+  const skilled = (await create()).data.thread.id
+  expect((await append(brandA, plain)).status).toBe(201)
+  expect((await append(brandA, skilled, { ...turnBody, task: 'competitors' })).status).toBe(201)
+  // A later turn with another task does not re-tag the thread.
+  expect((await append(brandA, skilled, { ...turnBody, task: 'brief' })).status).toBe(201)
+  const listed = await (await listThreads(request(`/api/studio/${brandA}/threads`), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: Array<{ id: string; skill: string | null }> }
+  const skillOf = (id: string) => listed.threads.find(thread => thread.id === id)?.skill
+  expect(skillOf(plain)).toBeNull()
+  expect(skillOf(skilled)).toBe('competitors')
+  const detail = await (await getThread(request(`/api/studio/${brandA}/threads/${skilled}`), { params: Promise.resolve({ clientId: brandA, threadId: skilled }) })).json() as { thread: { skill: string | null } }
+  expect(detail.thread.skill).toBe('competitors')
+  const fresh = await create()
+  expect((fresh.data.thread as { skill?: unknown }).skill).toBeNull()
+})

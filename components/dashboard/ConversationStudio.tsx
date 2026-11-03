@@ -13,6 +13,7 @@ import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
 import { StudioDfsSnapshotView } from '@/components/dashboard/StudioDfsSnapshot'
 import { StudioFirecrawlSnapshotView } from '@/components/dashboard/StudioFirecrawlSnapshot'
 import { StudioSaveToDocs } from '@/components/dashboard/StudioSaveToDocs'
+import { StudioTurnTrace } from '@/components/dashboard/StudioTurnTrace'
 import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
@@ -97,7 +98,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
       t('honesty.searchDemandPending')].join(' ')
     const seed = composeBriefDraft({ goal: source.goal, prompt: turn.prompt, summary }, context => t('briefContextPrompt', context))
     // The thread is saved; the editable composer draft stays client-only.
-    setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: seed, template: 'brief', saveState: 'unsaved', turnsLoaded: true }, ...previous])
+    setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: seed, template: 'brief', saveState: 'unsaved', turnsLoaded: true, skill: 'brief' }, ...previous])
     const saving = saveThread(id, { kind: 'brief', title, goal: source.goal, week: source.week, sourceTitle: source.title })
     focusBriefStart.current = true
     openThread(id)
@@ -128,7 +129,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
     } else {
-      setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true }, ...previous])
+      setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true, skill: task }, ...previous])
       void saveThread(id, { kind, title, goal: prompt, week: evidence.week, sourceTitle: null })
       openThread(id)
       setNewDraft('')
@@ -229,6 +230,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     <textarea ref={composer} id="studio-composer" value={draft} maxLength={STUDIO_PROMPT_LIMIT} onChange={event => updateDraft(event.target.value)} rows={4} placeholder={t(home ? 'composerPlaceholder' : 'followUpPlaceholder')} aria-describedby="studio-composer-help" className="block w-full min-w-0 resize-y" />
     <div className="as-composer-footer">
       <div className="as-composer-tools">
+        {(current ? current.template : newTemplate) && <>
+          <span className="as-badge">{t('skillChip.label', { skill: t(`templates.${(current ? current.template : newTemplate)!}.label`) })}</span>
+          <button type="button" onClick={() => updateDraft(draft, null)} className="as-button px-2 text-sm">{t('skillChip.clear')}</button>
+        </>}
         <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>
         {attachment && <>
           <span className="as-badge">{t('attach.badge')} · {attachment.label}</span>
@@ -347,6 +352,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             </div>
             <div className="as-answer space-y-3">
             <p className="as-answer-label"><Sparkles className="size-4" aria-hidden="true" />{t('answerLabel')}</p>
+            <StudioTurnTrace attached={attached} gsc={gsc} dfs={dfs} firecrawl={firecrawl} live={liveTurn} />
             {task && <div className="as-note space-y-1">
               <p>{t(`templates.${task}.limit`)}</p>
             </div>}

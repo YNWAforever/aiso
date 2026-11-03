@@ -15,6 +15,8 @@ export type StudioThreadRecord = {
   createdAt: string
   updatedAt: string
   turnCount: number
+  /** The skill (home task) of the first turn, if any. Derived on read; no column. */
+  skill: StudioHomeTemplate | null
 }
 
 export type StudioTurnRecord = {
