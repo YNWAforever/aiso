@@ -50,6 +50,9 @@ export function buildStudioDriveDoc(input: {
   parts.push(`<p><em>${esc(t('honesty.searchDemandPending'))}</em></p>`)
 
   if (opportunityTask && reply.opportunities?.state === 'ready') {
+    if (reply.opportunities.partial && reply.opportunities.suggestions.length > 0) {
+      parts.push(`<p>${esc(t('templates.opportunity.partial'))}</p>`)
+    }
     parts.push('<ul>')
     for (const suggestion of reply.opportunities.suggestions) {
       const refs = suggestion.evidenceRefs.map(ref => `${e(ref.kind === 'pulse-metric' ? 'coverage.pulse' : 'coverage.scan')}: ${ref.id}${ref.checkKey ? ` · ${ref.checkKey}` : ''}`)
@@ -59,6 +62,10 @@ export function buildStudioDriveDoc(input: {
   } else if (opportunityTask && reply.opportunities) {
     const state = reply.opportunities.state === 'pending' ? 'pending' : 'empty'
     parts.push(`<p>${esc(t(`templates.opportunity.${state}`))}</p>`)
+  }
+
+  if (reply.template === 'report') {
+    parts.push(`<p>${esc(e('reportDraft'))}</p>`)
   }
 
   if (reply.observations.length) {

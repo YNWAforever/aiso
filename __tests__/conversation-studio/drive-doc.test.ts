@@ -66,3 +66,52 @@ it('says no sources rather than inventing any', () => {
   expect(html).toContain(en.conversationStudio.evidence.noSources)
   expect(html).toContain(en.conversationStudio.evidence.insufficient)
 })
+
+const opportunitySuggestion = {
+  key: 'opp-1',
+  title: 'Fill FAQ gap',
+  action: 'Publish FAQ on sourdough care',
+  recordedAt: '2026-10-27T03:00:00Z',
+  evidenceRefs: [{ kind: 'scan-check' as const, id: '40000000-0000-4000-8000-000000000001', checkKey: 'c11_faq' }],
+  source: { kind: 'scan-check' as const, id: '40000000-0000-4000-8000-000000000001', checkKey: 'c11_faq' },
+  ruleVersion: 'scan-check-gap.v1' as const,
+  fingerprint: 'fp-1',
+  savedDraftId: null,
+  savedState: 'unsaved' as const,
+  saveAvailability: 'available' as const,
+}
+
+describe.each([['en', en], ['zh-HK', zh]] as const)('buildStudioDriveDoc opportunity/report honesty in %s', (locale, messages) => {
+  const copy = messages.conversationStudio
+
+  it('keeps the on-screen partial-evidence caveat with suggestions', () => {
+    const { html } = buildStudioDriveDoc({
+      ...base,
+      locale,
+      reply: {
+        ...reply,
+        template: 'opportunity',
+        observations: [],
+        opportunities: {
+          state: 'ready',
+          partial: true,
+          pulseWeek: null,
+          sourceStates: { pulse: 'unavailable', scan: 'ok' },
+          suggestions: [opportunitySuggestion],
+        },
+      },
+    })
+    expect(html).toContain(copy.templates.opportunity.partial)
+    expect(html).toContain('Fill FAQ gap')
+    expect(html).toContain('Publish FAQ on sourdough care')
+  })
+
+  it('keeps the on-screen report-draft label for report turns', () => {
+    const { html } = buildStudioDriveDoc({
+      ...base,
+      locale,
+      reply: { ...reply, template: 'report', observations: [] },
+    })
+    expect(html).toContain(copy.evidence.reportDraft)
+  })
+})
