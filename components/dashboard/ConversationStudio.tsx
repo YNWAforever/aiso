@@ -51,12 +51,14 @@ export function StudioThreadHeader({ thread, attachment, onHome }: { thread: Pic
 }
 
 /** Saved evidence is local; the optional B2 transport sends one question only. */
-type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; opportunities?: StudioOpportunities; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads; attachCandidates?: StudioAttachCandidate[] | null }
+type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; opportunities?: StudioOpportunities; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads; attachCandidates?: StudioAttachCandidate[] | null
+  /** R3 A1 staff view: saved evidence only. No provider, Google or LIVE call, no attach, nothing saved. */
+  staffView?: boolean }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
   return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId}><StudioConversation {...props} /></StudioSessionProvider>
 }
-function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false }: Props & { embedded?: boolean }) {
+function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
@@ -114,17 +116,18 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     event.preventDefault()
     const prompt = draft.trim()
     if (!prompt || isInFlight()) return
-    const askLive = Boolean(live && live.cap > 0 && !liveExhausted && platforms.length && clientId)
+    const askLive = Boolean(live && !staffView && live.cap > 0 && !liveExhausted && platforms.length && clientId)
     if (prompt.length > STUDIO_PROMPT_LIMIT) return
     setFeedback(null)
     const id = current?.id ?? allocateThreadId()
     const task = current ? current.template : newTemplate
     const title = boundedTitle(task ? t(`templates.${task}.label`) : prompt)
     const kind = task === 'brief' ? 'brief' : 'research'
-    const wantsGsc = Boolean(clientId && sourceStatus === 'bound')
-    const wantsDfs = Boolean(clientId)
+    // A staff view reads no provider or Google data: those routes bill and scope to the viewer's own account.
+    const wantsGsc = Boolean(clientId && !staffView && sourceStatus === 'bound')
+    const wantsDfs = Boolean(clientId && !staffView)
     // One explicit public URL per turn; a turn without one never calls Firecrawl.
-    const scrapeUrl = clientId ? extractTurnUrl(prompt) : null
+    const scrapeUrl = clientId && !staffView ? extractTurnUrl(prompt) : null
     const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(attachment ? { attached: { label: attachment.label, versionNumber: attachment.versionNumber } } : {}), ...(askLive ? { live: { pending: true } } : {}), ...(wantsGsc ? { gsc: { pending: true } } : {}), ...(wantsDfs ? { dfs: { pending: true } } : {}), ...(scrapeUrl ? { firecrawl: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
@@ -234,7 +237,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           <span className="as-badge">{t('skillChip.label', { skill: t(`templates.${(current ? current.template : newTemplate)!}.label`) })}</span>
           <button type="button" onClick={() => updateDraft(draft, null)} className="as-button px-2 text-sm">{t('skillChip.clear')}</button>
         </>}
-        <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>
+        {!staffView && <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>}
         {attachment && <>
           <span className="as-badge">{t('attach.badge')} · {attachment.label}</span>
           <button type="button" onClick={() => setAttachment(null)} className="as-button px-2 text-sm">{t('attach.clear')}</button>
@@ -300,7 +303,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           <span className="inline-flex items-center gap-2"><span className="as-source-dot" aria-hidden="true" />{t('savedDataLabel')}</span>
           <span className={sourceStatus === 'bound' ? 'as-muted' : 'as-source-status'}>{t(`sources.${sourceStatus}`)}</span>
           <span className="as-muted">{t('sources.notQueried')}</span>
-          {embedded && basePath && <Link href={`${basePath}/studio/connections`} className="underline">{t('manageConnections')}</Link>}
+          {embedded && basePath && !staffView && <Link href={`${basePath}/studio/connections`} className="underline">{t('manageConnections')}</Link>}
         </div>
         <section aria-labelledby="studio-templates-title" className="space-y-3">
           <div className="as-section-heading">
@@ -357,7 +360,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               <p>{t(`templates.${task}.limit`)}</p>
             </div>}
             <div className="min-w-0 space-y-4">
-              <StudioReplyView clientId={clientId} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={() => branchBrief(current, current.turns[index])} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
+              <StudioReplyView clientId={clientId} readOnly={staffView} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={() => branchBrief(current, current.turns[index])} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
               {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />}
               <StudioGscSnapshotView gsc={gsc} />
               <StudioDfsSnapshotView dfs={dfs} />

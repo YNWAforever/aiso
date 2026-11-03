@@ -55,6 +55,7 @@ export async function loadStudioOverview(
   profile: { account_id: string; accounts?: CommercialAccount },
   clientId: string,
   opportunities: StudioOpportunities | null,
+  { staff = false }: { staff?: boolean } = {},
 ): Promise<StudioOverview> {
   const accountId = profile.account_id
   const sql = db()
@@ -82,6 +83,7 @@ export async function loadStudioOverview(
       } catch { return fail('scan') }
     })(),
     (async (): Promise<StudioOverview['searchConsole']> => {
+      if (staff) return { status: 'unavailable' }
       if (!isFeatureEnabled('search_console') || !resolveCommercialEntitlement(profile.accounts).features.search_console) return { status: 'not_entitled' }
       try {
         const binding = await loadBinding(accountId, clientId)

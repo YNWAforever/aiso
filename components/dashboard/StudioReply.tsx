@@ -73,7 +73,7 @@ function OpportunityDraftAction({ clientId, suggestion, locale }: { clientId: st
 
 const DFS_RAN = new Set(['ok', 'empty'])
 
-export function StudioReplyView({ reply, clientId, number = 1, gsc, dfs, firecrawl, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; gsc?: StudioGscRead; dfs?: StudioDfsRead; firecrawl?: StudioFirecrawlRead; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
+export function StudioReplyView({ reply, clientId, readOnly = false, number = 1, gsc, dfs, firecrawl, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; /** R3 A1 staff view: no draft saving and no links into the viewer's own dashboard. */ readOnly?: boolean; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; gsc?: StudioGscRead; dfs?: StudioDfsRead; firecrawl?: StudioFirecrawlRead; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
   const t = useTranslations('conversationStudio.evidence')
   const studio = useTranslations('conversationStudio')
   const lang = useLocale()
@@ -109,12 +109,12 @@ export function StudioReplyView({ reply, clientId, number = 1, gsc, dfs, firecra
           {t(ref.kind === 'pulse-metric' ? 'coverage.pulse' : 'coverage.scan')}: <code>{ref.id}{ref.checkKey ? ` · ${ref.checkKey}` : ''}</code>
         </li>)}</ul>
         {suggestion.recordedAt && <p className="as-muted as-small">{t('recordedAt')}: <time dateTime={suggestion.recordedAt}>{suggestion.recordedAt}</time></p>}
-        {clientId && <OpportunityDraftAction clientId={clientId} suggestion={suggestion} locale={lang} />}
+        {clientId && !readOnly && <OpportunityDraftAction clientId={clientId} suggestion={suggestion} locale={lang} />}
       </li>)}</ul> : <p className="as-note">{studio(`templates.opportunity.${reply.opportunities.state}`)}</p>}
     </>}
     {reply.template === 'report' && <p className="as-badge">{t('reportDraft')}</p>}
     <div className="as-result-actions">{!opportunityTask && <button type="button" className="as-button px-3" onClick={event => onOpenEvidence?.(event.currentTarget)} aria-haspopup="dialog">{t('open')}</button>}{onBranchBrief && <button type="button" className="as-button as-primary px-3" onClick={onBranchBrief}>{studio('branchBrief')}</button>}</div>
-    {clientId && <StudioResultLinks clientId={clientId} />}
+    {clientId && !readOnly && <StudioResultLinks clientId={clientId} />}
     </section>
     {reply.observations.length > 0 && <>
       <p className="as-muted as-small">{t('selected', { count: reply.observations.length })}</p>

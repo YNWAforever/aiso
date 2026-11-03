@@ -546,6 +546,10 @@
       "competitorsUnverified": "競爭對手比較待核實：已儲存紀錄沒有經核實的競爭對手數據。",
       "questionMatched": "有 {count} 個已儲存回答與你的問題相符。",
       "questionNone": "沒有已儲存回答與你的問題相符。"
+    },
+    "staff": {
+      "banner": "員工檢視 · 唯讀。你正在檢視另一個帳戶的品牌：不會儲存任何內容，亦不會讀取即時回答、Search Console 或供應商數據。",
+      "backToAdmin": "返回管理"
     }
   },
   "seo": {
@@ -3622,7 +3626,9 @@
         "work": "分組改善工作"
       }
     },
-    "currentScope": "目前範圍"
+    "currentScope": "目前範圍",
+    "openStudio": "在 Studio 開啟",
+    "openStudioFor": "以員工檢視在 Studio 開啟 {name}"
   },
   "notFound": {
     "eyebrow": "錯誤 404",

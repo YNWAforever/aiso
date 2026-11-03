@@ -221,8 +221,13 @@ function useSessionState(clientId?: string) {
 const Session = createContext<ReturnType<typeof useSessionState> | null>(null)
 
 /** Hydrates the owning principal's saved threads; the guarded layout keys this provider by account AND brand. */
-export function StudioSessionProvider({ children, clientId }: { children: ReactNode; clientId?: string }) {
-  const value = useSessionState(clientId)
+/**
+ * `persist={false}` (R3 A1 staff view) keeps every thread in this tab only: with no
+ * client id the session neither reads nor writes the thread endpoints, so threads
+ * stay temporary and nothing is saved into another account.
+ */
+export function StudioSessionProvider({ children, clientId, persist = true }: { children: ReactNode; clientId?: string; persist?: boolean }) {
+  const value = useSessionState(persist ? clientId : undefined)
   return <Session.Provider value={value}>{children}</Session.Provider>
 }
 export function useOptionalStudioSession() { return useContext(Session) }

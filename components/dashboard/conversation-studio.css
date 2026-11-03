@@ -209,3 +209,6 @@
 /* Studio redesign R2: conclusion first. */
 #aiso-studio .as-conclusion { border-left: 3px solid var(--as-blue); padding: 4px 0 4px 14px; }
 #aiso-studio .as-conclusion-headline { font-size: 16px; font-weight: 600; color: var(--as-ink); }
+
+/* R3 A1: staff view banner. */
+#aiso-studio .as-staff-banner { margin-bottom: 16px; border-radius: 8px; padding: 10px 12px; background: var(--as-warnbg); color: var(--as-warn); font-size: 13px; font-weight: 600; }
