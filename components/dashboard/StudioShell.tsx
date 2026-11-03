@@ -4,7 +4,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowUpRight, ChevronDown, Files, Globe2, LayoutGrid, Menu, MessageSquare, Plus, Search, Sparkles, Unplug, X } from 'lucide-react'
+import { ArrowUpRight, ChartColumn, ChevronDown, Files, Home, Globe2, LayoutGrid, Menu, MessageSquare, Plus, Search, Sparkles, Unplug, X } from 'lucide-react'
 import { MenuButton } from '@/components/dashboard/shell/MenuButton'
 import { CommandPalette } from '@/components/ui/command-palette'
 import { buildStudioTools } from '@/lib/conversation-studio/navigation'
@@ -13,7 +13,8 @@ import { useStudioSession } from '@/components/dashboard/StudioSession'
 import { relativeTime } from '@/lib/conversation-studio/thread-list'
 import './conversation-studio.css'
 
-const entries = [{ path: '', key: 'title', Icon: Sparkles }, { path: '/threads', key: 'threadsTitle', Icon: MessageSquare },
+const entries = [{ path: '/overview', key: 'nav.overview', Icon: Home }, { path: '', key: 'title', Icon: Sparkles }, { path: '/threads', key: 'threadsTitle', Icon: MessageSquare },
+  { path: '/weekly', key: 'nav.weekly', Icon: ChartColumn },
   { path: '/documents', key: 'nav.documents', Icon: Files }, { path: '/connections', key: 'nav.connections', Icon: Unplug }, { path: '/tools', key: 'nav.tools', Icon: LayoutGrid }] as const
 
 /** Recent threads shown in the sidebar; the full, searchable list lives at /studio/threads. */
