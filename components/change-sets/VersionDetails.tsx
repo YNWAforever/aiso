@@ -29,16 +29,6 @@ export function VersionDetails({
       </h3>
       <p className="whitespace-pre-wrap break-words">{version.action}</p>
       <p className="whitespace-pre-wrap break-words">{version.notes}</p>
-      {version.editSpec && (
-        // Site-edit S1: the exact JSON-LD this version's approval covers.
-        <section className="space-y-2 rounded-lg border border-border p-3" aria-label={t('editSpecTitle')}>
-          <h3 className="font-semibold">{t('editSpecTitle')}</h3>
-          <p>{version.editSpec.schemaType} · <span className="break-all">{version.editSpec.targetUrl}</span></p>
-          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm" tabIndex={0}>
-            {JSON.stringify(version.editSpec.payload, null, 2)}
-          </pre>
-        </section>
-      )}
       <p>
         {t('submittedBy')}:{' '}
         {version.submittedBy.displayName ?? version.submittedBy.profileId} ·{' '}

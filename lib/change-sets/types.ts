@@ -1,5 +1,4 @@
 import type { WorkItem } from '@/lib/work-items/schema'
-import type { EditSpecV1 } from '@/lib/site-edit/edit-spec'
 
 export type ActorSnapshot = {
   profileId: string
@@ -28,12 +27,6 @@ type ReviewContentBase = {
   action: string
   notes: string
   locale: 'en' | 'zh-HK'
-  /**
-   * Site-edit S1. Present only when the draft carried a spec; absent otherwise,
-   * so a spec-less version's canonical content (and hash) is byte-identical to
-   * every version written before this field existed.
-   */
-  editSpec?: EditSpecV1
 }
 
 /** A version submitted before multi-source items existed (051). Never written by new code; still read. */
