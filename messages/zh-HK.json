@@ -2663,7 +2663,16 @@
     "notComparable": "不能直接比較：{reasons}",
     "operationsConflict": "另一個視窗已更改工作紀錄。已保留你的未儲存內容；請重新載入已儲存版本並核對後再儲存。",
     "reloadOperations": "重新載入已儲存工作紀錄",
-    "emptyAction": "進行掃描"
+    "emptyAction": "進行掃描",
+    "editSpecTitle": "網站修改（JSON-LD）",
+    "editSpecInclude": "為一個頁面加入 JSON-LD 修改",
+    "editSpecType": "Schema 類型",
+    "editSpecUrl": "頁面網址（https，須在此品牌已驗證的網域）",
+    "editSpecPayload": "JSON-LD",
+    "editSpecRules": "每次只限一個頁面的一個區塊。@type 須與 Schema 類型相符。審批只涵蓋這段標記。",
+    "invalidEditSpec": "請檢查網站修改：https 頁面網址、含 schema.org @context 的有效 JSON，以及相符的 @type。你的修改已保留。",
+    "editSpecUnverified": "請先驗證此品牌的網域，才可加入網站修改。你的修改已保留。",
+    "editSpecMismatch": "頁面網址須在此品牌已驗證的網域。你的修改已保留。"
   },
   "changeSets": {
     "title": "版本審核",
@@ -2709,7 +2718,8 @@
     "check_content_size": "資料大小",
     "pass": "已通過",
     "contentHash": "內容雜湊",
-    "discardReason": "捨棄已輸入原因"
+    "discardReason": "捨棄已輸入原因",
+    "editSpecTitle": "網站修改（JSON-LD）"
   },
   "approverAccess": {
     "title": "帳戶審核員",

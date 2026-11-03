@@ -3,6 +3,7 @@ import {WorkOperationsPanel} from './WorkOperationsPanel'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
+import { EDIT_SPEC_SCHEMA_TYPES, type EditSpecSchemaType, type EditSpecV1 } from '@/lib/site-edit/edit-spec'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { EvidenceDetails } from '@/components/opportunities/EvidenceDetails'
 export function DraftEditor({
@@ -25,27 +26,44 @@ export function DraftEditor({
     [error, setError] = useState(''),
     [status, setStatus] = useState('')
   const lock = useRef(false)
+  // Site-edit S1: one optional JSON-LD edit, saved with the draft and frozen into its review version.
+  const specText = (spec: EditSpecV1 | null | undefined) => spec ? JSON.stringify(spec.payload, null, 2) : ''
+  const [specOn, setSpecOn] = useState(Boolean(item.editSpec)),
+    [specType, setSpecType] = useState<EditSpecSchemaType>(item.editSpec?.schemaType ?? 'FAQPage'),
+    [specUrl, setSpecUrl] = useState(item.editSpec?.targetUrl ?? ''),
+    [specPayload, setSpecPayload] = useState(specText(item.editSpec))
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(item.id)}`
   function accept(next: WorkItem) {
     setSaved(next)
     setTitle(next.title)
     setAction(next.action)
     setNotes(next.notes)
+    setSpecOn(Boolean(next.editSpec))
+    setSpecType(next.editSpec?.schemaType ?? 'FAQPage')
+    setSpecUrl(next.editSpec?.targetUrl ?? '')
+    setSpecPayload(specText(next.editSpec))
     onSaved(next)
+  }
+  /** undefined = leave unchanged, null = clear, object = the spec to validate and store. */
+  function draftSpec(): unknown {
+    if (!specOn) return saved.editSpec ? null : undefined
+    return { schemaVersion: 1, kind: 'jsonld', targetUrl: specUrl, schemaType: specType, payload: JSON.parse(specPayload) }
   }
   async function save(event: FormEvent) {
     event.preventDefault()
     if (lock.current) return
     let input
     try {
+      const editSpec = draftSpec()
       input = parseDraftEdit({
         title,
         action,
         notes,
         expectedRevision: saved.revision,
+        ...(editSpec === undefined ? {} : { editSpec }),
       })
     } catch {
-      setError('invalidEdit')
+      setError(specOn ? 'invalidEditSpec' : 'invalidEdit')
       return
     }
     lock.current = true
@@ -60,6 +78,8 @@ export function DraftEditor({
       })
       const data = await response.json()
       if (!response.ok) {
+        if (data?.error === 'EDIT_SPEC_DOMAIN_UNVERIFIED') return setError('editSpecUnverified')
+        if (data?.error === 'EDIT_SPEC_DOMAIN_MISMATCH') return setError('editSpecMismatch')
         setError(
           response.status === 409
             ? 'editConflict'
@@ -96,8 +116,10 @@ export function DraftEditor({
       setBusy(false)
     }
   }
+  const specDirty = specOn !== Boolean(saved.editSpec) || (specOn && (
+    specType !== saved.editSpec?.schemaType || specUrl !== saved.editSpec?.targetUrl || specPayload !== specText(saved.editSpec)))
   const dirty =
-    title !== saved.title || action !== saved.action || notes !== saved.notes
+    title !== saved.title || action !== saved.action || notes !== saved.notes || specDirty
   const field =
     'w-full rounded-lg border border-border bg-background p-3 text-foreground'
   const button =
@@ -169,6 +191,33 @@ export function DraftEditor({
           />
         </div>
         <p className="text-sm">{t('fieldLimits')}</p>
+        <details className="space-y-3 rounded-lg border border-border p-3" open={specOn}>
+          <summary className="min-h-11 cursor-pointer font-semibold">{t('editSpecTitle')}</summary>
+          <label className="flex min-h-11 items-center gap-2">
+            <input type="checkbox" checked={specOn} disabled={busy} onChange={(e) => setSpecOn(e.target.checked)} />
+            {t('editSpecInclude')}
+          </label>
+          {specOn && <>
+            <div className="space-y-2">
+              <label className="block" htmlFor={fieldId + '-spec-type'}>{t('editSpecType')}</label>
+              <select className={field} id={fieldId + '-spec-type'} value={specType} disabled={busy}
+                onChange={(e) => setSpecType(e.target.value as EditSpecSchemaType)}>
+                {EDIT_SPEC_SCHEMA_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="block" htmlFor={fieldId + '-spec-url'}>{t('editSpecUrl')}</label>
+              <input className={field} id={fieldId + '-spec-url'} type="url" inputMode="url" value={specUrl} disabled={busy}
+                onChange={(e) => setSpecUrl(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <label className="block" htmlFor={fieldId + '-spec-payload'}>{t('editSpecPayload')}</label>
+              <textarea className={`${field} font-mono text-sm`} rows={10} id={fieldId + '-spec-payload'} value={specPayload}
+                disabled={busy} spellCheck={false} onChange={(e) => setSpecPayload(e.target.value)} />
+            </div>
+            <p className="text-sm">{t('editSpecRules')}</p>
+          </>}
+        </details>
         {error && <p role="alert">{t(error)}</p>}
         <div className="flex flex-wrap gap-3">
           <button
