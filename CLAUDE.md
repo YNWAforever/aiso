@@ -437,10 +437,23 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
 - Migrations in `supabase/migrations/`, numbered from `001_` (no 005/006; directory name is legacy;
-  the target is now Neon). Everything from `038` postdates the "001–035 all applied" note below, which is
-  about the *persistent* database and is only as fresh as its date — re-run `--verify`.
-- **Search Console connector (migration `054`, Phase 2).** `054` is **not applied to any
-  persistent database** yet. Google refresh tokens are sealed with AES-256-GCM in
+  the target is now Neon). Re-run `--verify` before trusting any applied-state line in this file;
+  each is only as fresh as its date.
+- **Verified state (`--verify`, hosted Neon branch `br-square-mountain`, 2026-11-03): `001`–`086`
+  are all recorded**, every migration that creates objects reports `all present`, and nothing is
+  pending. `071`–`085` were applied that day in one `npm run migrate` run under a named approval.
+  `086`'s objects had been hand-applied earlier without a ledger row, so the runner failed on
+  `constraint "evidence_work_items_edit_spec_check" … already exists`; after checking that the
+  column and both constraints existed, only the `schema_migrations` row was inserted. The usual
+  false alarms still apply (`014`'s `MISSING plan_features`, `n/a` for column-only migrations).
+- **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
+  code on production that reads schema the database does not have. On 2026-11-03 that happened
+  three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,
+  503ing every work-item and Studio request (#144 reverted #143), and `071`–`085` had shipped
+  without their tables. Apply and `--verify` the migration **before** merging code that needs it,
+  and never accept "applied" without the `--verify` line showing `recorded`.
+- **Search Console connector (migration `054`, Phase 2).** `054` is applied and recorded on the
+  hosted branch (`--verify`, 2026-11-03). Google refresh tokens are sealed with AES-256-GCM in
   `lib/integrations/google/vault.ts` using `GOOGLE_TOKEN_ENCRYPTION_KEY`, with the
   `accountId` as AAD so a ciphertext copied to another account's row will not open; the key
   never reaches SQL and there is no plaintext fallback. Upsert keys on the metric tables lead
@@ -470,8 +483,8 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   consent shows an "unverified app" warning and the app is capped at 100 users. The OAuth
   redirect URI comes from `NEXT_PUBLIC_APP_URL`, so connecting only works from that host.
 - **`047`, `048` and `049` were applied to the AISO development database on 2026-09-11** and
-  `--verify` reports all three `all present recorded`. They have **not** been applied to the
-  production project Vercel points at — that is a separate cutover decision.
+  `--verify` reports all three `all present recorded`. As of 2026-11-03 they are also recorded on
+  the hosted branch (`br-square-mountain`), along with everything through `086`.
 - **`046` states an intent two clauses used to produce by accident.** 044 declared
   `revoked_by` and `approved_by` as profile FKs with `on delete set null` while a CHECK on
   each table required the actor and its timestamp to be null together — so the referential
@@ -501,8 +514,8 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   it was corrected on 2026-08-31) was the line that was wrong, and `027:10`'s "Production has
   021 applied" was right. **Local Trust is not broken in
   production.** Do not re-open this from the file comments alone.
-- **Verified state (`--verify`, production, 2026-08-15): `001`–`035` are all applied and
-  recorded.** Nothing is pending. `030`–`035` were applied that day in one run; `033`/`034`
+- **Historical (superseded by the 2026-11-03 line above): `--verify` against production on
+  2026-08-15 reported `001`–`035` all applied and recorded.** `030`–`035` were applied that day in one run; `033`/`034`
   landed with #44 and `035` with the alert-scheduling branch. Two entries look alarming in
   `--verify` output and are not: `014` reports `MISSING plan_features` because `028` drops
   that table on purpose, and `004`/`007`/`009` and other column-only migrations report `n/a`
