@@ -142,6 +142,7 @@ function threadRecord(row: Record<string, unknown>): StudioThreadRecord {
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
     turnCount: Number(row.turn_count ?? 0),
+    skill: (STUDIO_HOME_TEMPLATES as readonly unknown[]).includes(row.first_task) ? row.first_task as StudioHomeTemplate : null,
   }
 }
 
@@ -166,7 +167,11 @@ export async function listStudioThreads(_request: Request, clientId: string): Pr
       select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
         (select count(*)::int from studio_thread_turns u
           where u.thread_id = t.id and u.account_id = t.account_id
-            and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count
+            and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count,
+        (select f.task from studio_thread_turns f
+          where f.thread_id = t.id and f.account_id = t.account_id
+            and f.client_id = t.client_id and f.profile_id = t.profile_id
+          order by f.position limit 1) as first_task
       from studio_threads t
       where t.account_id = ${access.accountId}::uuid
         and t.client_id = ${access.clientId}::uuid
@@ -198,7 +203,7 @@ export async function createStudioThread(request: Request, clientId: string): Pr
         where account_id = ${access.accountId}::uuid
           and client_id = ${access.clientId}::uuid
           and profile_id = ${access.profileId}::uuid) < ${STUDIO_THREAD_CAP}
-      returning id, title, goal, week, kind, source_title, created_at, updated_at, 0 as turn_count
+      returning id, title, goal, week, kind, source_title, created_at, updated_at, 0 as turn_count, null as first_task
     `
     if (!rows[0]) return respond({ error: 'STUDIO_THREAD_FULL' }, 409)
     return respond({ thread: threadRecord(rows[0] as Record<string, unknown>) }, 201)
@@ -217,7 +222,11 @@ export async function getStudioThread(_request: Request, clientId: string, threa
       select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
         (select count(*)::int from studio_thread_turns u
           where u.thread_id = t.id and u.account_id = t.account_id
-            and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count
+            and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count,
+        (select f.task from studio_thread_turns f
+          where f.thread_id = t.id and f.account_id = t.account_id
+            and f.client_id = t.client_id and f.profile_id = t.profile_id
+          order by f.position limit 1) as first_task
       from studio_threads t
       where t.id = ${threadId}::uuid
         and t.account_id = ${access.accountId}::uuid

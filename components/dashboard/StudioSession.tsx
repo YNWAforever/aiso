@@ -44,6 +44,8 @@ export type StudioThread = {
   turnsLoaded: boolean
   turnsError?: boolean
   updatedAt?: string
+  /** Skill the thread started from (first turn's task). Absent while unknown. */
+  skill?: StudioHomeTemplate | null
 }
 
 function fromRecord(record: StudioThreadRecord): StudioThread {
@@ -60,6 +62,7 @@ function fromRecord(record: StudioThreadRecord): StudioThread {
     saveState: 'persisted',
     turnsLoaded: false,
     updatedAt: record.updatedAt,
+    skill: record.skill ?? null,
   }
 }
 
@@ -127,7 +130,7 @@ function useSessionState(clientId?: string) {
     }
     const turns = result.data.turns.map(record => turnFromRecord(record, allocateId()))
     setThreads(previous => previous.map(item => item.id === id
-      ? { ...item, title: result.data.thread.title, goal: result.data.thread.goal, week: result.data.thread.week, sourceTitle: result.data.thread.sourceTitle ?? undefined, updatedAt: result.data.thread.updatedAt, turns, turnsLoaded: true, turnsError: false }
+      ? { ...item, title: result.data.thread.title, goal: result.data.thread.goal, week: result.data.thread.week, sourceTitle: result.data.thread.sourceTitle ?? undefined, updatedAt: result.data.thread.updatedAt, skill: result.data.thread.skill ?? item.skill ?? null, turns, turnsLoaded: true, turnsError: false }
       : item))
   }
 

@@ -184,9 +184,41 @@ for (const lang of ['en', 'zh-HK']) {
     expect(unexpectedRequests(requests)).toEqual([])
   })
 
+  test(`redesign R1: skill chip, evidence trace, and thread search with skill tags in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang)
+    await page.getByRole('button', { name: copy.templates.competitors.label }).click()
+    const chip = copy.skillChip.label.replace('{skill}', copy.templates.competitors.label)
+    await expect(page.locator('.as-composer').getByText(chip, { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: copy.send, exact: true }).click()
+    const trace = page.locator('.as-trace').first()
+    await expect(trace).toBeVisible()
+    await expect(trace.locator('li').first()).toBeHidden() // collapsed until asked
+    await trace.locator('summary').click()
+    await expect(trace.locator('li').first()).toBeVisible()
+    await expect(trace.locator('li').first()).toContainText(copy.savedDataLabel)
+    const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
+    if (await toggle.isVisible()) await toggle.click()
+    await page.locator('#studio-sidebar').getByRole('button', { name: copy.newThread, exact: true }).click()
+    await page.locator('#studio-composer').fill('Bakery opening hours')
+    await page.getByRole('button', { name: copy.send, exact: true }).click()
+    await navigate(page, copy.threadsTitle, copy)
+    const list = page.locator('main .as-record-list')
+    await expect(list.locator('li')).toHaveCount(2)
+    await expect(page.locator('main').getByText(copy.templates.competitors.label, { exact: true })).toHaveCount(1) // title only, no repeated tag
+    const search = page.getByRole('searchbox', { name: copy.threadSearch.label })
+    await search.fill('bakery')
+    await expect(list.locator('li')).toHaveCount(1)
+    await search.fill(copy.templates.competitors.label)
+    await expect(list.locator('li')).toHaveCount(1)
+    await search.fill('zzz-no-match')
+    await expect(page.getByRole('status').filter({ hasText: 'zzz-no-match' })).toBeVisible()
+    expect(unexpectedRequests(requests)).toEqual([])
+  })
+
   test(`brand switch, reload persistence, recent cap and command palette in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
-    for (let i = 0; i < 5; i++) {
+    // One more than the sidebar shows, so the cap and the full-list link are both exercised.
+    for (let i = 0; i < 9; i++) {
       if (i) {
         const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
         if (await toggle.isVisible()) await toggle.click()
@@ -197,8 +229,10 @@ for (const lang of ['en', 'zh-HK']) {
     }
     const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
     if (await toggle.isVisible()) await toggle.click()
-    await expect(page.locator('.as-recent li')).toHaveCount(4)
-    await expect(page.locator('.as-recent')).toContainText(copy.privateLabel)
+    await expect(page.locator('.as-recent li')).toHaveCount(8)
+    // Saved rows show when they were updated; the section heading carries the privacy cue.
+    await expect(page.locator('#studio-recent-title')).toHaveText(copy.recentThreadsTitle)
+    await expect(page.locator('.as-recent').getByRole('link', { name: copy.allThreads, exact: true })).toBeVisible()
     await page.getByRole('button', { name: copy.brandLabel, exact: true }).click()
     await page.getByRole('link', { name: 'Second Brand', exact: true }).click()
     await expect(page.locator('.as-recent li')).toHaveCount(0)
@@ -209,7 +243,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.locator('#studio-home')).toBeVisible()
     await expect(page.locator('.as-recent li')).toHaveCount(1)
     await expect(page.locator('.as-recent')).toContainText('Second brand temporary')
-    await expect(page.locator('.as-recent')).toContainText(copy.privateLabel)
+    await expect(page.locator('.as-recent').getByRole('link', { name: copy.allThreads, exact: true })).toHaveCount(0)
     await page.locator('#studio-composer').focus()
     await page.keyboard.press('Control+k')
     await expect(page.getByRole('combobox')).toBeVisible()

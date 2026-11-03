@@ -12,7 +12,7 @@
     "threadsEmpty": "This brand has no saved discussions yet. Start with a work goal above.",
     "privateLabel": "Private to you · Saved in this brand workspace",
     "privacyBody": "Discussions are saved to this brand workspace and visible only to you, not teammates, and survive refresh. Composer drafts are not saved. Sharing is not available yet.",
-    "templatesTitle": "Start with a task",
+    "templatesTitle": "Skills",
     "conversationLabel": "Brand evidence conversation",
     "emptyTitle": "What would you like to work on?",
     "emptyBody": "Templates summarise saved records. Freeform questions show matching excerpts and say when there is not enough evidence.",
@@ -471,7 +471,29 @@
     },
     "brandMark": "AISO",
     "brandAttribution": "BY FIMMICK",
-    "otherLanguage": "繁中"
+    "otherLanguage": "繁中",
+    "trace": {
+      "summary": "Evidence used · {count, plural, one {# source} other {# sources}}",
+      "summaryRunning": "Reading evidence · {count, plural, one {# source} other {# sources}}",
+      "done": "Done",
+      "pending": "Running",
+      "unavailable": "Unavailable"
+    },
+    "threadSearch": {
+      "label": "Search discussions",
+      "noMatch": "No discussion matches “{query}”."
+    },
+    "threadGroups": {
+      "unsaved": "Not saved yet",
+      "today": "Today",
+      "week": "Previous 7 days",
+      "older": "Older"
+    },
+    "skillChip": {
+      "label": "Skill · {skill}",
+      "clear": "Remove skill"
+    },
+    "spaceLabel": "Brand"
   },
   "seo": {
     "home": {

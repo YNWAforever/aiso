@@ -12,7 +12,7 @@
     "threadsEmpty": "這個品牌未有已儲存討論。從上方的工作目標開始。",
     "privateLabel": "只供你查看 · 已儲存在此品牌工作室",
     "privacyBody": "討論會儲存在此品牌工作室，只有你可見（不包括團隊成員），重新整理後仍會保留。輸入中的草稿不會儲存。分享功能尚未提供。",
-    "templatesTitle": "從一個任務開始",
+    "templatesTitle": "技能",
     "conversationLabel": "品牌證據對話",
     "emptyTitle": "你想處理甚麼工作？",
     "emptyBody": "範本會整理已儲存紀錄。自訂問題會顯示相關摘錄；證據不足時會清楚說明。",
@@ -471,7 +471,29 @@
     },
     "brandMark": "AISO",
     "brandAttribution": "BY FIMMICK",
-    "otherLanguage": "EN"
+    "otherLanguage": "EN",
+    "trace": {
+      "summary": "已使用證據 · {count} 個來源",
+      "summaryRunning": "正在讀取證據 · {count} 個來源",
+      "done": "完成",
+      "pending": "進行中",
+      "unavailable": "暫時無法使用"
+    },
+    "threadSearch": {
+      "label": "搜尋討論",
+      "noMatch": "沒有討論符合「{query}」。"
+    },
+    "threadGroups": {
+      "unsaved": "未儲存",
+      "today": "今日",
+      "week": "過去 7 日",
+      "older": "較早"
+    },
+    "skillChip": {
+      "label": "技能 · {skill}",
+      "clear": "移除技能"
+    },
+    "spaceLabel": "品牌"
   },
   "seo": {
     "home": {

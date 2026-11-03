@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowUpRight, FileText, Lock, MessageSquare, Unplug } from 'lucide-react'
-import { useStudioSession } from '@/components/dashboard/StudioSession'
+import { useStudioSession, type StudioThread } from '@/components/dashboard/StudioSession'
+import { groupThreads, matchesThread, relativeTime } from '@/lib/conversation-studio/thread-list'
 import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
 import type { StudioConnection, StudioDriveConnection, StudioOutputs } from '@/lib/conversation-studio/secondary'
 import type { StudioDfsBrandSettings } from '@/lib/conversation-studio/dfs-query'
@@ -23,13 +24,39 @@ export function StudioThreads({ clientId }: { clientId: string }) {
   const lang = useLocale()
   const router = useRouter()
   const session = useStudioSession()
+  const [query, setQuery] = useState('')
   const base = `/${lang}/dashboard/${clientId}/studio`
+  // Threads exist only after the client-side read, so "now" is never rendered on the server.
+  const now = new Date()
+  const skillLabel = (skill: StudioThread['skill']) => skill ? t(`templates.${skill}.label`) : null
+  const visible = session.threads.filter(thread => matchesThread(thread, query, skillLabel(thread.skill)))
   return <main className="as-page space-y-6"><ViewHeading view="threads" />
     <p className="as-note">{t('privacyBody')}</p>
-    <button type="button" className="as-button as-primary px-4" onClick={() => { session.setActiveId(null); session.setNewDraft(''); session.setNewTemplate(null); router.push(base) }}>{t('newThread')}</button>
-    {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : session.threads.length ? <ul className="as-record-list">{session.threads.map(thread => <li key={thread.id}><button className="as-thread flex w-full items-center gap-3 text-left" onClick={() => { session.selectThread(thread.id); router.push(base) }}>
-      <MessageSquare className="size-5 shrink-0 as-blue" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block truncate font-semibold">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span>{thread.saveState === 'failed' && <span className="as-muted as-small block">{t('saveFailed')}</span>}</span><span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span><ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
-    </button></li>)}</ul> : <div className="as-empty space-y-2"><MessageSquare aria-hidden="true" className="as-blue mx-auto" /><h2>{t('recentThreadsEmpty')}</h2><p className="as-muted">{t('views.threads.empty')}</p></div>}
+    <div className="flex flex-wrap items-end gap-3">
+      <button type="button" className="as-button as-primary px-4" onClick={() => { session.setActiveId(null); session.setNewDraft(''); session.setNewTemplate(null); router.push(base) }}>{t('newThread')}</button>
+      {session.hydrated && !session.readFailed && session.threads.length > 0 && <div className="min-w-0 flex-1 space-y-1">
+        <label htmlFor="studio-thread-search" className="as-muted as-small block font-semibold">{t('threadSearch.label')}</label>
+        <input id="studio-thread-search" type="search" value={query} onChange={event => setQuery(event.target.value)} className="as-search block w-full min-w-0" />
+      </div>}
+    </div>
+    {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : !session.threads.length
+      ? <div className="as-empty space-y-2"><MessageSquare aria-hidden="true" className="as-blue mx-auto" /><h2>{t('recentThreadsEmpty')}</h2><p className="as-muted">{t('views.threads.empty')}</p></div>
+      : !visible.length ? <p className="as-muted" role="status">{t('threadSearch.noMatch', { query: query.trim() })}</p>
+      : groupThreads(visible, now).map(group => <section key={group.key} aria-labelledby={`studio-threads-${group.key}`} className="space-y-2">
+        <h2 id={`studio-threads-${group.key}`} className="as-muted as-small font-semibold">{t(`threadGroups.${group.key}`)}</h2>
+        <ul className="as-record-list">{group.threads.map(thread => {
+          const skill = skillLabel(thread.skill)
+          const when = relativeTime(thread.updatedAt, now, lang)
+          return <li key={thread.id}><button className="as-thread flex w-full items-center gap-3 text-left" onClick={() => { session.selectThread(thread.id); router.push(base) }}>
+            <MessageSquare className="size-5 shrink-0 as-blue" aria-hidden="true" />
+            <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span>{thread.saveState === 'failed' && <span className="as-muted as-small block">{t('saveFailed')}</span>}</span>
+            {/* A skill-started thread is titled with the skill; repeating it as a tag adds nothing. */}
+            {skill && skill !== thread.title && <span className="as-badge">{skill}</span>}
+            {when && <span className="as-muted as-small shrink-0">{when}</span>}
+            <span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span><ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
+          </button></li>
+        })}</ul>
+      </section>)}
   </main>
 }
 
