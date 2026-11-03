@@ -62,7 +62,7 @@ it('caps edit raw bytes and rejects immutable fields before persistence',async()
  for(const value of [{title:'Review',action:'Check',notes:'',expectedRevision:1,evidenceSnapshot:{}},{title:'Review',action:'Check',notes:'',expectedRevision:1,locale:'zh-HK'}]){
   await expect(editAuthenticatedDraft(id,id,request(value))).rejects.toMatchObject({status:400})
  }
- const req=new Request('http://localhost',{method:'PATCH',body:JSON.stringify({title:'Review',action:'Check',notes:'',expectedRevision:1})+' '.repeat(32768)})
+ const req=new Request('http://localhost',{method:'PATCH',body:JSON.stringify({title:'Review',action:'Check',notes:'',expectedRevision:1})+' '.repeat(65536)})
  await expect(editAuthenticatedDraft(id,id,req)).rejects.toMatchObject({status:400})
  expect(mocks.update).not.toHaveBeenCalled()
 })

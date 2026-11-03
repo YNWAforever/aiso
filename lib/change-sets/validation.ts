@@ -3,6 +3,7 @@ import 'server-only'
 import { fingerprintEvidence, serializeDraftSnapshot } from '@/lib/opportunities/fingerprint'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
 import type { WorkItem } from '@/lib/work-items/schema'
+import { parseEditSpec, type EditSpecV1 } from '@/lib/site-edit/edit-spec'
 import type { FrozenReviewV1, FrozenReviewV2, ReviewContentV1, ReviewContentV2, ValidationResult } from './types'
 
 const REVIEW_CONTENT_LIMIT = 128 * 1024
@@ -24,6 +25,18 @@ function conservativeJsonBytes(value: unknown): number {
 
 export function assertReviewPackageSize(value: unknown): void {
   if (conservativeJsonBytes(value) > REVIEW_CONTENT_LIMIT) validationFailed()
+}
+
+/**
+ * Site-edit S1: the spec is frozen exactly as stored, and only if it is
+ * already canonical. Absent/null returns {} so the content object gains no
+ * key at all, keeping every spec-less hash unchanged.
+ */
+function frozenEditSpec(spec: EditSpecV1 | null | undefined): { editSpec?: EditSpecV1 } {
+  if (spec === null || spec === undefined) return {}
+  const parsed = parseEditSpec(spec)
+  if (JSON.stringify(parsed) !== JSON.stringify(spec)) validationFailed()
+  return { editSpec: parsed }
 }
 
 export function freezeReview(item: WorkItem): FrozenReviewV1 {
@@ -48,6 +61,7 @@ export function freezeReview(item: WorkItem): FrozenReviewV1 {
       notes: item.notes,
       locale: item.locale,
       evidenceSnapshot,
+      ...frozenEditSpec(item.editSpec),
     }
     assertReviewPackageSize(content)
 
@@ -78,7 +92,7 @@ export function freezeReview(item: WorkItem): FrozenReviewV1 {
  * than trusted from the caller.
  */
 export function freezeMultiSourceReview(
-  item: Pick<WorkItem, 'id' | 'revision' | 'title' | 'action' | 'notes' | 'locale'>,
+  item: Pick<WorkItem, 'id' | 'revision' | 'title' | 'action' | 'notes' | 'locale' | 'editSpec'>,
   snapshots: WorkItem['evidenceSnapshot'][],
 ): FrozenReviewV2 {
   try {
@@ -105,6 +119,7 @@ export function freezeMultiSourceReview(
       notes: item.notes,
       locale: item.locale,
       evidenceSnapshots,
+      ...frozenEditSpec(item.editSpec),
     }
     assertReviewPackageSize(content)
 

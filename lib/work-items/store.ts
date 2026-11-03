@@ -5,12 +5,15 @@ import { projectPulseOpportunityInput, projectScanOpportunityInput, type Evidenc
 import type { DraftSnapshotV1, SourceRef } from '@/lib/opportunities/types'
 import type { CreateDraftInput, DraftEditInput, WorkItem } from './schema'
 import { encodeWorkItemCursor, type WorkItemListQuery } from './query'
+import { parseEditSpec } from '@/lib/site-edit/edit-spec'
 
-type Row = {id:string;client_id:string;status:'draft';title:string;action:string;notes:string;locale:WorkItem['locale'];revision:number;created_at:string;updated_at:string;evidence_snapshot:DraftSnapshotV1}
+type Row = {id:string;client_id:string;status:'draft';title:string;action:string;notes:string;locale:WorkItem['locale'];revision:number;created_at:string;updated_at:string;evidence_snapshot:DraftSnapshotV1;edit_spec?:unknown}
 function dto(row: Row): WorkItem {
   // Validate the persisted snapshot before exposing any stored data.
   const evidenceSnapshot = JSON.parse(serializeDraftSnapshot(row.evidence_snapshot)) as DraftSnapshotV1
-  return {id:row.id,clientId:row.client_id,status:row.status,title:row.title,action:row.action,notes:row.notes,locale:row.locale,revision:row.revision,createdAt:row.created_at,updatedAt:row.updated_at,evidenceSnapshot}
+  // Re-validated on read like the snapshot: a stored spec that no longer parses fails closed.
+  const editSpec = row.edit_spec === null || row.edit_spec === undefined ? null : parseEditSpec(row.edit_spec)
+  return {id:row.id,clientId:row.client_id,status:row.status,title:row.title,action:row.action,notes:row.notes,locale:row.locale,revision:row.revision,createdAt:row.created_at,updatedAt:row.updated_at,evidenceSnapshot,editSpec}
 }
 export async function loadOwnedDraftClient(accountId:string, clientId:string) {
   const sql=db()
@@ -49,7 +52,7 @@ export async function findOwnedDraft(accountId:string,clientId:string,key:string
   // exactly that collision on `id`.
   const rows=await sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,d.edit_spec
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     join work_item_sources s on s.work_item_id=d.id and s.account_id=d.account_id and s.client_id=d.client_id and s.withdrawn_at is null
     where s.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and s.opportunity_key=${key} limit 1`
@@ -93,14 +96,14 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
     on conflict (account_id,client_id,opportunity_key) do nothing
     returning id,client_id,status,title,action,notes,locale,revision,
       to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-      to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot
+      to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot,edit_spec
     ), source_ins as (
     insert into work_item_sources (account_id,client_id,work_item_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,attached_by)
     select ${accountId}::uuid,${clientId}::uuid,mutation.id,${key},'pulse-metric',${input.source.id}::uuid,${input.ruleVersion},null,${input.fingerprint},${serialized}::jsonb,${actorId}::uuid
     from mutation
     returning id
     )
-    select id,client_id,status,title,action,notes,locale,revision,created_at,updated_at,evidence_snapshot from mutation
+    select id,client_id,status,title,action,notes,locale,revision,created_at,updated_at,evidence_snapshot,edit_spec from mutation
   ` : sql`
     with mutation as (
     insert into evidence_work_items (account_id,client_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,status,title,action,notes,locale,revision,created_by,updated_by)
@@ -115,19 +118,19 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
     on conflict (account_id,client_id,opportunity_key) do nothing
     returning id,client_id,status,title,action,notes,locale,revision,
       to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-      to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot
+      to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot,edit_spec
     ), source_ins as (
     insert into work_item_sources (account_id,client_id,work_item_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,attached_by)
     select ${accountId}::uuid,${clientId}::uuid,mutation.id,${key},'scan-check',${input.source.id}::uuid,${input.ruleVersion},${input.source.checkKey},${input.fingerprint},${serialized}::jsonb,${actorId}::uuid
     from mutation
     returning id
     )
-    select id,client_id,status,title,action,notes,locale,revision,created_at,updated_at,evidence_snapshot from mutation
+    select id,client_id,status,title,action,notes,locale,revision,created_at,updated_at,evidence_snapshot,edit_spec from mutation
   `
   // A separate READ COMMITTED statement sees concurrent winners after conflict waiting.
   const replay=sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,d.edit_spec
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and d.opportunity_key=${key} limit 1`
   const [written,current]=await sql.transaction([mutation,replay],{isolationLevel:'ReadCommitted'})
@@ -136,18 +139,23 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
 }
 export async function updateOwnedDraft(accountId:string,clientId:string,itemId:string,actorId:string|null,input:DraftEditInput):Promise<WorkItem|null> {
   const sql=db()
-  const mutation=sql`update evidence_work_items d set title=${input.title},action=${input.action},notes=${input.notes},updated_by=${actorId}::uuid,revision=d.revision+1,updated_at=now()
+  // editSpec absent = leave the stored spec unchanged; null clears it.
+  const specGiven=input.editSpec!==undefined
+  const specJson=specGiven&&input.editSpec!==null?JSON.stringify(input.editSpec):null
+  const mutation=sql`update evidence_work_items d set title=${input.title},action=${input.action},notes=${input.notes},
+    edit_spec=case when ${specGiven} then ${specJson}::jsonb else d.edit_spec end,updated_by=${actorId}::uuid,revision=d.revision+1,updated_at=now()
     where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and d.id=${itemId} and d.revision=${input.expectedRevision}::bigint
       and exists(select 1 from clients c where c.id=d.client_id and c.account_id=d.account_id)
     returning id,client_id,status,title,action,notes,locale,revision,
       to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-      to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot`
+      to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot,edit_spec`
   const replay=sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,d.edit_spec
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and d.id=${itemId}
-      and d.revision > ${input.expectedRevision}::bigint and d.title = ${input.title} and d.action = ${input.action} and d.notes = ${input.notes}`
+      and d.revision > ${input.expectedRevision}::bigint and d.title = ${input.title} and d.action = ${input.action} and d.notes = ${input.notes}
+      and (not ${specGiven} or d.edit_spec is not distinct from ${specJson}::jsonb)`
   const [written,current]=await sql.transaction([mutation,replay],{isolationLevel:'ReadCommitted'})
   const row=written[0]??current[0]
   return row ? dto(row as Row) : null
@@ -156,7 +164,7 @@ export async function readOwnedDraft(accountId:string,clientId:string,itemId:str
   const sql=db()
   const rows=await sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,d.edit_spec
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and d.id=${itemId} limit 1`
   return rows[0] ? dto(rows[0] as Row) : null
@@ -165,7 +173,7 @@ export async function listOwnedDrafts(accountId:string,clientId:string,query:Wor
   const sql=db()
   const rows=await sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,d.edit_spec
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId}
       and (${query.cursor===null} or (d.created_at,d.id)<(${query.cursor?.createdAt??null}::timestamptz,${query.cursor?.id??null}::uuid))
