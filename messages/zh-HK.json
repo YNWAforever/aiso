@@ -528,6 +528,24 @@
       "mentions": "品牌提及",
       "mentionsValue": "{total} 中 {mentions}",
       "actions": "操作"
+    },
+    "conclusion": {
+      "title": "先講結論",
+      "pulseMentions": "在 {classified} 個已分類的已儲存回答中，品牌出現 {mentioned} 次。",
+      "pulseNone": "暫時未有已分類的已儲存回答可判斷品牌有否出現。",
+      "pulsePlatforms": "有已分類回答的平台：{platforms}。",
+      "pulseUnclassified": "{count} 個已儲存回答未分類，未計算在內。",
+      "scanNeedsWork": "最新掃描：{fail} 項不合格、{warn} 項有警告。",
+      "scanPassing": "{assessed} 項已評估檢查中，{pass} 項合格。",
+      "scanNone": "最新掃描未有可計算的已評估檢查。",
+      "opportunityReady": "已儲存證據可提供 {count} 個內容機會。",
+      "opportunityWeek": "根據 {week} 當週整理。",
+      "opportunityNone": "已儲存證據暫時未能提供內容機會。",
+      "reportReady": "已儲存證據足夠起草報告；發送前請先核對。",
+      "reportInsufficient": "已儲存證據暫時不足以製作報告。",
+      "competitorsUnverified": "競爭對手比較待核實：已儲存紀錄沒有經核實的競爭對手數據。",
+      "questionMatched": "有 {count} 個已儲存回答與你的問題相符。",
+      "questionNone": "沒有已儲存回答與你的問題相符。"
     }
   },
   "seo": {

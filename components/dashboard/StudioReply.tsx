@@ -8,6 +8,7 @@ import type { OpenStudioEvidence, StudioEvidence, StudioOpportunitySuggestion, S
 import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
+import { composeConclusion } from '@/lib/conversation-studio/conclusion'
 import { buildWorkItemDraftBody, readSavedDraftId, workItemDraftErrorKey } from '@/lib/conversation-studio/work-item-draft'
 
 function StudioResultLinks({ clientId }: { clientId: string }) {
@@ -72,7 +73,7 @@ function OpportunityDraftAction({ clientId, suggestion, locale }: { clientId: st
 
 const DFS_RAN = new Set(['ok', 'empty'])
 
-export function StudioReplyView({ reply, clientId, number = 1, gsc, dfs, firecrawl, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; gsc?: StudioGscRead; dfs?: StudioDfsRead; firecrawl?: StudioFirecrawlRead; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
+export function StudioReplyView({ reply, clientId, id, number = 1, gsc, dfs, firecrawl, onBranchBrief, onOpenEvidence }: { reply: StudioReply; clientId?: string; evidence: StudioEvidence; id: string; number?: number; liveEnabled?: boolean; gsc?: StudioGscRead; dfs?: StudioDfsRead; firecrawl?: StudioFirecrawlRead; onBranchBrief?: () => void; onOpenEvidence?: OpenStudioEvidence }) {
   const t = useTranslations('conversationStudio.evidence')
   const studio = useTranslations('conversationStudio')
   const lang = useLocale()
@@ -80,7 +81,14 @@ export function StudioReplyView({ reply, clientId, number = 1, gsc, dfs, firecra
   const dfsRan = Boolean(dfs?.snapshot && DFS_RAN.has(dfs.snapshot.status))
   // Only a scrape that actually returned (ok/empty) claims a research step.
   const firecrawlRan = Boolean(firecrawl?.snapshot && DFS_RAN.has(firecrawl.snapshot.status) && firecrawl.snapshot.url)
+  const conclusion = composeConclusion(reply)
   return <article aria-label={t('replyLabel')} className="as-saved-reply min-w-0 space-y-3 [overflow-wrap:anywhere]">
+    {/* R2: conclusion first, counted from this reply's own saved records. */}
+    <section className="as-conclusion space-y-2" aria-labelledby={`${id}-conclusion`}>
+      <h3 id={`${id}-conclusion`} className="as-result-kicker">{studio('conclusion.title')}</h3>
+      <p className="as-conclusion-headline">{studio(`conclusion.${conclusion.headline.key}`, conclusion.headline.values)}</p>
+      {conclusion.findings.length > 0 && <ol className="list-decimal space-y-1 pl-5">{conclusion.findings.map(line => <li key={line.key}>{studio(`conclusion.${line.key}`, line.values)}</li>)}</ol>}
+    </section>
     <details className="as-research">
       <summary>{t('stepsTitle')}</summary>
       {reply.researchSteps.length || gsc?.snapshot?.window || dfsRan || firecrawlRan ? <ol className="list-decimal space-y-2 pb-3 pl-5">{reply.researchSteps.map(step => <li key={step.kind}>{step.kind === 'loadWeek' ? t('stepLoad', { week: step.week, count: step.count }) : step.kind === 'loadOpportunities' ? studio('templates.opportunity.stepLoad', { count: step.count }) : t(step.kind === 'selectRecords' ? 'stepSelect' : 'stepCompose')}</li>)}{gsc?.snapshot?.window && <li>{studio('gsc.researchStep', gsc.snapshot.window)}</li>}{dfsRan && dfs?.snapshot && <li>{studio('dfs.researchStep', { keyword: dfs.snapshot.keyword ?? '' })}</li>}{firecrawlRan && firecrawl?.snapshot?.url && <li>{studio('firecrawl.researchStep', { url: firecrawl.snapshot.url })}</li>}</ol> : <p className="as-muted pb-3">{t('noSteps')}</p>}

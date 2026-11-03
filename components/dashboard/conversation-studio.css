@@ -205,3 +205,7 @@
 #aiso-studio .as-table th, #aiso-studio .as-table td { padding: 10px 16px; border-bottom: 1px solid var(--as-line); text-align: left; white-space: nowrap; }
 #aiso-studio .as-table thead th { color: var(--as-muted); font-weight: 600; font-size: 13px; }
 #aiso-studio .as-table tbody tr:last-child > * { border-bottom: 0; }
+
+/* Studio redesign R2: conclusion first. */
+#aiso-studio .as-conclusion { border-left: 3px solid var(--as-blue); padding: 4px 0 4px 14px; }
+#aiso-studio .as-conclusion-headline { font-size: 16px; font-weight: 600; color: var(--as-ink); }
