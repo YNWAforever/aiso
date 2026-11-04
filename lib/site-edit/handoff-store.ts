@@ -23,7 +23,9 @@ export type HandoffRead =
       liveCheck: LiveCheckView | null }
 
 /** S4: the newest live-page check of this job. `attested` = it wrote the verified attestation. */
-export type LiveCheckView = { outcome: 'found' | 'missing' | 'fetch_failed'; checkedAt: string; attested: boolean }
+export type LiveCheckView = { outcome: 'found' | 'missing' | 'fetch_failed'; checkedAt: string; attested: boolean
+  /** S7: the scan's structured-data check (c4) on the same fetched page; null when not run. */
+  structuredData: 'pass' | 'warn' | 'fail' | null }
 
 const ISO = 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
 
@@ -49,7 +51,9 @@ function liveCheckRow(value: unknown): LiveCheckView | null {
   if (!value || typeof value !== 'object') return null
   const r = value as Record<string, unknown>
   if (r.outcome !== 'found' && r.outcome !== 'missing' && r.outcome !== 'fetch_failed') throw new Error('bad live check')
-  return { outcome: r.outcome, checkedAt: String(r.checked_at), attested: r.attested === true }
+  const sd = r.structured_data
+  if (sd !== null && sd !== undefined && sd !== 'pass' && sd !== 'warn' && sd !== 'fail') throw new Error('bad live check')
+  return { outcome: r.outcome, checkedAt: String(r.checked_at), attested: r.attested === true, structuredData: sd ?? null }
 }
 
 export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
@@ -81,7 +85,7 @@ export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
       (SELECT jsonb_build_object('status', r.status, 'completed_at', to_char(r.completed_at AT TIME ZONE 'UTC', ${ISO}))
         FROM site_edit_receipts r JOIN job j ON r.job_id = j.id AND r.account_id = ${accountId}::uuid) AS receipt,
       (SELECT jsonb_build_object('outcome', c.outcome, 'checked_at', to_char(c.checked_at AT TIME ZONE 'UTC', ${ISO}),
-        'attested', c.attestation_id IS NOT NULL)
+        'attested', c.attestation_id IS NOT NULL, 'structured_data', c.structured_data_status)
         FROM site_edit_live_checks c JOIN job j ON c.job_id = j.id AND c.account_id = ${accountId}::uuid
         ORDER BY c.checked_at DESC, c.recorded_at DESC LIMIT 1) AS live_check,
       COALESCE((SELECT jsonb_agg(jsonb_build_object('seq', e.seq, 'kind', e.kind, 'executor_status', e.executor_status,

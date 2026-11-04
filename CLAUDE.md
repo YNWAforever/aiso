@@ -294,6 +294,7 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > attestation with `provenance = 'verified_live'`; the manual C9e path stays `self_reported`. A revert (S5,
 > `jsonld_remove`, migration `092`) verifies by the block's absence from a page that loaded.
 > S6: a newly recorded `completed` receipt schedules one such check via `after`, as the member who sent the job.
+> S7 (`094`): each loaded check also stores c4's structured-data verdict on the same bytes — recorded, never a gate.
 >
 > **Grep is not a reliable gate check here.** `app/api/client-reports/**` and
 > `report-branding` look ungated in their own files: they delegate to `lib/reports/service.ts`,
@@ -466,6 +467,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - **`091` recorded on the hosted branch (`--verify`, 2026-11-04) before #159 merged.**
 - **`092` recorded on the hosted branch (`--verify`, 2026-11-04) before #160 merged** (column-constraint only, so `n/a`).
 - **`093` recorded on the hosted branch (`--verify`, 2026-11-04) before #160 merged** (constraint-only, so `n/a`).
+- **`094` recorded on the hosted branch (`--verify`, 2026-11-04) before #162 merged** (columns + constraint, so `n/a`).
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,

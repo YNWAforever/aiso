@@ -100,8 +100,10 @@ export async function recordLiveCheck(scope: HandoffScope, contentHash: string,
             AND ${check.checkedAt.toISOString()}::timestamptz >= v.decided_at AND ${check.checkedAt.toISOString()}::timestamptz <= clock.now
           RETURNING id
         ), checked AS (
-          INSERT INTO site_edit_live_checks (job_id, account_id, outcome, http_status, page_sha256, checked_at, actor_id, attestation_id)
+          INSERT INTO site_edit_live_checks (job_id, account_id, outcome, http_status, page_sha256, structured_data_status,
+            structured_data_message, checked_at, actor_id, attestation_id)
           SELECT j.id, ${accountId}::uuid, ${check.outcome}, ${check.httpStatus}, ${check.pageSha256},
+            ${check.structuredData?.status ?? null}, ${check.structuredData?.message ?? null},
             ${check.checkedAt.toISOString()}::timestamptz, p.id, (SELECT id FROM attested)
           FROM job j CROSS JOIN member p
           RETURNING id

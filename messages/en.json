@@ -2946,6 +2946,11 @@
         "missing": "Gone from the live page on {date}.",
         "found": "Still on the live page on {date}.",
         "fetch_failed": "Could not load the live page on {date}."
+      },
+      "structuredData": {
+        "pass": "Structured-data check on that page: passed.",
+        "warn": "Structured-data check on that page: microdata only.",
+        "fail": "Structured-data check on that page: not found."
       }
     }
   },
