@@ -447,7 +447,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   column and both constraints existed, only the `schema_migrations` row was inserted. The usual
   false alarms still apply (`014`'s `MISSING plan_features`, `n/a` for column-only migrations).
 - **`087` recorded on the hosted branch (`--verify`, 2026-11-04)**, applied after #152 had already
-  merged — the schema gate kept the production build from shipping code ahead of it.
+  merged, so any production build between the merge and the apply ran ahead of its schema.
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,
