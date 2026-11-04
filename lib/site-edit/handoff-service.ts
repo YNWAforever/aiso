@@ -1,5 +1,6 @@
 import 'server-only'
 import { getProfile } from '@/lib/auth'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import { readLimitedJson } from '@/lib/approvals/request'
 import { appOrigin } from '@/lib/app-origin'
 import { deliveryId } from '@/lib/delivery/input'
@@ -29,6 +30,7 @@ const statuses = {
   HANDOFF_INVALID_INPUT: 400,
   HANDOFF_DENIED: 403,
   HANDOFF_NOT_FOUND: 404,
+  HANDOFF_UPGRADE_REQUIRED: 403,
   HANDOFF_NOT_APPROVED: 409,
   HANDOFF_SUPERSEDED: 409,
   HANDOFF_NO_EDIT_SPEC: 409,
@@ -50,7 +52,7 @@ function errorResponse(error: unknown): Response {
   return json({ error: 'HANDOFF_UNAVAILABLE' }, 503)
 }
 
-export type HandoffBlock = 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_connected' | 'in_flight' | 'already_sent' | null
+export type HandoffBlock = 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_entitled' | 'not_connected' | 'in_flight' | 'already_sent' | null
 export type HandoffView = {
   state: HandoffState
   jobId: string | null
@@ -66,7 +68,7 @@ export type HandoffView = {
   checkBlock: 'not_open' | 'too_soon' | null
 }
 
-function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok' }>, connected: boolean, now: Date): HandoffView {
+function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok' }>, connected: boolean, now: Date, entitled = true): HandoffView {
   const state = handoffState(read.events, now)
   const latest = [...read.events].sort((a, b) => b.seq - a.seq)[0] as HandoffEvent | undefined
   const sent = [...read.events].reverse().find(e => e.kind === 'sent')
@@ -75,6 +77,8 @@ function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok
     : !read.version.editSpec ? 'no_edit_spec'
     : state === 'sent' || read.receipt ? 'already_sent'
     : state === 'sending' ? 'in_flight'
+    // S8 (Q6): sending is a Pro/Enterprise feature. A job already sent keeps its receipt and live checks.
+    : !entitled ? 'not_entitled'
     : !connected ? 'not_connected'
     : null
   const open = read.job !== null && read.receipt?.status !== 'rejected' && (read.receipt?.status === 'completed' || state === 'sent' || state === 'unknown')
@@ -84,15 +88,18 @@ function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok
     receipt: read.receipt, liveCheck: read.liveCheck, canCheck: checkable && rested, checkBlock: !checkable ? 'not_open' : !rested ? 'too_soon' : null }
 }
 
-async function scopeFor(clientId: string, itemId: string, versionId: string): Promise<HandoffScope> {
+async function sessionScope(clientId: string, itemId: string, versionId: string): Promise<{ scope: HandoffScope; entitled: boolean }> {
   // Outside any catch that would flatten it: a session-store outage is not "signed out".
   const profile = await getProfile()
   if (!profile) throw new HandoffError('HANDOFF_UNAUTHENTICATED')
+  // resolveCommercialEntitlement fails closed to free (override → past_due → cancelled → trial → paid).
+  const entitled = resolveCommercialEntitlement(profile.accounts).features.site_edit === true
   try {
-    return { clientId: deliveryId(clientId), itemId: deliveryId(itemId), versionId: deliveryId(versionId),
-      accountId: deliveryId(profile.account_id), actorId: deliveryId(profile.id) }
+    return { entitled, scope: { clientId: deliveryId(clientId), itemId: deliveryId(itemId), versionId: deliveryId(versionId),
+      accountId: deliveryId(profile.account_id), actorId: deliveryId(profile.id) } }
   } catch { throw new HandoffError('HANDOFF_NOT_FOUND') }
 }
+const scopeFor = async (clientId: string, itemId: string, versionId: string) => (await sessionScope(clientId, itemId, versionId)).scope
 
 async function load(scope: HandoffScope) {
   const read = await readHandoff(scope)
@@ -104,9 +111,9 @@ async function load(scope: HandoffScope) {
 
 export async function readAuthenticatedHandoff(clientId: string, itemId: string, versionId: string): Promise<Response> {
   try {
-    const scope = await scopeFor(clientId, itemId, versionId)
+    const { scope, entitled } = await sessionScope(clientId, itemId, versionId)
     const read = await load(scope)
-    return json({ handoff: view(read, handoffConfig() !== null, new Date()) })
+    return json({ handoff: view(read, handoffConfig() !== null, new Date(), entitled) })
   } catch (error) { return errorResponse(error) }
 }
 
@@ -202,20 +209,20 @@ async function callExecutor(url: string, secret: string, body: string, jobId: st
 
 export async function sendAuthenticatedHandoff(clientId: string, itemId: string, versionId: string, request: Request): Promise<Response> {
   try {
-    const scope = await scopeFor(clientId, itemId, versionId)
+    const { scope, entitled } = await sessionScope(clientId, itemId, versionId)
     let raw: unknown
     try { raw = await readLimitedJson(request, 1024) } catch { throw new HandoffError('HANDOFF_INVALID_INPUT') }
     const contentHash = readHash(raw)
 
     const read = await load(scope)
     const config = handoffConfig()
-    const current = view(read, config !== null, new Date())
+    const current = view(read, config !== null, new Date(), entitled)
     // Already accepted: return the existing job, make no call (one hand-off per version).
     if (current.block === 'already_sent') return json({ handoff: current })
     if (read.version.contentHash !== contentHash) throw new HandoffError('HANDOFF_CONFLICT')
     const blocks: Record<Exclude<HandoffBlock, null | 'already_sent'>, Code> = {
       not_approved: 'HANDOFF_NOT_APPROVED', superseded: 'HANDOFF_SUPERSEDED', no_edit_spec: 'HANDOFF_NO_EDIT_SPEC',
-      in_flight: 'HANDOFF_IN_FLIGHT', not_connected: 'HANDOFF_NOT_CONNECTED',
+      in_flight: 'HANDOFF_IN_FLIGHT', not_entitled: 'HANDOFF_UPGRADE_REQUIRED', not_connected: 'HANDOFF_NOT_CONNECTED',
     }
     if (current.block) throw new HandoffError(blocks[current.block])
     const spec = read.version.editSpec!

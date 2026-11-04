@@ -42,7 +42,7 @@ const block = (value: unknown) => `<script type="application/ld+json">${JSON.str
 
 beforeEach(() => {
   vi.clearAllMocks()
-  m.getProfile.mockResolvedValue({ id: PROFILE, account_id: ACCOUNT })
+  m.getProfile.mockResolvedValue({ id: PROFILE, account_id: ACCOUNT, accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } })
   m.readHandoff.mockResolvedValue(read())
   m.checkEditSpecDomainPinned.mockResolvedValue({ result: 'ok', pin: {} })
   m.fetchLivePage.mockResolvedValue({ outcome: 'found', httpStatus: 200, pageSha256: 'c'.repeat(64), checkedAt: new Date() })

@@ -28,6 +28,8 @@ export interface PlanFeatures {
   client_reports_online: boolean
   /** Google Search Console connector (Phase 2). Runtime entitlement only. */
   search_console: boolean
+  /** Site-edit hand-off to the developer (S8, Q6): sending an approved edit. Runtime entitlement only. */
+  site_edit: boolean
   outcome_integrations: boolean
   closed_loop_visibility: boolean
   white_label_portals: boolean
@@ -101,6 +103,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       edit_prompts: false, local_trust_roi: false,
       local_trust_competitors: false, local_trust_export: false, client_reports_online: false,
       search_console: false,
+      site_edit: false,
       outcome_integrations: false,
       closed_loop_visibility: false,
       white_label_portals: false,
@@ -124,6 +127,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       edit_prompts: false, local_trust_roi: false,
       local_trust_competitors: false, local_trust_export: false, client_reports_online: false,
       search_console: false,
+      site_edit: false,
       outcome_integrations: false,
       closed_loop_visibility: false,
       white_label_portals: false,
@@ -158,6 +162,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       edit_prompts: true, local_trust_roi: true,
       local_trust_competitors: false, local_trust_export: false, client_reports_online: true,
       search_console: true,
+      site_edit: true,
       outcome_integrations: true,
       closed_loop_visibility: true,
       white_label_portals: false,
@@ -188,6 +193,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       edit_prompts: true, local_trust_roi: true,
       local_trust_competitors: true, local_trust_export: true, client_reports_online: true,
       search_console: true,
+      site_edit: true,
       outcome_integrations: true,
       closed_loop_visibility: true,
       white_label_portals: true,
