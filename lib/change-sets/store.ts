@@ -8,6 +8,7 @@ import type { ActorSnapshot, DecisionDTO, FrozenReview, StoreResult, VersionDeta
 import { listLiveSources } from '@/lib/work-items/sources'
 import { multiSourceEnabled } from '@/lib/work-items/multi-source-flag'
 import { checkEditSpecDomainPinned, type EditSpecDomainPin } from '@/lib/site-edit/domain'
+import { revertHasApprovedSource } from '@/lib/site-edit/revert'
 
 export function validIds(...ids: string[]): boolean {
   return ids.every(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
@@ -130,6 +131,8 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
           const domain = await checkEditSpecDomainPinned(accountId, clientId, frozen.content.editSpec)
           if (domain.result === 'ok') domainPin = domain.pin
           else frozen = null
+          // Site-edit S5: re-checked at submit, so a revert's approval only ever covers removing an approved block.
+          if (frozen && !await revertHasApprovedSource(accountId, clientId, itemId, frozen.content.editSpec!)) frozen = null
         }
         if (supplied && fingerprintEvidence(supplied) !== fingerprintEvidence(frozen)) frozen = null
       }

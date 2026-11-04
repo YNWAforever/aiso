@@ -11,7 +11,8 @@ import type { LiveFetch } from './live-check'
  * the actor is an active member; the version is the LATEST, approved for
  * exactly `contentHash`; its job exists, was handed off (`sent` or `unknown`)
  * or reported completed, and was not declined. It then records the check, and
- * only when the payload was FOUND and no attestation is active, a C9e
+ * only when the check VERIFIES the spec (an add's payload found, or — S5 — a
+ * revert's payload absent from a page that loaded) and no attestation is active, a C9e
  * attestation with provenance 'verified_live' bound to the job, delivered at
  * the check time. Nothing here trusts an id the caller supplied.
  */
@@ -22,12 +23,19 @@ export type LiveCheckWrite =
   | { kind: 'ineligible' }
   | { kind: 'recorded'; outcome: LiveFetch['outcome']; attested: boolean; alreadyAttested: boolean }
 
-const NOTE = 'Approved JSON-LD found on the live page at check time.'
+const NOTES = {
+  jsonld: 'Approved JSON-LD found on the live page at check time.',
+  jsonld_remove: 'Approved JSON-LD removal confirmed: the block was absent from the live page at check time.',
+} as const
 
-export async function recordLiveCheck(scope: HandoffScope, contentHash: string, check: LiveFetch & { targetUrl: string }): Promise<LiveCheckWrite> {
+export async function recordLiveCheck(scope: HandoffScope, contentHash: string,
+  check: LiveFetch & { targetUrl: string; kind: 'jsonld' | 'jsonld_remove' }): Promise<LiveCheckWrite> {
   const { accountId, clientId, itemId, versionId, actorId } = scope
   const requestId = randomUUID()
   const destination = check.targetUrl.slice(0, 500)
+  // Only a fetch that loaded the page can verify anything; a fetch failure never proves an absence.
+  const verifies = check.kind === 'jsonld' ? check.outcome === 'found' : check.outcome === 'missing'
+  const note = NOTES[check.kind]
   const row = await retryWrite(async () => {
     const sql = db()
     const results = await sql.transaction([
@@ -66,9 +74,9 @@ export async function recordLiveCheck(scope: HandoffScope, contentHash: string, 
             approval_decision, kind, actor_id, actor, request_id, recorded_at, destination, delivered_at, note, provenance, site_edit_job_id)
           SELECT v.account_id, v.client_id, v.work_item_id, v.id, v.content_hash, v.decision_id, 'approved', 'attest', p.id,
             jsonb_build_object('profileId', p.id, 'displayName', p.display_name, 'role', 'account_member'), ${requestId}::uuid, clock.now,
-            ${destination}, ${check.checkedAt.toISOString()}::timestamptz, ${NOTE}, 'verified_live', j.id
+            ${destination}, ${check.checkedAt.toISOString()}::timestamptz, ${note}, 'verified_live', j.id
           FROM version v CROSS JOIN member p CROSS JOIN job j CROSS JOIN clock
-          WHERE ${check.outcome} = 'found' AND NOT EXISTS (SELECT 1 FROM active)
+          WHERE ${verifies}::boolean AND NOT EXISTS (SELECT 1 FROM active)
             AND ${check.checkedAt.toISOString()}::timestamptz >= v.decided_at AND ${check.checkedAt.toISOString()}::timestamptz <= clock.now
           RETURNING id
         ), checked AS (

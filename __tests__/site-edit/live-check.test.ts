@@ -110,7 +110,7 @@ describe('POST …/handoff/live-check', () => {
     expect(response.status).toBe(201)
     expect(m.fetchLivePage).toHaveBeenCalledWith('https://www.bakery.hk/', payload)
     expect(m.recordLiveCheck).toHaveBeenCalledWith({ accountId: ACCOUNT, actorId: PROFILE, clientId: CLIENT, itemId: ITEM, versionId: VERSION }, HASH,
-      expect.objectContaining({ outcome: 'found', targetUrl: 'https://www.bakery.hk/' }))
+      expect.objectContaining({ outcome: 'found', targetUrl: 'https://www.bakery.hk/', kind: 'jsonld' }))
     expect((await response.json()).check).toEqual({ outcome: 'found', attested: true, alreadyAttested: false })
     m.recordLiveCheck.mockRejectedValueOnce(new Error('db down'))
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})

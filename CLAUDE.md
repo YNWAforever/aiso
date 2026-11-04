@@ -291,7 +291,8 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > `SITE_EDIT_RECEIPT_SECRET` + `_PREVIOUS`), checked before any database access; its job lookup is
 > declared in `ACCOUNT_BLIND_BY_DESIGN`. A receipt is the executor's claim, never verification.
 > Only S4's member-triggered live check (`…/handoff/live-check`, migration `091`) writes a C9e
-> attestation with `provenance = 'verified_live'`; the manual C9e path stays `self_reported`.
+> attestation with `provenance = 'verified_live'`; the manual C9e path stays `self_reported`. A revert (S5,
+> `jsonld_remove`, migration `092`) verifies by the block's absence from a page that loaded.
 >
 > **Grep is not a reliable gate check here.** `app/api/client-reports/**` and
 > `report-branding` look ungated in their own files: they delegate to `lib/reports/service.ts`,

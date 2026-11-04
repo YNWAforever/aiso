@@ -68,6 +68,32 @@ describe('draft save', () => {
   })
 })
 
+describe('S5 revert', () => {
+  const patch = (body: unknown) => new Request('http://localhost', { method: 'PATCH', body: JSON.stringify(body) })
+  const base = { title: 'Review', action: 'Check', notes: '', expectedRevision: 1 }
+  const revert = { ...spec, kind: 'jsonld_remove' as const }
+
+  it('saves a revert only when an approved version of this item added exactly that block', async () => {
+    m.domain.mockResolvedValue('ok')
+    m.update.mockResolvedValue({ id: itemId })
+    await expect(editAuthenticatedDraft(id, itemId, patch({ ...base, editSpec: revert }))).rejects.toMatchObject({ status: 409, code: 'EDIT_SPEC_REVERT_UNMATCHED' })
+    expect(m.update).not.toHaveBeenCalled()
+    const lookup = m.sql.mock.calls.at(-1)!
+    expect((lookup[0] as string[]).join('?')).toContain("r.decision = 'approved'")
+    expect(lookup.slice(1)).toEqual([id, id, itemId, JSON.stringify({ ...spec, kind: 'jsonld' })])
+    m.sql.mockReturnValueOnce([{ '?column?': 1 }])
+    expect(await editAuthenticatedDraft(id, itemId, patch({ ...base, editSpec: revert }))).toEqual({ item: { id: itemId } })
+  })
+
+  it('freezes nothing at submit when the revert no longer matches an approved add', async () => {
+    m.draft.mockResolvedValue({ ...draft(), editSpec: revert })
+    m.domain.mockResolvedValue('ok')
+    m.transaction.mockResolvedValue([[], [], [{ kind: 'validation_failed' }]])
+    expect(await submitVersion(id, id, itemId, id, 1)).toEqual({ kind: 'validation_failed' })
+    expect(m.sql.mock.calls.at(-1)!.slice(1).some(v => typeof v === 'string' && v.includes('jsonld_remove') && v.includes('"editSpec"'))).toBe(false)
+  })
+})
+
 describe('version submit', () => {
   it('freezes the spec and pins the stored edit_spec in the write statement', async () => {
     m.draft.mockResolvedValue({ ...draft(), editSpec: spec })

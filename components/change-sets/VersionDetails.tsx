@@ -32,7 +32,7 @@ export function VersionDetails({
       {version.editSpec && (
         // Site-edit S1: the exact JSON-LD this version's approval covers.
         <section className="space-y-2 rounded-lg border border-border p-3" aria-label={t('editSpecTitle')}>
-          <h3 className="font-semibold">{t('editSpecTitle')}</h3>
+          <h3 className="font-semibold">{t(version.editSpec.kind === 'jsonld_remove' ? 'editSpecRemoveTitle' : 'editSpecTitle')}</h3>
           <p>{version.editSpec.schemaType} · <span className="break-all">{version.editSpec.targetUrl}</span></p>
           <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm" tabIndex={0}>
             {JSON.stringify(version.editSpec.payload, null, 2)}

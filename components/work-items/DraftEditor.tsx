@@ -31,7 +31,9 @@ export function DraftEditor({
   const [specOn, setSpecOn] = useState(Boolean(item.editSpec)),
     [specType, setSpecType] = useState<EditSpecSchemaType>(item.editSpec?.schemaType ?? 'FAQPage'),
     [specUrl, setSpecUrl] = useState(item.editSpec?.targetUrl ?? ''),
-    [specPayload, setSpecPayload] = useState(specPayloadText(item.editSpec))
+    [specPayload, setSpecPayload] = useState(specPayloadText(item.editSpec)),
+    // S5: a revert removes exactly a block an earlier approved version of this item added.
+    [specRemove, setSpecRemove] = useState(item.editSpec?.kind === 'jsonld_remove')
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(item.id)}`
   function accept(next: WorkItem) {
     setSaved(next)
@@ -42,9 +44,10 @@ export function DraftEditor({
     setSpecType(next.editSpec?.schemaType ?? 'FAQPage')
     setSpecUrl(next.editSpec?.targetUrl ?? '')
     setSpecPayload(specPayloadText(next.editSpec))
+    setSpecRemove(next.editSpec?.kind === 'jsonld_remove')
     onSaved(next)
   }
-  const specDirty = isSpecDirty({ on: specOn, type: specType, url: specUrl, payload: specPayload }, saved.editSpec)
+  const specDirty = isSpecDirty({ on: specOn, type: specType, url: specUrl, payload: specPayload, remove: specRemove }, saved.editSpec)
   async function save(event: FormEvent) {
     event.preventDefault()
     if (lock.current) return
@@ -58,7 +61,7 @@ export function DraftEditor({
       return
     }
     try {
-      const editSpec = specRequest({ on: specOn, type: specType, url: specUrl, payload: specPayload }, saved.editSpec)
+      const editSpec = specRequest({ on: specOn, type: specType, url: specUrl, payload: specPayload, remove: specRemove }, saved.editSpec)
       if (editSpec !== undefined) input = parseDraftEdit({ ...textInput, editSpec })
     } catch {
       setError('invalidEditSpec')
@@ -78,6 +81,7 @@ export function DraftEditor({
       if (!response.ok) {
         if (data?.error === 'EDIT_SPEC_DOMAIN_UNVERIFIED') return setError('editSpecUnverified')
         if (data?.error === 'EDIT_SPEC_DOMAIN_MISMATCH') return setError('editSpecMismatch')
+        if (data?.error === 'EDIT_SPEC_REVERT_UNMATCHED') return setError('editSpecRevertUnmatched')
         setError(
           response.status === 409
             ? 'editConflict'
@@ -194,6 +198,10 @@ export function DraftEditor({
             {t('editSpecInclude')}
           </label>
           {specOn && <>
+            <label className="flex min-h-11 items-center gap-2">
+              <input type="checkbox" checked={specRemove} disabled={busy} onChange={(e) => setSpecRemove(e.target.checked)} />
+              {t('editSpecRemove')}
+            </label>
             <div className="space-y-2">
               <label className="block" htmlFor={fieldId + '-spec-type'}>{t('editSpecType')}</label>
               <select className={field} id={fieldId + '-spec-type'} value={specType} disabled={busy}

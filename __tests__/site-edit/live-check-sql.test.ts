@@ -63,7 +63,7 @@ const scope = (actorId = member, accountId = account, versionId = v1) => ({ acco
 const q = async (text: string, values: unknown[] = []) => (await state.pg!.query(text, values)).rows as Record<string, unknown>[]
 const check = (outcome: 'found' | 'missing' | 'fetch_failed' = 'found', over: Record<string, unknown> = {}) => ({
   outcome, httpStatus: outcome === 'fetch_failed' ? null : 200, pageSha256: outcome === 'fetch_failed' ? null : 'c'.repeat(64),
-  checkedAt: new Date(), targetUrl: target, ...over })
+  checkedAt: new Date(), targetUrl: target, kind: 'jsonld' as 'jsonld' | 'jsonld_remove', ...over })
 const event = (seq: number, kind: string, status: number | null = null) => q(
   'insert into site_edit_job_events (job_id, account_id, seq, kind, actor_id, executor_status) values ($1, $2, $3, $4, $5, $6)', [job, account, seq, kind, member, status])
 const attestations = () => q(`select provenance, site_edit_job_id, destination, kind from work_item_delivery_events order by recorded_at`)
@@ -80,7 +80,7 @@ beforeAll(async () => {
     create table work_item_decisions(id uuid primary key default gen_random_uuid(), account_id uuid, client_id uuid, work_item_id uuid, version_id uuid,
       content_hash text, decision text, decided_at timestamptz default now() - interval '1 hour');
   `)
-  for (const file of ['043_delivery_attestations', '089_site_edit_jobs', '090_site_edit_receipts', '091_site_edit_live_checks']) {
+  for (const file of ['043_delivery_attestations', '089_site_edit_jobs', '090_site_edit_receipts', '091_site_edit_live_checks', '092_site_edit_revert_checks']) {
     await state.pg.exec(readFileSync(`supabase/migrations/${file}.sql`, 'utf8'))
   }
   await q('insert into accounts values ($1), ($2)', [account, other])
@@ -138,6 +138,24 @@ describe('091 + live-check store', () => {
     expect(await recordLiveCheck(scope(), h1, check())).toEqual({ kind: 'ineligible' })
     await q('delete from work_item_versions where id = $1', [v2])
     expect(await recordLiveCheck(scope(), h1, check())).toMatchObject({ kind: 'recorded', attested: true })
+  })
+
+  it('S5: a revert verifies by absence from a loaded page, never from a fetch failure or a find', async () => {
+    await event(2, 'sent', 202)
+    const remove = (outcome: 'found' | 'missing' | 'fetch_failed') => recordLiveCheck(scope(), h1, check(outcome, { kind: 'jsonld_remove' }))
+    expect(await remove('fetch_failed')).toMatchObject({ kind: 'recorded', attested: false })
+    expect(await remove('found')).toMatchObject({ kind: 'recorded', attested: false })
+    expect(await attestations()).toEqual([])
+    expect(await remove('missing')).toEqual({ kind: 'recorded', outcome: 'missing', attested: true, alreadyAttested: false })
+    expect(await attestations()).toEqual([{ provenance: 'verified_live', site_edit_job_id: job, destination: target, kind: 'attest' }])
+    // 092 still refuses an attestation on a check whose page did not load.
+    const [decision] = await q('select id from work_item_decisions')
+    const [manual] = await q(`insert into work_item_delivery_events (account_id, client_id, work_item_id, version_id, content_hash, approval_decision_id,
+      approval_decision, kind, actor_id, actor, request_id, destination, delivered_at, note) values ($1, $2, $3, $4, $5, $6, 'approved', 'attest', $7, $8,
+      gen_random_uuid(), 'Site', now() - interval '1 minute', 'Done') returning id`,
+      [account, client, item, v1, h1, decision.id, member, JSON.stringify({ profileId: member, displayName: null, role: 'account_member' })])
+    await expect(q(`insert into site_edit_live_checks (job_id, account_id, outcome, checked_at, actor_id, attestation_id) values ($1, $2, 'fetch_failed', now(), $3, $4)`,
+      [job, account, member, manual.id])).rejects.toThrow(/shape_check/)
   })
 
   it('enforces provenance, job binding and check shapes in the schema itself', async () => {

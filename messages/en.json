@@ -2771,7 +2771,9 @@
     "editSpecRules": "One block on one page. Its @type must match the schema type. Approval covers exactly this markup.",
     "invalidEditSpec": "Check the site edit: an https page URL, valid JSON with a schema.org @context, and a matching @type. Your edits are preserved.",
     "editSpecUnverified": "Verify this brand's domain before adding a site edit. Your edits are preserved.",
-    "editSpecMismatch": "The page URL must be on this brand's verified domain. Your edits are preserved."
+    "editSpecMismatch": "The page URL must be on this brand's verified domain. Your edits are preserved.",
+    "editSpecRemove": "Remove this block from the page (revert an approved edit)",
+    "editSpecRevertUnmatched": "A revert must match, exactly, a block an approved version of this item added. Your edits are preserved."
   },
   "changeSets": {
     "title": "Version review",
@@ -2818,7 +2820,8 @@
     "pass": "Passed",
     "contentHash": "Content hash",
     "discardReason": "Discard entered reason",
-    "editSpecTitle": "Site edit (JSON-LD)"
+    "editSpecTitle": "Site edit (JSON-LD)",
+    "editSpecRemoveTitle": "Site edit: remove JSON-LD"
   },
   "approverAccess": {
     "title": "Account approvers",
@@ -2934,8 +2937,14 @@
       "checking": "Checking",
       "result": {
         "found": "Found on the live page on {date}.",
-        "foundRecorded": "Found on the live page on {date}. Recorded as a verified delivery.",
         "missing": "Not found on the live page on {date}.",
+        "fetch_failed": "Could not load the live page on {date}.",
+        "verified": "Found on the live page on {date}. Recorded as a verified delivery."
+      },
+      "removeResult": {
+        "verified": "Gone from the live page on {date}. Recorded as a verified delivery.",
+        "missing": "Gone from the live page on {date}.",
+        "found": "Still on the live page on {date}.",
         "fetch_failed": "Could not load the live page on {date}."
       }
     }

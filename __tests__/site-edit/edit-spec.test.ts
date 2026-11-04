@@ -95,3 +95,13 @@ describe('editSpecTargetsDomain', () => {
     expect(editSpecTargetsDomain(spec(url), domain)).toBe(expected)
   })
 })
+
+describe('S5 revert kind', () => {
+  const base = { schemaVersion: 1, targetUrl: 'https://www.example.com/', schemaType: 'Organization',
+    payload: { '@context': 'https://schema.org', '@type': 'Organization', name: 'Example' } }
+  it('accepts jsonld_remove under the same payload rules, and refuses any other kind', () => {
+    expect(parseEditSpec({ ...base, kind: 'jsonld_remove' })).toMatchObject({ kind: 'jsonld_remove', schemaType: 'Organization' })
+    expect(() => parseEditSpec({ ...base, kind: 'jsonld_replace' })).toThrow()
+    expect(() => parseEditSpec({ ...base, kind: 'jsonld_remove', payload: { '@type': 'Organization' } })).toThrow()
+  })
+})

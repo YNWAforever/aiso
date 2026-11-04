@@ -12,9 +12,18 @@
 export const EDIT_SPEC_SCHEMA_TYPES = ['FAQPage', 'Organization', 'LocalBusiness'] as const
 export type EditSpecSchemaType = typeof EDIT_SPEC_SCHEMA_TYPES[number]
 
+/**
+ * `jsonld` adds one block. `jsonld_remove` (S5) is a revert: it removes a block
+ * equal to `payload`, and is only accepted when an earlier APPROVED version of
+ * the same work item added exactly that block (checked server-side). There is
+ * no silent rollback: a revert is reviewed, approved and handed off like an add.
+ */
+export const EDIT_SPEC_KINDS = ['jsonld', 'jsonld_remove'] as const
+export type EditSpecKind = typeof EDIT_SPEC_KINDS[number]
+
 export type EditSpecV1 = {
   schemaVersion: 1
-  kind: 'jsonld'
+  kind: EditSpecKind
   targetUrl: string
   schemaType: EditSpecSchemaType
   payload: Record<string, unknown>
@@ -103,7 +112,8 @@ export function parseEditSpec(value: unknown): EditSpecV1 {
   const input = record(value, 'shape')
   const keys = ['schemaVersion', 'kind', 'targetUrl', 'schemaType', 'payload']
   if (Object.keys(input).length !== keys.length || !keys.every(key => Object.hasOwn(input, key))) fail('shape')
-  if (input.schemaVersion !== 1 || input.kind !== 'jsonld') fail('shape')
+  if (input.schemaVersion !== 1 || !(EDIT_SPEC_KINDS as readonly unknown[]).includes(input.kind)) fail('shape')
+  const kind = input.kind as EditSpecKind
   const targetUrl = parseTargetUrl(input.targetUrl)
   if (typeof input.schemaType !== 'string' || !(EDIT_SPEC_SCHEMA_TYPES as readonly string[]).includes(input.schemaType)) fail('type')
   const schemaType = input.schemaType as EditSpecSchemaType
@@ -115,5 +125,5 @@ export function parseEditSpec(value: unknown): EditSpecV1 {
   const payload = canonicalPayload(raw, 0, { nodes: EDIT_SPEC_MAX_NODES }) as Record<string, unknown>
   if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > EDIT_SPEC_PAYLOAD_MAX_BYTES) fail('size')
 
-  return { schemaVersion: 1, kind: 'jsonld', targetUrl, schemaType, payload }
+  return { schemaVersion: 1, kind, targetUrl, schemaType, payload }
 }
