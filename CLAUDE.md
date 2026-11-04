@@ -460,6 +460,8 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   log `schema gate: all 86 shipped migrations are recorded.`
 - **`088` recorded on the hosted branch (`--verify`, 2026-11-04) before #153 merged.**
 - **`089` recorded on the hosted branch (`--verify`, 2026-11-04) before #157 merged.**
+- **`090` recorded on the hosted branch (`--verify`, 2026-11-04) before #158 merged.**
+- **`091` recorded on the hosted branch (`--verify`, 2026-11-04) before #159 merged.**
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,
