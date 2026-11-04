@@ -447,7 +447,11 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   column and both constraints existed, only the `schema_migrations` row was inserted. The usual
   false alarms still apply (`014`'s `MISSING plan_features`, `n/a` for column-only migrations).
 - **`087` recorded on the hosted branch (`--verify`, 2026-11-04)**, applied after #152 had already
-  merged, so any production build between the merge and the apply ran ahead of its schema.
+  merged. That did **not** put code ahead of its schema: the schema gate (#146) failed #152's
+  production build (`dpl_2vFJDX4u8WnQLnJ6BcL1i9bfZWJD`, `ERROR`) with `the database has not
+  recorded 1 migration(s) this code ships: 087_studio_staff_grants.sql`, so production kept
+  serving #151's build until 087 was recorded. First observed block in production; later builds
+  log `schema gate: all 86 shipped migrations are recorded.`
 - **`088` recorded on the hosted branch (`--verify`, 2026-11-04) before #153 merged.**
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened

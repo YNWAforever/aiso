@@ -151,6 +151,10 @@ npm --prefix cloudflare/cron-worker run typecheck
    `supabase/migrations/`, so the live deployment keeps serving (preview builds only
    warn; local and CI builds skip). A hand-applied migration must also get its ledger
    row. `SCHEMA_GATE=off` in the Vercel environment is the deliberate emergency bypass.
+   Verified in production on 2026-11-03: #152 merged before `087` was applied, and its
+   production build failed at the gate while the previous deployment kept serving. A
+   passing build logs `schema gate: all <n> shipped migrations are recorded.`; after
+   recording a missing migration, **redeploy** the failed commit (or merge the next one).
 3. **Deploy the app candidate through the project's Vercel Git integration.**
    PR/branch builds are previews when enabled by project settings; merging to the
    configured production branch can deploy production. Verify those settings
