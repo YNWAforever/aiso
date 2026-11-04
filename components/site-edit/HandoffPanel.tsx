@@ -59,6 +59,16 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
     return () => { alive.current = false; clearTimeout(start) }
   }, [load])
 
+  // The check button is spaced a minute apart server-side; reload once that
+  // minute is up so a retry becomes available without leaving the page.
+  const cooldownFrom = handoff?.checkBlock === 'too_soon' ? handoff.liveCheck?.checkedAt ?? null : null
+  useEffect(() => {
+    if (!cooldownFrom) return
+    const wait = Math.max(0, Date.parse(cooldownFrom) + 60_000 - Date.now()) + 1_000
+    const timer = setTimeout(() => { void load() }, wait)
+    return () => clearTimeout(timer)
+  }, [cooldownFrom, load])
+
   async function post(url: string, allowed: boolean) {
     if (busy || !allowed) return
     setBusy(true); setError(null)

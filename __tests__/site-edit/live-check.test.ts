@@ -57,6 +57,22 @@ describe('payload matcher', () => {
     expect(live.pageHasPayload(`<script type='application/ld+json'>{broken</script>${block(payload)}`, payload)).toBe(true)
   })
 
+  it('counts only real ld+json script elements: not commented out, not data-type, not inside <template>', () => {
+    expect(live.pageHasPayload(`<!-- ${block(payload)} -->`, payload)).toBe(false)
+    expect(live.pageHasPayload(`<script data-type="application/ld+json">${JSON.stringify(payload)}</script>`, payload)).toBe(false)
+    expect(live.pageHasPayload(`<template>${block(payload)}</template>`, payload)).toBe(false)
+    expect(live.pageHasPayload(`<script type=" Application/LD+JSON ">${JSON.stringify(payload)}</script>`, payload)).toBe(true)
+  })
+
+  it('requires the block to be read as schema.org: its own context, or the @graph wrapper it inherits', () => {
+    expect(live.pageHasPayload(block({ ...payload, '@context': 'https://example.com/' }), payload)).toBe(false)
+    const { '@context': _context, ...bare } = payload
+    expect(live.pageHasPayload(block(bare), payload)).toBe(false)
+    expect(live.pageHasPayload(block({ '@context': 'https://example.com/', '@graph': [bare] }), payload)).toBe(false)
+    expect(live.pageHasPayload(block({ '@context': 'http://schema.org', '@graph': [bare] }), payload)).toBe(true)
+    expect(live.pageHasPayload(block({ '@context': { '@vocab': 'https://schema.org/' }, '@graph': [bare] }), payload)).toBe(false)
+  })
+
   it('does not match a changed, partial or non-JSON-LD copy', () => {
     expect(live.pageHasPayload(block({ ...payload, name: 'Other' }), payload)).toBe(false)
     expect(live.pageHasPayload(block({ '@type': 'Organization', name: 'Bakery' }), payload)).toBe(false)
