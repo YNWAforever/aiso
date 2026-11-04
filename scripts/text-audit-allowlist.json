@@ -123,6 +123,10 @@
       "reason": "an example address, the same in both languages"
     },
     {
+      "key": "staffAccess.emailPlaceholder",
+      "reason": "an example address, the same in both languages"
+    },
+    {
       "key": "accountUnlock.emailPlaceholder",
       "reason": "an example address, the same in both languages"
     },

@@ -3246,6 +3246,44 @@
       "MEMBER_NOT_FOUND": "這個人不在這個工作區。"
     }
   },
+  "staffAccess": {
+    "title": "Fimmick 職員存取",
+    "emailLabel": "職員電郵",
+    "emailPlaceholder": "name@fimmick.com",
+    "grant": "授權 90 日",
+    "granting": "授權中",
+    "renew": "續期",
+    "renewing": "續期中",
+    "renewFor": "為 {name} 續期",
+    "revoke": "撤銷",
+    "revoking": "撤銷中",
+    "revokeFor": "撤銷 {name} 的存取",
+    "none": "未有職員獲授權。",
+    "unknown": "未知",
+    "expiresOn": "到期",
+    "revokedOn": "已撤銷",
+    "status": {
+      "active": "生效中",
+      "expired": "已過期",
+      "revoked": "已撤銷"
+    },
+    "auditHeading": "最近活動",
+    "audit": {
+      "grant": "授權存取",
+      "renew": "續期存取",
+      "revoke": "撤銷存取",
+      "open": "開啟 Studio：",
+      "thread": "儲存對話："
+    },
+    "errors": {
+      "INVALID_STAFF_GRANT": "電郵地址格式不正確。",
+      "STAFF_GRANT_BODY_TOO_LARGE": "請求內容太大。",
+      "STAFF_NOT_ELIGIBLE": "此電郵不是可獲授權的 Fimmick 職員。",
+      "STAFF_GRANT_EXISTS": "此職員已有存取權，請改為續期。",
+      "STAFF_GRANT_NOT_FOUND": "此存取權已不存在。",
+      "STAFF_GRANTS_UNAVAILABLE": "暫時未能載入職員存取，請再試。"
+    }
+  },
   "maintenance": {
     "runTitle": "採集工作項目",
     "runUnavailable": "無法讀取此 run 的完整記錄；沒有更改任何工作。",
