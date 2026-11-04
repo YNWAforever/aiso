@@ -155,6 +155,8 @@ function allRelations() {
     'studio_drive_exports',
     // 087: Studio R3 A2a staff access grants and their audit; authored only.
     'studio_staff_grants','studio_staff_audit',
+    // 089: site-edit S2 hand-off jobs and their insert-only events; authored only.
+    'site_edit_jobs','site_edit_job_events',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
