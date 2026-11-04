@@ -300,6 +300,14 @@ until a receipt arrives).
   Review fix: `086` pinned the stored spec kind to `jsonld` on drafts and versions, so migration `093` widens both
   CHECKs to `jsonld | jsonld_remove` (nothing else changes). The live-check matcher no longer stops at 50 JSON-LD
   blocks: a revert is verified by absence only after searching the whole (2 MiB-bounded) page.
+- **S6 — automatic live check on receipt.** **Started 2026-11-04 (Willy: "start S6 site-edit", chose "auto
+  live check on receipt").** When a signed `completed` receipt is newly recorded, the receipt route schedules one
+  live check with Next `after`, so the executor's call is not held up by the page fetch. It runs as the member who
+  made the job's newest claim (pressed "Send"), under exactly the gates a member's check passes — still a member,
+  latest approved version, open job, verified domain, one-minute spacing — and its attestation note says it was
+  checked automatically. Best-effort: a refusal or failure is logged by name only and the button stays for a
+  person. A replayed, rejected or refused receipt schedules nothing. No migration; `receipts` gets a 30 s
+  `maxDuration` for the fetch. A miss (page not yet updated) is recorded honestly and can be re-checked a minute later.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 

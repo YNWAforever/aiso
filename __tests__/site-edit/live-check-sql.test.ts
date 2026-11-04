@@ -45,7 +45,7 @@ vi.mock('@/lib/change-sets/store', async () => {
 })
 
 import { readHandoff } from '@/lib/site-edit/handoff-store'
-import { recordLiveCheck } from '@/lib/site-edit/live-check-store'
+import { loadAutoCheckScope, recordLiveCheck } from '@/lib/site-edit/live-check-store'
 
 const account = '10000000-0000-4000-8000-000000000001'
 const other = '10000000-0000-4000-8000-000000000002'
@@ -156,6 +156,14 @@ describe('091 + live-check store', () => {
       [account, client, item, v1, h1, decision.id, member, JSON.stringify({ profileId: member, displayName: null, role: 'account_member' })])
     await expect(q(`insert into site_edit_live_checks (job_id, account_id, outcome, checked_at, actor_id, attestation_id) values ($1, $2, 'fetch_failed', now(), $3, $4)`,
       [job, account, member, manual.id])).rejects.toThrow(/shape_check/)
+  })
+
+  it('S6: resolves an automatic check to the job’s own scope and its sender, and says so in the note', async () => {
+    expect(await loadAutoCheckScope(job, other)).toBeNull()
+    expect(await loadAutoCheckScope(job, account)).toEqual(scope())
+    await event(2, 'sent', 202)
+    expect(await recordLiveCheck(scope(), h1, check('found', { trigger: 'receipt' }))).toMatchObject({ attested: true })
+    expect(await q('select note from work_item_delivery_events')).toEqual([{ note: 'Approved JSON-LD found on the live page at check time. Checked automatically when the developer reported completion.' }])
   })
 
   it('enforces provenance, job binding and check shapes in the schema itself', async () => {

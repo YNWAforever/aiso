@@ -6,11 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  * the fetcher is injected/mocked: nothing here touches the network.
  */
 
-const m = vi.hoisted(() => ({ getProfile: vi.fn(), readHandoff: vi.fn(), checkEditSpecDomainPinned: vi.fn(), recordLiveCheck: vi.fn(), fetchLivePage: vi.fn() }))
+const m = vi.hoisted(() => ({ getProfile: vi.fn(), readHandoff: vi.fn(), checkEditSpecDomainPinned: vi.fn(), recordLiveCheck: vi.fn(), fetchLivePage: vi.fn(), loadAutoCheckScope: vi.fn() }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/auth', () => ({ getProfile: m.getProfile }))
 vi.mock('@/lib/site-edit/handoff-store', () => ({ readHandoff: m.readHandoff, claimHandoff: vi.fn(), recordHandoffOutcome: vi.fn() }))
-vi.mock('@/lib/site-edit/live-check-store', () => ({ recordLiveCheck: m.recordLiveCheck }))
+vi.mock('@/lib/site-edit/live-check-store', () => ({ recordLiveCheck: m.recordLiveCheck, loadAutoCheckScope: m.loadAutoCheckScope }))
 vi.mock('@/lib/site-edit/domain', () => ({ checkEditSpecDomainPinned: m.checkEditSpecDomainPinned }))
 vi.mock('@/lib/site-edit/live-check', async () => {
   const actual = await vi.importActual<typeof import('@/lib/site-edit/live-check')>('@/lib/site-edit/live-check')
@@ -18,6 +18,7 @@ vi.mock('@/lib/site-edit/live-check', async () => {
 })
 
 import { POST } from '@/app/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/handoff/live-check/route'
+import { autoCheckAfterReceipt } from '@/lib/site-edit/handoff-service'
 const live = await vi.importActual<typeof import('@/lib/site-edit/live-check')>('@/lib/site-edit/live-check')
 
 const ACCOUNT = '10000000-0000-4000-8000-000000000001'
@@ -139,5 +140,42 @@ describe('POST …/handoff/live-check', () => {
     spy.mockRestore()
     m.recordLiveCheck.mockResolvedValueOnce({ kind: 'ineligible' })
     expect((await post()).status).toBe(409)
+  })
+})
+
+describe('S6 autoCheckAfterReceipt', () => {
+  const scope = { accountId: ACCOUNT, actorId: PROFILE, clientId: CLIENT, itemId: ITEM, versionId: VERSION }
+  const completed = read({ receipt: { status: 'completed', completedAt: '2026-11-04T01:00:00Z' } })
+
+  it('runs one check as the sender, through the same gates, marked as receipt-triggered', async () => {
+    m.loadAutoCheckScope.mockResolvedValueOnce(scope)
+    m.readHandoff.mockResolvedValueOnce(completed)
+    await autoCheckAfterReceipt(JOB, ACCOUNT)
+    expect(m.loadAutoCheckScope).toHaveBeenCalledWith(JOB, ACCOUNT)
+    expect(m.readHandoff).toHaveBeenCalledWith(scope)
+    expect(m.fetchLivePage).toHaveBeenCalledWith('https://www.bakery.hk/', payload)
+    expect(m.recordLiveCheck).toHaveBeenCalledWith(scope, HASH, expect.objectContaining({ trigger: 'receipt', kind: 'jsonld' }))
+  })
+
+  it('does nothing when the job has no sender, is another version, is spaced out, superseded or off-domain — and never throws', async () => {
+    m.loadAutoCheckScope.mockResolvedValueOnce(null)
+    await autoCheckAfterReceipt(JOB, ACCOUNT)
+    for (const value of [read({ job: { id: 'other' } }), read({ latestId: 'other' }),
+      read({ liveCheck: { outcome: 'missing', checkedAt: new Date().toISOString(), attested: false } }), { kind: 'denied' }]) {
+      m.loadAutoCheckScope.mockResolvedValueOnce(scope)
+      m.readHandoff.mockResolvedValueOnce(value)
+      await autoCheckAfterReceipt(JOB, ACCOUNT)
+    }
+    expect(m.fetchLivePage).not.toHaveBeenCalled()
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    m.loadAutoCheckScope.mockResolvedValueOnce(scope)
+    m.readHandoff.mockResolvedValueOnce(completed)
+    m.checkEditSpecDomainPinned.mockResolvedValueOnce({ result: 'mismatch' })
+    await expect(autoCheckAfterReceipt(JOB, ACCOUNT)).resolves.toBeUndefined()
+    m.loadAutoCheckScope.mockRejectedValueOnce(new Error('db down'))
+    await expect(autoCheckAfterReceipt(JOB, ACCOUNT)).resolves.toBeUndefined()
+    expect(m.fetchLivePage).not.toHaveBeenCalled()
+    expect(spy).toHaveBeenCalledTimes(2)
+    spy.mockRestore()
   })
 })

@@ -8,7 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  * refusal, replay vs conflict, and no 2xx over a failed write.
  */
 
-const m = vi.hoisted(() => ({ loadReceiptJob: vi.fn(), recordReceipt: vi.fn() }))
+const m = vi.hoisted(() => ({ loadReceiptJob: vi.fn(), recordReceipt: vi.fn(), after: vi.fn(), autoCheck: vi.fn() }))
+vi.mock('next/server', async () => ({ ...await vi.importActual<object>('next/server'), after: m.after }))
+vi.mock('@/lib/site-edit/handoff-service', () => ({ autoCheckAfterReceipt: m.autoCheck }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/site-edit/receipt-store', () => ({ loadReceiptJob: m.loadReceiptJob, recordReceipt: m.recordReceipt }))
 
@@ -55,6 +57,31 @@ describe('receipt contract', () => {
     for (const bad of [payload({ extra: 1 }), payload({ status: 'done' }), payload({ jobId: 'x' }), payload({ completedAt: 'yesterday' }), payload({ note: 'x'.repeat(2001) }), '[]']) {
       expect(() => parseReceipt(JSON.parse(bad))).toThrow()
     }
+  })
+})
+
+describe('S6: automatic live check after a receipt', () => {
+  it('schedules exactly one check, after the response, for a newly recorded completed receipt — and none otherwise', async () => {
+    expect((await post(payload())).status).toBe(201)
+    expect(m.after).toHaveBeenCalledTimes(1)
+    expect(m.autoCheck).not.toHaveBeenCalled() // only once the response is done
+    await m.after.mock.calls[0]![0]()
+    expect(m.autoCheck).toHaveBeenCalledWith(JOB, ACCOUNT)
+    m.after.mockClear()
+    expect((await post(payload({ status: 'rejected' }))).status).toBe(201)
+    m.recordReceipt.mockResolvedValueOnce('replayed')
+    expect((await post(payload())).status).toBe(200)
+    m.loadReceiptJob.mockResolvedValueOnce(job({ lastEvent: 'failed' }))
+    expect((await post(payload())).status).toBe(409)
+    expect(m.after).not.toHaveBeenCalled()
+  })
+
+  it('still answers 201 when the check cannot be scheduled: the receipt is recorded either way', async () => {
+    m.after.mockImplementationOnce(() => { throw new Error('outside request scope') })
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect((await post(payload())).status).toBe(201)
+    expect(m.recordReceipt).toHaveBeenCalledTimes(1)
+    spy.mockRestore()
   })
 })
 
