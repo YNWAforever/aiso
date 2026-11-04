@@ -1,4 +1,4 @@
--- 093: site-edit S7 — record the scan's structured-data check (c4) beside each live check
+-- 094: site-edit S7 — record the scan's structured-data check (c4) beside each live check
 -- (brief: docs/superpowers/plans/2026-11-03-aiso-brief-post6-site-edit.md, §3 step 4,
 -- "and the relevant AEO check passes", deferred from S4).
 --

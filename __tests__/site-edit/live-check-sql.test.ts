@@ -80,7 +80,7 @@ beforeAll(async () => {
     create table work_item_decisions(id uuid primary key default gen_random_uuid(), account_id uuid, client_id uuid, work_item_id uuid, version_id uuid,
       content_hash text, decision text, decided_at timestamptz default now() - interval '1 hour');
   `)
-  for (const file of ['043_delivery_attestations', '089_site_edit_jobs', '090_site_edit_receipts', '091_site_edit_live_checks', '092_site_edit_revert_checks', '093_site_edit_live_check_aeo']) {
+  for (const file of ['043_delivery_attestations', '089_site_edit_jobs', '090_site_edit_receipts', '091_site_edit_live_checks', '092_site_edit_revert_checks', '094_site_edit_live_check_aeo']) {
     await state.pg.exec(readFileSync(`supabase/migrations/${file}.sql`, 'utf8'))
   }
   await q('insert into accounts values ($1), ($2)', [account, other])
