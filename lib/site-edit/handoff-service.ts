@@ -3,8 +3,7 @@ import { getProfile } from '@/lib/auth'
 import { readLimitedJson } from '@/lib/approvals/request'
 import { appOrigin } from '@/lib/app-origin'
 import { deliveryId } from '@/lib/delivery/input'
-import { loadVerification } from '@/lib/domain-verification/store'
-import { checkEditSpecDomain } from './domain'
+import { checkEditSpecDomainPinned } from './domain'
 import {
   HANDOFF_DEADLINE_MS, HANDOFF_STALE_MS, executorRef, handoffBody, handoffConfig, handoffSignature, handoffState, outcomeFor,
   type HandoffEvent, type HandoffOutcome, type HandoffState,
@@ -142,18 +141,19 @@ export async function sendAuthenticatedHandoff(clientId: string, itemId: string,
     }
     if (current.block) throw new HandoffError(blocks[current.block])
     const spec = read.version.editSpec!
-    // Re-checked at send time: a brand repointed since approval must not receive this edit.
-    if (await checkEditSpecDomain(scope.accountId, scope.clientId, spec) !== 'ok') throw new HandoffError('HANDOFF_DOMAIN_UNVERIFIED')
-    const verification = await loadVerification(scope.accountId, scope.clientId)
-    if (!verification?.currentDomain) throw new HandoffError('HANDOFF_DOMAIN_UNVERIFIED')
+    // Re-checked at send time, and PINNED: the claim statement requires the
+    // brand's domain and verification to still equal what this check saw, so
+    // a repoint in between refuses the send instead of mislabelling it.
+    const domain = await checkEditSpecDomainPinned(scope.accountId, scope.clientId, spec)
+    if (domain.result !== 'ok' || !domain.pin) throw new HandoffError('HANDOFF_DOMAIN_UNVERIFIED')
 
-    const claim = await claimHandoff(scope, contentHash, new Date(Date.now() - HANDOFF_STALE_MS))
+    const claim = await claimHandoff(scope, contentHash, new Date(Date.now() - HANDOFF_STALE_MS), domain.pin)
     if (claim.kind === 'busy') throw new HandoffError('HANDOFF_IN_FLIGHT')
     if (claim.kind === 'ineligible') throw new HandoffError('HANDOFF_CONFLICT')
 
     const body = handoffBody({
       jobId: claim.jobId, versionId: scope.versionId, contentHash,
-      client: { id: scope.clientId, name: read.clientName, verifiedDomain: verification.currentDomain },
+      client: { id: scope.clientId, name: read.clientName, verifiedDomain: domain.pin.verifiedDomain },
       editSpec: spec, approvedAt: read.version.decision!.decidedAt,
       receiptUrl: `${appOrigin()}/api/site-edit/receipts`,
     })

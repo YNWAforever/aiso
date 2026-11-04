@@ -10,13 +10,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({
   getProfile: vi.fn(), readHandoff: vi.fn(), claimHandoff: vi.fn(), recordHandoffOutcome: vi.fn(),
-  checkEditSpecDomain: vi.fn(), loadVerification: vi.fn(),
+  checkEditSpecDomainPinned: vi.fn(),
 }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/auth', () => ({ getProfile: m.getProfile }))
 vi.mock('@/lib/site-edit/handoff-store', () => ({ readHandoff: m.readHandoff, claimHandoff: m.claimHandoff, recordHandoffOutcome: m.recordHandoffOutcome }))
-vi.mock('@/lib/site-edit/domain', () => ({ checkEditSpecDomain: m.checkEditSpecDomain }))
-vi.mock('@/lib/domain-verification/store', () => ({ loadVerification: m.loadVerification }))
+vi.mock('@/lib/site-edit/domain', () => ({ checkEditSpecDomainPinned: m.checkEditSpecDomainPinned }))
 vi.mock('@/lib/app-origin', () => ({ appOrigin: () => 'https://aiso.example' }))
 
 import { GET, POST } from '@/app/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/handoff/route'
@@ -29,6 +28,7 @@ const VERSION = '50000000-0000-4000-8000-000000000001'
 const JOB = '60000000-0000-4000-8000-000000000001'
 const HASH = 'a'.repeat(64)
 const SECRET = 's'.repeat(32)
+const PIN = { clientDomain: 'www.bakery.hk', verifiedDomain: 'bakery.hk' }
 const spec = { schemaVersion: 1, kind: 'jsonld', targetUrl: 'https://www.bakery.hk/', schemaType: 'Organization', payload: { '@type': 'Organization' } }
 const ctx = { params: Promise.resolve({ clientId: CLIENT, workItemId: ITEM, versionId: VERSION }) }
 const post = (body: unknown = { contentHash: HASH }) => POST(new Request('https://x/handoff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), ctx)
@@ -45,8 +45,7 @@ beforeEach(() => {
   vi.stubEnv('SITE_EDIT_EXECUTOR_SECRET', SECRET)
   m.getProfile.mockResolvedValue({ id: PROFILE, account_id: ACCOUNT })
   m.readHandoff.mockResolvedValue(read())
-  m.checkEditSpecDomain.mockResolvedValue('ok')
-  m.loadVerification.mockResolvedValue({ currentDomain: 'bakery.hk' })
+  m.checkEditSpecDomainPinned.mockResolvedValue({ result: 'ok', pin: PIN })
   m.claimHandoff.mockResolvedValue({ kind: 'claimed', jobId: JOB, seq: 1 })
   m.recordHandoffOutcome.mockResolvedValue(undefined)
 })
@@ -91,7 +90,7 @@ describe('site-edit hand-off', () => {
     }
     m.readHandoff.mockResolvedValueOnce({ ...read(), latestId: '50000000-0000-4000-8000-000000000009' })
     expect((await (await post()).json()).error).toBe('HANDOFF_SUPERSEDED')
-    m.checkEditSpecDomain.mockResolvedValueOnce('mismatch')
+    m.checkEditSpecDomainPinned.mockResolvedValueOnce({ result: 'mismatch', pin: null })
     expect((await (await post()).json()).error).toBe('HANDOFF_DOMAIN_UNVERIFIED')
     expect(m.claimHandoff).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
@@ -118,6 +117,8 @@ describe('site-edit hand-off', () => {
     expect(init.headers['X-AISO-Signature']).toBe('v1=' + createHmac('sha256', SECRET).update(`${ts}.${body}`).digest('hex'))
     expect(init.headers['X-AISO-Job-Id']).toBe(JOB)
     expect(m.recordHandoffOutcome).toHaveBeenCalledWith({ accountId: ACCOUNT, jobId: JOB, claimSeq: 1, actorId: PROFILE, kind: 'sent', status: 202, ref: 'R-1' })
+    // The claim carries the pin the check saw, and the body names the pinned verified domain.
+    expect(m.claimHandoff).toHaveBeenCalledWith(expect.objectContaining({ accountId: ACCOUNT, versionId: VERSION }), HASH, expect.any(Date), PIN)
   })
 
   it('records failed for 4xx/5xx and unknown for a transport error, with no retry', async () => {

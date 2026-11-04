@@ -1,6 +1,7 @@
 import 'server-only'
 import { db } from '@/lib/db'
-import { versionDTO } from '@/lib/change-sets/store'
+import { retryWrite, versionDTO, versionLocks } from '@/lib/change-sets/store'
+import type { EditSpecDomainPin } from './domain'
 import type { VersionDetail } from '@/lib/change-sets/types'
 import type { HandoffEvent } from './handoff'
 
@@ -79,56 +80,68 @@ export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
 export type ClaimResult = { kind: 'claimed'; jobId: string; seq: number } | { kind: 'ineligible' } | { kind: 'busy' }
 
 /**
- * Create the version's job if needed and append a claim — only if the version
- * is still the latest, still approved for this exact hash, the actor is still
- * an active member, and the job's newest event allows a send (none, failed,
- * unknown, or a claim stale past `staleBefore`). Two concurrent claims compute
- * the same next seq; the unique (job_id, seq) lets exactly one through.
+ * Create the version's job if needed and append a claim, in ONE statement run
+ * under the same item/actor locks version submission takes (versionLocks), so
+ * a newer version cannot be submitted between the check and the claim. The
+ * statement re-establishes, at write time: the actor is a still-active member;
+ * the version is the LATEST, approved for exactly `contentHash`; the brand's
+ * domain and its verification still equal the pin the caller checked (so a
+ * repoint since the check refuses the send); and the job's newest event allows
+ * a send (none, failed, unknown, or a claim older than `staleBefore`). Two
+ * concurrent claims compute the same next seq; unique (job_id, seq) admits one.
  */
-export async function claimHandoff(scope: HandoffScope, contentHash: string, staleBefore: Date): Promise<ClaimResult> {
+export async function claimHandoff(scope: HandoffScope, contentHash: string, staleBefore: Date, pin: EditSpecDomainPin): Promise<ClaimResult> {
   const { accountId, clientId, itemId, versionId, actorId } = scope
-  const sql = db()
-  try {
-    const [row] = await sql`
-      WITH member AS MATERIALIZED (
-        SELECT p.id FROM profiles p WHERE p.id = ${actorId}::uuid AND p.account_id = ${accountId}::uuid AND p.deactivated_at IS NULL
-      ), version AS MATERIALIZED (
-        SELECT v.id, v.client_id, v.work_item_id, v.content_hash FROM work_item_versions v
-        JOIN work_item_decisions r ON r.account_id = v.account_id AND r.client_id = v.client_id AND r.work_item_id = v.work_item_id
-          AND r.version_id = v.id AND r.content_hash = v.content_hash AND r.decision = 'approved'
-        WHERE v.account_id = ${accountId}::uuid AND v.client_id = ${clientId}::uuid AND v.work_item_id = ${itemId}::uuid
-          AND v.id = ${versionId}::uuid AND v.content_hash = ${contentHash} AND EXISTS (SELECT 1 FROM member)
-          AND v.version_number = (SELECT max(version_number) FROM work_item_versions WHERE account_id = ${accountId}::uuid
-            AND client_id = ${clientId}::uuid AND work_item_id = ${itemId}::uuid)
-      ), inserted AS (
-        INSERT INTO site_edit_jobs (account_id, client_id, work_item_id, version_id, content_hash, created_by)
-        SELECT ${accountId}::uuid, v.client_id, v.work_item_id, v.id, v.content_hash, ${actorId}::uuid FROM version v
-        ON CONFLICT (account_id, version_id) DO NOTHING
-        RETURNING id
-      )
-      SELECT (SELECT id FROM inserted) AS inserted_id,
-        (SELECT j.id FROM site_edit_jobs j JOIN version v ON j.account_id = ${accountId}::uuid AND j.version_id = v.id
-          AND j.content_hash = v.content_hash) AS existing_id`
-    const jobId = (row?.inserted_id ?? row?.existing_id) as string | null
-    if (!jobId) return { kind: 'ineligible' }
-    const [claim] = await sql`
-      WITH last AS (
-        SELECT seq, kind, created_at FROM site_edit_job_events
-        WHERE job_id = ${jobId}::uuid AND account_id = ${accountId}::uuid ORDER BY seq DESC LIMIT 1
-      ), member AS (
-        SELECT p.id FROM profiles p WHERE p.id = ${actorId}::uuid AND p.account_id = ${accountId}::uuid AND p.deactivated_at IS NULL
-      )
-      INSERT INTO site_edit_job_events (job_id, account_id, seq, kind, actor_id)
-      SELECT ${jobId}::uuid, ${accountId}::uuid, COALESCE((SELECT seq FROM last), 0) + 1, 'claim', m.id FROM member m
-      WHERE NOT EXISTS (SELECT 1 FROM last WHERE kind = 'sent'
-          OR (kind = 'claim' AND created_at > ${staleBefore.toISOString()}::timestamptz))
-      RETURNING seq`
-    return claim ? { kind: 'claimed', jobId, seq: Number(claim.seq) } : { kind: 'busy' }
-  } catch (error) {
-    // A concurrent claim took this seq first.
-    if ((error as { code?: string })?.code === '23505') return { kind: 'busy' }
-    throw error
-  }
+  const result = await retryWrite(async () => {
+    const sql = db()
+    const results = await sql.transaction([
+      ...versionLocks(sql, accountId, clientId, itemId, actorId),
+      sql`
+        WITH member AS MATERIALIZED (
+          SELECT p.id FROM profiles p WHERE p.id = ${actorId}::uuid AND p.account_id = ${accountId}::uuid AND p.deactivated_at IS NULL
+            AND p.id::text = current_setting('aiso.version_actor_locked', true)
+        ), version AS MATERIALIZED (
+          SELECT v.id, v.client_id, v.work_item_id, v.content_hash FROM work_item_versions v
+          JOIN work_item_decisions r ON r.account_id = v.account_id AND r.client_id = v.client_id AND r.work_item_id = v.work_item_id
+            AND r.version_id = v.id AND r.content_hash = v.content_hash AND r.decision = 'approved'
+          WHERE v.account_id = ${accountId}::uuid AND v.client_id = ${clientId}::uuid AND v.work_item_id = ${itemId}::uuid
+            AND v.id = ${versionId}::uuid AND v.content_hash = ${contentHash} AND EXISTS (SELECT 1 FROM member)
+            AND v.work_item_id::text = current_setting('aiso.version_item_locked', true)
+            AND v.version_number = (SELECT max(version_number) FROM work_item_versions WHERE account_id = ${accountId}::uuid
+              AND client_id = ${clientId}::uuid AND work_item_id = ${itemId}::uuid)
+            AND EXISTS (SELECT 1 FROM clients c JOIN client_domain_verifications d ON d.client_id = c.id AND d.account_id = c.account_id
+              WHERE c.id = v.client_id AND c.account_id = ${accountId}::uuid AND d.verified_at IS NOT NULL
+                AND c.domain = ${pin.clientDomain}::text AND d.domain = ${pin.verifiedDomain}::text)
+        ), existing AS MATERIALIZED (
+          SELECT j.id FROM site_edit_jobs j JOIN version v ON j.account_id = ${accountId}::uuid AND j.version_id = v.id
+            AND j.content_hash = v.content_hash
+        ), inserted AS (
+          INSERT INTO site_edit_jobs (account_id, client_id, work_item_id, version_id, content_hash, created_by)
+          SELECT ${accountId}::uuid, v.client_id, v.work_item_id, v.id, v.content_hash, ${actorId}::uuid FROM version v
+          WHERE NOT EXISTS (SELECT 1 FROM existing)
+          RETURNING id
+        ), job AS (
+          SELECT id FROM existing UNION ALL SELECT id FROM inserted
+        ), last AS (
+          SELECT e.seq, e.kind, e.created_at FROM site_edit_job_events e JOIN existing j ON e.job_id = j.id
+          WHERE e.account_id = ${accountId}::uuid ORDER BY e.seq DESC LIMIT 1
+        ), claimed AS (
+          INSERT INTO site_edit_job_events (job_id, account_id, seq, kind, actor_id)
+          SELECT j.id, ${accountId}::uuid, COALESCE((SELECT seq FROM last), 0) + 1, 'claim', m.id FROM job j CROSS JOIN member m
+          WHERE NOT EXISTS (SELECT 1 FROM last WHERE kind = 'sent'
+            OR (kind = 'claim' AND created_at > ${staleBefore.toISOString()}::timestamptz))
+          RETURNING job_id, seq
+        )
+        SELECT EXISTS (SELECT 1 FROM version) AS eligible, (SELECT job_id FROM claimed) AS job_id, (SELECT seq FROM claimed) AS seq`,
+    ])
+    return results.at(-1)?.[0] as Record<string, unknown> | undefined
+  })
+  // A concurrent claim took this seq (or this job) first.
+  if (result && 'kind' in result && result.kind === 'conflict') return { kind: 'busy' }
+  const row = result as Record<string, unknown> | undefined
+  if (!row || row.eligible !== true) return { kind: 'ineligible' }
+  if (!row.job_id) return { kind: 'busy' }
+  return { kind: 'claimed', jobId: String(row.job_id), seq: Number(row.seq) }
 }
 
 /** Append the call's outcome right after its claim. Throws on any failure: the caller must not report success. */

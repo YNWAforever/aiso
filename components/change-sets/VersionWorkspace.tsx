@@ -267,7 +267,7 @@ export function VersionWorkspace({
             version={selected}
             latestVersionId={page?.latestVersionId ?? null}
           />
-          {selected.editSpec && <HandoffPanel key={'handoff' + selected.id + selected.contentHash} clientId={clientId} version={selected} />}
+          {selected.editSpec && <HandoffPanel key={'handoff' + selected.id + selected.contentHash + (selected.decision?.decision ?? 'pending')} clientId={clientId} version={selected} />}
           <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} />
           <OutcomeWorkspace clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} />
           {(dirty ||
