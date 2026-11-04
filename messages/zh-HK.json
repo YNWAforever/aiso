@@ -2890,7 +2890,9 @@
     "withdrawConfirm": "請提供稽核原因以撤回此申報。撤回並不表示交付從未發生。",
     "confirmWithdraw": "確認撤回",
     "discard": "捨棄交付輸入",
-    "discardConfirm": "捨棄尚未儲存的交付輸入？"
+    "discardConfirm": "捨棄尚未儲存的交付輸入？",
+    "verifiedLive": "已在網頁上核實",
+    "selfReported": "自行申報"
   },
   "siteEditHandoff": {
     "title": "交由開發團隊",
@@ -2919,11 +2921,23 @@
       "HANDOFF_CONFLICT": "此版本已更改，請重新整理後再試。",
       "HANDOFF_IN_FLIGHT": "已有發送正在進行。",
       "HANDOFF_NOT_CONNECTED": "尚未設定開發團隊交接。",
-      "HANDOFF_UNAVAILABLE": "暫時未能完成。未有任何確認，再次發送前請先重新整理。"
+      "HANDOFF_UNAVAILABLE": "暫時未能完成。未有任何確認，再次發送前請先重新整理。",
+      "LIVE_CHECK_NOT_OPEN": "未有可檢查的項目，請先交由開發團隊。",
+      "LIVE_CHECK_TOO_SOON": "剛剛已檢查，請一分鐘後再試。"
     },
     "receipt": {
       "completed": "開發團隊回報已於 {date} 完成，尚未在實際網頁核實。",
       "rejected": "開發團隊已於 {date} 拒絕此工作。"
+    },
+    "live": {
+      "check": "檢查網頁",
+      "checking": "檢查中",
+      "result": {
+        "found": "{date} 已在網頁上找到。",
+        "foundRecorded": "{date} 已在網頁上找到，並記錄為已核實交付。",
+        "missing": "{date} 未有在網頁上找到。",
+        "fetch_failed": "{date} 未能載入網頁。"
+      }
     }
   },
   "outcomes": {

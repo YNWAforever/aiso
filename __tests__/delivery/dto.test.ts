@@ -6,7 +6,7 @@ describe('delivery event DTO', () => {
   it('detaches an explicit attestation retaining nullable names and microseconds', () => {
     const row: Record<string, unknown> = { ...eventRow(), account_id: ID, private: 'secret' }
     const dto = deliveryEventDTO(row)
-    expect(dto).toEqual({ schemaVersion: 1, eventId: ID, kind: 'attest', versionId: VERSION_ID, contentHash: 'a'.repeat(64), actor: member, recordedAt: '2026-09-07T01:00:00.123456Z', destination: 'Site', deliveredAt: '2026-09-07T00:00:00.000Z', note: 'Delivered manually' })
+    expect(dto).toEqual({ schemaVersion: 1, eventId: ID, kind: 'attest', versionId: VERSION_ID, contentHash: 'a'.repeat(64), actor: member, recordedAt: '2026-09-07T01:00:00.123456Z', destination: 'Site', deliveredAt: '2026-09-07T00:00:00.000Z', note: 'Delivered manually', provenance: 'self_reported' })
     ;(row.actor as typeof member).displayName = 'Mutated'
     expect(dto.actor.displayName).toBeNull()
   })

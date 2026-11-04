@@ -19,7 +19,11 @@ export type HandoffRead =
   | { kind: 'not_found' }
   | { kind: 'invalid' }
   | { kind: 'ok'; version: VersionDetail; latestId: string; clientName: string; job: { id: string } | null; events: HandoffEvent[]
-      receipt: { status: 'completed' | 'rejected'; completedAt: string } | null }
+      receipt: { status: 'completed' | 'rejected'; completedAt: string } | null
+      liveCheck: LiveCheckView | null }
+
+/** S4: the newest live-page check of this job. `attested` = it wrote the verified attestation. */
+export type LiveCheckView = { outcome: 'found' | 'missing' | 'fetch_failed'; checkedAt: string; attested: boolean }
 
 const ISO = 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
 
@@ -39,6 +43,13 @@ function receiptRow(value: unknown): { status: 'completed' | 'rejected'; complet
   const r = value as Record<string, unknown>
   if (r.status !== 'completed' && r.status !== 'rejected') throw new Error('bad receipt')
   return { status: r.status, completedAt: String(r.completed_at) }
+}
+
+function liveCheckRow(value: unknown): LiveCheckView | null {
+  if (!value || typeof value !== 'object') return null
+  const r = value as Record<string, unknown>
+  if (r.outcome !== 'found' && r.outcome !== 'missing' && r.outcome !== 'fetch_failed') throw new Error('bad live check')
+  return { outcome: r.outcome, checkedAt: String(r.checked_at), attested: r.attested === true }
 }
 
 export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
@@ -69,6 +80,10 @@ export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
       (SELECT id FROM job) AS job_id,
       (SELECT jsonb_build_object('status', r.status, 'completed_at', to_char(r.completed_at AT TIME ZONE 'UTC', ${ISO}))
         FROM site_edit_receipts r JOIN job j ON r.job_id = j.id AND r.account_id = ${accountId}::uuid) AS receipt,
+      (SELECT jsonb_build_object('outcome', c.outcome, 'checked_at', to_char(c.checked_at AT TIME ZONE 'UTC', ${ISO}),
+        'attested', c.attestation_id IS NOT NULL)
+        FROM site_edit_live_checks c JOIN job j ON c.job_id = j.id AND c.account_id = ${accountId}::uuid
+        ORDER BY c.checked_at DESC, c.recorded_at DESC LIMIT 1) AS live_check,
       COALESCE((SELECT jsonb_agg(jsonb_build_object('seq', e.seq, 'kind', e.kind, 'executor_status', e.executor_status,
         'executor_ref', e.executor_ref, 'created_at', to_char(e.created_at AT TIME ZONE 'UTC', ${ISO})) ORDER BY e.seq)
         FROM site_edit_job_events e JOIN job j ON e.job_id = j.id AND e.account_id = ${accountId}::uuid), '[]'::jsonb) AS events`
@@ -84,6 +99,7 @@ export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
       job: row.job_id ? { id: String(row.job_id) } : null,
       events: (row.events as unknown[]).map(eventRow),
       receipt: receiptRow(row.receipt),
+      liveCheck: liveCheckRow(row.live_check),
     }
   } catch { return { kind: 'invalid' } }
 }

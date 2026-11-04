@@ -159,6 +159,8 @@ function allRelations() {
     'site_edit_jobs','site_edit_job_events',
     // 090: site-edit S3 signed receipts; authored only.
     'site_edit_receipts',
+    // 091: site-edit S4 live-page checks; authored only.
+    'site_edit_live_checks',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

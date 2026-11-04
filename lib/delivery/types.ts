@@ -3,9 +3,11 @@ import type { ActorSnapshot, StoreResult } from '@/lib/change-sets/types'
 export type DeliveryScope = { accountId: string; clientId: string; itemId: string; versionId: string; actorId: string }
 export type AttestInput = { contentHash: string; destination: string; deliveredAt: string; note: string; requestId: string }
 export type WithdrawInput = { reason: string; requestId: string }
+/** 091: 'verified_live' is written only by the site-edit live check; manual attestations are self-reported. */
+export type DeliveryProvenance = 'self_reported' | 'verified_live'
 export type EventBase = { schemaVersion: 1; eventId: string; versionId: string; contentHash: string; actor: ActorSnapshot; recordedAt: string }
 export type DeliveryEvent =
-  | (EventBase & { kind: 'attest'; destination: string; deliveredAt: string; note: string })
+  | (EventBase & { kind: 'attest'; destination: string; deliveredAt: string; note: string; provenance: DeliveryProvenance })
   | (EventBase & { kind: 'withdraw'; targetAttestationId: string; reason: string })
 export type DisabledReason = 'not_approved' | 'superseded' | 'active_attestation' | 'no_active_attestation' | null
 export type DeliveryPage = {

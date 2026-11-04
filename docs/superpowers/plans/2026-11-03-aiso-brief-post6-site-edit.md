@@ -275,6 +275,18 @@ until a receipt arrives).
     shows "the developer reports this was done on …, not yet checked on the live page". The secret
     is `SITE_EDIT_RECEIPT_SECRET` (+ `_PREVIOUS` for rotation); unset → 503 and nothing recorded.
 - **S4 — check live → verified attestation:** public fetch + payload check, C9e provenance field, C9f anchor.
+  - **Started 2026-11-04 (Willy: "start S4 site-edit live check").** A member presses "Check live page"
+    (`POST …/versions/[versionId]/handoff/live-check`, gated like the hand-off). AISO makes one https GET of
+    the frozen `editSpec.targetUrl` through the SSRF-pinned public fetcher (10 s, 2 MiB, ≤3 redirects) and
+    looks for a JSON-LD node (block, array member or `@graph` member) equal to the approved payload after
+    canonicalising both (sorted keys, NFC, `@context` ignored). Only an open job may be checked: handed off
+    (`sent`/`unknown`) or reported completed, never refused or declined, and the version must still be the
+    latest approved one on the verified domain. Checks are spaced a minute apart. Migration `091` adds the
+    insert-only `site_edit_live_checks` (every check, whatever it found) and a C9e `provenance` column
+    (`self_reported` default | `verified_live`) whose verified rows must name their job by composite FK.
+    A find writes one verified attestation delivered at the check time, under the C9e locks, and only when
+    no attestation is active; C9f anchors on it like any active attestation. The "relevant AEO check
+    passes" clause is not in S4: "verified live" means the payload was found at fetch time, nothing more.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 

@@ -23,7 +23,7 @@ async function fixture(page: Page, lang: string, variant = 'default') {
       canWithdraw: context.active !== null, attestReason: context.reason ?? (context.active ? 'active_attestation' : null), withdrawReason: context.active ? null : 'no_active_attestation' } })
   const event = (body: Record<string, unknown>, withdrawal = false): DeliveryEvent => ({ schemaVersion: 1, eventId: randomUUID(), versionId: version.id,
     contentHash: version.contentHash, actor: { profileId: '123e4567-e89b-42d3-a456-426614174001', displayName: null, role: 'account_member' }, recordedAt: '2026-09-07T01:00:00.123456Z',
-    ...(withdrawal ? { kind: 'withdraw' as const, targetAttestationId: context.active!, reason: String(body.reason) } : { kind: 'attest' as const, destination: String(body.destination), deliveredAt: String(body.deliveredAt), note: String(body.note) }) })
+    ...(withdrawal ? { kind: 'withdraw' as const, targetAttestationId: context.active!, reason: String(body.reason) } : { kind: 'attest' as const, destination: String(body.destination), deliveredAt: String(body.deliveredAt), note: String(body.note), provenance: 'self_reported' as const }) })
   const commit = async (route: Route) => {
     const body = route.request().postDataJSON(), next = event(body, route.request().url().endsWith('/withdraw'))
     context.events = [next, ...context.events]; context.active = next.kind === 'attest' ? next.eventId : null
