@@ -286,6 +286,10 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > in the sense that anyone can POST it, but it authenticates every payload against
 > `neon_auth.user` — `@neondatabase/auth` ships no webhook signing, so that lookup is the
 > only authentication it has. Do not remove it.
+> `site-edit/receipts` (S3) is public the same way: the executor's completion receipt is
+> authenticated only by an HMAC over the raw body (`verifyReceiptSignature`, ±5 min timestamp,
+> `SITE_EDIT_RECEIPT_SECRET` + `_PREVIOUS`), checked before any database access; its job lookup is
+> declared in `ACCOUNT_BLIND_BY_DESIGN`. A receipt is the executor's claim, never verification.
 >
 > **Grep is not a reliable gate check here.** `app/api/client-reports/**` and
 > `report-branding` look ungated in their own files: they delegate to `lib/reports/service.ts`,

@@ -265,6 +265,15 @@ until a receipt arrives).
     「交由開發團隊」, per §4's honesty rule. `receiptUrl` points at `/api/site-edit/receipts`, which
     S3 creates.
 - **S3 — signed receipts (same):** receipt endpoint, signature verification, ledger update.
+  - **Started 2026-11-04 (Willy: "start S3 site-edit receipts").** Built to §3a as written:
+    `POST /api/site-edit/receipts`, signature over the raw body first (no DB access before it),
+    8 KiB cap, strict keys, `jobId` known, identical replay → 200 with no write, different body for a
+    closed job → 409, `url` must equal the frozen `editSpec.targetUrl`. Migration `090` adds the
+    insert-only `site_edit_receipts` (one per job). Two refinements: a receipt is accepted while the
+    job's newest event is `claim` too, since the executor can answer before AISO records the
+    outcome; and a job whose hand-off was `failed` (executor refused it) takes no receipt. The panel
+    shows "the developer reports this was done on …, not yet checked on the live page". The secret
+    is `SITE_EDIT_RECEIPT_SECRET` (+ `_PREVIOUS` for rotation); unset → 503 and nothing recorded.
 - **S4 — check live → verified attestation:** public fetch + payload check, C9e provenance field, C9f anchor.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.

@@ -54,6 +54,8 @@ export type HandoffView = {
   lastEventAt: string | null
   canSend: boolean
   block: HandoffBlock
+  /** S3: what the executor reported. A claim, never verification (that is S4). */
+  receipt: { status: 'completed' | 'rejected'; completedAt: string } | null
 }
 
 function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok' }>, connected: boolean, now: Date): HandoffView {
@@ -63,11 +65,11 @@ function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok
   const block: HandoffBlock = read.version.decision?.decision !== 'approved' ? 'not_approved'
     : read.latestId !== read.version.id ? 'superseded'
     : !read.version.editSpec ? 'no_edit_spec'
-    : state === 'sent' ? 'already_sent'
+    : state === 'sent' || read.receipt ? 'already_sent'
     : state === 'sending' ? 'in_flight'
     : !connected ? 'not_connected'
     : null
-  return { state, jobId: read.job?.id ?? null, executorRef: sent?.executorRef ?? null, lastEventAt: latest?.at ?? null, canSend: block === null, block }
+  return { state, jobId: read.job?.id ?? null, executorRef: sent?.executorRef ?? null, lastEventAt: latest?.at ?? null, canSend: block === null, block, receipt: read.receipt }
 }
 
 async function scopeFor(clientId: string, itemId: string, versionId: string): Promise<HandoffScope> {

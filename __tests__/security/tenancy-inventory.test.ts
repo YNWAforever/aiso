@@ -44,6 +44,9 @@ import { describe, expect, it } from 'vitest'
 const TENANT_TABLES: Record<string, string> = {
   // Direct `account_id` column.
   outcome_integration_settings: 'account_id + client_id (071/072)',
+  site_edit_jobs: 'account_id + client_id, composite FK onto the approved version (089)',
+  site_edit_job_events: 'account_id, composite FK onto its job (089)',
+  site_edit_receipts: 'account_id, composite FK onto its job (090)',
   outcome_ingest_credentials: 'account_id + client_id (071/072)',
   outcome_query_clusters: 'account_id + client_id (071/072)',
   outcome_events: 'account_id + client_id (071/072)',
@@ -171,6 +174,8 @@ const DECLARED: Record<string, string> = {
  * each entry pointing at a live function that still carries tenant SQL.
  */
 const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
+  'lib/site-edit/receipt-store.ts::loadReceiptJob':
+    'Site-edit S3 receipt endpoint has no session: the opaque job UUID AISO minted and sent only to the executor, inside a body it signed, establishes scope, and the lookup runs only after the receipt HMAC verified. Every join pins the job to its own account and the write is bound to that account by composite FK.',
   'lib/visibility/cron.ts::loadVisibilityAutomationTargets': 'Cron-authenticated opt-in target selection across accounts; active creator and client, each subsequent operation uses the returned account/client scope.',
   'lib/visibility/cron.ts::loadDueVisibilityJobs': 'Cron-authenticated bounded pending-job selection across accounts. Job authorization, leases and final writes use each row account/client; no browser-supplied scope.',
   'lib/visibility/jobs.ts::repairVisibilityLeases': 'Cron-only bounded stale-lease repair matches job/account/client/token to each existing attempt and never sends a provider request.',

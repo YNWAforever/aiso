@@ -32,6 +32,7 @@ const GATE_TOKENS = [
   'authorizeVisibilityClient', // closed-loop flag + session + runtime capability + ownership
   'authorizeOutcomeClient', // auth + runtime entitlement + tenant ownership
   'loadOutcomeCredential', // encrypted, scoped signed connector capability
+  'verifyReceiptSignature', // site-edit receipt: exact raw-body HMAC + ±5 min timestamp, before any DB access
   'getProfile',            // session lookup; callers null-check
   'requireAuth',
   'requireAdmin',

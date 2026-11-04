@@ -74,6 +74,7 @@ beforeAll(async () => {
     create table work_item_decisions(account_id uuid, client_id uuid, work_item_id uuid, version_id uuid, content_hash text, decision text, decided_at timestamptz default now());
   `)
   await state.pg.exec(readFileSync('supabase/migrations/089_site_edit_jobs.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/090_site_edit_receipts.sql', 'utf8'))
   await q('insert into accounts values ($1), ($2)', [account, other])
   await q('insert into profiles values ($1, $2, null), ($3, $4, null)', [member, account, stranger, other])
   await q(`insert into clients values ($1, $2, 'Bakery', 'www.bakery.hk')`, [client, account])
@@ -93,7 +94,7 @@ describe('089 + handoff store', () => {
     expect((await readHandoff(scope(v1, stranger))).kind).toBe('denied')
     expect((await readHandoff(scope(v1, stranger, other))).kind).toBe('not_found')
     const read = await readHandoff(scope())
-    expect(read).toMatchObject({ kind: 'ok', latestId: v1, clientName: 'Bakery', job: null, events: [] })
+    expect(read).toMatchObject({ kind: 'ok', latestId: v1, clientName: 'Bakery', job: null, events: [], receipt: null })
   })
 
   it('claims once, serialises a second send while the first is in flight, and records the outcome after it', async () => {
