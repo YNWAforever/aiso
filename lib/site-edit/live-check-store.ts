@@ -27,15 +27,35 @@ const NOTES = {
   jsonld: 'Approved JSON-LD found on the live page at check time.',
   jsonld_remove: 'Approved JSON-LD removal confirmed: the block was absent from the live page at check time.',
 } as const
+/** S6: who started the check. A receipt-triggered check says so in the attestation's note. */
+export type LiveCheckTrigger = 'member' | 'receipt'
+const AUTO_SUFFIX = ' Checked automatically when the developer reported completion.'
+
+/**
+ * S6: the scope an automatic check runs under — the job's own account,
+ * client, item and version, and as actor the member who made its newest
+ * claim (the person who pressed "Send"). Account-filtered: the account comes
+ * from the receipt's job, never from a request.
+ */
+export async function loadAutoCheckScope(jobId: string, accountId: string): Promise<HandoffScope | null> {
+  const [row] = await db()`
+    SELECT j.account_id, j.client_id, j.work_item_id, j.version_id,
+      (SELECT e.actor_id FROM site_edit_job_events e WHERE e.job_id = j.id AND e.account_id = j.account_id AND e.kind = 'claim'
+        ORDER BY e.seq DESC LIMIT 1) AS actor_id
+    FROM site_edit_jobs j WHERE j.id = ${jobId}::uuid AND j.account_id = ${accountId}::uuid`
+  if (!row || !row.actor_id) return null
+  return { accountId: String(row.account_id), clientId: String(row.client_id), itemId: String(row.work_item_id),
+    versionId: String(row.version_id), actorId: String(row.actor_id) }
+}
 
 export async function recordLiveCheck(scope: HandoffScope, contentHash: string,
-  check: LiveFetch & { targetUrl: string; kind: 'jsonld' | 'jsonld_remove' }): Promise<LiveCheckWrite> {
+  check: LiveFetch & { targetUrl: string; kind: 'jsonld' | 'jsonld_remove'; trigger?: LiveCheckTrigger }): Promise<LiveCheckWrite> {
   const { accountId, clientId, itemId, versionId, actorId } = scope
   const requestId = randomUUID()
   const destination = check.targetUrl.slice(0, 500)
   // Only a fetch that loaded the page can verify anything; a fetch failure never proves an absence.
   const verifies = check.kind === 'jsonld' ? check.outcome === 'found' : check.outcome === 'missing'
-  const note = NOTES[check.kind]
+  const note = NOTES[check.kind] + (check.trigger === 'receipt' ? AUTO_SUFFIX : '')
   const row = await retryWrite(async () => {
     const sql = db()
     const results = await sql.transaction([

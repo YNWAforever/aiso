@@ -1,8 +1,10 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
+import { after } from 'next/server'
 import { readOutcomeBody } from '@/lib/outcome-integrations/request'
 import { RECEIPT_BODY_LIMIT, parseReceipt, receiptSecrets, verifyReceiptSignature } from './receipt'
 import { loadReceiptJob, recordReceipt } from './receipt-store'
+import { autoCheckAfterReceipt } from './handoff-service'
 
 /**
  * Site-edit S3: `POST /api/site-edit/receipts` — the executor reports a job
@@ -19,7 +21,9 @@ import { loadReceiptJob, recordReceipt } from './receipt-store'
  *   6. the job was actually handed off (claim/sent/unknown; not failed);
  *   7. url equals the job's frozen editSpec.targetUrl.
  *
- * A receipt is the executor's claim, not proof; "verified" needs S4.
+ * A receipt is the executor's claim, not proof; "verified" needs S4. A newly
+ * recorded "completed" receipt schedules one automatic live check (S6) after
+ * the response, so the executor's call is never held up by the page fetch.
  */
 
 const headers = { 'Cache-Control': 'no-store' }
@@ -55,6 +59,11 @@ export async function receiveSiteEditReceipt(request: Request): Promise<Response
     if (!job.targetUrl || input.url !== job.targetUrl) return json({ error: 'RECEIPT_URL_MISMATCH' }, 422)
     const result = await recordReceipt({ ...input, jobId: job.jobId, accountId: job.accountId, bodySha256 })
     if (result === 'conflict') return json({ error: 'RECEIPT_CONFLICT' }, 409)
+    if (result === 'created' && input.status === 'completed') {
+      const { jobId, accountId } = job
+      try { after(() => autoCheckAfterReceipt(jobId, accountId)) }
+      catch { console.error('[site-edit] automatic live check not scheduled') }
+    }
     return json({ received: true, replayed: result === 'replayed' }, result === 'created' ? 201 : 200)
   } catch (error) {
     // Never a 2xx over a failed write: the executor must retry.

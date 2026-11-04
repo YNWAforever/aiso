@@ -10,7 +10,7 @@ import {
 } from './handoff'
 import { claimHandoff, readHandoff, recordHandoffOutcome, type HandoffScope, type LiveCheckView } from './handoff-store'
 import { LIVE_CHECK_SPACING_MS, fetchLivePage } from './live-check'
-import { recordLiveCheck } from './live-check-store'
+import { loadAutoCheckScope, recordLiveCheck, type LiveCheckTrigger } from './live-check-store'
 
 /**
  * Site-edit S2: send one approved edit spec to the executor (brief §3, §3a).
@@ -135,12 +135,7 @@ export async function checkAuthenticatedLivePage(clientId: string, itemId: strin
     if (read.version.contentHash !== contentHash) throw new HandoffError('HANDOFF_CONFLICT')
     const current = view(read, handoffConfig() !== null, new Date())
     if (current.checkBlock) throw new HandoffError(current.checkBlock === 'too_soon' ? 'LIVE_CHECK_TOO_SOON' : 'LIVE_CHECK_NOT_OPEN')
-    const spec = read.version.editSpec!
-    const domain = await checkEditSpecDomainPinned(scope.accountId, scope.clientId, spec)
-    if (domain.result !== 'ok') throw new HandoffError('HANDOFF_DOMAIN_UNVERIFIED')
-
-    const fetched = await fetchLivePage(spec.targetUrl, spec.payload)
-    const written = await recordLiveCheck(scope, contentHash, { ...fetched, targetUrl: spec.targetUrl, kind: spec.kind })
+    const written = await runLiveCheck(scope, read, 'member')
     if (written.kind === 'denied') throw new HandoffError('HANDOFF_DENIED')
     if (written.kind === 'not_found') throw new HandoffError('HANDOFF_NOT_FOUND')
     if (written.kind === 'ineligible') throw new HandoffError('LIVE_CHECK_NOT_OPEN')
@@ -148,6 +143,38 @@ export async function checkAuthenticatedLivePage(clientId: string, itemId: strin
     return json({ handoff: view(after, handoffConfig() !== null, new Date()),
       check: { outcome: written.outcome, attested: written.attested, alreadyAttested: written.alreadyAttested } }, 201)
   } catch (error) { return errorResponse(error) }
+}
+
+/** The shared tail of a live check, once the caller has established the job is open: domain, one fetch, one write. */
+async function runLiveCheck(scope: HandoffScope, read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok' }>, trigger: LiveCheckTrigger) {
+  const spec = read.version.editSpec!
+  const domain = await checkEditSpecDomainPinned(scope.accountId, scope.clientId, spec)
+  if (domain.result !== 'ok') throw new HandoffError('HANDOFF_DOMAIN_UNVERIFIED')
+  const fetched = await fetchLivePage(spec.targetUrl, spec.payload)
+  return recordLiveCheck(scope, read.version.contentHash, { ...fetched, targetUrl: spec.targetUrl, kind: spec.kind, trigger })
+}
+
+/**
+ * Site-edit S6: run the live check once, automatically, right after the
+ * executor's "completed" receipt is recorded, so a verified delivery does not
+ * wait for somebody to press the button. It runs after the receipt response
+ * (Next `after`), as the member who sent the hand-off, under exactly the gates
+ * a member's check passes (still a member, latest approved version, open job,
+ * verified domain, one-minute spacing) and is best-effort: any refusal or
+ * failure is logged by name only and leaves the button for a person to press.
+ */
+export async function autoCheckAfterReceipt(jobId: string, accountId: string): Promise<void> {
+  try {
+    const scope = await loadAutoCheckScope(jobId, accountId)
+    if (!scope) return
+    const read = await readHandoff(scope)
+    if (read.kind !== 'ok' || read.job?.id !== jobId) return
+    if (view(read, handoffConfig() !== null, new Date()).checkBlock) return
+    await runLiveCheck(scope, read, 'receipt')
+  } catch (error) {
+    console.error('[site-edit] automatic live check skipped', { name: error instanceof Error ? error.name : typeof error,
+      code: error instanceof HandoffError ? error.code : undefined })
+  }
 }
 
 async function callExecutor(url: string, secret: string, body: string, jobId: string): Promise<HandoffOutcome> {
