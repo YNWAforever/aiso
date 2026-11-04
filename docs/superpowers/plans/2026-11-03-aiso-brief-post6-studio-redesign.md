@@ -46,7 +46,14 @@ Split in two because each needs its own migration, applied and `--verify`-ed **b
   Every staff open of a brand writes an `open` audit row; the write **fails closed** (no audit
   row, no staff view). The A1 read-only view itself is unchanged.
 - **A2b** (migration `088`): saved staff threads keyed by a live grant, each save audited as
-  `thread`; still no paid calls.
+  `thread`; still no paid calls. Built in place, not as parallel tables: a staff thread is a
+  `studio_threads` row in the **client** account with `staff_grant_id` set. 088 replaces 081's
+  `(profile_id, account_id)` member FK with two rules: a member thread's profile belongs to the
+  account (via a generated `member_profile_id`), and a staff thread's grant belongs to the account
+  and names that profile (composite FK). The thread routes accept a staff principal only with a
+  **live** grant, re-checked on every request, so revoking or expiring access ends it on the next
+  call (the threads are kept). Staff threads stay private to that staff member; the client sees
+  each save in Settings → Fimmick staff access. Without a grant the A1 tab-only view is unchanged.
 
 ## Reference: Ads Copilot (from the screenshots)
 

@@ -13,7 +13,7 @@ import type { StudioSourceStatus } from './home'
 import { loadStudioDfsBrandSettings, type StudioDfsBrandSettings } from './dfs-query'
 import { loadStudioFirecrawlBrandSettings, type StudioFirecrawlBrandSettings } from './firecrawl-query'
 import { loadDriveConnection } from '@/lib/integrations/google-drive/store'
-import { recordStaffAudit } from '@/lib/staff-grants/store'
+import { loadLiveStaffGrant, recordStaffAudit } from '@/lib/staff-grants/store'
 
 /**
  * The Studio gate. A brand of the signed-in account is always allowed.
@@ -23,8 +23,9 @@ import { recordStaffAudit } from '@/lib/staff-grants/store'
  * open a brand of another account. That view is read-only and temporary by
  * construction: every Studio API route still scopes to the session's own
  * account, so nothing a staff viewer does can write into the client's
- * account, and threads are never saved. The open is logged as a structured
- * audit line; a durable audit table arrives with A2's delegated grants.
+ * account. Threads are kept in the viewer's tab only, unless the client
+ * account has given this admin a live grant (A2b, see staffCanSaveThreads).
+ * Every open is recorded in the client account's audit (auditStudioStaffOpen).
  * A non-admin asking for another account's brand gets the same 404 as a
  * brand that does not exist, so the id reveals nothing.
  */
@@ -41,7 +42,6 @@ export async function requireStudioBrand(lang: string, clientId: string, { allow
   return { profile, brand: { id: String(other[0].id), name: String(other[0].brand_name) }, accountId: String(other[0].account_id), staff: true as const }
 }
 
-/** One structured line per staff open, so who looked at which account is answerable from the logs. */
 /**
  * Every staff open is recorded where the client account can read it
  * (studio_staff_audit, 087, shown under Settings → Fimmick staff access), plus
@@ -52,6 +52,20 @@ export async function requireStudioBrand(lang: string, clientId: string, { allow
 export async function auditStudioStaffOpen(input: { actorId: string; accountId: string; clientId: string }) {
   console.info(JSON.stringify({ event: 'studio_staff_open', actor: input.actorId, account: input.accountId, client: input.clientId, at: new Date().toISOString() }))
   await recordStaffAudit({ accountId: input.accountId, clientId: input.clientId, actorId: input.actorId, action: 'open' })
+}
+
+/**
+ * R3 A2b: a staff viewer saves threads only under a live grant from the client
+ * account. A failed lookup reads as "no grant": the view stays tab-only rather
+ * than failing, and the thread routes re-check the grant on every write anyway.
+ */
+export async function staffCanSaveThreads(input: { accountId: string; profileId: string }): Promise<boolean> {
+  try {
+    return Boolean(await loadLiveStaffGrant(input.accountId, input.profileId))
+  } catch (error) {
+    console.error('[studio] staff grant lookup failed', { name: error instanceof Error ? error.name : typeof error })
+    return false
+  }
 }
 
 export type StudioOutputs = { items: { id: string; title: string; status: string; revision: number; updatedAt: string }[]; truncated: boolean }
