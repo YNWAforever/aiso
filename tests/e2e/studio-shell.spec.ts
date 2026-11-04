@@ -239,7 +239,7 @@ for (const lang of ['en', 'zh-HK']) {
     expect(unexpectedRequests(requests)).toEqual([])
   })
 
-  test(`R3 A1 staff view: read-only banner, own-account views hidden, nothing read from providers or saved in ${lang}`, async ({ page }) => {
+  test(`R3 staff view: banner, own-account views hidden, nothing read from providers in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang, '?staff=1')
     await expect(page.getByRole('note').filter({ hasText: copy.staff.banner })).toBeVisible()
     const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
@@ -256,7 +256,7 @@ for (const lang of ['en', 'zh-HK']) {
     await trace.locator('summary').click()
     await expect(trace.locator('li')).toHaveCount(1)
     await expect(trace.locator('li').first()).toContainText(copy.savedDataLabel)
-    // Nothing was written to the thread store, and nothing left the page.
+    // The offline fixture runs tab-only (saving is proven in staff-threads-sql.test.ts); nothing left the page.
     expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('studio-threads:')).map(key => localStorage.getItem(key)).filter(value => value && value !== '[]'))).toEqual([])
     expect(requests).toEqual([])
   })

@@ -220,11 +220,11 @@ function useSessionState(clientId?: string) {
 }
 const Session = createContext<ReturnType<typeof useSessionState> | null>(null)
 
-/** Hydrates the owning principal's saved threads; the guarded layout keys this provider by account AND brand. */
 /**
- * `persist={false}` (R3 A1 staff view) keeps every thread in this tab only: with no
- * client id the session neither reads nor writes the thread endpoints, so threads
- * stay temporary and nothing is saved into another account.
+ * Hydrates the owning principal's saved threads; the guarded layout keys this provider by
+ * account AND brand. `persist={false}` keeps every thread in this tab only (no thread
+ * endpoint is read or written); the Studio layout no longer uses it, since a staff view
+ * now exists only under a live grant and saves like any other, but offline fixtures do.
  */
 export function StudioSessionProvider({ children, clientId, persist = true }: { children: ReactNode; clientId?: string; persist?: boolean }) {
   const value = useSessionState(persist ? clientId : undefined)
