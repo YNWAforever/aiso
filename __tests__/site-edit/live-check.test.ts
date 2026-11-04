@@ -73,6 +73,11 @@ describe('payload matcher', () => {
     expect(live.pageHasPayload(block({ '@context': { '@vocab': 'https://schema.org/' }, '@graph': [bare] }), payload)).toBe(false)
   })
 
+  it('searches every block on the page, so a match after many others is still found (no cap to hide behind)', () => {
+    const filler = Array.from({ length: 80 }, (_, i) => block({ '@context': 'https://schema.org', '@type': 'Thing', name: `n${i}` })).join('')
+    expect(live.pageHasPayload(filler + block(payload), payload)).toBe(true)
+  })
+
   it('does not match a changed, partial or non-JSON-LD copy', () => {
     expect(live.pageHasPayload(block({ ...payload, name: 'Other' }), payload)).toBe(false)
     expect(live.pageHasPayload(block({ '@type': 'Organization', name: 'Bakery' }), payload)).toBe(false)
@@ -126,7 +131,7 @@ describe('POST …/handoff/live-check', () => {
     expect(response.status).toBe(201)
     expect(m.fetchLivePage).toHaveBeenCalledWith('https://www.bakery.hk/', payload)
     expect(m.recordLiveCheck).toHaveBeenCalledWith({ accountId: ACCOUNT, actorId: PROFILE, clientId: CLIENT, itemId: ITEM, versionId: VERSION }, HASH,
-      expect.objectContaining({ outcome: 'found', targetUrl: 'https://www.bakery.hk/' }))
+      expect.objectContaining({ outcome: 'found', targetUrl: 'https://www.bakery.hk/', kind: 'jsonld' }))
     expect((await response.json()).check).toEqual({ outcome: 'found', attested: true, alreadyAttested: false })
     m.recordLiveCheck.mockRejectedValueOnce(new Error('db down'))
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})

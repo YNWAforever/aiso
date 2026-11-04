@@ -287,6 +287,19 @@ until a receipt arrives).
     A find writes one verified attestation delivered at the check time, under the C9e locks, and only when
     no attestation is active; C9f anchors on it like any active attestation. The "relevant AEO check
     passes" clause is not in S4: "verified live" means the payload was found at fetch time, nothing more.
+- **S5 — revert (§3 step 5).** **Started 2026-11-04 (Willy: "start S5 site-edit revert").** A revert is a new
+  edit-spec kind, `jsonld_remove`, with the same fields and payload rules as an add. It is saved and submitted
+  only when an earlier **approved** version of the same work item added exactly that block (target URL,
+  schema type and payload, jsonb-equal), checked at draft save (`EDIT_SPEC_REVERT_UNMATCHED`, 409) and
+  again at submit. It is then reviewed, approved, handed off and checked like an add — no silent rollback.
+  Its live check verifies by **absence**: a page that loaded (2xx HTML) without the block. Migration `092`
+  lets a verified attestation hang off a `missing` check; a `fetch_failed` check still can never carry
+  one, so a page that did not load proves nothing. **Contract change for Rick (§3a):** the hand-off
+  `editSpec.kind` can now be `jsonld_remove` — "remove the JSON-LD block equal to `payload` from
+  `targetUrl`". Pending his confirmation, like the rest of §3a.
+  Review fix: `086` pinned the stored spec kind to `jsonld` on drafts and versions, so migration `093` widens both
+  CHECKs to `jsonld | jsonld_remove` (nothing else changes). The live-check matcher no longer stops at 50 JSON-LD
+  blocks: a revert is verified by absence only after searching the whole (2 MiB-bounded) page.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 

@@ -1,18 +1,18 @@
 import type { EditSpecSchemaType, EditSpecV1 } from './edit-spec'
 
 /** Browser-safe editor helpers for the draft's site-edit section. */
-export type SpecFields = { on: boolean; type: EditSpecSchemaType; url: string; payload: string }
+export type SpecFields = { on: boolean; type: EditSpecSchemaType; url: string; payload: string; remove?: boolean }
 
 export const specPayloadText = (spec: EditSpecV1 | null | undefined) => spec ? JSON.stringify(spec.payload, null, 2) : ''
 
 export function specFields(spec: EditSpecV1 | null | undefined): SpecFields {
-  return { on: Boolean(spec), type: spec?.schemaType ?? 'FAQPage', url: spec?.targetUrl ?? '', payload: specPayloadText(spec) }
+  return { on: Boolean(spec), type: spec?.schemaType ?? 'FAQPage', url: spec?.targetUrl ?? '', payload: specPayloadText(spec), remove: spec?.kind === 'jsonld_remove' }
 }
 
 export function specDirty(fields: SpecFields, saved: EditSpecV1 | null | undefined): boolean {
   const base = specFields(saved)
   if (fields.on !== base.on) return true
-  return fields.on && (fields.type !== base.type || fields.url !== base.url || fields.payload !== base.payload)
+  return fields.on && (fields.type !== base.type || fields.url !== base.url || fields.payload !== base.payload || Boolean(fields.remove) !== base.remove)
 }
 
 /**
@@ -24,5 +24,5 @@ export function specDirty(fields: SpecFields, saved: EditSpecV1 | null | undefin
 export function specRequest(fields: SpecFields, saved: EditSpecV1 | null | undefined): unknown {
   if (!fields.on) return saved ? null : undefined
   if (!specDirty(fields, saved)) return undefined
-  return { schemaVersion: 1, kind: 'jsonld', targetUrl: fields.url, schemaType: fields.type, payload: JSON.parse(fields.payload) }
+  return { schemaVersion: 1, kind: fields.remove ? 'jsonld_remove' : 'jsonld', targetUrl: fields.url, schemaType: fields.type, payload: JSON.parse(fields.payload) }
 }

@@ -100,7 +100,7 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
       )}
       {handoff?.liveCheck && (
         <p role="status" aria-live="polite">
-          {t(`live.result.${handoff.liveCheck.outcome === 'found' && handoff.liveCheck.attested ? 'foundRecorded' : handoff.liveCheck.outcome}`, { date: handoff.liveCheck.checkedAt.slice(0, 10) })}
+          {t(`${version.editSpec?.kind === 'jsonld_remove' ? 'live.removeResult' : 'live.result'}.${handoff.liveCheck.attested ? 'verified' : handoff.liveCheck.outcome}`, { date: handoff.liveCheck.checkedAt.slice(0, 10) })}
         </p>
       )}
       {handoff?.block && handoff.block !== 'already_sent' && handoff.block !== 'in_flight' && <p className="text-muted-foreground">{t(`block.${handoff.block}`)}</p>}

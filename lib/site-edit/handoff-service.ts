@@ -140,7 +140,7 @@ export async function checkAuthenticatedLivePage(clientId: string, itemId: strin
     if (domain.result !== 'ok') throw new HandoffError('HANDOFF_DOMAIN_UNVERIFIED')
 
     const fetched = await fetchLivePage(spec.targetUrl, spec.payload)
-    const written = await recordLiveCheck(scope, contentHash, { ...fetched, targetUrl: spec.targetUrl })
+    const written = await recordLiveCheck(scope, contentHash, { ...fetched, targetUrl: spec.targetUrl, kind: spec.kind })
     if (written.kind === 'denied') throw new HandoffError('HANDOFF_DENIED')
     if (written.kind === 'not_found') throw new HandoffError('HANDOFF_NOT_FOUND')
     if (written.kind === 'ineligible') throw new HandoffError('LIVE_CHECK_NOT_OPEN')

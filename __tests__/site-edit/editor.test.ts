@@ -30,4 +30,12 @@ describe('site-edit editor request', () => {
     expect(specRequest(fresh, null)).toMatchObject({ kind: 'jsonld', payload: { '@type': 'Organization' } })
     expect(() => specRequest({ ...fresh, payload: '{' }, null)).toThrow()
   })
+
+  it('S5: carries the revert flag both ways and treats flipping it as a change', () => {
+    const revert = parseEditSpec({ ...spec, kind: 'jsonld_remove' })
+    expect(specFields(revert).remove).toBe(true)
+    expect(specDirty({ ...specFields(spec), remove: true }, spec)).toBe(true)
+    expect(specRequest({ ...specFields(spec), remove: true }, spec)).toMatchObject({ kind: 'jsonld_remove', payload: spec.payload })
+    expect(specRequest(specFields(revert), revert)).toBeUndefined()
+  })
 })

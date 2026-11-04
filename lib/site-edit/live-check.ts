@@ -13,7 +13,6 @@ export const LIVE_CHECK_BODY_LIMIT = 2 * 1024 * 1024
 export const LIVE_CHECK_TIMEOUT_MS = 10_000
 /** Minimum spacing between checks of one job, so the button cannot hammer a brand's site. */
 export const LIVE_CHECK_SPACING_MS = 60_000
-const MAX_BLOCKS = 50
 
 export type LiveCheckOutcome = 'found' | 'missing' | 'fetch_failed'
 export type LiveFetch = { outcome: LiveCheckOutcome; httpStatus: number | null; pageSha256: string | null; checkedAt: Date }
@@ -49,12 +48,13 @@ type Html = { nodeName: string; attrs?: { name: string; value: string }[]; child
  * The text of every real `<script type="application/ld+json">` element. Parsed
  * with parse5, not a regex: a commented-out block, a `data-type=` attribute,
  * `<template>` content and script text inside `<noscript>` are not elements
- * the page runs, so none of them can count as "on the page".
+ * the page runs, so none of them can count as "on the page". There is no
+ * block cap: the response is already bounded at 2 MiB, and a revert may only
+ * be verified by absence after searching ALL of it.
  */
 function jsonLdScripts(html: string): string[] {
   const out: string[] = []
   const walk = (node: Html) => {
-    if (out.length >= MAX_BLOCKS) return
     if (node.nodeName === 'script') {
       const type = node.attrs?.find(attr => attr.name === 'type')?.value.trim().toLowerCase()
       if (type === 'application/ld+json') out.push((node.childNodes ?? []).map(child => child.value ?? '').join(''))

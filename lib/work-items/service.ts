@@ -7,9 +7,10 @@ import type { DraftSnapshotV1 } from '@/lib/opportunities/types'
 import { CREATE_DRAFT_BODY_LIMIT, EDIT_DRAFT_BODY_LIMIT, parseCreateDraft, parseDraftEdit } from './schema'
 import { parseWorkItemListQuery } from './query'
 import { checkEditSpecDomain } from '@/lib/site-edit/domain'
+import { revertHasApprovedSource } from '@/lib/site-edit/revert'
 import { loadOwnedDraftClient, loadOwnedDraftSource, findOwnedDraft, createDraftIfEvidenceCurrent, updateOwnedDraft, readOwnedDraft, listOwnedDrafts } from './store'
 
-const statuses={UNAUTHENTICATED:401,INVALID_WORK_ITEM_INPUT:400,EDIT_SPEC_DOMAIN_MISMATCH:400,EDIT_SPEC_DOMAIN_UNVERIFIED:409,CLIENT_NOT_FOUND:404,WORK_ITEM_NOT_FOUND:404,EVIDENCE_CHANGED:409,WORK_ITEM_CONFLICT:409,WORK_ITEMS_UNAVAILABLE:503} as const
+const statuses={UNAUTHENTICATED:401,INVALID_WORK_ITEM_INPUT:400,EDIT_SPEC_DOMAIN_MISMATCH:400,EDIT_SPEC_DOMAIN_UNVERIFIED:409,EDIT_SPEC_REVERT_UNMATCHED:409,CLIENT_NOT_FOUND:404,WORK_ITEM_NOT_FOUND:404,EVIDENCE_CHANGED:409,WORK_ITEM_CONFLICT:409,WORK_ITEMS_UNAVAILABLE:503} as const
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 export class WorkItemServiceError extends Error {
  readonly status:number
@@ -72,6 +73,8 @@ export async function editAuthenticatedDraft(clientId:string,itemId:string,reque
    const domain=await checkEditSpecDomain(profile.account_id,clientId,input.editSpec)
    if(domain==='unverified')throw new WorkItemServiceError('EDIT_SPEC_DOMAIN_UNVERIFIED')
    if(domain==='mismatch')throw new WorkItemServiceError('EDIT_SPEC_DOMAIN_MISMATCH')
+   // Site-edit S5: a revert must remove exactly a block this item's review approved adding.
+   if(!await revertHasApprovedSource(profile.account_id,clientId,itemId,input.editSpec))throw new WorkItemServiceError('EDIT_SPEC_REVERT_UNMATCHED')
   }
   const item=await updateOwnedDraft(profile.account_id,clientId,itemId,profile.id,input)
   if(item)return {item}
