@@ -123,6 +123,10 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
     const sql = db()
     const results = await sql.transaction([
       ...versionLocks(sql, accountId, clientId, itemId, actorId),
+      // The job's row lock, shared with recordReceipt: the claim below runs in a
+      // later statement (fresh READ COMMITTED snapshot), so it sees any receipt
+      // committed before this lock was granted.
+      sql`SELECT id FROM site_edit_jobs WHERE account_id = ${accountId}::uuid AND version_id = ${versionId}::uuid FOR UPDATE`,
       sql`
         WITH member AS MATERIALIZED (
           SELECT p.id FROM profiles p WHERE p.id = ${actorId}::uuid AND p.account_id = ${accountId}::uuid AND p.deactivated_at IS NULL
@@ -157,10 +161,12 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
           SELECT j.id, ${accountId}::uuid, COALESCE((SELECT seq FROM last), 0) + 1, 'claim', m.id FROM job j CROSS JOIN member m
           WHERE NOT EXISTS (SELECT 1 FROM last WHERE kind = 'sent'
             OR (kind = 'claim' AND created_at > ${staleBefore.toISOString()}::timestamptz))
+            -- A receipt closes the job: nothing is sent again after one, whatever the events say.
+            AND NOT EXISTS (SELECT 1 FROM site_edit_receipts r JOIN existing j ON r.job_id = j.id AND r.account_id = ${accountId}::uuid)
           RETURNING job_id, seq
         )
         SELECT EXISTS (SELECT 1 FROM version) AS eligible, (SELECT job_id FROM claimed) AS job_id, (SELECT seq FROM claimed) AS seq`,
-    ])
+    ], { isolationLevel: 'ReadCommitted' })
     return results.at(-1)?.[0] as Record<string, unknown> | undefined
   })
   // A concurrent claim took this seq (or this job) first.
