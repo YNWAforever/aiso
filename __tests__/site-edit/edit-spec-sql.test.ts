@@ -46,6 +46,7 @@ beforeAll(async () => {
   `)
   await state.pg.query('insert into clients(id, account_id) values ($1, $2)', [client, account])
   await state.pg.exec(readFileSync('supabase/migrations/086_work_item_edit_specs.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/093_site_edit_revert_spec_kind.sql', 'utf8'))
 })
 
 beforeEach(async () => {
@@ -97,6 +98,9 @@ it('enforces the draft spec floor in the database', async () => {
   await expect(bad({ ...spec, payload: { ...spec.payload, '@type': 'FAQPage' } })).rejects.toThrow()
   await expect(bad({ ...spec, payload: { ...spec.payload, filler: 'x'.repeat(21000) } })).rejects.toThrow()
   await expect(bad(spec)).resolves.toBeDefined()
+  // S5 (093): a revert is storable; any other kind still is not.
+  await expect(bad({ ...spec, kind: 'jsonld_remove' })).resolves.toBeDefined()
+  await expect(bad({ ...spec, kind: 'jsonld_replace' })).rejects.toThrow()
 })
 
 it('enforces the frozen-version spec floor and leaves spec-less content alone', async () => {
@@ -106,6 +110,14 @@ it('enforces the frozen-version spec floor and leaves spec-less content alone', 
   await expect(insert({ schemaVersion: 1, editSpec: { ...spec, targetUrl: 'javascript:alert(1)' } })).rejects.toThrow()
   await expect(insert({ schemaVersion: 1, editSpec: 'yes' })).rejects.toThrow()
   await expect(insert({ schemaVersion: 1, editSpec: null })).rejects.toThrow()
+  await expect(insert({ schemaVersion: 1, editSpec: { ...spec, kind: 'jsonld_remove' } })).resolves.toBeDefined()
+  await expect(insert({ schemaVersion: 1, editSpec: { ...spec, kind: 'jsonld_replace' } })).rejects.toThrow()
+})
+
+it('S5: saves a revert spec through the real draft statement', async () => {
+  const { updateOwnedDraft } = await store()
+  const revert = { ...spec, kind: 'jsonld_remove' as const }
+  expect(await updateOwnedDraft(account, client, item, null, edit(1, { editSpec: revert }))).toMatchObject({ editSpec: revert })
 })
 
 it('reads a spec-bearing version back through jsonb (keys reordered) and exports it', async () => {

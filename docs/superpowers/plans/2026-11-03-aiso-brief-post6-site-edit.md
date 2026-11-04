@@ -297,6 +297,9 @@ until a receipt arrives).
   one, so a page that did not load proves nothing. **Contract change for Rick (§3a):** the hand-off
   `editSpec.kind` can now be `jsonld_remove` — "remove the JSON-LD block equal to `payload` from
   `targetUrl`". Pending his confirmation, like the rest of §3a.
+  Review fix: `086` pinned the stored spec kind to `jsonld` on drafts and versions, so migration `093` widens both
+  CHECKs to `jsonld | jsonld_remove` (nothing else changes). The live-check matcher no longer stops at 50 JSON-LD
+  blocks: a revert is verified by absence only after searching the whole (2 MiB-bounded) page.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 
