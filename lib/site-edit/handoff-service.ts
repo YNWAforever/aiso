@@ -8,7 +8,9 @@ import {
   HANDOFF_DEADLINE_MS, HANDOFF_STALE_MS, executorRef, handoffBody, handoffConfig, handoffSignature, handoffState, outcomeFor,
   type HandoffEvent, type HandoffOutcome, type HandoffState,
 } from './handoff'
-import { claimHandoff, readHandoff, recordHandoffOutcome, type HandoffScope } from './handoff-store'
+import { claimHandoff, readHandoff, recordHandoffOutcome, type HandoffScope, type LiveCheckView } from './handoff-store'
+import { LIVE_CHECK_SPACING_MS, fetchLivePage } from './live-check'
+import { recordLiveCheck } from './live-check-store'
 
 /**
  * Site-edit S2: send one approved edit spec to the executor (brief §3, §3a).
@@ -34,6 +36,8 @@ const statuses = {
   HANDOFF_CONFLICT: 409,
   HANDOFF_IN_FLIGHT: 409,
   HANDOFF_NOT_CONNECTED: 409,
+  LIVE_CHECK_NOT_OPEN: 409,
+  LIVE_CHECK_TOO_SOON: 429,
   HANDOFF_UNAVAILABLE: 503,
 } as const
 type Code = keyof typeof statuses
@@ -56,6 +60,10 @@ export type HandoffView = {
   block: HandoffBlock
   /** S3: what the executor reported. A claim, never verification (that is S4). */
   receipt: { status: 'completed' | 'rejected'; completedAt: string } | null
+  /** S4: the newest live-page check, and whether a new one may run now. */
+  liveCheck: LiveCheckView | null
+  canCheck: boolean
+  checkBlock: 'not_open' | 'too_soon' | null
 }
 
 function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok' }>, connected: boolean, now: Date): HandoffView {
@@ -69,7 +77,11 @@ function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok
     : state === 'sending' ? 'in_flight'
     : !connected ? 'not_connected'
     : null
-  return { state, jobId: read.job?.id ?? null, executorRef: sent?.executorRef ?? null, lastEventAt: latest?.at ?? null, canSend: block === null, block, receipt: read.receipt }
+  const open = read.job !== null && read.receipt?.status !== 'rejected' && (read.receipt?.status === 'completed' || state === 'sent' || state === 'unknown')
+  const checkable = open && read.version.decision?.decision === 'approved' && read.latestId === read.version.id && Boolean(read.version.editSpec)
+  const rested = !read.liveCheck || now.getTime() - Date.parse(read.liveCheck.checkedAt) >= LIVE_CHECK_SPACING_MS
+  return { state, jobId: read.job?.id ?? null, executorRef: sent?.executorRef ?? null, lastEventAt: latest?.at ?? null, canSend: block === null, block,
+    receipt: read.receipt, liveCheck: read.liveCheck, canCheck: checkable && rested, checkBlock: !checkable ? 'not_open' : !rested ? 'too_soon' : null }
 }
 
 async function scopeFor(clientId: string, itemId: string, versionId: string): Promise<HandoffScope> {
@@ -95,6 +107,46 @@ export async function readAuthenticatedHandoff(clientId: string, itemId: string,
     const scope = await scopeFor(clientId, itemId, versionId)
     const read = await load(scope)
     return json({ handoff: view(read, handoffConfig() !== null, new Date()) })
+  } catch (error) { return errorResponse(error) }
+}
+
+function readHash(raw: unknown): string {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || Object.keys(raw).join() !== 'contentHash'
+    || typeof (raw as { contentHash: unknown }).contentHash !== 'string'
+    || !/^[0-9a-f]{64}$/.test((raw as { contentHash: string }).contentHash)) throw new HandoffError('HANDOFF_INVALID_INPUT')
+  return (raw as { contentHash: string }).contentHash
+}
+
+/**
+ * Site-edit S4: fetch the frozen target URL once and record what was there.
+ * Gate: session → ids → membership + ownership (SQL) → hash → the job is open
+ * (handed off, or reported completed, and not declined) → target still on the
+ * brand's verified domain → spacing. Every check is recorded; only "found"
+ * also records a verified C9e attestation, and only when none is active. A
+ * 2xx always means the check row was written.
+ */
+export async function checkAuthenticatedLivePage(clientId: string, itemId: string, versionId: string, request: Request): Promise<Response> {
+  try {
+    const scope = await scopeFor(clientId, itemId, versionId)
+    let raw: unknown
+    try { raw = await readLimitedJson(request, 1024) } catch { throw new HandoffError('HANDOFF_INVALID_INPUT') }
+    const contentHash = readHash(raw)
+    const read = await load(scope)
+    if (read.version.contentHash !== contentHash) throw new HandoffError('HANDOFF_CONFLICT')
+    const current = view(read, handoffConfig() !== null, new Date())
+    if (current.checkBlock) throw new HandoffError(current.checkBlock === 'too_soon' ? 'LIVE_CHECK_TOO_SOON' : 'LIVE_CHECK_NOT_OPEN')
+    const spec = read.version.editSpec!
+    const domain = await checkEditSpecDomainPinned(scope.accountId, scope.clientId, spec)
+    if (domain.result !== 'ok') throw new HandoffError('HANDOFF_DOMAIN_UNVERIFIED')
+
+    const fetched = await fetchLivePage(spec.targetUrl, spec.payload)
+    const written = await recordLiveCheck(scope, contentHash, { ...fetched, targetUrl: spec.targetUrl })
+    if (written.kind === 'denied') throw new HandoffError('HANDOFF_DENIED')
+    if (written.kind === 'not_found') throw new HandoffError('HANDOFF_NOT_FOUND')
+    if (written.kind === 'ineligible') throw new HandoffError('LIVE_CHECK_NOT_OPEN')
+    const after = await load(scope)
+    return json({ handoff: view(after, handoffConfig() !== null, new Date()),
+      check: { outcome: written.outcome, attested: written.attested, alreadyAttested: written.alreadyAttested } }, 201)
   } catch (error) { return errorResponse(error) }
 }
 
@@ -126,10 +178,7 @@ export async function sendAuthenticatedHandoff(clientId: string, itemId: string,
     const scope = await scopeFor(clientId, itemId, versionId)
     let raw: unknown
     try { raw = await readLimitedJson(request, 1024) } catch { throw new HandoffError('HANDOFF_INVALID_INPUT') }
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || Object.keys(raw).join() !== 'contentHash'
-      || typeof (raw as { contentHash: unknown }).contentHash !== 'string'
-      || !/^[0-9a-f]{64}$/.test((raw as { contentHash: string }).contentHash)) throw new HandoffError('HANDOFF_INVALID_INPUT')
-    const contentHash = (raw as { contentHash: string }).contentHash
+    const contentHash = readHash(raw)
 
     const read = await load(scope)
     const config = handoffConfig()

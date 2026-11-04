@@ -11,22 +11,30 @@ type Handoff = {
   canSend: boolean
   block: 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_connected' | 'in_flight' | 'already_sent' | null
   receipt: { status: 'completed' | 'rejected'; completedAt: string } | null
+  liveCheck: { outcome: 'found' | 'missing' | 'fetch_failed'; checkedAt: string; attested: boolean } | null
+  canCheck: boolean
+  checkBlock: 'not_open' | 'too_soon' | null
 }
 const STATES = ['none', 'sending', 'sent', 'failed', 'unknown']
 const BLOCKS = [null, 'not_approved', 'superseded', 'no_edit_spec', 'not_connected', 'in_flight', 'already_sent']
-const ERRORS = ['HANDOFF_NOT_APPROVED', 'HANDOFF_SUPERSEDED', 'HANDOFF_NO_EDIT_SPEC', 'HANDOFF_DOMAIN_UNVERIFIED', 'HANDOFF_CONFLICT', 'HANDOFF_IN_FLIGHT', 'HANDOFF_NOT_CONNECTED']
+const CHECK_BLOCKS = [null, 'not_open', 'too_soon']
+const ERRORS = ['LIVE_CHECK_NOT_OPEN', 'LIVE_CHECK_TOO_SOON', 'HANDOFF_NOT_APPROVED', 'HANDOFF_SUPERSEDED', 'HANDOFF_NO_EDIT_SPEC', 'HANDOFF_DOMAIN_UNVERIFIED', 'HANDOFF_CONFLICT', 'HANDOFF_IN_FLIGHT', 'HANDOFF_NOT_CONNECTED']
 
 function parse(value: unknown): Handoff {
   const h = (value as { handoff?: Handoff })?.handoff
   if (!h || !STATES.includes(h.state) || !BLOCKS.includes(h.block) || typeof h.canSend !== 'boolean' || h.canSend !== (h.block === null)) throw Error()
   if (h.receipt !== null && (!h.receipt || !['completed', 'rejected'].includes(h.receipt.status) || typeof h.receipt.completedAt !== 'string')) throw Error()
+  if (!CHECK_BLOCKS.includes(h.checkBlock) || h.canCheck !== (h.checkBlock === null)) throw Error()
+  if (h.liveCheck !== null && (!h.liveCheck || !['found', 'missing', 'fetch_failed'].includes(h.liveCheck.outcome)
+    || typeof h.liveCheck.checkedAt !== 'string' || typeof h.liveCheck.attested !== 'boolean')) throw Error()
   return h
 }
 
 /**
  * Site-edit S2: send this approved version's edit spec to the developer who
  * applies it. The state is honest about what AISO knows: "sent" means the
- * developer accepted the job, never that the page changed (that is S3/S4).
+ * developer accepted the job, never that the page changed. S4's live check is
+ * the only path to "verified", and only for what was on the page at fetch time.
  */
 export function HandoffPanel({ clientId, version }: { clientId: string; version: VersionDetail }) {
   const t = useTranslations('siteEditHandoff')
@@ -51,11 +59,11 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
     return () => { alive.current = false; clearTimeout(start) }
   }, [load])
 
-  async function send() {
-    if (busy || !handoff?.canSend) return
+  async function post(url: string, allowed: boolean) {
+    if (busy || !allowed) return
     setBusy(true); setError(null)
     try {
-      const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contentHash: version.contentHash }) })
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contentHash: version.contentHash }) })
       const body = await res.json().catch(() => null)
       if (!res.ok) { setError(ERRORS.includes(body?.error) ? body.error : 'HANDOFF_UNAVAILABLE'); await load(); return }
       if (alive.current) setHandoff(parse(body))
@@ -63,6 +71,8 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
     finally { if (alive.current) setBusy(false) }
   }
 
+  const send = () => post(endpoint, Boolean(handoff?.canSend))
+  const check = () => post(endpoint + '/live-check', Boolean(handoff?.canCheck))
   const resend = handoff?.state === 'failed' || handoff?.state === 'unknown'
   return (
     <section className="space-y-3 rounded-xl border border-border p-4" aria-labelledby="site-edit-handoff-heading" aria-busy={busy || !handoff}>
@@ -78,12 +88,23 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
           {handoff.executorRef && <> · <span className="break-all">{t('reference', { ref: handoff.executorRef })}</span></>}
         </p>
       )}
+      {handoff?.liveCheck && (
+        <p role="status" aria-live="polite">
+          {t(`live.result.${handoff.liveCheck.outcome === 'found' && handoff.liveCheck.attested ? 'foundRecorded' : handoff.liveCheck.outcome}`, { date: handoff.liveCheck.checkedAt.slice(0, 10) })}
+        </p>
+      )}
       {handoff?.block && handoff.block !== 'already_sent' && handoff.block !== 'in_flight' && <p className="text-muted-foreground">{t(`block.${handoff.block}`)}</p>}
       {error && <p role="alert">{t(`errors.${error}`)}</p>}
       {handoff && handoff.state !== 'sent' && !handoff.receipt && (
         <button type="button" onClick={send} disabled={busy || !handoff.canSend}
           className="min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50">
           {busy ? t('sending') : resend ? t('resend') : t('send')}
+        </button>
+      )}
+      {handoff && handoff.checkBlock !== 'not_open' && (
+        <button type="button" onClick={check} disabled={busy || !handoff.canCheck}
+          className="min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50">
+          {busy ? t('live.checking') : t('live.check')}
         </button>
       )}
     </section>

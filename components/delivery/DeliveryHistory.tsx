@@ -14,6 +14,7 @@ export function DeliveryHistory({ events, activeAttestationId, nextCursor, busy,
     {events.length === 0 && !activeAttestationId && !nextCursor && <p>{t('empty')}</p>}
     <ol className="space-y-3">{events.map(event => <li key={event.eventId} className="space-y-2 rounded border border-border p-3 break-words">
       <h4 className="font-semibold">{t(event.kind === 'attest' ? 'attested' : 'withdrawn')}</h4>
+      {event.kind === 'attest' && <p>{t(event.provenance === 'verified_live' ? 'verifiedLive' : 'selfReported')}</p>}
       <p>{event.actor.displayName ?? t('unknownActor')}</p>
       <dl className="space-y-1">
         <dt className="font-semibold">{t('recordedTime')}</dt><dd><time dateTime={event.recordedAt}>{event.recordedAt}</time></dd>

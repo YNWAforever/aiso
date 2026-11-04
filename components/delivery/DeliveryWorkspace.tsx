@@ -15,7 +15,7 @@ function eventDTO(value: unknown, version: VersionDetail): DeliveryEvent {
     actor_id: e.actor?.profileId, actor: e.actor, recorded_at: e.recordedAt, kind: e.kind,
     destination: e.kind === 'attest' ? e.destination : null, delivered_at: e.kind === 'attest' ? e.deliveredAt : null,
     note: e.kind === 'attest' ? e.note : null, target_attestation_id: e.kind === 'withdraw' ? e.targetAttestationId : null,
-    reason: e.kind === 'withdraw' ? e.reason : null })
+    reason: e.kind === 'withdraw' ? e.reason : null, provenance: e.kind === 'attest' ? e.provenance : 'self_reported' })
   if (result.versionId !== version.id || result.contentHash !== version.contentHash) throw Error()
   return result
 }

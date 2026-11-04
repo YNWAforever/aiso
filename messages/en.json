@@ -2890,7 +2890,9 @@
     "withdrawConfirm": "Withdraw this attestation with an audited reason. This does not claim delivery never happened.",
     "confirmWithdraw": "Confirm withdrawal",
     "discard": "Discard delivery input",
-    "discardConfirm": "Discard your unsaved delivery input?"
+    "discardConfirm": "Discard your unsaved delivery input?",
+    "verifiedLive": "Verified on the live page",
+    "selfReported": "Self-reported"
   },
   "siteEditHandoff": {
     "title": "Send to developer",
@@ -2919,11 +2921,23 @@
       "HANDOFF_CONFLICT": "This version changed. Refresh and try again.",
       "HANDOFF_IN_FLIGHT": "A send is already in progress.",
       "HANDOFF_NOT_CONNECTED": "The developer hand-off is not configured.",
-      "HANDOFF_UNAVAILABLE": "Could not complete this just now. Nothing was confirmed; refresh before sending again."
+      "HANDOFF_UNAVAILABLE": "Could not complete this just now. Nothing was confirmed; refresh before sending again.",
+      "LIVE_CHECK_NOT_OPEN": "Nothing to check yet — send it to the developer first.",
+      "LIVE_CHECK_TOO_SOON": "Checked moments ago. Try again in a minute."
     },
     "receipt": {
       "completed": "The developer reports this was done on {date}. Not yet checked on the live page.",
       "rejected": "The developer declined this job on {date}."
+    },
+    "live": {
+      "check": "Check live page",
+      "checking": "Checking",
+      "result": {
+        "found": "Found on the live page on {date}.",
+        "foundRecorded": "Found on the live page on {date}. Recorded as a verified delivery.",
+        "missing": "Not found on the live page on {date}.",
+        "fetch_failed": "Could not load the live page on {date}."
+      }
     }
   },
   "outcomes": {

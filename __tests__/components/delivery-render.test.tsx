@@ -26,7 +26,7 @@ describe('delivery rendering', () => {
     expect(html).not.toContain(lang === 'en' ? 'No delivery records' : '沒有交付記錄')
   })
   it.each(['en', 'zh-HK'])('retains unknown actor and escapes destination text %s', lang => {
-    const event = { ...deliveryEventDTO(eventRow()), kind: 'attest' as const, destination: '<script>alert(1)</script>', deliveredAt: '2026-09-07T00:00:00.000Z', note: 'Manual' }
+    const event = { ...deliveryEventDTO(eventRow()), kind: 'attest' as const, destination: '<script>alert(1)</script>', deliveredAt: '2026-09-07T00:00:00.000Z', note: 'Manual', provenance: 'self_reported' as const }
     const html = render(<DeliveryHistory events={[event]} activeAttestationId={event.eventId} nextCursor={null} busy={false} canWithdraw={true} onMore={() => {}} onWithdraw={() => {}} />, lang)
     expect(html).toContain('&lt;script&gt;')
     expect(html).not.toContain('<script>')

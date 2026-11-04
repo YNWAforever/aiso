@@ -47,6 +47,7 @@ const TENANT_TABLES: Record<string, string> = {
   site_edit_jobs: 'account_id + client_id, composite FK onto the approved version (089)',
   site_edit_job_events: 'account_id, composite FK onto its job (089)',
   site_edit_receipts: 'account_id, composite FK onto its job (090)',
+  site_edit_live_checks: 'account_id, composite FKs onto its job, actor and attestation (091)',
   outcome_ingest_credentials: 'account_id + client_id (071/072)',
   outcome_query_clusters: 'account_id + client_id (071/072)',
   outcome_events: 'account_id + client_id (071/072)',

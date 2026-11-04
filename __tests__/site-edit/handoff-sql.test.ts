@@ -71,10 +71,12 @@ beforeAll(async () => {
     create table evidence_work_items(id uuid primary key, account_id uuid not null, client_id uuid not null, source_kind text not null default 'scan-check', unique (account_id, client_id, id));
     create table work_item_versions(id uuid primary key, account_id uuid not null, client_id uuid not null, work_item_id uuid not null,
       version_number int not null, content_hash text not null, unique (account_id, client_id, work_item_id, id, content_hash));
-    create table work_item_decisions(account_id uuid, client_id uuid, work_item_id uuid, version_id uuid, content_hash text, decision text, decided_at timestamptz default now());
+    create table work_item_decisions(account_id uuid, client_id uuid, work_item_id uuid, version_id uuid, content_hash text, decision text, decided_at timestamptz default now(), id uuid primary key default gen_random_uuid());
   `)
+  await state.pg.exec(readFileSync('supabase/migrations/043_delivery_attestations.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/089_site_edit_jobs.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/090_site_edit_receipts.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/091_site_edit_live_checks.sql', 'utf8'))
   await q('insert into accounts values ($1), ($2)', [account, other])
   await q('insert into profiles values ($1, $2, null), ($3, $4, null)', [member, account, stranger, other])
   await q(`insert into clients values ($1, $2, 'Bakery', 'www.bakery.hk')`, [client, account])

@@ -84,6 +84,7 @@ describe('migration runner against a real branch', () => {
       'public_scan_rate_limits',
       'site_edit_job_events',
       'site_edit_jobs',
+      'site_edit_live_checks',
       'site_edit_receipts',
       'stripe_subscription_processing_leases',
       'stripe_webhook_events',

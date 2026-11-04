@@ -26,10 +26,14 @@ export function deliveryEventDTO(row: Record<string, unknown>): DeliveryEvent {
       contentHash: deliveryHash(row.content_hash), actor, recordedAt: deliveryTime(row.recorded_at, 6) }
     if (row.kind === 'attest') {
       if (row.reason !== null || row.target_attestation_id !== null) invalid()
+      // A row without the 091 column is pre-091 and so self-reported; never the reverse.
+      const provenance = row.provenance ?? 'self_reported'
+      if (provenance !== 'self_reported' && provenance !== 'verified_live') invalid()
       return { ...base, kind: 'attest', destination: retainedText(row.destination, 500, false),
-        deliveredAt: deliveryTime(row.delivered_at, 6), note: retainedText(row.note, 2000, true) }
+        deliveredAt: deliveryTime(row.delivered_at, 6), note: retainedText(row.note, 2000, true), provenance }
     }
     if (row.kind === 'withdraw') {
+      if ((row.provenance ?? 'self_reported') !== 'self_reported') invalid()
       if (row.destination !== null || row.delivered_at !== null || row.note !== null) invalid()
       const targetAttestationId = deliveryId(row.target_attestation_id)
       if (targetAttestationId === base.eventId) invalid()

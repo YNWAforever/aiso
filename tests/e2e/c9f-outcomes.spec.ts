@@ -38,7 +38,7 @@ async function fixture(page: Page, lang: string, initial: OutcomeResponse = outc
       const body = req.postDataJSON(), withdrawal = path.endsWith('/withdraw'), eventId = randomUUID()
       const event: DeliveryEvent = { schemaVersion: 1, eventId, versionId: version.id, contentHash: version.contentHash,
         actor: { profileId: '123e4567-e89b-42d3-a456-426614174001', displayName: null, role: 'account_member' }, recordedAt: '2026-09-07T01:00:00Z',
-        ...(withdrawal ? { kind: 'withdraw', targetAttestationId: state.active!, reason: body.reason } : { kind: 'attest', destination: body.destination, deliveredAt: body.deliveredAt, note: body.note }) }
+        ...(withdrawal ? { kind: 'withdraw', targetAttestationId: state.active!, reason: body.reason } : { kind: 'attest', destination: body.destination, deliveredAt: body.deliveredAt, note: body.note, provenance: 'self_reported' }) }
       state.events.unshift(event); state.active = withdrawal ? null : eventId
       state.value = withdrawal ? outcomes.withdrawn : outcome({ anchor: { id: eventId, deliveredAt: body.deliveredAt, recordedAt: event.recordedAt } })
       return route.fulfill({ status: 201, json: { event } })
