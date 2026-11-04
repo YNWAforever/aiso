@@ -53,7 +53,12 @@ Split in two because each needs its own migration, applied and `--verify`-ed **b
   and names that profile (composite FK). The thread routes accept a staff principal only with a
   **live** grant, re-checked on every request, so revoking or expiring access ends it on the next
   call (the threads are kept). Staff threads stay private to that staff member; the client sees
-  each save in Settings → Fimmick staff access. Without a grant the A1 tab-only view is unchanged.
+  each save in Settings → Fimmick staff access.
+
+**Grant required for any staff view (Willy, 2026-11-04).** A1's grant-less read-only view is
+gone: `requireStudioBrand` resolves the brand of another account only together with a live grant
+for this admin, so an admin the account never granted (or whose grant was revoked or expired) gets
+the same 404 as a missing brand. Every staff view therefore saves like A2b describes.
 
 ## Reference: Ads Copilot (from the screenshots)
 

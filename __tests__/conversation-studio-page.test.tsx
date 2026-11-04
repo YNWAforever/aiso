@@ -175,12 +175,12 @@ it('keeps attach candidates metadata-only and unavailable reads explicit', async
   expect(JSON.stringify(failed)).not.toContain('private-attach-error')
 })
 
-it('R3 A1: a platform admin opens another account’s brand read-only, with that account’s saved evidence and no paid or Google read', async () => {
+it('R3: a platform admin with a live grant opens another account’s brand, with that account’s saved evidence and no paid or Google read', async () => {
   mocks.auth.mockResolvedValue({ id: 'admin', account_id: 'account-a', is_admin: true, accounts: { override_plan: 'pro' } })
   mocks.sql
     .mockResolvedValueOnce([]) // not this account's brand
     .mockResolvedValueOnce([]) // the gate's own-account check
-    .mockResolvedValueOnce([{ id: clientId, brand_name: 'Client Brand', account_id: 'account-b' }])
+    .mockResolvedValueOnce([{ id: clientId, brand_name: 'Client Brand', account_id: 'account-b' }]) // brand under a live grant
   const page = await render()
   expect(page.type).toBe(ConversationStudio)
   expect(page.props).toMatchObject({ brandName: 'Client Brand', staffView: true })

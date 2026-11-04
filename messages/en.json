@@ -548,8 +548,7 @@
       "questionNone": "No saved answer matches your question."
     },
     "staff": {
-      "banner": "Staff view · read-only. You are viewing another account’s brand: nothing is saved, and no live answer, Search Console or provider data is read.",
-      "bannerSaved": "Staff view · access granted by this account. Your threads are saved privately here and listed in its activity; no live answer, Search Console or provider data is read.",
+      "banner": "Staff view · access granted by this account. Your threads are saved privately here and listed in its activity; no live answer, Search Console or provider data is read.",
       "backToAdmin": "Back to admin"
     }
   },

@@ -13,21 +13,23 @@ import type { StudioSourceStatus } from './home'
 import { loadStudioDfsBrandSettings, type StudioDfsBrandSettings } from './dfs-query'
 import { loadStudioFirecrawlBrandSettings, type StudioFirecrawlBrandSettings } from './firecrawl-query'
 import { loadDriveConnection } from '@/lib/integrations/google-drive/store'
-import { loadLiveStaffGrant, recordStaffAudit } from '@/lib/staff-grants/store'
+import { recordStaffAudit } from '@/lib/staff-grants/store'
 
 /**
  * The Studio gate. A brand of the signed-in account is always allowed.
  *
- * R3 A1 (staff view): with `allowStaff`, a platform administrator
+ * R3 staff view: with `allowStaff`, a platform administrator
  * (`profiles.is_admin`, whose only writer is `npm run grant-admin`) may also
- * open a brand of another account. That view is read-only and temporary by
- * construction: every Studio API route still scopes to the session's own
- * account, so nothing a staff viewer does can write into the client's
- * account. Threads are kept in the viewer's tab only, unless the client
- * account has given this admin a live grant (A2b, see staffCanSaveThreads).
- * Every open is recorded in the client account's audit (auditStudioStaffOpen).
- * A non-admin asking for another account's brand gets the same 404 as a
- * brand that does not exist, so the id reveals nothing.
+ * open a brand of another account — but only while that account has given
+ * them a LIVE grant (087: unrevoked and unexpired; Willy, 2026-11-04). The
+ * grant is resolved in the same query as the brand, so a revoke or expiry
+ * ends the view on the next request. Anyone without one — a non-admin, or an
+ * admin the account never granted — gets the same 404 as a brand that does
+ * not exist, so the id reveals nothing. Staff threads are saved in the
+ * client account under that grant (A2b, lib/conversation-studio/threads.ts,
+ * which re-checks it on every write), and every open is recorded in the
+ * client account's audit (auditStudioStaffOpen). No LIVE answer, provider or
+ * Google read is reachable from a staff view.
  */
 export async function requireStudioBrand(lang: string, clientId: string, { allowStaff = false }: { allowStaff?: boolean } = {}) {
   const profile = await requireAuth(lang)
@@ -37,9 +39,16 @@ export async function requireStudioBrand(lang: string, clientId: string, { allow
   const brands = await db()`select id, brand_name from clients where id = ${clientId} and account_id = ${profile.account_id}`
   if (brands[0]) return { profile, brand: { id: String(brands[0].id), name: String(brands[0].brand_name) }, accountId: String(profile.account_id), staff: false as const }
   if (!allowStaff || profile.is_admin !== true) notFound()
-  const other = await db()`select id, brand_name, account_id from clients where id = ${clientId}`
-  if (!other[0]) notFound()
-  return { profile, brand: { id: String(other[0].id), name: String(other[0].brand_name) }, accountId: String(other[0].account_id), staff: true as const }
+  const granted = await db()`
+    select c.id, c.brand_name, c.account_id
+    from clients c
+    join studio_staff_grants g on g.account_id = c.account_id
+    where c.id = ${clientId}
+      and g.grantee_profile_id = ${profile.id}
+      and g.revoked_at is null and g.expires_at > now()
+    limit 1`
+  if (!granted[0]) notFound()
+  return { profile, brand: { id: String(granted[0].id), name: String(granted[0].brand_name) }, accountId: String(granted[0].account_id), staff: true as const }
 }
 
 /**
@@ -52,20 +61,6 @@ export async function requireStudioBrand(lang: string, clientId: string, { allow
 export async function auditStudioStaffOpen(input: { actorId: string; accountId: string; clientId: string }) {
   console.info(JSON.stringify({ event: 'studio_staff_open', actor: input.actorId, account: input.accountId, client: input.clientId, at: new Date().toISOString() }))
   await recordStaffAudit({ accountId: input.accountId, clientId: input.clientId, actorId: input.actorId, action: 'open' })
-}
-
-/**
- * R3 A2b: a staff viewer saves threads only under a live grant from the client
- * account. A failed lookup reads as "no grant": the view stays tab-only rather
- * than failing, and the thread routes re-check the grant on every write anyway.
- */
-export async function staffCanSaveThreads(input: { accountId: string; profileId: string }): Promise<boolean> {
-  try {
-    return Boolean(await loadLiveStaffGrant(input.accountId, input.profileId))
-  } catch (error) {
-    console.error('[studio] staff grant lookup failed', { name: error instanceof Error ? error.name : typeof error })
-    return false
-  }
 }
 
 export type StudioOutputs = { items: { id: string; title: string; status: string; revision: number; updatedAt: string }[]; truncated: boolean }

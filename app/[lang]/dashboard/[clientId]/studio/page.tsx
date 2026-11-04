@@ -46,7 +46,7 @@ export default async function StudioPage({ params }: {
   }
   const brand = brands[0]
   // R3 A1: not this account's brand. A platform admin may still open it as a
-  // read-only staff view; anyone else gets the same 404 as a missing brand.
+  // staff view under a live grant; anyone else gets the same 404 as a missing brand.
   if (!brand && profile.is_admin === true) return staffStudio(lang, clientId)
   if (!brand || !evidence || opportunities === null) notFound()
   const inspector: StudioInspectorReads = { documents: null, searchConsole: null }
@@ -85,9 +85,9 @@ export default async function StudioPage({ params }: {
 }
 
 /**
- * Staff view (R3 A1): saved evidence of the brand's own account, read-only.
- * No LIVE answer, no provider or Google read, no attach, nothing saved. The
- * gate re-resolves the brand across accounts and 404s anything not found.
+ * Staff view (R3): saved evidence of the brand's own account, only under that
+ * account's live grant. No LIVE answer, no provider or Google read, no attach.
+ * The gate re-resolves the brand with the grant and 404s anything without one.
  */
 async function staffStudio(lang: string, clientId: string) {
   const gate = await requireStudioBrand(lang, clientId, { allowStaff: true })

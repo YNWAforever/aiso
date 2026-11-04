@@ -23,12 +23,10 @@ const RECENT_LIMIT = 8
 /** Views a staff viewer may open (R3 A1); the rest read through the viewer's own account. */
 const STAFF_VIEWS = new Set(['', '/overview', '/threads', '/weekly'])
 
-export function StudioShell({ children, clientId, brandName, brands, features, admin, staff = false, staffSaves = false }: {
+export function StudioShell({ children, clientId, brandName, brands, features, admin, staff = false }: {
   children: ReactNode; clientId: string; brandName: string; brands: { id: string; name: string }[] | null; features: NavFeatures; admin: boolean
-  /** R3 A1: a platform administrator viewing another account's brand, read-only. */
+  /** R3: a platform administrator viewing another account's brand under that account's live grant. */
   staff?: boolean
-  /** R3 A2b: that administrator holds a live grant from the client account, so threads are saved there. */
-  staffSaves?: boolean
 }) {
   const t = useTranslations('conversationStudio')
   const dashboard = useTranslations('dashboard')
@@ -101,7 +99,7 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
           <Link href={pathname.replace(`/${lang}/`, `/${otherLang}/`)} className="as-button inline-flex items-center px-3" hrefLang={otherLang}>{t('otherLanguage')}</Link>
         </div>
       </header>
-      {staff && <p role="note" className="as-staff-banner">{t(staffSaves ? 'staff.bannerSaved' : 'staff.banner')}</p>}
+      {staff && <p role="note" className="as-staff-banner">{t('staff.banner')}</p>}
       {children}
     </div>
     <CommandPalette items={commands} open={paletteOpen} onOpenChange={setPaletteOpen} />

@@ -12,7 +12,7 @@ vi.mock('@/lib/db', () => ({
   db: () => async (strings: TemplateStringsArray) => { if (m.fail) throw new Error('db down'); m.queries.push(strings.join('?')); return m.rows.shift() ?? [] },
 }))
 
-import { auditStudioStaffOpen, requireStudioBrand, staffCanSaveThreads } from '@/lib/conversation-studio/secondary'
+import { auditStudioStaffOpen, requireStudioBrand } from '@/lib/conversation-studio/secondary'
 
 const own = '10000000-0000-4000-8000-000000000001'
 const other = '10000000-0000-4000-8000-000000000002'
@@ -35,10 +35,18 @@ describe('requireStudioBrand', () => {
     expect(m.queries).toHaveLength(1) // never reads across accounts
   })
 
-  it('lets a platform admin open another account’s brand as a staff view, scoped to that account', async () => {
+  it('lets a platform admin open another account’s brand only under that account’s live grant, scoped to it', async () => {
     m.profile = { id: 'admin', account_id: own, is_admin: true }
     m.rows = [[], [{ id: brand, brand_name: 'Client', account_id: other }]]
     await expect(requireStudioBrand('en', brand, { allowStaff: true })).resolves.toMatchObject({ staff: true, accountId: other, brand: { name: 'Client' } })
+    expect(m.queries[1]).toMatch(/join studio_staff_grants g on g\.account_id = c\.account_id/)
+    expect(m.queries[1]).toMatch(/g\.revoked_at is null and g\.expires_at > now\(\)/)
+  })
+
+  it('gives an admin without a live grant the same 404 as a missing brand', async () => {
+    m.profile = { id: 'admin', account_id: own, is_admin: true }
+    m.rows = [[], []]
+    await expect(requireStudioBrand('en', brand, { allowStaff: true })).rejects.toThrow('NOT_FOUND')
   })
 
   it('never grants a staff view where the page did not ask for one, or for a brand that does not exist', async () => {
@@ -66,16 +74,4 @@ describe('requireStudioBrand', () => {
     spy.mockRestore()
   })
 
-  it('lets staff save threads only under a live grant, and stays tab-only when the lookup fails', async () => {
-    m.rows = [[{ id: 'grant' }]]
-    await expect(staffCanSaveThreads({ accountId: other, profileId: 'admin' })).resolves.toBe(true)
-    expect(m.queries.at(-1)).toMatch(/revoked_at is null and expires_at > now\(\)/)
-    m.rows = [[]]
-    await expect(staffCanSaveThreads({ accountId: other, profileId: 'admin' })).resolves.toBe(false)
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    m.fail = true
-    await expect(staffCanSaveThreads({ accountId: other, profileId: 'admin' })).resolves.toBe(false)
-    m.fail = false
-    spy.mockRestore()
-  })
 })
