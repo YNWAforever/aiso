@@ -250,6 +250,20 @@ until a receipt arrives).
   versions, JSON-LD validation, domain check, hash, approval and export. No remote calls and no
   migration beyond the review-content schema version.
 - **S2 — hand-off (needs Rick's confirmation of §3a + a named start):** single send, ledger (file-only migration), idempotency, UI states.
+  - **Started 2026-11-04 (Willy: "start S2 site-edit").** Built to the §3a defaults *before* Rick
+    has confirmed them; nothing can reach Rick until ops sets `SITE_EDIT_EXECUTOR_URL` and
+    `SITE_EDIT_EXECUTOR_SECRET` (unset → the button reads 未連接 and no request is made), so a
+    contract change from Rick is a config or code edit, never an unsafe live send.
+  - **Ledger shape (differs from the §3a sketch):** migration `089` has `site_edit_jobs` (one per
+    approved version, composite FK onto the exact `(version, content_hash)`) plus an insert-only
+    `site_edit_job_events` log (`claim` → `sent | failed | unknown`) instead of an `outcome` column.
+    The claim is written **before** the single call (unique `(job_id, seq)` serialises concurrent
+    sends), so a process that dies mid-call leaves a claim that reads `unknown`, never `sent`. A
+    manual re-send after `failed`/`unknown` is a new claim on the **same** `jobId`; nothing is sent
+    after `sent`.
+  - **No plan gate** (mirrors C9e; Q6 still open). **UI names no vendor**: "Send to developer" /
+    「交由開發團隊」, per §4's honesty rule. `receiptUrl` points at `/api/site-edit/receipts`, which
+    S3 creates.
 - **S3 — signed receipts (same):** receipt endpoint, signature verification, ledger update.
 - **S4 — check live → verified attestation:** public fetch + payload check, C9e provenance field, C9f anchor.
 

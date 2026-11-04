@@ -2892,6 +2892,36 @@
     "discard": "捨棄交付輸入",
     "discardConfirm": "捨棄尚未儲存的交付輸入？"
   },
+  "siteEditHandoff": {
+    "title": "交由開發團隊",
+    "send": "交由開發團隊",
+    "resend": "再次發送",
+    "sending": "發送中",
+    "reference": "參考編號 {ref}",
+    "state": {
+      "none": "未發送。",
+      "sending": "發送中…",
+      "sent": "已發送，等待開發團隊回報完成。",
+      "failed": "開發團隊未有接收此工作。",
+      "unknown": "可能已發送。再次發送前請先向開發團隊確認。"
+    },
+    "block": {
+      "not_approved": "只可發送已批核的版本。",
+      "superseded": "已有較新版本，請改為發送該版本。",
+      "no_edit_spec": "此版本沒有網站修改可發送。",
+      "not_connected": "未連接 — 尚未設定開發團隊交接。"
+    },
+    "errors": {
+      "HANDOFF_NOT_APPROVED": "只可發送已批核的版本。",
+      "HANDOFF_SUPERSEDED": "已有較新版本，請改為發送該版本。",
+      "HANDOFF_NO_EDIT_SPEC": "此版本沒有網站修改可發送。",
+      "HANDOFF_DOMAIN_UNVERIFIED": "此頁面已不在品牌的已驗證網域。",
+      "HANDOFF_CONFLICT": "此版本已更改，請重新整理後再試。",
+      "HANDOFF_IN_FLIGHT": "已有發送正在進行。",
+      "HANDOFF_NOT_CONNECTED": "尚未設定開發團隊交接。",
+      "HANDOFF_UNAVAILABLE": "暫時未能完成。未有任何確認，再次發送前請先重新整理。"
+    }
+  },
   "outcomes": {
     "title": "儲存證據成效",
     "limitation": "此讀取僅反映當時狀態；來源修改、刪除、延遲匯入或撤回均可能改變結果，並不證明影響或因果關係。",

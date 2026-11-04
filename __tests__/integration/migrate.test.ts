@@ -82,6 +82,8 @@ describe('migration runner against a real branch', () => {
       'client_reports',
       'google_drive_connections',
       'public_scan_rate_limits',
+      'site_edit_job_events',
+      'site_edit_jobs',
       'stripe_subscription_processing_leases',
       'stripe_webhook_events',
       'studio_dataforseo_brand_settings',

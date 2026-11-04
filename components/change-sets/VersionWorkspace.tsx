@@ -6,6 +6,7 @@ import type { VersionDetail, VersionSummary } from '@/lib/change-sets/types'
 import { VersionDetails } from './VersionDetails'
 import { DecisionForm } from './DecisionForm'
 import { DeliveryWorkspace } from '@/components/delivery/DeliveryWorkspace'
+import { HandoffPanel } from '@/components/site-edit/HandoffPanel'
 import { OutcomeWorkspace } from '@/components/outcomes/OutcomeWorkspace'
 export type VersionPageDTO = {
   versions: VersionSummary[]
@@ -266,6 +267,7 @@ export function VersionWorkspace({
             version={selected}
             latestVersionId={page?.latestVersionId ?? null}
           />
+          {selected.editSpec && <HandoffPanel key={'handoff' + selected.id + selected.contentHash} clientId={clientId} version={selected} />}
           <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} />
           <OutcomeWorkspace clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} />
           {(dirty ||

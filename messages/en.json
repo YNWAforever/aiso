@@ -2892,6 +2892,36 @@
     "discard": "Discard delivery input",
     "discardConfirm": "Discard your unsaved delivery input?"
   },
+  "siteEditHandoff": {
+    "title": "Send to developer",
+    "send": "Send to developer",
+    "resend": "Send again",
+    "sending": "Sending",
+    "reference": "Reference {ref}",
+    "state": {
+      "none": "Not sent.",
+      "sending": "Sending…",
+      "sent": "Sent. Waiting for the developer to report completion.",
+      "failed": "The developer did not accept the job.",
+      "unknown": "May have been sent. Check with the developer before sending again."
+    },
+    "block": {
+      "not_approved": "Only an approved version can be sent.",
+      "superseded": "A newer version exists; send that one instead.",
+      "no_edit_spec": "This version has no site edit to send.",
+      "not_connected": "Not connected — the developer hand-off is not configured."
+    },
+    "errors": {
+      "HANDOFF_NOT_APPROVED": "Only an approved version can be sent.",
+      "HANDOFF_SUPERSEDED": "A newer version exists; send that one instead.",
+      "HANDOFF_NO_EDIT_SPEC": "This version has no site edit to send.",
+      "HANDOFF_DOMAIN_UNVERIFIED": "The page is no longer on the brand's verified domain.",
+      "HANDOFF_CONFLICT": "This version changed. Refresh and try again.",
+      "HANDOFF_IN_FLIGHT": "A send is already in progress.",
+      "HANDOFF_NOT_CONNECTED": "The developer hand-off is not configured.",
+      "HANDOFF_UNAVAILABLE": "Could not complete this just now. Nothing was confirmed; refresh before sending again."
+    }
+  },
   "outcomes": {
     "title": "Stored evidence outcomes",
     "limitation": "This point-in-time read can change after source edits, deletion, late ingestion or withdrawal. It does not establish impact or causality.",
