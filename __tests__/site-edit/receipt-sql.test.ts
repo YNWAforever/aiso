@@ -9,12 +9,24 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const state = vi.hoisted(() => ({ pg: null as PGlite | null }))
 vi.mock('server-only', () => ({}))
-vi.mock('@/lib/db', () => ({
-  db: () => async (strings: TemplateStringsArray, ...values: unknown[]) => {
+vi.mock('@/lib/db', () => {
+  // Lazy like the Neon driver; sql.transaction([...]) runs in one real BEGIN/COMMIT.
+  const run = async (text: string, values: unknown[]) => (await state.pg!.query(text, values)).rows
+  const tag = (strings: TemplateStringsArray, ...values: unknown[]) => {
     const text = strings.reduce((out, part, index) => out + (index ? '$' + index : '') + part, '')
-    return (await state.pg!.query(text, values)).rows
-  },
-}))
+    return { text, values, then: (ok: (v: unknown) => unknown, ko: (e: unknown) => unknown) => run(text, values).then(ok, ko) }
+  }
+  const transaction = async (queries: Array<{ text: string; values: unknown[] }>) => {
+    await state.pg!.query('BEGIN')
+    try {
+      const out = []
+      for (const q of queries) out.push(await run(q.text, q.values))
+      await state.pg!.query('COMMIT')
+      return out
+    } catch (error) { await state.pg!.query('ROLLBACK'); throw error }
+  }
+  return { db: () => Object.assign(tag, { transaction }) }
+})
 
 import { loadReceiptJob, recordReceipt } from '@/lib/site-edit/receipt-store'
 

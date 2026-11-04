@@ -42,17 +42,24 @@ export async function loadReceiptJob(jobId: string): Promise<ReceiptJob | null> 
 
 export type RecordReceiptResult = 'created' | 'replayed' | 'conflict'
 
-/** One receipt per job. Same raw body again → replayed (no write); a different one → conflict. */
+/**
+ * One receipt per job. Same raw body again → replayed (no write); a different one → conflict.
+ * Takes the job's row lock first, as claimHandoff does, so a resend and a receipt for the same
+ * job serialise: a claim that starts after this commits sees the receipt and refuses.
+ */
 export async function recordReceipt(input: { jobId: string; accountId: string; status: 'completed' | 'rejected'; url: string;
   completedAt: string; note: string | null; bodySha256: string }): Promise<RecordReceiptResult> {
   const sql = db()
-  const inserted = await sql`
+  const results = await sql.transaction([
+    sql`SELECT id FROM site_edit_jobs WHERE id = ${input.jobId}::uuid AND account_id = ${input.accountId}::uuid FOR UPDATE`,
+    sql`
     INSERT INTO site_edit_receipts (job_id, account_id, status, url, completed_at, note, body_sha256)
     VALUES (${input.jobId}::uuid, ${input.accountId}::uuid, ${input.status}, ${input.url}, ${input.completedAt}::timestamptz,
       ${input.note}, ${input.bodySha256})
     ON CONFLICT (job_id) DO NOTHING
-    RETURNING id`
-  if (inserted.length === 1) return 'created'
+    RETURNING id`,
+  ], { isolationLevel: 'ReadCommitted' })
+  if (results.at(-1)?.length === 1) return 'created'
   const [existing] = await sql`
     SELECT body_sha256 FROM site_edit_receipts WHERE job_id = ${input.jobId}::uuid AND account_id = ${input.accountId}::uuid`
   if (!existing) throw new Error('RECEIPT_UNAVAILABLE')
