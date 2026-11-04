@@ -12,7 +12,7 @@ vi.mock('@/lib/db', () => ({
   db: () => async (strings: TemplateStringsArray) => { if (m.fail) throw new Error('db down'); m.queries.push(strings.join('?')); return m.rows.shift() ?? [] },
 }))
 
-import { auditStudioStaffOpen, requireStudioBrand } from '@/lib/conversation-studio/secondary'
+import { auditStudioStaffOpen, requireStudioBrand, staffCanSaveThreads } from '@/lib/conversation-studio/secondary'
 
 const own = '10000000-0000-4000-8000-000000000001'
 const other = '10000000-0000-4000-8000-000000000002'
@@ -62,6 +62,19 @@ describe('requireStudioBrand', () => {
     const spy = vi.spyOn(console, 'info').mockImplementation(() => {})
     m.fail = true
     await expect(auditStudioStaffOpen({ actorId: 'admin', accountId: other, clientId: brand })).rejects.toThrow('db down')
+    m.fail = false
+    spy.mockRestore()
+  })
+
+  it('lets staff save threads only under a live grant, and stays tab-only when the lookup fails', async () => {
+    m.rows = [[{ id: 'grant' }]]
+    await expect(staffCanSaveThreads({ accountId: other, profileId: 'admin' })).resolves.toBe(true)
+    expect(m.queries.at(-1)).toMatch(/revoked_at is null and expires_at > now\(\)/)
+    m.rows = [[]]
+    await expect(staffCanSaveThreads({ accountId: other, profileId: 'admin' })).resolves.toBe(false)
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    m.fail = true
+    await expect(staffCanSaveThreads({ accountId: other, profileId: 'admin' })).resolves.toBe(false)
     m.fail = false
     spy.mockRestore()
   })

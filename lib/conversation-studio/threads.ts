@@ -32,9 +32,20 @@ type Authorized = {
   profileId: string
   accountId: string
   clientId: string
+  /** Set for a staff principal (R3 A2b): the live 087 grant this request runs under. */
+  staffGrantId: string | null
   sql: ReturnType<typeof db>
 }
 
+/**
+ * The principal for every thread statement below is (account, brand, profile).
+ * A member's is their own account. A platform admin opening ANOTHER account's
+ * brand is a staff principal: the client's account, their own profile, and the
+ * live grant that account gave them — re-checked on every request, so a revoke
+ * or expiry takes effect on the next call. No grant reads exactly like a brand
+ * that does not exist (404). Staff threads are written with their grant id, so
+ * 088's composite FK binds each one to a grant naming this profile.
+ */
 async function authorize(clientId: string): Promise<Authorized | Response> {
   if (!isFeatureEnabled('conversation_studio')) return notFound()
   const profile = await getProfile()
@@ -42,8 +53,18 @@ async function authorize(clientId: string): Promise<Authorized | Response> {
   if (!UUID.test(clientId)) return notFound()
   const sql = db()
   const brands = await sql`select id from clients where id = ${clientId}::uuid and account_id = ${profile.account_id} and status = 'active'`
-  if (!brands[0]) return notFound()
-  return { profileId: profile.id, accountId: profile.account_id, clientId, sql }
+  if (brands[0]) return { profileId: profile.id, accountId: profile.account_id, clientId, staffGrantId: null, sql }
+  if (profile.is_admin !== true) return notFound()
+  const granted = await sql`
+    select c.account_id, g.id as grant_id
+    from clients c
+    join studio_staff_grants g on g.account_id = c.account_id
+    where c.id = ${clientId}::uuid and c.status = 'active'
+      and g.grantee_profile_id = ${profile.id}::uuid
+      and g.revoked_at is null and g.expires_at > now()
+    limit 1`
+  if (!granted[0]) return notFound()
+  return { profileId: profile.id, accountId: String(granted[0].account_id), clientId, staffGrantId: String(granted[0].grant_id), sql }
 }
 
 function isUuid(value: unknown): value is string {
@@ -195,15 +216,25 @@ export async function createStudioThread(request: Request, clientId: string): Pr
     try { raw = await readLimitedJson(request, STUDIO_THREAD_BODY_LIMIT) } catch { return invalid() }
     const input = parseCreateThread(raw)
     if (!input) return invalid()
+    // One statement: the thread, and for a staff principal its 'thread' audit
+    // row in the client account (087), so a staff save is never unrecorded.
     const rows = await access.sql`
-      insert into studio_threads (account_id, client_id, profile_id, kind, title, goal, week, source_title)
-      select ${access.accountId}::uuid, ${access.clientId}::uuid, ${access.profileId}::uuid,
-        ${input.kind}, ${input.title}, ${input.goal}, ${input.week}, ${input.sourceTitle ?? null}
-      where (select count(*) from studio_threads
-        where account_id = ${access.accountId}::uuid
-          and client_id = ${access.clientId}::uuid
-          and profile_id = ${access.profileId}::uuid) < ${STUDIO_THREAD_CAP}
-      returning id, title, goal, week, kind, source_title, created_at, updated_at, 0 as turn_count, null as first_task
+      with inserted as (
+        insert into studio_threads (account_id, client_id, profile_id, staff_grant_id, kind, title, goal, week, source_title)
+        select ${access.accountId}::uuid, ${access.clientId}::uuid, ${access.profileId}::uuid, ${access.staffGrantId}::uuid,
+          ${input.kind}, ${input.title}, ${input.goal}, ${input.week}, ${input.sourceTitle ?? null}
+        where (select count(*) from studio_threads
+          where account_id = ${access.accountId}::uuid
+            and client_id = ${access.clientId}::uuid
+            and profile_id = ${access.profileId}::uuid) < ${STUDIO_THREAD_CAP}
+        returning id, title, goal, week, kind, source_title, created_at, updated_at, 0 as turn_count, null as first_task
+      ), audited as (
+        insert into studio_staff_audit (account_id, client_id, actor_profile_id, action)
+        select ${access.accountId}::uuid, ${access.clientId}::uuid, ${access.profileId}::uuid, 'thread'
+        from inserted where ${access.staffGrantId}::uuid is not null
+        returning id
+      )
+      select inserted.* from inserted
     `
     if (!rows[0]) return respond({ error: 'STUDIO_THREAD_FULL' }, 409)
     return respond({ thread: threadRecord(rows[0] as Record<string, unknown>) }, 201)
@@ -264,6 +295,8 @@ export async function appendStudioTurn(request: Request, clientId: string, threa
     try { raw = await readLimitedJson(request, STUDIO_TURN_BODY_LIMIT) } catch { return invalid() }
     const input = parseCreateTurn(raw)
     if (!input) return invalid()
+    // A staff view cannot attach a source (that reads the viewer's own account).
+    if (access.staffGrantId && input.attached) return invalid()
     const owned = await access.sql`
       select id from studio_threads
       where id = ${threadId}::uuid
@@ -315,6 +348,8 @@ export async function finalizeStudioTurn(request: Request, clientId: string, thr
     try { raw = await readLimitedJson(request, STUDIO_TURN_BODY_LIMIT) } catch { return invalid() }
     const input = parseFinalizeLive(raw)
     if (!input) return invalid()
+    // A staff view never runs a LIVE answer, so it has none to record.
+    if (access.staffGrantId) return invalid()
     const rows = await access.sql`
       update studio_thread_turns set live = ${JSON.stringify(input.live)}::jsonb
       where thread_id = ${threadId}::uuid

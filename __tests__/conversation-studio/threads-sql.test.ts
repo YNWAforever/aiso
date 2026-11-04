@@ -73,6 +73,9 @@ beforeAll(async () => {
   await state.pg.query('insert into profiles(id, account_id) values($1,$2),($3,$2),($4,$5)', [profileA, accountA, profileA2, profileB, accountB])
   await state.pg.query('insert into clients(id, account_id) values($1,$2),($3,$2),($4,$5)', [brandA, accountA, brandA2, brandB, accountB])
   await state.pg.exec(readFileSync('supabase/migrations/081_studio_private_threads.sql', 'utf8'))
+  // Member flows must be unchanged once 087/088 add staff principals.
+  await state.pg.exec(readFileSync('supabase/migrations/087_studio_staff_grants.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/088_studio_staff_threads.sql', 'utf8'))
 })
 
 beforeEach(async () => {
