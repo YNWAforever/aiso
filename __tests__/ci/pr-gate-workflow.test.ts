@@ -99,6 +99,12 @@ describe('PR gate workflow contract', () => {
 })
 
 describe('single-run disposable role authorization', () => {
+  it('gives the integration job 45 minutes, so a full run is not cancelled into a red gate', async () => {
+    const workflow = await readFile(workflowPath, 'utf8')
+    const integration = workflow.slice(workflow.indexOf('  integration:'), workflow.indexOf('\n  e2e-accessibility:'))
+    expect(integration.match(/timeout-minutes:\s*(\d+)/)?.[1]).toBe('45')
+  })
+
   it('offers a manual opt-in that defaults off and feeds only the integration role gate', async () => {
     const workflow = await readWorkflow()
     expect(workflow).toMatch(/workflow_dispatch:\s*\n\s+inputs:\s*\n\s+allow_disposable_role_password:/)
