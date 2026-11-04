@@ -308,6 +308,12 @@ until a receipt arrives).
   checked automatically. Best-effort: a refusal or failure is logged by name only and the button stays for a
   person. A replayed, rejected or refused receipt schedules nothing. No migration; `receipts` gets a 30 s
   `maxDuration` for the fetch. A miss (page not yet updated) is recorded honestly and can be re-checked a minute later.
+- **S7 — the AEO check clause (§3 step 4, deferred from S4).** **Started 2026-11-04 (Willy: "start S7
+  site-edit", chose "AEO check clause").** Every live check whose page loaded also runs the scan's own
+  structured-data check (`lib/checks/structuredData.ts`, c4) on the same fetched bytes — an injected fetcher
+  answers with that page, so there is no second request — and stores its verdict (`pass | warn | fail` plus the
+  check's message) on the check row (migration `093`). It is **recorded, not a gate**: "verified live" still means
+  only that the approved payload was on the page. The panel shows the verdict under the live result.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 

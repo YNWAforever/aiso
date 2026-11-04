@@ -89,11 +89,13 @@ describe('payload matcher', () => {
   it('maps the single GET: found, missing, and fetch_failed for non-2xx, non-HTML, oversized or thrown', async () => {
     const run = (response: Response | Error) => live.fetchLivePage(spec.targetUrl, payload, vi.fn(async () => { if (response instanceof Error) throw response; return response }))
     expect(await run(page(block(payload)))).toMatchObject({ outcome: 'found', httpStatus: 200, pageSha256: expect.stringMatching(/^[0-9a-f]{64}$/) })
-    expect(await run(page('<html></html>'))).toMatchObject({ outcome: 'missing', httpStatus: 200 })
+    expect(await run(page('<html></html>'))).toMatchObject({ outcome: 'missing', httpStatus: 200, structuredData: { status: 'fail', message: 'structured_data_missing' } })
+    expect(await run(page(block(payload)))).toMatchObject({ structuredData: { status: 'pass', message: 'structured_data_found' } })
     expect(await run(page(block(payload), { status: 404, headers: { 'content-type': 'text/html' } }))).toMatchObject({ outcome: 'fetch_failed', httpStatus: 404, pageSha256: null })
     expect(await run(page(block(payload), { headers: { 'content-type': 'application/json' } }))).toMatchObject({ outcome: 'fetch_failed' })
     expect(await run(page('x'.repeat(live.LIVE_CHECK_BODY_LIMIT + 1)))).toMatchObject({ outcome: 'fetch_failed', pageSha256: null })
     expect(await run(new Error('UNSAFE_URL'))).toMatchObject({ outcome: 'fetch_failed', httpStatus: null })
+    expect((await run(page('<html></html>', { status: 500, headers: { 'content-type': 'text/html' } }))).structuredData).toBeUndefined()
   })
 })
 

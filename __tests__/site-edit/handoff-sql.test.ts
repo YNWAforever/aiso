@@ -77,6 +77,8 @@ beforeAll(async () => {
   await state.pg.exec(readFileSync('supabase/migrations/089_site_edit_jobs.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/090_site_edit_receipts.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/091_site_edit_live_checks.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/092_site_edit_revert_checks.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/093_site_edit_live_check_aeo.sql', 'utf8'))
   await q('insert into accounts values ($1), ($2)', [account, other])
   await q('insert into profiles values ($1, $2, null), ($3, $4, null)', [member, account, stranger, other])
   await q(`insert into clients values ($1, $2, 'Bakery', 'www.bakery.hk')`, [client, account])

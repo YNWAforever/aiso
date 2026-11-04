@@ -294,6 +294,7 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > attestation with `provenance = 'verified_live'`; the manual C9e path stays `self_reported`. A revert (S5,
 > `jsonld_remove`, migration `092`) verifies by the block's absence from a page that loaded.
 > S6: a newly recorded `completed` receipt schedules one such check via `after`, as the member who sent the job.
+> S7 (`093`): each loaded check also stores c4's structured-data verdict on the same bytes — recorded, never a gate.
 >
 > **Grep is not a reliable gate check here.** `app/api/client-reports/**` and
 > `report-branding` look ungated in their own files: they delegate to `lib/reports/service.ts`,

@@ -80,7 +80,7 @@ beforeAll(async () => {
     create table work_item_decisions(id uuid primary key default gen_random_uuid(), account_id uuid, client_id uuid, work_item_id uuid, version_id uuid,
       content_hash text, decision text, decided_at timestamptz default now() - interval '1 hour');
   `)
-  for (const file of ['043_delivery_attestations', '089_site_edit_jobs', '090_site_edit_receipts', '091_site_edit_live_checks', '092_site_edit_revert_checks']) {
+  for (const file of ['043_delivery_attestations', '089_site_edit_jobs', '090_site_edit_receipts', '091_site_edit_live_checks', '092_site_edit_revert_checks', '093_site_edit_live_check_aeo']) {
     await state.pg.exec(readFileSync(`supabase/migrations/${file}.sql`, 'utf8'))
   }
   await q('insert into accounts values ($1), ($2)', [account, other])
@@ -164,6 +164,20 @@ describe('091 + live-check store', () => {
     await event(2, 'sent', 202)
     expect(await recordLiveCheck(scope(), h1, check('found', { trigger: 'receipt' }))).toMatchObject({ attested: true })
     expect(await q('select note from work_item_delivery_events')).toEqual([{ note: 'Approved JSON-LD found on the live page at check time. Checked automatically when the developer reported completion.' }])
+  })
+
+  it('S7: stores the structured-data verdict beside the check, and refuses one on a page that did not load', async () => {
+    await event(2, 'sent', 202)
+    await recordLiveCheck(scope(), h1, check('found', { structuredData: { status: 'pass', message: 'structured_data_found' } }))
+    expect(await q('select structured_data_status, structured_data_message from site_edit_live_checks')).toEqual([{ structured_data_status: 'pass', structured_data_message: 'structured_data_found' }])
+    const read = await readHandoff(scope())
+    expect(read.kind === 'ok' && read.liveCheck?.structuredData).toBe('pass')
+    const bad = (outcome: string, status: string | null, message: string | null) => q(`insert into site_edit_live_checks (job_id, account_id, outcome, http_status,
+      page_sha256, structured_data_status, structured_data_message, checked_at, actor_id) values ($1, $2, $3, $4, $5, $6, $7, now(), $8)`,
+      [job, account, outcome, outcome === 'fetch_failed' ? null : 200, outcome === 'fetch_failed' ? null : 'c'.repeat(64), status, message, member])
+    await expect(bad('fetch_failed', 'fail', 'structured_data_missing')).rejects.toThrow(/structured_data_check/)
+    await expect(bad('found', 'pass', null)).rejects.toThrow(/structured_data_check/)
+    await expect(bad('found', 'great', 'x')).rejects.toThrow(/structured_data_check/)
   })
 
   it('enforces provenance, job binding and check shapes in the schema itself', async () => {

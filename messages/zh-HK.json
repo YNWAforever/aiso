@@ -2946,6 +2946,11 @@
         "missing": "{date} 已確認網頁上不再有此區塊。",
         "found": "{date} 網頁上仍有此區塊。",
         "fetch_failed": "{date} 未能載入網頁。"
+      },
+      "structuredData": {
+        "pass": "該頁面的結構化資料檢查：通過。",
+        "warn": "該頁面的結構化資料檢查：只有 microdata。",
+        "fail": "該頁面的結構化資料檢查：未有找到。"
       }
     }
   },

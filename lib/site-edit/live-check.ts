@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { parse } from 'parse5'
+import { checkStructuredData } from '@/lib/checks/structuredData'
 import { createPublicUrlFetcher, type PublicUrlFetch } from '@/lib/security/public-url'
 
 /**
@@ -15,7 +16,21 @@ export const LIVE_CHECK_TIMEOUT_MS = 10_000
 export const LIVE_CHECK_SPACING_MS = 60_000
 
 export type LiveCheckOutcome = 'found' | 'missing' | 'fetch_failed'
-export type LiveFetch = { outcome: LiveCheckOutcome; httpStatus: number | null; pageSha256: string | null; checkedAt: Date }
+/** S7: the scan's own structured-data check (c4) run on the fetched page. Null when the page did not load. */
+export type StructuredDataVerdict = { status: 'pass' | 'warn' | 'fail'; message: string }
+export type LiveFetch = { outcome: LiveCheckOutcome; httpStatus: number | null; pageSha256: string | null; checkedAt: Date
+  structuredData?: StructuredDataVerdict | null }
+
+/**
+ * Runs c4 exactly as the scan does, but on the bytes this check already
+ * fetched: the injected fetcher answers with that page, so there is no second
+ * request and no drift between "found" and the AEO verdict.
+ */
+export async function structuredDataVerdict(url: string, html: string): Promise<StructuredDataVerdict | null> {
+  const result = await checkStructuredData(url, async () => new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }))
+  if (result.status !== 'pass' && result.status !== 'warn' && result.status !== 'fail') return null
+  return { status: result.status, message: result.message.slice(0, 100) }
+}
 
 /** Module scope is safe: building the fetcher opens nothing (no db(), no socket). https only, SSRF-pinned per hop. */
 export const liveCheckFetcher: PublicUrlFetch = createPublicUrlFetcher({
@@ -120,7 +135,9 @@ export async function fetchLivePage(url: string, payload: Record<string, unknown
     const html = await readCapped(response)
     if (html === null) return { outcome: 'fetch_failed', httpStatus, pageSha256: null, checkedAt: new Date() }
     const pageSha256 = createHash('sha256').update(html).digest('hex')
-    return { outcome: pageHasPayload(html, payload) ? 'found' : 'missing', httpStatus, pageSha256, checkedAt: new Date() }
+    const checkedAt = new Date()
+    const structuredData = await structuredDataVerdict(url, html).catch(() => null)
+    return { outcome: pageHasPayload(html, payload) ? 'found' : 'missing', httpStatus, pageSha256, checkedAt, structuredData }
   } catch {
     return { outcome: 'fetch_failed', httpStatus: null, pageSha256: null, checkedAt: new Date() }
   }

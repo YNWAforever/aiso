@@ -11,7 +11,7 @@ type Handoff = {
   canSend: boolean
   block: 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_connected' | 'in_flight' | 'already_sent' | null
   receipt: { status: 'completed' | 'rejected'; completedAt: string } | null
-  liveCheck: { outcome: 'found' | 'missing' | 'fetch_failed'; checkedAt: string; attested: boolean } | null
+  liveCheck: { outcome: 'found' | 'missing' | 'fetch_failed'; checkedAt: string; attested: boolean; structuredData: 'pass' | 'warn' | 'fail' | null } | null
   canCheck: boolean
   checkBlock: 'not_open' | 'too_soon' | null
 }
@@ -26,7 +26,8 @@ function parse(value: unknown): Handoff {
   if (h.receipt !== null && (!h.receipt || !['completed', 'rejected'].includes(h.receipt.status) || typeof h.receipt.completedAt !== 'string')) throw Error()
   if (!CHECK_BLOCKS.includes(h.checkBlock) || h.canCheck !== (h.checkBlock === null)) throw Error()
   if (h.liveCheck !== null && (!h.liveCheck || !['found', 'missing', 'fetch_failed'].includes(h.liveCheck.outcome)
-    || typeof h.liveCheck.checkedAt !== 'string' || typeof h.liveCheck.attested !== 'boolean')) throw Error()
+    || typeof h.liveCheck.checkedAt !== 'string' || typeof h.liveCheck.attested !== 'boolean'
+    || ![null, 'pass', 'warn', 'fail'].includes(h.liveCheck.structuredData))) throw Error()
   return h
 }
 
@@ -103,6 +104,7 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
           {t(`${version.editSpec?.kind === 'jsonld_remove' ? 'live.removeResult' : 'live.result'}.${handoff.liveCheck.attested ? 'verified' : handoff.liveCheck.outcome}`, { date: handoff.liveCheck.checkedAt.slice(0, 10) })}
         </p>
       )}
+      {handoff?.liveCheck?.structuredData && <p>{t(`live.structuredData.${handoff.liveCheck.structuredData}`)}</p>}
       {handoff?.block && handoff.block !== 'already_sent' && handoff.block !== 'in_flight' && <p className="text-muted-foreground">{t(`block.${handoff.block}`)}</p>}
       {error && <p role="alert">{t(`errors.${error}`)}</p>}
       {handoff && handoff.state !== 'sent' && !handoff.receipt && (
