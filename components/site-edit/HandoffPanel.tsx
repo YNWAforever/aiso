@@ -10,6 +10,7 @@ type Handoff = {
   lastEventAt: string | null
   canSend: boolean
   block: 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_connected' | 'in_flight' | 'already_sent' | null
+  receipt: { status: 'completed' | 'rejected'; completedAt: string } | null
 }
 const STATES = ['none', 'sending', 'sent', 'failed', 'unknown']
 const BLOCKS = [null, 'not_approved', 'superseded', 'no_edit_spec', 'not_connected', 'in_flight', 'already_sent']
@@ -18,6 +19,7 @@ const ERRORS = ['HANDOFF_NOT_APPROVED', 'HANDOFF_SUPERSEDED', 'HANDOFF_NO_EDIT_S
 function parse(value: unknown): Handoff {
   const h = (value as { handoff?: Handoff })?.handoff
   if (!h || !STATES.includes(h.state) || !BLOCKS.includes(h.block) || typeof h.canSend !== 'boolean' || h.canSend !== (h.block === null)) throw Error()
+  if (h.receipt !== null && (!h.receipt || !['completed', 'rejected'].includes(h.receipt.status) || typeof h.receipt.completedAt !== 'string')) throw Error()
   return h
 }
 
@@ -65,7 +67,12 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
   return (
     <section className="space-y-3 rounded-xl border border-border p-4" aria-labelledby="site-edit-handoff-heading" aria-busy={busy || !handoff}>
       <h2 id="site-edit-handoff-heading" className="text-xl font-semibold">{t('title')}</h2>
-      {handoff && (
+      {handoff?.receipt && (
+        <p role="status" aria-live="polite">
+          {t(`receipt.${handoff.receipt.status}`, { date: handoff.receipt.completedAt.slice(0, 10) })}
+        </p>
+      )}
+      {handoff && !handoff.receipt && (
         <p role="status" aria-live="polite">
           {t(`state.${handoff.state}`)}
           {handoff.executorRef && <> · <span className="break-all">{t('reference', { ref: handoff.executorRef })}</span></>}
@@ -73,7 +80,7 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
       )}
       {handoff?.block && handoff.block !== 'already_sent' && handoff.block !== 'in_flight' && <p className="text-muted-foreground">{t(`block.${handoff.block}`)}</p>}
       {error && <p role="alert">{t(`errors.${error}`)}</p>}
-      {handoff && handoff.state !== 'sent' && (
+      {handoff && handoff.state !== 'sent' && !handoff.receipt && (
         <button type="button" onClick={send} disabled={busy || !handoff.canSend}
           className="min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50">
           {busy ? t('sending') : resend ? t('resend') : t('send')}

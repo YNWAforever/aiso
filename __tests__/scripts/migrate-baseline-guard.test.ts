@@ -157,6 +157,8 @@ function allRelations() {
     'studio_staff_grants','studio_staff_audit',
     // 089: site-edit S2 hand-off jobs and their insert-only events; authored only.
     'site_edit_jobs','site_edit_job_events',
+    // 090: site-edit S3 signed receipts; authored only.
+    'site_edit_receipts',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

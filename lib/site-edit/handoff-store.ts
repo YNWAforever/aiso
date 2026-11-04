@@ -18,7 +18,8 @@ export type HandoffRead =
   | { kind: 'denied' }
   | { kind: 'not_found' }
   | { kind: 'invalid' }
-  | { kind: 'ok'; version: VersionDetail; latestId: string; clientName: string; job: { id: string } | null; events: HandoffEvent[] }
+  | { kind: 'ok'; version: VersionDetail; latestId: string; clientName: string; job: { id: string } | null; events: HandoffEvent[]
+      receipt: { status: 'completed' | 'rejected'; completedAt: string } | null }
 
 const ISO = 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
 
@@ -31,6 +32,13 @@ function eventRow(value: unknown): HandoffEvent {
     executorStatus: e.executor_status === null || e.executor_status === undefined ? null : Number(e.executor_status),
     executorRef: typeof e.executor_ref === 'string' ? e.executor_ref : null,
   }
+}
+
+function receiptRow(value: unknown): { status: 'completed' | 'rejected'; completedAt: string } | null {
+  if (!value || typeof value !== 'object') return null
+  const r = value as Record<string, unknown>
+  if (r.status !== 'completed' && r.status !== 'rejected') throw new Error('bad receipt')
+  return { status: r.status, completedAt: String(r.completed_at) }
 }
 
 export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
@@ -59,6 +67,8 @@ export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
       (SELECT brand_name FROM owned) AS brand_name,
       (SELECT to_jsonb(v) FROM version v) AS version, (SELECT id FROM latest) AS latest_id,
       (SELECT id FROM job) AS job_id,
+      (SELECT jsonb_build_object('status', r.status, 'completed_at', to_char(r.completed_at AT TIME ZONE 'UTC', ${ISO}))
+        FROM site_edit_receipts r JOIN job j ON r.job_id = j.id AND r.account_id = ${accountId}::uuid) AS receipt,
       COALESCE((SELECT jsonb_agg(jsonb_build_object('seq', e.seq, 'kind', e.kind, 'executor_status', e.executor_status,
         'executor_ref', e.executor_ref, 'created_at', to_char(e.created_at AT TIME ZONE 'UTC', ${ISO})) ORDER BY e.seq)
         FROM site_edit_job_events e JOIN job j ON e.job_id = j.id AND e.account_id = ${accountId}::uuid), '[]'::jsonb) AS events`
@@ -73,6 +83,7 @@ export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
       clientName: String(row.brand_name ?? ''),
       job: row.job_id ? { id: String(row.job_id) } : null,
       events: (row.events as unknown[]).map(eventRow),
+      receipt: receiptRow(row.receipt),
     }
   } catch { return { kind: 'invalid' } }
 }
@@ -96,6 +107,10 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
     const sql = db()
     const results = await sql.transaction([
       ...versionLocks(sql, accountId, clientId, itemId, actorId),
+      // The job's row lock, shared with recordReceipt: the claim below runs in a
+      // later statement (fresh READ COMMITTED snapshot), so it sees any receipt
+      // committed before this lock was granted.
+      sql`SELECT id FROM site_edit_jobs WHERE account_id = ${accountId}::uuid AND version_id = ${versionId}::uuid FOR UPDATE`,
       sql`
         WITH member AS MATERIALIZED (
           SELECT p.id FROM profiles p WHERE p.id = ${actorId}::uuid AND p.account_id = ${accountId}::uuid AND p.deactivated_at IS NULL
@@ -130,10 +145,12 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
           SELECT j.id, ${accountId}::uuid, COALESCE((SELECT seq FROM last), 0) + 1, 'claim', m.id FROM job j CROSS JOIN member m
           WHERE NOT EXISTS (SELECT 1 FROM last WHERE kind = 'sent'
             OR (kind = 'claim' AND created_at > ${staleBefore.toISOString()}::timestamptz))
+            -- A receipt closes the job: nothing is sent again after one, whatever the events say.
+            AND NOT EXISTS (SELECT 1 FROM site_edit_receipts r JOIN existing j ON r.job_id = j.id AND r.account_id = ${accountId}::uuid)
           RETURNING job_id, seq
         )
         SELECT EXISTS (SELECT 1 FROM version) AS eligible, (SELECT job_id FROM claimed) AS job_id, (SELECT seq FROM claimed) AS seq`,
-    ])
+    ], { isolationLevel: 'ReadCommitted' })
     return results.at(-1)?.[0] as Record<string, unknown> | undefined
   })
   // A concurrent claim took this seq (or this job) first.

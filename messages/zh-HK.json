@@ -2920,6 +2920,10 @@
       "HANDOFF_IN_FLIGHT": "已有發送正在進行。",
       "HANDOFF_NOT_CONNECTED": "尚未設定開發團隊交接。",
       "HANDOFF_UNAVAILABLE": "暫時未能完成。未有任何確認，再次發送前請先重新整理。"
+    },
+    "receipt": {
+      "completed": "開發團隊回報已於 {date} 完成，尚未在實際網頁核實。",
+      "rejected": "開發團隊已於 {date} 拒絕此工作。"
     }
   },
   "outcomes": {

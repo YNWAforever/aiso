@@ -2920,6 +2920,10 @@
       "HANDOFF_IN_FLIGHT": "A send is already in progress.",
       "HANDOFF_NOT_CONNECTED": "The developer hand-off is not configured.",
       "HANDOFF_UNAVAILABLE": "Could not complete this just now. Nothing was confirmed; refresh before sending again."
+    },
+    "receipt": {
+      "completed": "The developer reports this was done on {date}. Not yet checked on the live page.",
+      "rejected": "The developer declined this job on {date}."
     }
   },
   "outcomes": {

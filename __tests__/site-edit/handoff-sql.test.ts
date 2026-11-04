@@ -74,6 +74,7 @@ beforeAll(async () => {
     create table work_item_decisions(account_id uuid, client_id uuid, work_item_id uuid, version_id uuid, content_hash text, decision text, decided_at timestamptz default now());
   `)
   await state.pg.exec(readFileSync('supabase/migrations/089_site_edit_jobs.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/090_site_edit_receipts.sql', 'utf8'))
   await q('insert into accounts values ($1), ($2)', [account, other])
   await q('insert into profiles values ($1, $2, null), ($3, $4, null)', [member, account, stranger, other])
   await q(`insert into clients values ($1, $2, 'Bakery', 'www.bakery.hk')`, [client, account])
@@ -82,7 +83,7 @@ beforeAll(async () => {
 })
 
 beforeEach(async () => {
-  await state.pg!.exec('delete from site_edit_job_events; delete from site_edit_jobs; delete from work_item_decisions; delete from work_item_versions')
+  await state.pg!.exec('delete from site_edit_receipts; delete from site_edit_job_events; delete from site_edit_jobs; delete from work_item_decisions; delete from work_item_versions')
   await q('insert into work_item_versions values ($1, $2, $3, $4, 1, $5)', [v1, account, client, item, h1])
   await q(`insert into work_item_decisions (account_id, client_id, work_item_id, version_id, content_hash, decision) values ($1, $2, $3, $4, $5, 'approved')`, [account, client, item, v1, h1])
 })
@@ -93,7 +94,7 @@ describe('089 + handoff store', () => {
     expect((await readHandoff(scope(v1, stranger))).kind).toBe('denied')
     expect((await readHandoff(scope(v1, stranger, other))).kind).toBe('not_found')
     const read = await readHandoff(scope())
-    expect(read).toMatchObject({ kind: 'ok', latestId: v1, clientName: 'Bakery', job: null, events: [] })
+    expect(read).toMatchObject({ kind: 'ok', latestId: v1, clientName: 'Bakery', job: null, events: [], receipt: null })
   })
 
   it('claims once, serialises a second send while the first is in flight, and records the outcome after it', async () => {
@@ -113,6 +114,15 @@ describe('089 + handoff store', () => {
     expect(read.job).toEqual({ id: first.jobId })
     expect(read.events.map(e => [e.seq, e.kind, e.executorStatus, e.executorRef])).toEqual([[1, 'claim', null, null], [2, 'failed', 503, null], [3, 'claim', null, null], [4, 'sent', 202, 'R-1']])
     expect(await q('select count(*)::int as n from site_edit_jobs')).toEqual([{ n: 1 }])
+  })
+
+  it('never re-sends a job a receipt has closed, even when its last outcome was unknown', async () => {
+    const first = await claimHandoff(scope(), h1, fresh(), pin)
+    if (first.kind !== 'claimed') throw new Error()
+    await recordHandoffOutcome({ accountId: account, jobId: first.jobId, claimSeq: 1, actorId: member, kind: 'unknown', status: null, ref: null })
+    await q(`insert into site_edit_receipts (job_id, account_id, status, url, completed_at, body_sha256) values ($1, $2, 'completed', 'https://www.bakery.hk/', now(), $3)`, [first.jobId, account, 'd'.repeat(64)])
+    expect(await claimHandoff(scope(), h1, fresh(), pin)).toEqual({ kind: 'busy' })
+    expect(await q('select count(*)::int as n from site_edit_job_events')).toEqual([{ n: 2 }])
   })
 
   it('lets a stale claim (process died mid-call) be re-sent', async () => {
