@@ -94,11 +94,13 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
-    # 30, matching e2e-accessibility rather than unit-contract's 20: this job is the
-    # other network/external-process-bound one in the gate (branch create, 37 real
-    # migrations, sequential real-Postgres round-trips, branch teardown) — unlike
-    # unit-contract's mocked, in-memory suite, which has no comparable I/O.
-    timeout-minutes: 30
+    # 45 (raised from 30 on 2026-11-04). This is the network/external-process-bound
+    # job in the gate: two Neon branch creates, every migration replayed twice (the
+    # main suite and the exact-target suites), sequential real-Postgres round-trips
+    # and teardown. By 2026-11-03 it took 25-27 min against 30, and one run (#152,
+    # 087) was cancelled at the limit after every suite had passed — a timeout that
+    # read as a red gate. __tests__/ci/pr-gate-workflow.test.ts pins this value.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -140,7 +142,7 @@ jobs:
           # disposable target, so until now they were runnable and run by nothing.
           # The wrapper provisions one branch through the same audited path and
           # derives every C9 value from it. Originally measured locally at 105s for
-          # the first five, branch create included, against this job's 30 minutes.
+          # the first five, branch create included, against this job's 45 minutes (30 until 2026-11-04).
           #
           # Inside THIS step, not a later one, and deliberately: write-job-summary
           # runs a few lines below, so a separate step would let the summary record
