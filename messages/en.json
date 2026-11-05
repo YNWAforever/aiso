@@ -2915,7 +2915,8 @@
       "superseded": "A newer version exists; send that one instead.",
       "no_edit_spec": "This version has no site edit to send.",
       "not_connected": "Not connected — the developer hand-off is not configured.",
-      "not_entitled": "Sending a site edit is part of the Pro and Enterprise plans."
+      "not_entitled": "Sending a site edit is part of the Pro and Enterprise plans.",
+      "limit_reached": "This brand has used its 10 site edits for this month."
     },
     "errors": {
       "HANDOFF_NOT_APPROVED": "Only an approved version can be sent.",
@@ -2928,7 +2929,8 @@
       "HANDOFF_UNAVAILABLE": "Could not complete this just now. Nothing was confirmed; refresh before sending again.",
       "LIVE_CHECK_NOT_OPEN": "Nothing to check yet — send it to the developer first.",
       "LIVE_CHECK_TOO_SOON": "Checked moments ago. Try again in a minute.",
-      "HANDOFF_UPGRADE_REQUIRED": "Sending a site edit is part of the Pro and Enterprise plans."
+      "HANDOFF_UPGRADE_REQUIRED": "Sending a site edit is part of the Pro and Enterprise plans.",
+      "HANDOFF_LIMIT_REACHED": "This brand has used its 10 site edits for this month."
     },
     "receipt": {
       "completed": "The developer reports this was done on {date}. Not yet checked on the live page.",

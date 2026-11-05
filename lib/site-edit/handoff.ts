@@ -9,6 +9,16 @@ import type { EditSpecV1 } from './edit-spec'
 export const HANDOFF_DEADLINE_MS = 10_000
 /** A claim older than this with no outcome row means the process died mid-call. */
 export const HANDOFF_STALE_MS = 60_000
+
+/**
+ * S8 cap (Willy, 2026-11-05): at most 10 site edits handed off per brand per
+ * calendar month, Hong Kong time. A "send" is a job (one per approved version,
+ * a revert included) with an accepted (`sent`) or possibly-accepted
+ * (`unknown`) outcome, or a claim with no outcome yet (however old: it may have reached the developer), this month. Re-sending a job
+ * already counted this month adds nothing.
+ */
+export const SITE_EDIT_MONTHLY_SENDS_PER_BRAND = 10
+export const SITE_EDIT_CAP_TIME_ZONE = 'Asia/Hong_Kong'
 const MIN_SECRET = 32
 
 export type HandoffConfig = { url: string; secret: string }

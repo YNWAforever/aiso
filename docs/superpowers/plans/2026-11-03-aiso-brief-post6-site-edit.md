@@ -320,7 +320,14 @@ until a receipt arrives).
   `resolveCommercialEntitlement`, which fails closed to free (override → past_due → cancelled → trial → paid). It gates
   **sending** a hand-off — the step that can carry executor cost: `403 HANDOFF_UPGRADE_REQUIRED` before any claim or
   outbound call, and the panel shows "Sending a site edit is part of the Pro and Enterprise plans." A job already sent
-  keeps its receipt and live checks after a downgrade. No per-brand cap (no number named); add one with a figure.
+  keeps its receipt and live checks after a downgrade.
+  - **Brand cap (2026-11-05, Willy: "10 / month").** At most `SITE_EDIT_MONTHLY_SENDS_PER_BRAND` = 10 sends per brand
+    per calendar month, Hong Kong time, on every entitled plan. A send is a job (one per approved version; a revert
+    counts) with a `sent` or `unknown` outcome, or a claim with no outcome yet (however old), this month; a refused (`failed`) hand-off
+    does not count, and re-sending a job already counted adds nothing. Enforced inside the claim statement under a
+    per-brand advisory lock (so two versions cannot both take the tenth slot); the panel shows "This brand has used
+    its 10 site edits for this month." and the route answers `429 HANDOFF_LIMIT_REACHED` before any claim or call.
+    No migration.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 
@@ -330,7 +337,7 @@ Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, a
 - Free-form "change this page" chat commands.
 - Google properties until Q3 names one.
 - Scraping or SERP (data path, 6e/6f).
-- Pricing and plan SKUs. (`PlanFeatures.site_edit` exists since S8; any per-brand cap waits for a number.)
+- Pricing and plan SKUs. (`PlanFeatures.site_edit` and the 10/month brand cap exist since S8.)
 
 ## 8. HOLD / NO_GO
 
