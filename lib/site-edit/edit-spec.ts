@@ -4,8 +4,8 @@
  * C9d review version, so approval covers exactly what an executor will apply.
  * Browser-safe and pure: the editor and the server share this contract.
  *
- * Only one kind exists in S1: one JSON-LD block on one page. Nothing here
- * contacts a site; the brand-domain check needs the database and lives with
+ * S1 had one kind, one JSON-LD block on one page; S9 adds `meta` (the page's
+ * title and/or meta description). Nothing here contacts a site; the brand-domain check needs the database and lives with
  * the callers (draft save, version submit).
  */
 
@@ -18,16 +18,35 @@ export type EditSpecSchemaType = typeof EDIT_SPEC_SCHEMA_TYPES[number]
  * the same work item added exactly that block (checked server-side). There is
  * no silent rollback: a revert is reviewed, approved and handed off like an add.
  */
-export const EDIT_SPEC_KINDS = ['jsonld', 'jsonld_remove'] as const
+export const EDIT_SPEC_KINDS = ['jsonld', 'jsonld_remove', 'meta'] as const
 export type EditSpecKind = typeof EDIT_SPEC_KINDS[number]
 
-export type EditSpecV1 = {
+export type JsonLdEditSpec = {
   schemaVersion: 1
-  kind: EditSpecKind
+  kind: 'jsonld' | 'jsonld_remove'
   targetUrl: string
   schemaType: EditSpecSchemaType
   payload: Record<string, unknown>
 }
+
+/**
+ * S9: set the page's `<title>` and/or `<meta name="description">`. A null
+ * field is left as it is on the page; at least one is set. There is no
+ * separate revert kind: undoing is another reviewed `meta` edit with the
+ * previous text.
+ */
+export type MetaEditSpec = {
+  schemaVersion: 1
+  kind: 'meta'
+  targetUrl: string
+  title: string | null
+  description: string | null
+}
+
+export type EditSpecV1 = JsonLdEditSpec | MetaEditSpec
+
+export const EDIT_SPEC_TITLE_MAX = 200
+export const EDIT_SPEC_DESCRIPTION_MAX = 500
 
 export const EDIT_SPEC_URL_MAX = 2048
 /** Serialized payload bound; the whole spec also fits 042's 128 KiB version cap with room to spare. */
@@ -36,7 +55,7 @@ export const EDIT_SPEC_MAX_DEPTH = 8
 export const EDIT_SPEC_MAX_NODES = 500
 
 export class EditSpecError extends Error {
-  constructor(readonly code: 'shape' | 'url' | 'type' | 'payload' | 'size' | 'markup') {
+  constructor(readonly code: 'shape' | 'url' | 'type' | 'payload' | 'size' | 'markup' | 'meta') {
     super(`INVALID_EDIT_SPEC:${code}`)
     this.name = 'EditSpecError'
   }
@@ -104,16 +123,42 @@ function parseTargetUrl(value: unknown): string {
 }
 
 /**
+ * One line of page text: trimmed, NFC, no controls (tab and newlines included:
+ * a title or description is a single line), and no `<` or `>`, so it cannot
+ * open or close markup whatever the executor's escaping does. Null or an
+ * empty string means "leave this field as it is".
+ */
+function metaText(value: unknown, max: number): string | null {
+  if (value === null) return null
+  if (typeof value !== 'string') return fail('meta')
+  const text = value.trim().normalize('NFC')
+  if (!text) return null
+  if (/[<>]/.test(text)) fail('markup')
+  if (/[\u0000-\u001f\u007f\uD800-\uDFFF]/u.test(text) || [...text].length > max) fail('meta')
+  return text
+}
+
+function parseMetaSpec(input: Record<string, unknown>, targetUrl: string): MetaEditSpec {
+  const keys = ['schemaVersion', 'kind', 'targetUrl', 'title', 'description']
+  if (Object.keys(input).length !== keys.length || !keys.every(key => Object.hasOwn(input, key))) fail('shape')
+  const title = metaText(input.title, EDIT_SPEC_TITLE_MAX)
+  const description = metaText(input.description, EDIT_SPEC_DESCRIPTION_MAX)
+  if (title === null && description === null) fail('meta')
+  return { schemaVersion: 1, kind: 'meta', targetUrl, title, description }
+}
+
+/**
  * Strict parse of an edit spec. Unknown keys, a mismatched `@type`, a non-
  * schema.org `@context`, an oversized or over-deep payload, or a non-https URL
  * are refused. The result is canonical: re-parsing it returns an equal value.
  */
 export function parseEditSpec(value: unknown): EditSpecV1 {
   const input = record(value, 'shape')
+  if (input.schemaVersion !== 1 || !(EDIT_SPEC_KINDS as readonly unknown[]).includes(input.kind)) fail('shape')
+  if (input.kind === 'meta') return parseMetaSpec(input, parseTargetUrl(input.targetUrl))
   const keys = ['schemaVersion', 'kind', 'targetUrl', 'schemaType', 'payload']
   if (Object.keys(input).length !== keys.length || !keys.every(key => Object.hasOwn(input, key))) fail('shape')
-  if (input.schemaVersion !== 1 || !(EDIT_SPEC_KINDS as readonly unknown[]).includes(input.kind)) fail('shape')
-  const kind = input.kind as EditSpecKind
+  const kind = input.kind as JsonLdEditSpec['kind']
   const targetUrl = parseTargetUrl(input.targetUrl)
   if (typeof input.schemaType !== 'string' || !(EDIT_SPEC_SCHEMA_TYPES as readonly string[]).includes(input.schemaType)) fail('type')
   const schemaType = input.schemaType as EditSpecSchemaType

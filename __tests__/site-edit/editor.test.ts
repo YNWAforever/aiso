@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { parseEditSpec } from '@/lib/site-edit/edit-spec'
+import { parseEditSpec, type JsonLdEditSpec } from '@/lib/site-edit/edit-spec'
+const parseJsonLd = (value: unknown) => parseEditSpec(value) as JsonLdEditSpec
 import { specDirty, specFields, specRequest } from '@/lib/site-edit/editor'
 
-const spec = parseEditSpec({
+const spec = parseJsonLd({
   schemaVersion: 1, kind: 'jsonld', targetUrl: 'https://www.example.com/', schemaType: 'Organization',
   payload: { '@context': 'https://schema.org', '@type': 'Organization', name: 'Example Bakery' },
 })
@@ -32,10 +33,24 @@ describe('site-edit editor request', () => {
   })
 
   it('S5: carries the revert flag both ways and treats flipping it as a change', () => {
-    const revert = parseEditSpec({ ...spec, kind: 'jsonld_remove' })
+    const revert = parseJsonLd({ ...spec, kind: 'jsonld_remove' })
     expect(specFields(revert).remove).toBe(true)
     expect(specDirty({ ...specFields(spec), remove: true }, spec)).toBe(true)
     expect(specRequest({ ...specFields(spec), remove: true }, spec)).toMatchObject({ kind: 'jsonld_remove', payload: spec.payload })
     expect(specRequest(specFields(revert), revert)).toBeUndefined()
+  })
+
+  it('S9: round-trips a meta spec, sends empty fields as null, and treats switching kinds as a change', () => {
+    const meta = parseEditSpec({ schemaVersion: 1, kind: 'meta', targetUrl: 'https://www.example.com/', title: 'Menu', description: null })
+    expect(specFields(meta)).toMatchObject({ on: true, mode: 'meta', title: 'Menu', description: '', url: 'https://www.example.com/', payload: '' })
+    expect(specRequest(specFields(meta), meta)).toBeUndefined()
+    expect(specDirty({ ...specFields(meta), description: 'Fresh bread.' }, meta)).toBe(true)
+    expect(specRequest({ ...specFields(meta), title: '  ', description: ' Fresh bread. ' }, meta))
+      .toEqual({ schemaVersion: 1, kind: 'meta', targetUrl: 'https://www.example.com/', title: null, description: 'Fresh bread.' })
+    expect(specDirty({ ...specFields(spec), mode: 'meta' }, spec)).toBe(true)
+    expect(specRequest({ ...specFields(spec), mode: 'meta', title: 'New' }, spec)).toMatchObject({ kind: 'meta', title: 'New', description: null })
+    // A JSON-LD caller that never sets `mode` behaves exactly as before S9.
+    const { mode: _m, title: _t, description: _d, ...legacy } = specFields(spec)
+    expect(specDirty(legacy, spec)).toBe(false)
   })
 })

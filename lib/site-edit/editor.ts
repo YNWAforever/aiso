@@ -1,18 +1,32 @@
 import type { EditSpecSchemaType, EditSpecV1 } from './edit-spec'
 
 /** Browser-safe editor helpers for the draft's site-edit section. */
-export type SpecFields = { on: boolean; type: EditSpecSchemaType; url: string; payload: string; remove?: boolean }
+export type SpecMode = 'jsonld' | 'meta'
+export type SpecFields = {
+  on: boolean; type: EditSpecSchemaType; url: string; payload: string; remove?: boolean
+  /** S9: which kind of edit. Absent means JSON-LD, as before S9. */
+  mode?: SpecMode; title?: string; description?: string
+}
 
-export const specPayloadText = (spec: EditSpecV1 | null | undefined) => spec ? JSON.stringify(spec.payload, null, 2) : ''
+export const specPayloadText = (spec: EditSpecV1 | null | undefined) => spec && spec.kind !== 'meta' ? JSON.stringify(spec.payload, null, 2) : ''
 
 export function specFields(spec: EditSpecV1 | null | undefined): SpecFields {
-  return { on: Boolean(spec), type: spec?.schemaType ?? 'FAQPage', url: spec?.targetUrl ?? '', payload: specPayloadText(spec), remove: spec?.kind === 'jsonld_remove' }
+  const meta = spec?.kind === 'meta' ? spec : null
+  const jsonld = spec && spec.kind !== 'meta' ? spec : null
+  return {
+    on: Boolean(spec), mode: meta ? 'meta' : 'jsonld', type: jsonld?.schemaType ?? 'FAQPage', url: spec?.targetUrl ?? '',
+    payload: specPayloadText(spec), remove: jsonld?.kind === 'jsonld_remove', title: meta?.title ?? '', description: meta?.description ?? '',
+  }
 }
 
 export function specDirty(fields: SpecFields, saved: EditSpecV1 | null | undefined): boolean {
   const base = specFields(saved)
   if (fields.on !== base.on) return true
-  return fields.on && (fields.type !== base.type || fields.url !== base.url || fields.payload !== base.payload || Boolean(fields.remove) !== base.remove)
+  if (!fields.on) return false
+  const mode = fields.mode ?? 'jsonld'
+  if (mode !== base.mode || fields.url !== base.url) return true
+  if (mode === 'meta') return (fields.title ?? '') !== base.title || (fields.description ?? '') !== base.description
+  return fields.type !== base.type || fields.payload !== base.payload || Boolean(fields.remove) !== base.remove
 }
 
 /**
@@ -24,5 +38,8 @@ export function specDirty(fields: SpecFields, saved: EditSpecV1 | null | undefin
 export function specRequest(fields: SpecFields, saved: EditSpecV1 | null | undefined): unknown {
   if (!fields.on) return saved ? null : undefined
   if (!specDirty(fields, saved)) return undefined
+  if (fields.mode === 'meta') {
+    return { schemaVersion: 1, kind: 'meta', targetUrl: fields.url, title: fields.title?.trim() || null, description: fields.description?.trim() || null }
+  }
   return { schemaVersion: 1, kind: fields.remove ? 'jsonld_remove' : 'jsonld', targetUrl: fields.url, schemaType: fields.type, payload: JSON.parse(fields.payload) }
 }

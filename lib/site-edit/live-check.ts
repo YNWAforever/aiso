@@ -2,12 +2,14 @@ import { createHash } from 'node:crypto'
 import { parse } from 'parse5'
 import { checkStructuredData } from '@/lib/checks/structuredData'
 import { createPublicUrlFetcher, type PublicUrlFetch } from '@/lib/security/public-url'
+import type { EditSpecV1, MetaEditSpec } from './edit-spec'
 
 /**
  * Site-edit S4: fetch the frozen target URL and look for the approved JSON-LD
- * payload. Pure apart from the injected fetcher. "Found" means only that a
- * JSON-LD block on the page, at fetch time, equals the approved payload once
- * both are canonicalised; it says nothing about impact.
+ * payload (S9: or the approved title/description). Pure apart from the
+ * injected fetcher. "Found" means only that the page, at fetch time, carries
+ * exactly what was approved once both are canonicalised; it says nothing
+ * about impact.
  */
 
 export const LIVE_CHECK_BODY_LIMIT = 2 * 1024 * 1024
@@ -57,7 +59,8 @@ function withoutContext(node: Record<string, unknown>): string {
   return JSON.stringify(canonical(rest))
 }
 
-type Html = { nodeName: string; attrs?: { name: string; value: string }[]; childNodes?: Html[]; value?: string }
+type Html = { nodeName: string; namespaceURI?: string; attrs?: { name: string; value: string }[]; childNodes?: Html[]; value?: string }
+const HTML_NS = 'http://www.w3.org/1999/xhtml'
 
 /**
  * The text of every real `<script type="application/ld+json">` element. Parsed
@@ -106,6 +109,52 @@ export function pageHasPayload(html: string, payload: Record<string, unknown>): 
   return jsonLdNodes(html).some(({ node, context }) => typeof context === 'string' && SCHEMA_ORG.has(context) && withoutContext(node) === want)
 }
 
+/** Whitespace runs collapse to one space and the ends are trimmed, as a browser shows the text. */
+const collapse = (text: string) => text.replace(/[\t\n\f\r ]+/g, ' ').trim().normalize('NFC')
+const textOf = (node: Html): string => node.nodeName === '#text' ? node.value ?? '' : (node.childNodes ?? []).map(textOf).join('')
+
+/**
+ * S9: the page's document title (the FIRST HTML-namespace `<title>`, as the
+ * HTML spec defines it, so an inline SVG's `<title>` never counts) and the
+ * content of every `<meta name="description">`. Template content is not in
+ * parse5's childNodes, so a `<template>` copy cannot count either.
+ */
+export function pageMeta(html: string): { title: string | null; descriptions: string[] } {
+  let title: string | null = null
+  const descriptions: string[] = []
+  const walk = (node: Html) => {
+    const html = node.namespaceURI === HTML_NS
+    if (html && node.nodeName === 'title' && title === null) title = collapse(textOf(node))
+    if (html && node.nodeName === 'meta' && node.attrs?.find(a => a.name === 'name')?.value.trim().toLowerCase() === 'description') {
+      descriptions.push(collapse(node.attrs?.find(a => a.name === 'content')?.value ?? ''))
+    }
+    for (const child of node.childNodes ?? []) walk(child)
+  }
+  walk(parse(html) as unknown as Html)
+  return { title, descriptions }
+}
+
+/**
+ * Every field the spec sets is on the page: the title equals it, and the page
+ * has at least one meta description and EVERY one equals it (a stale duplicate
+ * left beside the new one is not a clean delivery). Fields set to null are
+ * not looked at.
+ */
+export function pageHasMeta(html: string, spec: Pick<MetaEditSpec, 'title' | 'description'>): boolean {
+  const page = pageMeta(html)
+  if (spec.title !== null && page.title !== collapse(spec.title)) return false
+  if (spec.description !== null) {
+    const want = collapse(spec.description)
+    if (page.descriptions.length === 0 || page.descriptions.some(d => d !== want)) return false
+  }
+  return true
+}
+
+/** Whether the page carries what the spec puts there (for a revert: whether the block is still there). */
+export function specOnPage(html: string, spec: EditSpecV1): boolean {
+  return spec.kind === 'meta' ? pageHasMeta(html, spec) : pageHasPayload(html, spec.payload)
+}
+
 async function readCapped(response: Response): Promise<string | null> {
   if (!response.body) return ''
   const reader = response.body.getReader()
@@ -122,7 +171,7 @@ async function readCapped(response: Response): Promise<string | null> {
 }
 
 /** One GET of the target. Never throws: any transport failure, non-2xx, non-HTML or oversized page is `fetch_failed`. */
-export async function fetchLivePage(url: string, payload: Record<string, unknown>, fetcher: PublicUrlFetch = liveCheckFetcher): Promise<LiveFetch> {
+export async function fetchLivePage(url: string, spec: EditSpecV1, fetcher: PublicUrlFetch = liveCheckFetcher): Promise<LiveFetch> {
   let httpStatus: number | null = null
   try {
     const response = await fetcher(url, { method: 'GET', headers: { Accept: 'text/html' } })
@@ -136,8 +185,9 @@ export async function fetchLivePage(url: string, payload: Record<string, unknown
     if (html === null) return { outcome: 'fetch_failed', httpStatus, pageSha256: null, checkedAt: new Date() }
     const pageSha256 = createHash('sha256').update(html).digest('hex')
     const checkedAt = new Date()
-    const structuredData = await structuredDataVerdict(url, html).catch(() => null)
-    return { outcome: pageHasPayload(html, payload) ? 'found' : 'missing', httpStatus, pageSha256, checkedAt, structuredData }
+    // S7's c4 verdict is about structured data, so it is recorded for JSON-LD edits only (S9: not for `meta`).
+    const structuredData = spec.kind === 'meta' ? null : await structuredDataVerdict(url, html).catch(() => null)
+    return { outcome: specOnPage(html, spec) ? 'found' : 'missing', httpStatus, pageSha256, checkedAt, structuredData }
   } catch {
     return { outcome: 'fetch_failed', httpStatus: null, pageSha256: null, checkedAt: new Date() }
   }

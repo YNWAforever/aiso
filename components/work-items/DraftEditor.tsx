@@ -3,8 +3,8 @@ import {WorkOperationsPanel} from './WorkOperationsPanel'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
-import { EDIT_SPEC_SCHEMA_TYPES, type EditSpecSchemaType } from '@/lib/site-edit/edit-spec'
-import { specDirty as isSpecDirty, specPayloadText, specRequest } from '@/lib/site-edit/editor'
+import { EDIT_SPEC_DESCRIPTION_MAX, EDIT_SPEC_SCHEMA_TYPES, EDIT_SPEC_TITLE_MAX, type EditSpecSchemaType } from '@/lib/site-edit/edit-spec'
+import { specDirty as isSpecDirty, specFields, specRequest, type SpecFields, type SpecMode } from '@/lib/site-edit/editor'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { EvidenceDetails } from '@/components/opportunities/EvidenceDetails'
 export function DraftEditor({
@@ -27,27 +27,20 @@ export function DraftEditor({
     [error, setError] = useState(''),
     [status, setStatus] = useState('')
   const lock = useRef(false)
-  // Site-edit S1: one optional JSON-LD edit, saved with the draft and frozen into its review version.
-  const [specOn, setSpecOn] = useState(Boolean(item.editSpec)),
-    [specType, setSpecType] = useState<EditSpecSchemaType>(item.editSpec?.schemaType ?? 'FAQPage'),
-    [specUrl, setSpecUrl] = useState(item.editSpec?.targetUrl ?? ''),
-    [specPayload, setSpecPayload] = useState(specPayloadText(item.editSpec)),
-    // S5: a revert removes exactly a block an earlier approved version of this item added.
-    [specRemove, setSpecRemove] = useState(item.editSpec?.kind === 'jsonld_remove')
+  // Site-edit S1: one optional edit, saved with the draft and frozen into its review version.
+  // A JSON-LD block (S5: or its revert), or — S9 — the page's title and/or meta description.
+  const [spec, setSpecState] = useState<SpecFields>(() => specFields(item.editSpec))
+  const setSpec = (patch: Partial<SpecFields>) => setSpecState(current => ({ ...current, ...patch }))
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(item.id)}`
   function accept(next: WorkItem) {
     setSaved(next)
     setTitle(next.title)
     setAction(next.action)
     setNotes(next.notes)
-    setSpecOn(Boolean(next.editSpec))
-    setSpecType(next.editSpec?.schemaType ?? 'FAQPage')
-    setSpecUrl(next.editSpec?.targetUrl ?? '')
-    setSpecPayload(specPayloadText(next.editSpec))
-    setSpecRemove(next.editSpec?.kind === 'jsonld_remove')
+    setSpecState(specFields(next.editSpec))
     onSaved(next)
   }
-  const specDirty = isSpecDirty({ on: specOn, type: specType, url: specUrl, payload: specPayload, remove: specRemove }, saved.editSpec)
+  const specDirty = isSpecDirty(spec, saved.editSpec)
   async function save(event: FormEvent) {
     event.preventDefault()
     if (lock.current) return
@@ -61,7 +54,7 @@ export function DraftEditor({
       return
     }
     try {
-      const editSpec = specRequest({ on: specOn, type: specType, url: specUrl, payload: specPayload, remove: specRemove }, saved.editSpec)
+      const editSpec = specRequest(spec, saved.editSpec)
       if (editSpec !== undefined) input = parseDraftEdit({ ...textInput, editSpec })
     } catch {
       setError('invalidEditSpec')
@@ -191,35 +184,57 @@ export function DraftEditor({
           />
         </div>
         <p className="text-sm">{t('fieldLimits')}</p>
-        <details className="space-y-3 rounded-lg border border-border p-3" open={specOn}>
+        <details className="space-y-3 rounded-lg border border-border p-3" open={spec.on}>
           <summary className="min-h-11 cursor-pointer font-semibold">{t('editSpecTitle')}</summary>
           <label className="flex min-h-11 items-center gap-2">
-            <input type="checkbox" checked={specOn} disabled={busy} onChange={(e) => setSpecOn(e.target.checked)} />
+            <input type="checkbox" checked={spec.on} disabled={busy} onChange={(e) => setSpec({ on: e.target.checked })} />
             {t('editSpecInclude')}
           </label>
-          {specOn && <>
-            <label className="flex min-h-11 items-center gap-2">
-              <input type="checkbox" checked={specRemove} disabled={busy} onChange={(e) => setSpecRemove(e.target.checked)} />
-              {t('editSpecRemove')}
-            </label>
+          {spec.on && <>
             <div className="space-y-2">
-              <label className="block" htmlFor={fieldId + '-spec-type'}>{t('editSpecType')}</label>
-              <select className={field} id={fieldId + '-spec-type'} value={specType} disabled={busy}
-                onChange={(e) => setSpecType(e.target.value as EditSpecSchemaType)}>
-                {EDIT_SPEC_SCHEMA_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+              <label className="block" htmlFor={fieldId + '-spec-mode'}>{t('editSpecMode')}</label>
+              <select className={field} id={fieldId + '-spec-mode'} value={spec.mode ?? 'jsonld'} disabled={busy}
+                onChange={(e) => setSpec({ mode: e.target.value as SpecMode })}>
+                <option value="jsonld">{t('editSpecModeJsonld')}</option>
+                <option value="meta">{t('editSpecModeMeta')}</option>
               </select>
             </div>
             <div className="space-y-2">
               <label className="block" htmlFor={fieldId + '-spec-url'}>{t('editSpecUrl')}</label>
-              <input className={field} id={fieldId + '-spec-url'} type="url" inputMode="url" value={specUrl} disabled={busy}
-                onChange={(e) => setSpecUrl(e.target.value)} />
+              <input className={field} id={fieldId + '-spec-url'} type="url" inputMode="url" value={spec.url} disabled={busy}
+                onChange={(e) => setSpec({ url: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <label className="block" htmlFor={fieldId + '-spec-payload'}>{t('editSpecPayload')}</label>
-              <textarea className={`${field} font-mono text-sm`} rows={10} id={fieldId + '-spec-payload'} value={specPayload}
-                disabled={busy} spellCheck={false} onChange={(e) => setSpecPayload(e.target.value)} />
-            </div>
-            <p className="text-sm">{t('editSpecRules')}</p>
+            {spec.mode === 'meta' ? <>
+              <div className="space-y-2">
+                <label className="block" htmlFor={fieldId + '-spec-title'}>{t('editSpecPageTitle')}</label>
+                <input className={field} id={fieldId + '-spec-title'} value={spec.title ?? ''} maxLength={EDIT_SPEC_TITLE_MAX} disabled={busy}
+                  onChange={(e) => setSpec({ title: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <label className="block" htmlFor={fieldId + '-spec-description'}>{t('editSpecDescription')}</label>
+                <textarea className={field} rows={3} id={fieldId + '-spec-description'} value={spec.description ?? ''}
+                  maxLength={EDIT_SPEC_DESCRIPTION_MAX} disabled={busy} onChange={(e) => setSpec({ description: e.target.value })} />
+              </div>
+              <p className="text-sm">{t('editSpecMetaRules')}</p>
+            </> : <>
+              <label className="flex min-h-11 items-center gap-2">
+                <input type="checkbox" checked={Boolean(spec.remove)} disabled={busy} onChange={(e) => setSpec({ remove: e.target.checked })} />
+                {t('editSpecRemove')}
+              </label>
+              <div className="space-y-2">
+                <label className="block" htmlFor={fieldId + '-spec-type'}>{t('editSpecType')}</label>
+                <select className={field} id={fieldId + '-spec-type'} value={spec.type} disabled={busy}
+                  onChange={(e) => setSpec({ type: e.target.value as EditSpecSchemaType })}>
+                  {EDIT_SPEC_SCHEMA_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="block" htmlFor={fieldId + '-spec-payload'}>{t('editSpecPayload')}</label>
+                <textarea className={`${field} font-mono text-sm`} rows={10} id={fieldId + '-spec-payload'} value={spec.payload}
+                  disabled={busy} spellCheck={false} onChange={(e) => setSpec({ payload: e.target.value })} />
+              </div>
+              <p className="text-sm">{t('editSpecRules')}</p>
+            </>}
           </>}
         </details>
         {error && <p role="alert">{t(error)}</p>}

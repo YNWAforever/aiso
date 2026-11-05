@@ -63,7 +63,7 @@ const scope = (actorId = member, accountId = account, versionId = v1) => ({ acco
 const q = async (text: string, values: unknown[] = []) => (await state.pg!.query(text, values)).rows as Record<string, unknown>[]
 const check = (outcome: 'found' | 'missing' | 'fetch_failed' = 'found', over: Record<string, unknown> = {}) => ({
   outcome, httpStatus: outcome === 'fetch_failed' ? null : 200, pageSha256: outcome === 'fetch_failed' ? null : 'c'.repeat(64),
-  checkedAt: new Date(), targetUrl: target, kind: 'jsonld' as 'jsonld' | 'jsonld_remove', ...over })
+  checkedAt: new Date(), targetUrl: target, kind: 'jsonld' as 'jsonld' | 'jsonld_remove' | 'meta', ...over })
 const event = (seq: number, kind: string, status: number | null = null) => q(
   'insert into site_edit_job_events (job_id, account_id, seq, kind, actor_id, executor_status) values ($1, $2, $3, $4, $5, $6)', [job, account, seq, kind, member, status])
 const attestations = () => q(`select provenance, site_edit_job_id, destination, kind from work_item_delivery_events order by recorded_at`)
@@ -156,6 +156,15 @@ describe('091 + live-check store', () => {
       [account, client, item, v1, h1, decision.id, member, JSON.stringify({ profileId: member, displayName: null, role: 'account_member' })])
     await expect(q(`insert into site_edit_live_checks (job_id, account_id, outcome, checked_at, actor_id, attestation_id) values ($1, $2, 'fetch_failed', now(), $3, $4)`,
       [job, account, member, manual.id])).rejects.toThrow(/shape_check/)
+  })
+
+  it('S9: a meta edit verifies like an add — by being found on a loaded page — with its own note', async () => {
+    await event(2, 'sent', 202)
+    const meta = (outcome: 'found' | 'missing' | 'fetch_failed') => recordLiveCheck(scope(), h1, check(outcome, { kind: 'meta' }))
+    expect(await meta('missing')).toMatchObject({ kind: 'recorded', attested: false })
+    expect(await meta('fetch_failed')).toMatchObject({ kind: 'recorded', attested: false })
+    expect(await meta('found')).toEqual({ kind: 'recorded', outcome: 'found', attested: true, alreadyAttested: false })
+    expect(await q('select note from work_item_delivery_events')).toEqual([{ note: 'Approved page title/description found on the live page at check time.' }])
   })
 
   it('S6: resolves an automatic check to the job’s own scope and its sender, and says so in the note', async () => {

@@ -160,7 +160,7 @@ async function runLiveCheck(scope: HandoffScope, read: Extract<Awaited<ReturnTyp
   const spec = read.version.editSpec!
   const domain = await checkEditSpecDomainPinned(scope.accountId, scope.clientId, spec)
   if (domain.result !== 'ok') throw new HandoffError('HANDOFF_DOMAIN_UNVERIFIED')
-  const fetched = await fetchLivePage(spec.targetUrl, spec.payload)
+  const fetched = await fetchLivePage(spec.targetUrl, spec)
   return recordLiveCheck(scope, read.version.contentHash, { ...fetched, targetUrl: spec.targetUrl, kind: spec.kind, trigger })
 }
 

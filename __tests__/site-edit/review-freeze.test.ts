@@ -7,11 +7,12 @@ import { versionDTO } from '@/lib/change-sets/store'
 import { createDeliveryExport } from '@/lib/delivery/export'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
 import { fingerprintEvidence } from '@/lib/opportunities/fingerprint'
-import { parseEditSpec } from '@/lib/site-edit/edit-spec'
+import { parseEditSpec, type JsonLdEditSpec } from '@/lib/site-edit/edit-spec'
+const parseJsonLd = (value: unknown) => parseEditSpec(value) as JsonLdEditSpec
 import { draft, saved } from '../change-sets/fixtures'
 import { approvedVersion } from '../delivery/fixtures'
 
-const spec = parseEditSpec({
+const spec = parseJsonLd({
   schemaVersion: 1,
   kind: 'jsonld',
   targetUrl: 'https://www.example.com/faq',

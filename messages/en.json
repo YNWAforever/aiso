@@ -2763,8 +2763,8 @@
     "operationsConflict": "This work record changed in another session. Your unsaved changes are retained. Reload the saved version to reconcile before saving.",
     "reloadOperations": "Reload saved work record",
     "emptyAction": "Run a scan",
-    "editSpecTitle": "Site edit (JSON-LD)",
-    "editSpecInclude": "Include a JSON-LD edit for one page",
+    "editSpecTitle": "Site edit",
+    "editSpecInclude": "Include a site edit for one page",
     "editSpecType": "Schema type",
     "editSpecUrl": "Page URL (https, on this brand's verified domain)",
     "editSpecPayload": "JSON-LD",
@@ -2773,7 +2773,13 @@
     "editSpecUnverified": "Verify this brand's domain before adding a site edit. Your edits are preserved.",
     "editSpecMismatch": "The page URL must be on this brand's verified domain. Your edits are preserved.",
     "editSpecRemove": "Remove this block from the page (revert an approved edit)",
-    "editSpecRevertUnmatched": "A revert must match, exactly, a block an approved version of this item added. Your edits are preserved."
+    "editSpecRevertUnmatched": "A revert must match, exactly, a block an approved version of this item added. Your edits are preserved.",
+    "editSpecMode": "Edit",
+    "editSpecModeJsonld": "JSON-LD block",
+    "editSpecModeMeta": "Page title and description",
+    "editSpecPageTitle": "Page title",
+    "editSpecDescription": "Meta description",
+    "editSpecMetaRules": "Leave a field empty to keep it as it is. One line each, no < or >. Approval covers exactly this text."
   },
   "changeSets": {
     "title": "Version review",
@@ -2821,7 +2827,11 @@
     "contentHash": "Content hash",
     "discardReason": "Discard entered reason",
     "editSpecTitle": "Site edit (JSON-LD)",
-    "editSpecRemoveTitle": "Site edit: remove JSON-LD"
+    "editSpecRemoveTitle": "Site edit: remove JSON-LD",
+    "editSpecMetaTitle": "Site edit: page title and description",
+    "editSpecPageTitle": "Page title",
+    "editSpecDescription": "Meta description",
+    "editSpecUnchanged": "Unchanged"
   },
   "approverAccess": {
     "title": "Account approvers",

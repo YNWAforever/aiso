@@ -2763,8 +2763,8 @@
     "operationsConflict": "另一個視窗已更改工作紀錄。已保留你的未儲存內容；請重新載入已儲存版本並核對後再儲存。",
     "reloadOperations": "重新載入已儲存工作紀錄",
     "emptyAction": "進行掃描",
-    "editSpecTitle": "網站修改（JSON-LD）",
-    "editSpecInclude": "為一個頁面加入 JSON-LD 修改",
+    "editSpecTitle": "網站修改",
+    "editSpecInclude": "為一個頁面加入網站修改",
     "editSpecType": "Schema 類型",
     "editSpecUrl": "頁面網址（https，須在此品牌已驗證的網域）",
     "editSpecPayload": "JSON-LD",
@@ -2773,7 +2773,13 @@
     "editSpecUnverified": "請先驗證此品牌的網域，才可加入網站修改。你的修改已保留。",
     "editSpecMismatch": "頁面網址須在此品牌已驗證的網域。你的修改已保留。",
     "editSpecRemove": "從頁面移除此區塊（撤回已核准的修改）",
-    "editSpecRevertUnmatched": "撤回內容須與此項目已核准版本所加入的區塊完全相同。你的修改已保留。"
+    "editSpecRevertUnmatched": "撤回內容須與此項目已核准版本所加入的區塊完全相同。你的修改已保留。",
+    "editSpecMode": "修改類型",
+    "editSpecModeJsonld": "JSON-LD 區塊",
+    "editSpecModeMeta": "頁面標題及描述",
+    "editSpecPageTitle": "頁面標題",
+    "editSpecDescription": "Meta 描述",
+    "editSpecMetaRules": "留空的欄位會保持不變。每項只限一行，不可包含 < 或 >。批核只涵蓋這段文字。"
   },
   "changeSets": {
     "title": "版本審核",
@@ -2821,7 +2827,11 @@
     "contentHash": "內容雜湊",
     "discardReason": "捨棄已輸入原因",
     "editSpecTitle": "網站修改（JSON-LD）",
-    "editSpecRemoveTitle": "網站修改：移除 JSON-LD"
+    "editSpecRemoveTitle": "網站修改：移除 JSON-LD",
+    "editSpecMetaTitle": "網站修改：頁面標題及描述",
+    "editSpecPageTitle": "頁面標題",
+    "editSpecDescription": "Meta 描述",
+    "editSpecUnchanged": "不變"
   },
   "approverAccess": {
     "title": "帳戶審核員",

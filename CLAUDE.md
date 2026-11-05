@@ -297,6 +297,7 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > S7 (`094`): each loaded check also stores c4's structured-data verdict on the same bytes — recorded, never a gate.
 > S8: sending a hand-off needs `PlanFeatures.site_edit` (Pro/Enterprise) via `resolveCommercialEntitlement`; else 403.
 > At most 10 sends per brand per Hong Kong calendar month (`SITE_EDIT_MONTHLY_SENDS_PER_BRAND`), enforced in the claim; else 429.
+> S9 (`095`): a second edit kind, `meta` (page `<title>` and/or meta description), verified live like an add.
 >
 > **Grep is not a reliable gate check here.** `app/api/client-reports/**` and
 > `report-branding` look ungated in their own files: they delegate to `lib/reports/service.ts`,
@@ -470,6 +471,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - **`092` recorded on the hosted branch (`--verify`, 2026-11-04) before #160 merged** (column-constraint only, so `n/a`).
 - **`093` recorded on the hosted branch (`--verify`, 2026-11-04) before #160 merged** (constraint-only, so `n/a`).
 - **`094` recorded on the hosted branch (`--verify`, 2026-11-04) before #162 merged** (columns + constraint, so `n/a`).
+- **`095` recorded on the hosted branch (`--verify`, 2026-11-05) before #166 merged** (constraint-only, so `n/a`).
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,
