@@ -43,13 +43,41 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock)
   vi.stubEnv('SITE_EDIT_EXECUTOR_URL', 'https://rick.example/jobs')
   vi.stubEnv('SITE_EDIT_EXECUTOR_SECRET', SECRET)
-  m.getProfile.mockResolvedValue({ id: PROFILE, account_id: ACCOUNT })
+  m.getProfile.mockResolvedValue({ id: PROFILE, account_id: ACCOUNT, accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } })
   m.readHandoff.mockResolvedValue(read())
   m.checkEditSpecDomainPinned.mockResolvedValue({ result: 'ok', pin: PIN })
   m.claimHandoff.mockResolvedValue({ kind: 'claimed', jobId: JOB, seq: 1 })
   m.recordHandoffOutcome.mockResolvedValue(undefined)
 })
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
+
+describe('S8 plan gate (Q6)', () => {
+  it.each([
+    ['free', { plan: 'free', status: 'active' }],
+    ['basic', { plan: 'basic', status: 'active', stripe_subscription_id: 'sub_1' }],
+    ['cancelled pro', { plan: 'pro', status: 'cancelled', stripe_subscription_id: 'sub_1' }],
+    ['no account', undefined],
+  ])('refuses to send on %s, before claiming or calling, and says so in the view', async (_label, accounts) => {
+    m.getProfile.mockResolvedValue({ id: PROFILE, account_id: ACCOUNT, accounts })
+    const response = await post()
+    expect([response.status, (await response.json()).error]).toEqual([403, 'HANDOFF_UPGRADE_REQUIRED'])
+    expect((await (await GET(new Request('https://x/handoff'), ctx)).json()).handoff).toMatchObject({ canSend: false, block: 'not_entitled' })
+    expect(m.claimHandoff).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('lets a Pro or Enterprise account send (incl. a live admin override)', async () => {
+    m.getProfile.mockResolvedValue({ id: PROFILE, account_id: ACCOUNT, accounts: { plan: 'free', status: 'active', override_plan: 'enterprise', override_expires_at: null } })
+    expect((await (await GET(new Request('https://x/handoff'), ctx)).json()).handoff).toMatchObject({ canSend: true, block: null })
+  })
+
+  it('still reports an already-sent job to a downgraded account (no new send)', async () => {
+    m.getProfile.mockResolvedValue({ id: PROFILE, account_id: ACCOUNT, accounts: { plan: 'free', status: 'active' } })
+    m.readHandoff.mockResolvedValue(read({}, [{ seq: 1, kind: 'claim', at: '2026-11-04T00:00:00Z', executorStatus: null, executorRef: null },
+      { seq: 2, kind: 'sent', at: '2026-11-04T00:00:01Z', executorStatus: 202, executorRef: 'R-1' }]))
+    expect((await (await GET(new Request('https://x/handoff'), ctx)).json()).handoff).toMatchObject({ state: 'sent', block: 'already_sent' })
+  })
+})
 
 describe('site-edit hand-off', () => {
   it('refuses an anonymous caller, and does not turn a session outage into "signed out"', async () => {

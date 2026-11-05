@@ -99,5 +99,7 @@ describe('Plan Catalog', () => {
     expect(PLAN_CATALOG.basic.features.search_console).toBe(false)
     expect(PLAN_CATALOG.pro.features.search_console).toBe(true)
     expect(PLAN_CATALOG.enterprise.features.search_console).toBe(true)
+    // S8 (Q6): sending a site edit is Pro/Enterprise.
+    expect([PLAN_CATALOG.free, PLAN_CATALOG.basic, PLAN_CATALOG.pro, PLAN_CATALOG.enterprise].map(p => p.features.site_edit)).toEqual([false, false, true, true])
   })
 })

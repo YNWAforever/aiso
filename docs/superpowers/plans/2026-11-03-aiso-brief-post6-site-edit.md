@@ -314,6 +314,13 @@ until a receipt arrives).
   answers with that page, so there is no second request — and stores its verdict (`pass | warn | fail` plus the
   check's message) on the check row (migration `094`). It is **recorded, not a gate**: "verified live" still means
   only that the approved payload was on the page. The panel shows the verdict under the live result.
+- **S8 — plan gate (Q6).** **Started 2026-11-04 (Willy: "start S8 site-edit", chose "Plan gate (Q6)"; no tiers or cap
+  named, so built to the brief's "pre-packaged in the commercial plan" and the Search Console precedent).** New
+  `PlanFeatures.site_edit` (Free/Basic false, Pro/Enterprise true), resolved only through
+  `resolveCommercialEntitlement`, which fails closed to free (override → past_due → cancelled → trial → paid). It gates
+  **sending** a hand-off — the step that can carry executor cost: `403 HANDOFF_UPGRADE_REQUIRED` before any claim or
+  outbound call, and the panel shows "Sending a site edit is part of the Pro and Enterprise plans." A job already sent
+  keeps its receipt and live checks after a downgrade. No per-brand cap (no number named); add one with a figure.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 
@@ -323,7 +330,7 @@ Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, a
 - Free-form "change this page" chat commands.
 - Google properties until Q3 names one.
 - Scraping or SERP (data path, 6e/6f).
-- Pricing, plan SKUs, `PlanFeatures` keys (until Q6).
+- Pricing and plan SKUs. (`PlanFeatures.site_edit` exists since S8; any per-brand cap waits for a number.)
 
 ## 8. HOLD / NO_GO
 
