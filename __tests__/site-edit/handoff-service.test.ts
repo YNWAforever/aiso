@@ -34,6 +34,7 @@ const ctx = { params: Promise.resolve({ clientId: CLIENT, workItemId: ITEM, vers
 const post = (body: unknown = { contentHash: HASH }) => POST(new Request('https://x/handoff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), ctx)
 const read = (over: Record<string, unknown> = {}, events: unknown[] = []) => ({
   kind: 'ok', latestId: VERSION, clientName: 'Bakery', job: events.length ? { id: JOB } : null, events,
+  monthSends: { others: 0, selfCounted: false },
   version: { id: VERSION, contentHash: HASH, editSpec: spec, decision: { decision: 'approved', decidedAt: '2026-11-04T00:00:00.000000Z' }, ...over },
 })
 const fetchMock = vi.fn()
@@ -50,6 +51,26 @@ beforeEach(() => {
   m.recordHandoffOutcome.mockResolvedValue(undefined)
 })
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
+
+describe('S8 brand cap', () => {
+  it('shows limit_reached and refuses 429 before claiming once the brand has 10 sends this month', async () => {
+    m.readHandoff.mockResolvedValue({ ...read(), monthSends: { others: 10, selfCounted: false } })
+    const response = await post()
+    expect([response.status, (await response.json()).error]).toEqual([429, 'HANDOFF_LIMIT_REACHED'])
+    expect((await (await GET(new Request('https://x/handoff'), ctx)).json()).handoff).toMatchObject({ canSend: false, block: 'limit_reached' })
+    expect(m.claimHandoff).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('lets a job already counted this month be re-sent, and maps a capped claim (race) to 429', async () => {
+    m.readHandoff.mockResolvedValue({ ...read(), monthSends: { others: 10, selfCounted: true } })
+    expect((await (await GET(new Request('https://x/handoff'), ctx)).json()).handoff).toMatchObject({ block: null })
+    m.readHandoff.mockResolvedValue({ ...read(), monthSends: { others: 9, selfCounted: false } })
+    m.claimHandoff.mockResolvedValueOnce({ kind: 'capped' })
+    expect((await post()).status).toBe(429)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
 
 describe('S8 plan gate (Q6)', () => {
   it.each([

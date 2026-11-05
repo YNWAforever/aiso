@@ -35,6 +35,7 @@ const post = (body: unknown = { contentHash: HASH }) => POST(new Request('https:
 const sent = [{ seq: 1, kind: 'claim', at: '2026-11-04T00:00:00Z', executorStatus: null, executorRef: null }, { seq: 2, kind: 'sent', at: '2026-11-04T00:00:01Z', executorStatus: 202, executorRef: 'R-1' }]
 const read = (over: Record<string, unknown> = {}) => ({
   kind: 'ok', latestId: VERSION, clientName: 'Bakery', job: { id: JOB }, events: sent, receipt: null, liveCheck: null,
+  monthSends: { others: 0, selfCounted: true },
   version: { id: VERSION, contentHash: HASH, editSpec: spec, decision: { decision: 'approved', decidedAt: '2026-11-04T00:00:00.000000Z' } }, ...over,
 })
 const page = (body: string, init: ResponseInit = { headers: { 'content-type': 'text/html; charset=utf-8' } }) => new Response(body, init)

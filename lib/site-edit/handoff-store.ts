@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { retryWrite, versionDTO, versionLocks } from '@/lib/change-sets/store'
 import type { EditSpecDomainPin } from './domain'
 import type { VersionDetail } from '@/lib/change-sets/types'
-import type { HandoffEvent } from './handoff'
+import { HANDOFF_STALE_MS, SITE_EDIT_CAP_TIME_ZONE, SITE_EDIT_MONTHLY_SENDS_PER_BRAND, type HandoffEvent } from './handoff'
 
 /**
  * Site-edit S2 store (migration 089). Every statement is scoped by the
@@ -20,7 +20,9 @@ export type HandoffRead =
   | { kind: 'invalid' }
   | { kind: 'ok'; version: VersionDetail; latestId: string; clientName: string; job: { id: string } | null; events: HandoffEvent[]
       receipt: { status: 'completed' | 'rejected'; completedAt: string } | null
-      liveCheck: LiveCheckView | null }
+      liveCheck: LiveCheckView | null
+      /** S8 cap: other jobs of this brand counted this month, and whether this job already counts. */
+      monthSends: { others: number; selfCounted: boolean } }
 
 /** S4: the newest live-page check of this job. `attested` = it wrote the verified attestation. */
 export type LiveCheckView = { outcome: 'found' | 'missing' | 'fetch_failed'; checkedAt: string; attested: boolean
@@ -56,8 +58,9 @@ function liveCheckRow(value: unknown): LiveCheckView | null {
   return { outcome: r.outcome, checkedAt: String(r.checked_at), attested: r.attested === true, structuredData: sd ?? null }
 }
 
-export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
+export async function readHandoff(scope: HandoffScope, now: Date = new Date()): Promise<HandoffRead> {
   const { accountId, clientId, itemId, versionId, actorId } = scope
+  const staleBefore = new Date(now.getTime() - HANDOFF_STALE_MS).toISOString()
   const [row] = await db()`
     WITH member AS MATERIALIZED (
       SELECT p.id FROM profiles p WHERE p.id = ${actorId}::uuid AND p.account_id = ${accountId}::uuid AND p.deactivated_at IS NULL
@@ -77,11 +80,21 @@ export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
     ), job AS MATERIALIZED (
       SELECT j.id FROM site_edit_jobs j JOIN version v ON j.account_id = v.account_id AND j.version_id = v.id
         AND j.content_hash = v.content_hash
+    ), counted AS MATERIALIZED (
+      -- S8 cap: this brand's jobs that count as a send this month (Hong Kong time).
+      SELECT DISTINCT j2.id FROM site_edit_jobs j2
+      JOIN site_edit_job_events e2 ON e2.job_id = j2.id AND e2.account_id = j2.account_id
+      WHERE j2.account_id = ${accountId}::uuid AND j2.client_id = ${clientId}::uuid AND EXISTS (SELECT 1 FROM owned)
+        AND e2.created_at >= (date_trunc('month', ${now.toISOString()}::timestamptz AT TIME ZONE ${SITE_EDIT_CAP_TIME_ZONE}::text) AT TIME ZONE ${SITE_EDIT_CAP_TIME_ZONE}::text)
+        AND (e2.kind IN ('sent', 'unknown') OR (e2.kind = 'claim' AND e2.created_at > ${staleBefore}::timestamptz
+          AND e2.seq = (SELECT max(e3.seq) FROM site_edit_job_events e3 WHERE e3.job_id = j2.id AND e3.account_id = j2.account_id)))
     )
     SELECT EXISTS (SELECT 1 FROM member) AS member, EXISTS (SELECT 1 FROM owned) AS owned,
       (SELECT brand_name FROM owned) AS brand_name,
       (SELECT to_jsonb(v) FROM version v) AS version, (SELECT id FROM latest) AS latest_id,
       (SELECT id FROM job) AS job_id,
+      (SELECT count(*)::int FROM counted c WHERE c.id NOT IN (SELECT id FROM job)) AS month_others,
+      EXISTS (SELECT 1 FROM counted c JOIN job j ON c.id = j.id) AS month_self,
       (SELECT jsonb_build_object('status', r.status, 'completed_at', to_char(r.completed_at AT TIME ZONE 'UTC', ${ISO}))
         FROM site_edit_receipts r JOIN job j ON r.job_id = j.id AND r.account_id = ${accountId}::uuid) AS receipt,
       (SELECT jsonb_build_object('outcome', c.outcome, 'checked_at', to_char(c.checked_at AT TIME ZONE 'UTC', ${ISO}),
@@ -104,11 +117,12 @@ export async function readHandoff(scope: HandoffScope): Promise<HandoffRead> {
       events: (row.events as unknown[]).map(eventRow),
       receipt: receiptRow(row.receipt),
       liveCheck: liveCheckRow(row.live_check),
+      monthSends: { others: Number(row.month_others ?? 0), selfCounted: row.month_self === true },
     }
   } catch { return { kind: 'invalid' } }
 }
 
-export type ClaimResult = { kind: 'claimed'; jobId: string; seq: number } | { kind: 'ineligible' } | { kind: 'busy' }
+export type ClaimResult = { kind: 'claimed'; jobId: string; seq: number } | { kind: 'ineligible' } | { kind: 'busy' } | { kind: 'capped' }
 
 /**
  * Create the version's job if needed and append a claim, in ONE statement run
@@ -121,7 +135,8 @@ export type ClaimResult = { kind: 'claimed'; jobId: string; seq: number } | { ki
  * a send (none, failed, unknown, or a claim older than `staleBefore`). Two
  * concurrent claims compute the same next seq; unique (job_id, seq) admits one.
  */
-export async function claimHandoff(scope: HandoffScope, contentHash: string, staleBefore: Date, pin: EditSpecDomainPin): Promise<ClaimResult> {
+export async function claimHandoff(scope: HandoffScope, contentHash: string, staleBefore: Date, pin: EditSpecDomainPin,
+  now: Date = new Date()): Promise<ClaimResult> {
   const { accountId, clientId, itemId, versionId, actorId } = scope
   const result = await retryWrite(async () => {
     const sql = db()
@@ -131,6 +146,9 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
       // later statement (fresh READ COMMITTED snapshot), so it sees any receipt
       // committed before this lock was granted.
       sql`SELECT id FROM site_edit_jobs WHERE account_id = ${accountId}::uuid AND version_id = ${versionId}::uuid FOR UPDATE`,
+      // S8 cap: one brand's claims serialise here, so two sends for different
+      // versions of the same brand cannot both see room for the tenth.
+      sql`SELECT pg_advisory_xact_lock(9208, hashtext(${clientId}::text))`,
       sql`
         WITH member AS MATERIALIZED (
           SELECT p.id FROM profiles p WHERE p.id = ${actorId}::uuid AND p.account_id = ${accountId}::uuid AND p.deactivated_at IS NULL
@@ -150,10 +168,20 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
         ), existing AS MATERIALIZED (
           SELECT j.id FROM site_edit_jobs j JOIN version v ON j.account_id = ${accountId}::uuid AND j.version_id = v.id
             AND j.content_hash = v.content_hash
+        ), counted AS MATERIALIZED (
+          SELECT DISTINCT j2.id FROM site_edit_jobs j2
+          JOIN site_edit_job_events e2 ON e2.job_id = j2.id AND e2.account_id = j2.account_id
+          WHERE j2.account_id = ${accountId}::uuid AND j2.client_id = ${clientId}::uuid
+            AND e2.created_at >= (date_trunc('month', ${now.toISOString()}::timestamptz AT TIME ZONE ${SITE_EDIT_CAP_TIME_ZONE}::text) AT TIME ZONE ${SITE_EDIT_CAP_TIME_ZONE}::text)
+            AND (e2.kind IN ('sent', 'unknown') OR (e2.kind = 'claim' AND e2.created_at > ${staleBefore.toISOString()}::timestamptz
+              AND e2.seq = (SELECT max(e3.seq) FROM site_edit_job_events e3 WHERE e3.job_id = j2.id AND e3.account_id = j2.account_id)))
+        ), cap AS MATERIALIZED (
+          SELECT EXISTS (SELECT 1 FROM counted c JOIN existing x ON c.id = x.id)
+            OR (SELECT count(*) FROM counted c WHERE c.id NOT IN (SELECT id FROM existing)) < ${SITE_EDIT_MONTHLY_SENDS_PER_BRAND}::int AS room
         ), inserted AS (
           INSERT INTO site_edit_jobs (account_id, client_id, work_item_id, version_id, content_hash, created_by)
           SELECT ${accountId}::uuid, v.client_id, v.work_item_id, v.id, v.content_hash, ${actorId}::uuid FROM version v
-          WHERE NOT EXISTS (SELECT 1 FROM existing)
+          WHERE NOT EXISTS (SELECT 1 FROM existing) AND (SELECT room FROM cap)
           RETURNING id
         ), job AS (
           SELECT id FROM existing UNION ALL SELECT id FROM inserted
@@ -167,9 +195,11 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
             OR (kind = 'claim' AND created_at > ${staleBefore.toISOString()}::timestamptz))
             -- A receipt closes the job: nothing is sent again after one, whatever the events say.
             AND NOT EXISTS (SELECT 1 FROM site_edit_receipts r JOIN existing j ON r.job_id = j.id AND r.account_id = ${accountId}::uuid)
+            AND (SELECT room FROM cap)
           RETURNING job_id, seq
         )
-        SELECT EXISTS (SELECT 1 FROM version) AS eligible, (SELECT job_id FROM claimed) AS job_id, (SELECT seq FROM claimed) AS seq`,
+        SELECT EXISTS (SELECT 1 FROM version) AS eligible, (SELECT room FROM cap) AS room,
+          (SELECT job_id FROM claimed) AS job_id, (SELECT seq FROM claimed) AS seq`,
     ], { isolationLevel: 'ReadCommitted' })
     return results.at(-1)?.[0] as Record<string, unknown> | undefined
   })
@@ -177,6 +207,7 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
   if (result && 'kind' in result && result.kind === 'conflict') return { kind: 'busy' }
   const row = result as Record<string, unknown> | undefined
   if (!row || row.eligible !== true) return { kind: 'ineligible' }
+  if (row.room !== true) return { kind: 'capped' }
   if (!row.job_id) return { kind: 'busy' }
   return { kind: 'claimed', jobId: String(row.job_id), seq: Number(row.seq) }
 }

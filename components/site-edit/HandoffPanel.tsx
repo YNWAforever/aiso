@@ -9,16 +9,16 @@ type Handoff = {
   executorRef: string | null
   lastEventAt: string | null
   canSend: boolean
-  block: 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_entitled' | 'not_connected' | 'in_flight' | 'already_sent' | null
+  block: 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_entitled' | 'limit_reached' | 'not_connected' | 'in_flight' | 'already_sent' | null
   receipt: { status: 'completed' | 'rejected'; completedAt: string } | null
   liveCheck: { outcome: 'found' | 'missing' | 'fetch_failed'; checkedAt: string; attested: boolean; structuredData: 'pass' | 'warn' | 'fail' | null } | null
   canCheck: boolean
   checkBlock: 'not_open' | 'too_soon' | null
 }
 const STATES = ['none', 'sending', 'sent', 'failed', 'unknown']
-const BLOCKS = [null, 'not_approved', 'superseded', 'no_edit_spec', 'not_entitled', 'not_connected', 'in_flight', 'already_sent']
+const BLOCKS = [null, 'not_approved', 'superseded', 'no_edit_spec', 'not_entitled', 'limit_reached', 'not_connected', 'in_flight', 'already_sent']
 const CHECK_BLOCKS = [null, 'not_open', 'too_soon']
-const ERRORS = ['HANDOFF_UPGRADE_REQUIRED', 'LIVE_CHECK_NOT_OPEN', 'LIVE_CHECK_TOO_SOON', 'HANDOFF_NOT_APPROVED', 'HANDOFF_SUPERSEDED', 'HANDOFF_NO_EDIT_SPEC', 'HANDOFF_DOMAIN_UNVERIFIED', 'HANDOFF_CONFLICT', 'HANDOFF_IN_FLIGHT', 'HANDOFF_NOT_CONNECTED']
+const ERRORS = ['HANDOFF_LIMIT_REACHED', 'HANDOFF_UPGRADE_REQUIRED', 'LIVE_CHECK_NOT_OPEN', 'LIVE_CHECK_TOO_SOON', 'HANDOFF_NOT_APPROVED', 'HANDOFF_SUPERSEDED', 'HANDOFF_NO_EDIT_SPEC', 'HANDOFF_DOMAIN_UNVERIFIED', 'HANDOFF_CONFLICT', 'HANDOFF_IN_FLIGHT', 'HANDOFF_NOT_CONNECTED']
 
 function parse(value: unknown): Handoff {
   const h = (value as { handoff?: Handoff })?.handoff

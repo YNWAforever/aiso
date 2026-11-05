@@ -6,7 +6,7 @@ import { appOrigin } from '@/lib/app-origin'
 import { deliveryId } from '@/lib/delivery/input'
 import { checkEditSpecDomainPinned } from './domain'
 import {
-  HANDOFF_DEADLINE_MS, HANDOFF_STALE_MS, executorRef, handoffBody, handoffConfig, handoffSignature, handoffState, outcomeFor,
+  HANDOFF_DEADLINE_MS, HANDOFF_STALE_MS, SITE_EDIT_MONTHLY_SENDS_PER_BRAND, executorRef, handoffBody, handoffConfig, handoffSignature, handoffState, outcomeFor,
   type HandoffEvent, type HandoffOutcome, type HandoffState,
 } from './handoff'
 import { claimHandoff, readHandoff, recordHandoffOutcome, type HandoffScope, type LiveCheckView } from './handoff-store'
@@ -31,6 +31,7 @@ const statuses = {
   HANDOFF_DENIED: 403,
   HANDOFF_NOT_FOUND: 404,
   HANDOFF_UPGRADE_REQUIRED: 403,
+  HANDOFF_LIMIT_REACHED: 429,
   HANDOFF_NOT_APPROVED: 409,
   HANDOFF_SUPERSEDED: 409,
   HANDOFF_NO_EDIT_SPEC: 409,
@@ -52,7 +53,7 @@ function errorResponse(error: unknown): Response {
   return json({ error: 'HANDOFF_UNAVAILABLE' }, 503)
 }
 
-export type HandoffBlock = 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_entitled' | 'not_connected' | 'in_flight' | 'already_sent' | null
+export type HandoffBlock = 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_entitled' | 'limit_reached' | 'not_connected' | 'in_flight' | 'already_sent' | null
 export type HandoffView = {
   state: HandoffState
   jobId: string | null
@@ -79,6 +80,8 @@ function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok
     : state === 'sending' ? 'in_flight'
     // S8 (Q6): sending is a Pro/Enterprise feature. A job already sent keeps its receipt and live checks.
     : !entitled ? 'not_entitled'
+    // S8 cap: 10 sends per brand per Hong Kong calendar month; re-sending a job already counted is free.
+    : !read.monthSends.selfCounted && read.monthSends.others >= SITE_EDIT_MONTHLY_SENDS_PER_BRAND ? 'limit_reached'
     : !connected ? 'not_connected'
     : null
   const open = read.job !== null && read.receipt?.status !== 'rejected' && (read.receipt?.status === 'completed' || state === 'sent' || state === 'unknown')
@@ -222,7 +225,8 @@ export async function sendAuthenticatedHandoff(clientId: string, itemId: string,
     if (read.version.contentHash !== contentHash) throw new HandoffError('HANDOFF_CONFLICT')
     const blocks: Record<Exclude<HandoffBlock, null | 'already_sent'>, Code> = {
       not_approved: 'HANDOFF_NOT_APPROVED', superseded: 'HANDOFF_SUPERSEDED', no_edit_spec: 'HANDOFF_NO_EDIT_SPEC',
-      in_flight: 'HANDOFF_IN_FLIGHT', not_entitled: 'HANDOFF_UPGRADE_REQUIRED', not_connected: 'HANDOFF_NOT_CONNECTED',
+      in_flight: 'HANDOFF_IN_FLIGHT', not_entitled: 'HANDOFF_UPGRADE_REQUIRED', limit_reached: 'HANDOFF_LIMIT_REACHED',
+      not_connected: 'HANDOFF_NOT_CONNECTED',
     }
     if (current.block) throw new HandoffError(blocks[current.block])
     const spec = read.version.editSpec!
@@ -235,6 +239,7 @@ export async function sendAuthenticatedHandoff(clientId: string, itemId: string,
     const claim = await claimHandoff(scope, contentHash, new Date(Date.now() - HANDOFF_STALE_MS), domain.pin)
     if (claim.kind === 'busy') throw new HandoffError('HANDOFF_IN_FLIGHT')
     if (claim.kind === 'ineligible') throw new HandoffError('HANDOFF_CONFLICT')
+    if (claim.kind === 'capped') throw new HandoffError('HANDOFF_LIMIT_REACHED')
 
     const body = handoffBody({
       jobId: claim.jobId, versionId: scope.versionId, contentHash,

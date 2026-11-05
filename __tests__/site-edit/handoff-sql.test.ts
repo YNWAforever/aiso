@@ -186,4 +186,49 @@ describe('089 + handoff store', () => {
     await expect(event(2, 'done', null)).rejects.toThrow(/kind_check/)
     await expect(event(1, 'unknown', null)).rejects.toThrow(/unique/) // seq 1 is the claim
   })
+
+  it('S8 cap: ten sends per brand per Hong Kong month; the eleventh job is refused, re-sending a counted job is not', async () => {
+    // Ten other approved versions of another item, each already handed off this month.
+    const item2 = '40000000-0000-4000-8000-000000000002'
+    await q('insert into evidence_work_items (id, account_id, client_id) values ($1, $2, $3) on conflict do nothing', [item2, account, client])
+    const jobs: string[] = []
+    for (let i = 0; i < 10; i++) {
+      const vid = `51000000-0000-4000-8000-${String(i).padStart(12, '0')}`
+      await q('insert into work_item_versions values ($1, $2, $3, $4, $5, $6)', [vid, account, client, item2, i + 1, 'c'.repeat(64)])
+      const [j] = await q(`insert into site_edit_jobs (account_id, client_id, work_item_id, version_id, content_hash, created_by)
+        values ($1, $2, $3, $4, $5, $6) returning id`, [account, client, item2, vid, 'c'.repeat(64), member])
+      jobs.push(String(j.id))
+      await q(`insert into site_edit_job_events (job_id, account_id, seq, kind, actor_id) values ($1, $2, 1, 'claim', $3)`, [j.id, account, member])
+      await q(`insert into site_edit_job_events (job_id, account_id, seq, kind, actor_id, executor_status) values ($1, $2, 2, 'sent', $3, 202)`, [j.id, account, member])
+    }
+    expect(await claimHandoff(scope(), h1, fresh(), pin)).toEqual({ kind: 'capped' })
+    expect(await q('select count(*)::int as n from site_edit_jobs where version_id = $1', [v1])).toEqual([{ n: 0 }]) // no job row created
+    const read = await readHandoff(scope())
+    expect(read.kind === 'ok' && read.monthSends).toEqual({ others: 10, selfCounted: false })
+
+    // A send from a previous Hong Kong month does not count…
+    await q(`update site_edit_job_events set created_at = '2026-10-31T15:59:59Z' where job_id = $1`, [jobs[0]])
+    const nowInNov = new Date('2026-11-15T00:00:00Z')
+    expect((await claimHandoff(scope(), h1, new Date(nowInNov.getTime() - 60_000), pin, nowInNov)).kind).toBe('claimed')
+  })
+
+  it('S8 cap: a refused hand-off does not count, and a job already counted can be re-sent at the cap', async () => {
+    const item2 = '40000000-0000-4000-8000-000000000003'
+    await q('insert into evidence_work_items (id, account_id, client_id) values ($1, $2, $3) on conflict do nothing', [item2, account, client])
+    for (let i = 0; i < 10; i++) {
+      const vid = `52000000-0000-4000-8000-${String(i).padStart(12, '0')}`
+      await q('insert into work_item_versions values ($1, $2, $3, $4, $5, $6)', [vid, account, client, item2, i + 1, 'd'.repeat(64)])
+      const [j] = await q(`insert into site_edit_jobs (account_id, client_id, work_item_id, version_id, content_hash, created_by)
+        values ($1, $2, $3, $4, $5, $6) returning id`, [account, client, item2, vid, 'd'.repeat(64), member])
+      await q(`insert into site_edit_job_events (job_id, account_id, seq, kind, actor_id) values ($1, $2, 1, 'claim', $3)`, [j.id, account, member])
+      // Nine accepted, one refused by the executor.
+      await q(`insert into site_edit_job_events (job_id, account_id, seq, kind, actor_id, executor_status) values ($1, $2, 2, $3, $4, $5)`,
+        [j.id, account, i === 9 ? 'failed' : 'sent', member, i === 9 ? 503 : 202])
+    }
+    const first = await claimHandoff(scope(), h1, fresh(), pin) // 9 counted: room for this one
+    if (first.kind !== 'claimed') throw new Error(first.kind)
+    await recordHandoffOutcome({ accountId: account, jobId: first.jobId, claimSeq: first.seq, actorId: member, kind: 'unknown', status: null, ref: null })
+    // Now at 10 (this job is counted as unknown), yet re-sending THIS job is allowed.
+    expect((await claimHandoff(scope(), h1, fresh(), pin)).kind).toBe('claimed')
+  })
 })
