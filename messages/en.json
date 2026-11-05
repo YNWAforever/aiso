@@ -2779,7 +2779,10 @@
     "editSpecModeMeta": "Page title and description",
     "editSpecPageTitle": "Page title",
     "editSpecDescription": "Meta description",
-    "editSpecMetaRules": "Leave a field empty to keep it as it is. One line each, no < or >. Approval covers exactly this text."
+    "editSpecMetaRules": "Leave a field empty to keep it as it is. One line each, no < or >. Approval covers exactly this text.",
+    "editSpecModeLlmsTxt": "llms.txt file",
+    "editSpecLlmsTxt": "llms.txt content",
+    "editSpecLlmsTxtRules": "Replaces the whole file. The page URL must be https://your-domain/llms.txt. Up to 16 KB of plain text or Markdown. Approval covers exactly this text."
   },
   "changeSets": {
     "title": "Version review",
@@ -2831,7 +2834,8 @@
     "editSpecMetaTitle": "Site edit: page title and description",
     "editSpecPageTitle": "Page title",
     "editSpecDescription": "Meta description",
-    "editSpecUnchanged": "Unchanged"
+    "editSpecUnchanged": "Unchanged",
+    "editSpecLlmsTxtTitle": "Site edit: llms.txt"
   },
   "approverAccess": {
     "title": "Account approvers",

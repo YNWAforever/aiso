@@ -63,4 +63,17 @@ describe.each(['en', 'zh-HK'])('site-edit spec UI in %s', lang => {
     expect(shown).toContain(changeSets.editSpecUnchanged) // the description is left as it is
     expect(shown).not.toContain('<pre')
   })
+
+  it('S10: edits and shows an llms.txt spec as plain, escaped text', () => {
+    const llms = parseEditSpec({ schemaVersion: 1, kind: 'llms_txt', targetUrl: 'https://www.example.com/llms.txt', content: '# Example <Bakery>\n' })
+    const editor = render(<DraftEditor clientId={clientId} item={{ ...draft, editSpec: llms }} onSaved={() => {}} />, lang)
+    expect(editor).toContain(opportunities.editSpecLlmsTxt + '</label>')
+    expect(editor).toContain('# Example &lt;Bakery&gt;')
+    expect(editor).not.toContain(opportunities.editSpecPageTitle + '</label>')
+    const shown = render(<VersionDetails version={{ ...version, editSpec: llms }} latestVersionId={version.id} />, lang)
+    expect(shown).toContain(changeSets.editSpecLlmsTxtTitle)
+    expect(shown).toContain('https://www.example.com/llms.txt')
+    expect(shown).toContain('# Example &lt;Bakery&gt;')
+    expect(shown).not.toContain('<Bakery>')
+  })
 })

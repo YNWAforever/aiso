@@ -171,6 +171,9 @@ version, made only when a member clicks "Send to Rick".
       and its `<meta name="description">` content to `description`. A `null` field means leave it as it is; at least
       one is a string. Each is one line of plain text, 1–200 and 1–500 characters, with no `<` or `>`. The executor
       HTML-escapes them as usual (`&` becomes `&amp;`), and the page should end with exactly one meta description.
+    - `llms_txt` (S10): `{ schemaVersion: 1, kind, targetUrl, content }`. Replace the whole file at
+      `targetUrl`, which is always `https://<verified host>/llms.txt`, with `content`. It is UTF-8 text with LF line
+      endings, at most 16 KiB. It is served as-is, as `text/plain` or `text/markdown`, never as an HTML page.
   - `approvedAt`
   - `receiptUrl` (where to send the receipt)
 - Headers:
@@ -343,10 +346,23 @@ until a receipt arrives).
   field the spec sets equals the page's text after whitespace collapsing, and every meta description matches, so a
   stale duplicate is a miss. Found writes the `verified_live` attestation, as an add does. S7's structured-data verdict is not recorded for a `meta` check, since it says nothing about a title. No separate revert kind:
   undoing is another reviewed `meta` edit carrying the old text. Migration `095` makes both spec CHECKs per-kind
-  (JSON-LD clauses unchanged; `meta` gets its own floor). `llms.txt` stays a later slice: it is a `text/plain` file at
-  the domain root, which the HTML-only live fetcher does not read today. **Rick to confirm** the executor can apply
+  (JSON-LD clauses unchanged; `meta` gets its own floor). `llms.txt` followed as S10. **Rick to confirm** the executor can apply
   `meta`; until then a `meta` job they cannot handle should answer 4xx (`failed`), which does not count toward the
   monthly cap.
+
+- **S10 — more edit types (Q4): `llms.txt`.** **Started 2026-11-05 (Willy: "continue", chose "llms.txt edit type").**
+  The last Q4 candidate. New edit kind `llms_txt` (§3a): replace the domain's root `/llms.txt` with approved text, with
+  the same flow as the other kinds. The target is fixed to `https://<host>/llms.txt` (no other path, no query) and
+  is still checked against the verified domain. Content is UTF-8, stored with LF line endings and NFC, at most 16 KiB,
+  and Markdown is allowed because the file is never rendered inside a page. The live check asks for `text/plain,
+  text/markdown` and accepts only those types, so a site's HTML page answering 200 in place of the file is "could not
+  load", never a find. It is "found" when the served text equals the approved text after line endings, a leading BOM
+  and trailing whitespace at the very end are normalised; anything else, including Markdown's trailing double spaces,
+  must match. Found writes the `verified_live` attestation; no structured-data verdict is recorded. There is no revert
+  or delete kind: undoing is another reviewed `llms_txt` edit with the old text. Migration `096` adds the kind to both
+  spec CHECKs and gives each kind its own stored-size cap. JSON-LD and `meta` keep 20 KiB. `llms_txt` gets 40 KiB,
+  because JSON escaping can nearly double a newline-heavy 16 KiB file. **Rick to confirm** the executor can write
+  the file.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 

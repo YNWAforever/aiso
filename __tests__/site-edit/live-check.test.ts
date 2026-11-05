@@ -211,3 +211,31 @@ describe('S9 meta matcher', () => {
     expect(await live.fetchLivePage(spec.targetUrl, spec, stale)).toMatchObject({ outcome: 'missing' })
   })
 })
+
+describe('S10 llms.txt matcher', () => {
+  const content = '# Example Bakery\n\n> Fresh bread daily.  \n- [Menu](https://www.bakery.hk/menu)\n'
+  it('matches the served file up to line endings, a BOM and trailing whitespace at the end', () => {
+    expect(live.fileHasLlmsTxt(content, content)).toBe(true)
+    expect(live.fileHasLlmsTxt('\uFEFF' + content.replace(/\n/g, '\r\n') + '\n\n', content)).toBe(true)
+    expect(live.fileHasLlmsTxt(content.trimEnd(), content)).toBe(true)
+  })
+  it('does not match changed, partial or reformatted text', () => {
+    expect(live.fileHasLlmsTxt(content.replace('daily', 'weekly'), content)).toBe(false)
+    expect(live.fileHasLlmsTxt('# Example Bakery\n', content)).toBe(false)
+    expect(live.fileHasLlmsTxt(content.replace('daily.  ', 'daily.'), content)).toBe(false) // Markdown line break kept
+    expect(live.fileHasLlmsTxt('  ' + content, content)).toBe(false)
+  })
+  it('fetches the file as text, and treats an HTML page in its place as not loaded', async () => {
+    const spec = { schemaVersion: 1, kind: 'llms_txt', targetUrl: 'https://www.bakery.hk/llms.txt', content } as const
+    const serve = (body: string, type: string) => vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get('accept')).toBe('text/plain, text/markdown')
+      return new Response(body, { status: 200, headers: { 'content-type': type } })
+    })
+    expect(await live.fetchLivePage(spec.targetUrl, spec, serve(content, 'text/plain; charset=utf-8'))).toMatchObject({ outcome: 'found', structuredData: null })
+    expect(await live.fetchLivePage(spec.targetUrl, spec, serve(content, 'text/markdown'))).toMatchObject({ outcome: 'found' })
+    expect(await live.fetchLivePage(spec.targetUrl, spec, serve('# Old\n', 'text/plain'))).toMatchObject({ outcome: 'missing' })
+    // A soft 404 (the site's HTML page answering 200) is not the file.
+    expect(await live.fetchLivePage(spec.targetUrl, spec, serve(`<html><body>${content}</body></html>`, 'text/html'))).toMatchObject({ outcome: 'fetch_failed', httpStatus: 200 })
+    expect(await live.fetchLivePage(spec.targetUrl, spec, serve(content, 'application/octet-stream'))).toMatchObject({ outcome: 'fetch_failed' })
+  })
+})

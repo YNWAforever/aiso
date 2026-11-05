@@ -49,6 +49,7 @@ beforeAll(async () => {
   await state.pg.exec(readFileSync('supabase/migrations/086_work_item_edit_specs.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/093_site_edit_revert_spec_kind.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/095_site_edit_meta_spec_kind.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/096_site_edit_llms_txt_spec_kind.sql', 'utf8'))
 })
 
 beforeEach(async () => {
@@ -164,6 +165,27 @@ it('S9 (095): stores a meta spec, in drafts and frozen versions, under its own f
     await expect(write({ ...meta, targetUrl: 'http://www.example.com/' })).rejects.toThrow()
     // A JSON-LD spec still needs its schema type and payload.
     await expect(write({ ...meta, kind: 'jsonld' })).rejects.toThrow()
+    await expect(write(spec)).resolves.toBeDefined()
+  }
+})
+
+it('S10 (096): stores an llms_txt spec under its own floor, with room for newline-heavy files', async () => {
+  const draftSpec = (value: unknown) => state.pg!.query('update evidence_work_items set edit_spec = $1::jsonb where id = $2', [JSON.stringify(value), item])
+  const versionSpec = (value: unknown) => state.pg!.query('insert into work_item_versions (id, content) values (gen_random_uuid(), $1::jsonb)', [JSON.stringify({ editSpec: value })])
+  const llms = { schemaVersion: 1, kind: 'llms_txt', targetUrl: 'https://www.example.com/llms.txt', content: '# Example\n' }
+  for (const write of [draftSpec, versionSpec]) {
+    await expect(write(llms)).resolves.toBeDefined()
+    // 16 KiB of one-character lines escapes to ~32 KiB of JSON: still storable.
+    await expect(write({ ...llms, content: 'x\n'.repeat(8 * 1024) })).resolves.toBeDefined()
+    await expect(write({ ...llms, content: 'x'.repeat(16 * 1024 + 1) })).rejects.toThrow()
+    await expect(write({ ...llms, content: '' })).rejects.toThrow()
+    await expect(write({ ...llms, content: null })).rejects.toThrow()
+    await expect(write({ ...llms, targetUrl: 'https://www.example.com/docs/llms.txt' })).rejects.toThrow()
+    await expect(write({ ...llms, targetUrl: 'https://www.example.com/llms.txt?x=1' })).rejects.toThrow()
+    // The other kinds keep their 20 KiB cap and their own clauses.
+    await expect(write({ ...spec, payload: { ...spec.payload, filler: 'x'.repeat(21000) } })).rejects.toThrow()
+    await expect(write({ ...llms, kind: 'meta' })).rejects.toThrow()
+    await expect(write({ schemaVersion: 1, kind: 'meta', targetUrl: 'https://www.example.com/', title: 'Menu', description: null })).resolves.toBeDefined()
     await expect(write(spec)).resolves.toBeDefined()
   }
 })

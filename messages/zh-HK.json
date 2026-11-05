@@ -2779,7 +2779,10 @@
     "editSpecModeMeta": "頁面標題及描述",
     "editSpecPageTitle": "頁面標題",
     "editSpecDescription": "Meta 描述",
-    "editSpecMetaRules": "留空的欄位會保持不變。每項只限一行，不可包含 < 或 >。批核只涵蓋這段文字。"
+    "editSpecMetaRules": "留空的欄位會保持不變。每項只限一行，不可包含 < 或 >。批核只涵蓋這段文字。",
+    "editSpecModeLlmsTxt": "llms.txt 檔案",
+    "editSpecLlmsTxt": "llms.txt 內容",
+    "editSpecLlmsTxtRules": "會取代整個檔案。頁面網址必須是 https://你的網域/llms.txt。最多 16 KB 純文字或 Markdown。批核只涵蓋這段文字。"
   },
   "changeSets": {
     "title": "版本審核",
@@ -2831,7 +2834,8 @@
     "editSpecMetaTitle": "網站修改：頁面標題及描述",
     "editSpecPageTitle": "頁面標題",
     "editSpecDescription": "Meta 描述",
-    "editSpecUnchanged": "不變"
+    "editSpecUnchanged": "不變",
+    "editSpecLlmsTxtTitle": "網站修改：llms.txt"
   },
   "approverAccess": {
     "title": "帳戶審核員",

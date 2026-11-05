@@ -53,4 +53,13 @@ describe('site-edit editor request', () => {
     const { mode: _m, title: _t, description: _d, ...legacy } = specFields(spec)
     expect(specDirty(legacy, spec)).toBe(false)
   })
+
+  it('S10: round-trips an llms.txt spec and sends its content as written', () => {
+    const llms = parseEditSpec({ schemaVersion: 1, kind: 'llms_txt', targetUrl: 'https://www.example.com/llms.txt', content: '# Example\n' })
+    expect(specFields(llms)).toMatchObject({ on: true, mode: 'llms_txt', content: '# Example\n', payload: '', title: '' })
+    expect(specRequest(specFields(llms), llms)).toBeUndefined()
+    expect(specRequest({ ...specFields(llms), content: '# New\n' }, llms))
+      .toEqual({ schemaVersion: 1, kind: 'llms_txt', targetUrl: 'https://www.example.com/llms.txt', content: '# New\n' })
+    expect(specDirty({ ...specFields(spec), mode: 'llms_txt' }, spec)).toBe(true)
+  })
 })

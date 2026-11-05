@@ -13,7 +13,7 @@ import type { LiveFetch } from './live-check'
  * or reported completed, and was not declined. It then records the check, and
  * only when the check VERIFIES the spec (an add's payload found, or — S5 — a
  * revert's payload absent from a page that loaded, or — S9 — the approved
- * title/description found) and no attestation is active, a C9e
+ * title/description, or — S10 — the approved llms.txt, found) and no attestation is active, a C9e
  * attestation with provenance 'verified_live' bound to the job, delivered at
  * the check time. Nothing here trusts an id the caller supplied.
  */
@@ -28,6 +28,7 @@ const NOTES = {
   jsonld: 'Approved JSON-LD found on the live page at check time.',
   jsonld_remove: 'Approved JSON-LD removal confirmed: the block was absent from the live page at check time.',
   meta: 'Approved page title/description found on the live page at check time.',
+  llms_txt: 'Approved llms.txt content found on the live site at check time.',
 } as const
 /** S6: who started the check. A receipt-triggered check says so in the attestation's note. */
 export type LiveCheckTrigger = 'member' | 'receipt'
