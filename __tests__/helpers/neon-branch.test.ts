@@ -126,6 +126,17 @@ describe('createTestBranch', () => {
     expect(expiry).toBeGreaterThan(Date.now())
   })
 
+  it('expires in about an hour: longer than the 45-minute integration job, short enough that cancelled runs free the branch cap quickly', async () => {
+    mockNeonctl()
+    const { createTestBranch } = await load()
+    const before = Date.now()
+    createTestBranch('test-branch')
+    const args = neonctlArgv(execFileSync.mock.calls[0][1] as string[])
+    const ttl = Date.parse(args[args.indexOf('--expires-at') + 1]) - before
+    expect(ttl).toBeGreaterThan(45 * 60 * 1000)
+    expect(ttl).toBeLessThanOrEqual(61 * 60 * 1000)
+  })
+
   it('names the DDL role explicitly so a multi-role branch is not ambiguous', async () => {
     mockNeonctl()
     const { createTestBranch } = await load()

@@ -55,8 +55,15 @@ const OWNER_ROLE = process.env.NEON_TEST_OWNER_ROLE?.trim() || 'neondb_owner'
  * A hard crash (SIGKILL, closed laptop, CI runner reaped) runs neither
  * teardown() nor setup()'s cleanup path. Neon deletes an expired branch on its
  * own, so a branch lost that way cannot linger.
+ *
+ * One hour (2 h until 2026-11-05). A CI run cancelled by a newer push is
+ * exactly such a crash, and on 2026-11-04 a stack of PRs re-pushed in quick
+ * succession filled the test project's branch cap with these orphans, so every
+ * new integration job failed `branches limit exceeded` for about two hours.
+ * The floor is the integration job's own limit (45 min in pr-gate.yml): a
+ * branch must outlive the job that is still using it.
  */
-const BRANCH_TTL_MS = 2 * 60 * 60 * 1000
+const BRANCH_TTL_MS = 60 * 60 * 1000
 
 const BRANCH_ID = /^br-[a-z0-9-]+$/
 
