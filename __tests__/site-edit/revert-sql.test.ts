@@ -12,7 +12,8 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
-import { parseEditSpec } from '@/lib/site-edit/edit-spec'
+import { parseEditSpec, type JsonLdEditSpec } from '@/lib/site-edit/edit-spec'
+const parseJsonLd = (value: unknown) => parseEditSpec(value) as JsonLdEditSpec
 import { revertHasApprovedSource } from '@/lib/site-edit/revert'
 
 const account = '10000000-0000-4000-8000-000000000001'
@@ -20,7 +21,7 @@ const other = '10000000-0000-4000-8000-000000000002'
 const client = '30000000-0000-4000-8000-000000000001'
 const item = '40000000-0000-4000-8000-000000000001'
 const item2 = '40000000-0000-4000-8000-000000000002'
-const add = parseEditSpec({ schemaVersion: 1, kind: 'jsonld', targetUrl: 'https://www.bakery.hk/', schemaType: 'Organization',
+const add = parseJsonLd({ schemaVersion: 1, kind: 'jsonld', targetUrl: 'https://www.bakery.hk/', schemaType: 'Organization',
   payload: { '@context': 'https://schema.org', '@type': 'Organization', name: 'Bakery', sameAs: ['https://x.example'] } })
 const revert = { ...add, kind: 'jsonld_remove' as const }
 const insert = async (id: string, itemId: string, spec: unknown, decision: string | null, accountId = account) => {

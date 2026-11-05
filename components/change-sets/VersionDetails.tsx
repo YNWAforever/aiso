@@ -29,7 +29,19 @@ export function VersionDetails({
       </h3>
       <p className="whitespace-pre-wrap break-words">{version.action}</p>
       <p className="whitespace-pre-wrap break-words">{version.notes}</p>
-      {version.editSpec && (
+      {version.editSpec?.kind === 'meta' ? (
+        // Site-edit S9: the exact page title/description this version's approval covers.
+        <section className="space-y-2 rounded-lg border border-border p-3" aria-label={t('editSpecMetaTitle')}>
+          <h3 className="font-semibold">{t('editSpecMetaTitle')}</h3>
+          <p className="break-all">{version.editSpec.targetUrl}</p>
+          <dl className="space-y-1">
+            <dt className="text-sm">{t('editSpecPageTitle')}</dt>
+            <dd className="break-words">{version.editSpec.title ?? t('editSpecUnchanged')}</dd>
+            <dt className="text-sm">{t('editSpecDescription')}</dt>
+            <dd className="break-words">{version.editSpec.description ?? t('editSpecUnchanged')}</dd>
+          </dl>
+        </section>
+      ) : version.editSpec && (
         // Site-edit S1: the exact JSON-LD this version's approval covers.
         <section className="space-y-2 rounded-lg border border-border p-3" aria-label={t('editSpecTitle')}>
           <h3 className="font-semibold">{t(version.editSpec.kind === 'jsonld_remove' ? 'editSpecRemoveTitle' : 'editSpecTitle')}</h3>

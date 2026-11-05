@@ -48,4 +48,19 @@ describe.each(['en', 'zh-HK'])('site-edit spec UI in %s', lang => {
     const plain = render(<VersionDetails version={version} latestVersionId={version.id} />, lang)
     expect(plain).not.toContain(changeSets.editSpecTitle)
   })
+
+  it('S9: edits and shows a meta spec: title and description, no JSON-LD fields', () => {
+    const meta = parseEditSpec({ schemaVersion: 1, kind: 'meta', targetUrl: 'https://www.example.com/menu', title: 'Menu & more', description: null })
+    const editor = render(<DraftEditor clientId={clientId} item={{ ...draft, editSpec: meta }} onSaved={() => {}} />, lang)
+    expect(editor).toContain('value="Menu &amp; more"')
+    expect(editor).toContain(opportunities.editSpecPageTitle + '</label>')
+    expect(editor).not.toContain(opportunities.editSpecPayload + '</label>')
+    expect(editor).not.toContain(opportunities.editSpecRemove)
+    const shown = render(<VersionDetails version={{ ...version, editSpec: meta }} latestVersionId={version.id} />, lang)
+    expect(shown).toContain(changeSets.editSpecMetaTitle)
+    expect(shown).toContain('https://www.example.com/menu')
+    expect(shown).toContain('Menu &amp; more')
+    expect(shown).toContain(changeSets.editSpecUnchanged) // the description is left as it is
+    expect(shown).not.toContain('<pre')
+  })
 })

@@ -12,7 +12,8 @@ import type { LiveFetch } from './live-check'
  * exactly `contentHash`; its job exists, was handed off (`sent` or `unknown`)
  * or reported completed, and was not declined. It then records the check, and
  * only when the check VERIFIES the spec (an add's payload found, or — S5 — a
- * revert's payload absent from a page that loaded) and no attestation is active, a C9e
+ * revert's payload absent from a page that loaded, or — S9 — the approved
+ * title/description found) and no attestation is active, a C9e
  * attestation with provenance 'verified_live' bound to the job, delivered at
  * the check time. Nothing here trusts an id the caller supplied.
  */
@@ -26,6 +27,7 @@ export type LiveCheckWrite =
 const NOTES = {
   jsonld: 'Approved JSON-LD found on the live page at check time.',
   jsonld_remove: 'Approved JSON-LD removal confirmed: the block was absent from the live page at check time.',
+  meta: 'Approved page title/description found on the live page at check time.',
 } as const
 /** S6: who started the check. A receipt-triggered check says so in the attestation's note. */
 export type LiveCheckTrigger = 'member' | 'receipt'
@@ -49,12 +51,12 @@ export async function loadAutoCheckScope(jobId: string, accountId: string): Prom
 }
 
 export async function recordLiveCheck(scope: HandoffScope, contentHash: string,
-  check: LiveFetch & { targetUrl: string; kind: 'jsonld' | 'jsonld_remove'; trigger?: LiveCheckTrigger }): Promise<LiveCheckWrite> {
+  check: LiveFetch & { targetUrl: string; kind: keyof typeof NOTES; trigger?: LiveCheckTrigger }): Promise<LiveCheckWrite> {
   const { accountId, clientId, itemId, versionId, actorId } = scope
   const requestId = randomUUID()
   const destination = check.targetUrl.slice(0, 500)
   // Only a fetch that loaded the page can verify anything; a fetch failure never proves an absence.
-  const verifies = check.kind === 'jsonld' ? check.outcome === 'found' : check.outcome === 'missing'
+  const verifies = check.kind === 'jsonld_remove' ? check.outcome === 'missing' : check.outcome === 'found'
   const note = NOTES[check.kind] + (check.trigger === 'receipt' ? AUTO_SUFFIX : '')
   const row = await retryWrite(async () => {
     const sql = db()

@@ -88,7 +88,7 @@ describe('payload matcher', () => {
   })
 
   it('maps the single GET: found, missing, and fetch_failed for non-2xx, non-HTML, oversized or thrown', async () => {
-    const run = (response: Response | Error) => live.fetchLivePage(spec.targetUrl, payload, vi.fn(async () => { if (response instanceof Error) throw response; return response }))
+    const run = (response: Response | Error) => live.fetchLivePage(spec.targetUrl, spec as never, vi.fn(async () => { if (response instanceof Error) throw response; return response }))
     expect(await run(page(block(payload)))).toMatchObject({ outcome: 'found', httpStatus: 200, pageSha256: expect.stringMatching(/^[0-9a-f]{64}$/) })
     expect(await run(page('<html></html>'))).toMatchObject({ outcome: 'missing', httpStatus: 200, structuredData: { status: 'fail', message: 'structured_data_missing' } })
     expect(await run(page(block(payload)))).toMatchObject({ structuredData: { status: 'pass', message: 'structured_data_found' } })
@@ -133,7 +133,7 @@ describe('POST …/handoff/live-check', () => {
     m.readHandoff.mockResolvedValueOnce(read({ events: [], job: { id: JOB }, receipt: { status: 'completed', completedAt: '2026-11-04T01:00:00Z' } }))
     const response = await post()
     expect(response.status).toBe(201)
-    expect(m.fetchLivePage).toHaveBeenCalledWith('https://www.bakery.hk/', payload)
+    expect(m.fetchLivePage).toHaveBeenCalledWith('https://www.bakery.hk/', expect.objectContaining({ kind: 'jsonld', payload }))
     expect(m.recordLiveCheck).toHaveBeenCalledWith({ accountId: ACCOUNT, actorId: PROFILE, clientId: CLIENT, itemId: ITEM, versionId: VERSION }, HASH,
       expect.objectContaining({ outcome: 'found', targetUrl: 'https://www.bakery.hk/', kind: 'jsonld' }))
     expect((await response.json()).check).toEqual({ outcome: 'found', attested: true, alreadyAttested: false })
@@ -156,7 +156,7 @@ describe('S6 autoCheckAfterReceipt', () => {
     await autoCheckAfterReceipt(JOB, ACCOUNT)
     expect(m.loadAutoCheckScope).toHaveBeenCalledWith(JOB, ACCOUNT)
     expect(m.readHandoff).toHaveBeenCalledWith(scope)
-    expect(m.fetchLivePage).toHaveBeenCalledWith('https://www.bakery.hk/', payload)
+    expect(m.fetchLivePage).toHaveBeenCalledWith('https://www.bakery.hk/', expect.objectContaining({ kind: 'jsonld', payload }))
     expect(m.recordLiveCheck).toHaveBeenCalledWith(scope, HASH, expect.objectContaining({ trigger: 'receipt', kind: 'jsonld' }))
   })
 
@@ -180,5 +180,34 @@ describe('S6 autoCheckAfterReceipt', () => {
     expect(m.fetchLivePage).not.toHaveBeenCalled()
     expect(spy).toHaveBeenCalledTimes(2)
     spy.mockRestore()
+  })
+})
+
+describe('S9 meta matcher', () => {
+  const head = (inner: string) => `<!doctype html><html><head>${inner}</head><body><p>Hi</p></body></html>`
+  const meta = { title: 'Menu · Example Bakery', description: 'Fresh bread daily.' }
+  it('matches the document title and every meta description, whitespace-collapsed', () => {
+    expect(live.pageHasMeta(head('<title>\n  Menu ·   Example Bakery </title><meta name="Description" content=" Fresh  bread daily. ">'), meta)).toBe(true)
+    expect(live.pageHasMeta(head('<title>Menu &middot; Example Bakery</title>'), { title: meta.title, description: null })).toBe(true) // entities decode
+    expect(live.pageHasMeta(head('<meta name="description" content="Fresh bread daily.">'), { title: null, description: meta.description })).toBe(true)
+  })
+  it('does not match a different, missing, SVG-only or template-only title, or a stale duplicate description', () => {
+    expect(live.pageHasMeta(head('<title>Old menu</title><meta name="description" content="Fresh bread daily.">'), meta)).toBe(false)
+    expect(live.pageHasMeta(head('<meta name="description" content="Fresh bread daily.">'), meta)).toBe(false)
+    expect(live.pageHasMeta(`<html><head></head><body><svg><title>${meta.title}</title></svg></body></html>`, { title: meta.title, description: null })).toBe(false)
+    expect(live.pageHasMeta(head(`<template><title>${meta.title}</title></template>`), { title: meta.title, description: null })).toBe(false)
+    // The FIRST title is the document title.
+    expect(live.pageHasMeta(head(`<title>Old</title><title>${meta.title}</title>`), { title: meta.title, description: null })).toBe(false)
+    expect(live.pageHasMeta(head(`<title>${meta.title}</title><meta name="description" content="Fresh bread daily."><meta name="description" content="Old text">`), meta)).toBe(false)
+    expect(live.pageHasMeta(head(`<title>${meta.title}</title>`), meta)).toBe(false) // no description at all
+    expect(live.pageHasMeta(head(`<title>${meta.title}</title><meta property="description" content="Fresh bread daily.">`), meta)).toBe(false)
+  })
+  it('fetchLivePage dispatches on the spec kind', async () => {
+    const spec = { schemaVersion: 1, kind: 'meta', targetUrl: 'https://www.bakery.hk/', ...meta } as const
+    const html = head(`<title>${meta.title}</title><meta name="description" content="${meta.description}">`)
+    const fetcher = vi.fn(async () => new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }))
+    expect(await live.fetchLivePage(spec.targetUrl, spec, fetcher)).toMatchObject({ outcome: 'found', httpStatus: 200, structuredData: null })
+    const stale = vi.fn(async () => new Response(head('<title>Old</title>'), { status: 200, headers: { 'content-type': 'text/html' } }))
+    expect(await live.fetchLivePage(spec.targetUrl, spec, stale)).toMatchObject({ outcome: 'missing' })
   })
 })

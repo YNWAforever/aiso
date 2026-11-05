@@ -18,12 +18,13 @@ vi.mock('@/lib/db', () => {
 })
 
 import { draft } from '../change-sets/fixtures'
-import { parseEditSpec } from '@/lib/site-edit/edit-spec'
+import { parseEditSpec, type JsonLdEditSpec } from '@/lib/site-edit/edit-spec'
+const parseJsonLd = (value: unknown) => parseEditSpec(value) as JsonLdEditSpec
 
 const account = '10000000-0000-4000-8000-000000000001'
 const client = '20000000-0000-4000-8000-000000000001'
 const item = '30000000-0000-4000-8000-000000000001'
-const spec = parseEditSpec({
+const spec = parseJsonLd({
   schemaVersion: 1, kind: 'jsonld', targetUrl: 'https://www.example.com/', schemaType: 'Organization',
   payload: { '@context': 'https://schema.org', '@type': 'Organization', name: 'Example Bakery' },
 })
@@ -47,6 +48,7 @@ beforeAll(async () => {
   await state.pg.query('insert into clients(id, account_id) values ($1, $2)', [client, account])
   await state.pg.exec(readFileSync('supabase/migrations/086_work_item_edit_specs.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/093_site_edit_revert_spec_kind.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/095_site_edit_meta_spec_kind.sql', 'utf8'))
 })
 
 beforeEach(async () => {
@@ -126,7 +128,7 @@ it('reads a spec-bearing version back through jsonb (keys reordered) and exports
   const { createDeliveryExport } = await import('@/lib/delivery/export')
   const { saved } = await import('../change-sets/fixtures')
   const { approvedVersion } = await import('../delivery/fixtures')
-  const faq = parseEditSpec({
+  const faq = parseJsonLd({
     schemaVersion: 1, kind: 'jsonld', targetUrl: 'https://www.example.com/faq', schemaType: 'FAQPage',
     payload: { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: [{ '@type': 'Question', name: 'Sourdough?', acceptedAnswer: { '@type': 'Answer', text: 'Daily.' } }] },
   })
@@ -142,4 +144,26 @@ it('reads a spec-bearing version back through jsonb (keys reordered) and exports
   const approved = approvedVersion()
   const exported = createDeliveryExport({ ...approved, ...version, submittedBy: approved.submittedBy, submittedAt: approved.submittedAt, decision: approved.decision }, 'json')
   expect(JSON.parse(exported.body).content.editSpec).toEqual(faq)
+})
+
+it('S9 (095): stores a meta spec, in drafts and frozen versions, under its own floor', async () => {
+  const draftSpec = (value: unknown) => state.pg!.query('update evidence_work_items set edit_spec = $1::jsonb where id = $2', [JSON.stringify(value), item])
+  const versionSpec = (value: unknown) => state.pg!.query('insert into work_item_versions (id, content) values (gen_random_uuid(), $1::jsonb)', [JSON.stringify({ editSpec: value })])
+  const meta = { schemaVersion: 1, kind: 'meta', targetUrl: 'https://www.example.com/', title: 'Menu', description: null }
+  for (const write of [draftSpec, versionSpec]) {
+    await expect(write(meta)).resolves.toBeDefined()
+    await expect(write({ ...meta, title: null, description: 'Fresh bread daily.' })).resolves.toBeDefined()
+    await expect(write({ ...meta, title: null })).rejects.toThrow() // nothing to change
+    await expect(write({ ...meta, title: '' })).rejects.toThrow()
+    await expect(write({ ...meta, title: 'Menu <b>' })).rejects.toThrow()
+    await expect(write({ ...meta, title: 'x'.repeat(201) })).rejects.toThrow()
+    await expect(write({ ...meta, description: 'x'.repeat(501) })).rejects.toThrow()
+    await expect(write({ ...meta, title: 7 })).rejects.toThrow()
+    const { description: _d, ...missing } = meta
+    await expect(write(missing)).rejects.toThrow()
+    await expect(write({ ...meta, targetUrl: 'http://www.example.com/' })).rejects.toThrow()
+    // A JSON-LD spec still needs its schema type and payload.
+    await expect(write({ ...meta, kind: 'jsonld' })).rejects.toThrow()
+    await expect(write(spec)).resolves.toBeDefined()
+  }
 })

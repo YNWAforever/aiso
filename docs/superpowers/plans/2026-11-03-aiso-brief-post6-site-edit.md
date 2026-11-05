@@ -164,7 +164,13 @@ version, made only when a member clicks "Send to Rick".
   - `jobId` (AISO's ledger id, a UUID)
   - `versionId`, `contentHash`
   - `client` `{ id, name, verifiedDomain }`
-  - `editSpec` (the frozen S1 spec, unchanged)
+  - `editSpec` (the frozen S1 spec, unchanged). Its `kind` says what to do:
+    - `jsonld`: add one block, `{ schemaVersion: 1, kind, targetUrl, schemaType, payload }`;
+    - `jsonld_remove` (S5): remove the block equal to `payload`, same shape;
+    - `meta` (S9): `{ schemaVersion: 1, kind, targetUrl, title, description }`. Set the page's `<title>` to `title`
+      and its `<meta name="description">` content to `description`. A `null` field means leave it as it is; at least
+      one is a string. Each is one line of plain text, 1–200 and 1–500 characters, with no `<` or `>`. The executor
+      HTML-escapes them as usual (`&` becomes `&amp;`), and the page should end with exactly one meta description.
   - `approvedAt`
   - `receiptUrl` (where to send the receipt)
 - Headers:
@@ -328,6 +334,19 @@ until a receipt arrives).
     per-brand advisory lock (so two versions cannot both take the tenth slot); the panel shows "This brand has used
     its 10 site edits for this month." and the route answers `429 HANDOFF_LIMIT_REACHED` before any claim or call.
     No migration.
+
+- **S9 — more edit types (Q4): page title and meta description.** **Started 2026-11-05 (Willy: "continue", chose
+  "More edit types (Q4)").** New edit kind `meta` (§3a): set one page's `<title>` and/or `<meta name="description">`.
+  Same flow as JSON-LD: drafted in the work item, frozen into the C9d version, approved, sent, receipted, and
+  verified on the live page. The check reads the document title (the first HTML `<title>`, so an inline SVG's
+  `<title>` or a `<template>` copy never counts) and every `<meta name="description">`. It is "found" when each
+  field the spec sets equals the page's text after whitespace collapsing, and every meta description matches, so a
+  stale duplicate is a miss. Found writes the `verified_live` attestation, as an add does. S7's structured-data verdict is not recorded for a `meta` check, since it says nothing about a title. No separate revert kind:
+  undoing is another reviewed `meta` edit carrying the old text. Migration `095` makes both spec CHECKs per-kind
+  (JSON-LD clauses unchanged; `meta` gets its own floor). `llms.txt` stays a later slice: it is a `text/plain` file at
+  the domain root, which the HTML-only live fetcher does not read today. **Rick to confirm** the executor can apply
+  `meta`; until then a `meta` job they cannot handle should answer 4xx (`failed`), which does not count toward the
+  monthly cap.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 

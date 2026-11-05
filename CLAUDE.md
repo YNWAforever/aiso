@@ -297,6 +297,7 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > S7 (`094`): each loaded check also stores c4's structured-data verdict on the same bytes — recorded, never a gate.
 > S8: sending a hand-off needs `PlanFeatures.site_edit` (Pro/Enterprise) via `resolveCommercialEntitlement`; else 403.
 > At most 10 sends per brand per Hong Kong calendar month (`SITE_EDIT_MONTHLY_SENDS_PER_BRAND`), enforced in the claim; else 429.
+> S9 (`095`): a second edit kind, `meta` (page `<title>` and/or meta description), verified live like an add.
 >
 > **Grep is not a reliable gate check here.** `app/api/client-reports/**` and
 > `report-branding` look ungated in their own files: they delegate to `lib/reports/service.ts`,

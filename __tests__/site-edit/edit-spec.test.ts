@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { EDIT_SPEC_MAX_DEPTH, EDIT_SPEC_PAYLOAD_MAX_BYTES, EditSpecError, parseEditSpec } from '@/lib/site-edit/edit-spec'
+import { EDIT_SPEC_MAX_DEPTH, EDIT_SPEC_PAYLOAD_MAX_BYTES, EditSpecError, parseEditSpec, type JsonLdEditSpec } from '@/lib/site-edit/edit-spec'
+const parseJsonLd = (value: unknown) => parseEditSpec(value) as JsonLdEditSpec
 import { editSpecTargetsDomain } from '@/lib/site-edit/target-domain'
 
 const faq = {
@@ -20,7 +21,7 @@ const code = (value: unknown) => {
 
 describe('parseEditSpec', () => {
   it('accepts one schema.org JSON-LD block and canonicalizes key order', () => {
-    const spec = parseEditSpec({ ...faq, payload: { mainEntity: faq.payload.mainEntity, '@type': 'FAQPage', '@context': 'https://schema.org' } })
+    const spec = parseJsonLd({ ...faq, payload: { mainEntity: faq.payload.mainEntity, '@type': 'FAQPage', '@context': 'https://schema.org' } })
     expect(Object.keys(spec.payload)).toEqual(['@context', '@type', 'mainEntity'])
     expect(parseEditSpec(spec)).toEqual(spec)
     expect(JSON.stringify(parseEditSpec(faq))).toBe(JSON.stringify(spec))
@@ -103,5 +104,31 @@ describe('S5 revert kind', () => {
     expect(parseEditSpec({ ...base, kind: 'jsonld_remove' })).toMatchObject({ kind: 'jsonld_remove', schemaType: 'Organization' })
     expect(() => parseEditSpec({ ...base, kind: 'jsonld_replace' })).toThrow()
     expect(() => parseEditSpec({ ...base, kind: 'jsonld_remove', payload: { '@type': 'Organization' } })).toThrow()
+  })
+})
+
+describe('S9 meta kind (page title and/or meta description)', () => {
+  const meta = { schemaVersion: 1, kind: 'meta', targetUrl: 'https://www.example.com/menu', title: 'Menu · Example Bakery', description: 'Fresh bread daily in Sai Ying Pun.' }
+  it('accepts a title and/or a description, trimmed and NFC, and is canonical', () => {
+    const spec = parseEditSpec({ ...meta, title: '  Café menu ', description: null })
+    expect(spec).toEqual({ schemaVersion: 1, kind: 'meta', targetUrl: 'https://www.example.com/menu', title: 'Café menu', description: null })
+    expect(parseEditSpec(spec)).toEqual(spec)
+    expect(parseEditSpec({ ...meta, title: '' })).toMatchObject({ title: null, description: meta.description }) // empty = leave as is
+    expect(parseEditSpec(meta)).toEqual(meta)
+  })
+  it('refuses nothing to change, markup, line breaks, controls, over-long text and wrong shapes', () => {
+    expect(code({ ...meta, title: null, description: '   ' })).toBe('meta')
+    expect(code({ ...meta, title: 'Menu <b>new</b>' })).toBe('markup')
+    expect(code({ ...meta, description: 'a > b' })).toBe('markup')
+    expect(code({ ...meta, title: 'Line one\nline two' })).toBe('meta')
+    expect(code({ ...meta, title: 'Tab\there' })).toBe('meta')
+    expect(code({ ...meta, title: 'x'.repeat(201) })).toBe('meta')
+    expect(code({ ...meta, title: '字'.repeat(200) })).toBeNull() // characters, not bytes
+    expect(code({ ...meta, description: 'x'.repeat(501) })).toBe('meta')
+    expect(code({ ...meta, title: 42 })).toBe('meta')
+    expect(code({ ...meta, schemaType: 'FAQPage' })).toBe('shape') // no JSON-LD keys on a meta spec
+    const { description: _d, ...missing } = meta
+    expect(code(missing)).toBe('shape')
+    expect(code({ ...meta, targetUrl: 'http://www.example.com/' })).toBe('url')
   })
 })
