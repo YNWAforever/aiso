@@ -217,7 +217,7 @@ async function main() {
     if (failed.length) throw new Error(`${failed.length} exact-target suite(s) did not pass`)
   } finally {
     // Always, including a mid-run throw: an orphaned branch outlives the job and
-    // costs money until its 2h TTL expires.
+    // costs money, and holds a slot of the project's branch cap, until its 1h TTL expires.
     await teardown()
   }
 }
