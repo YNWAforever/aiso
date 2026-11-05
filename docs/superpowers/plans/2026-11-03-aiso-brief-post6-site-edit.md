@@ -323,7 +323,7 @@ until a receipt arrives).
   keeps its receipt and live checks after a downgrade.
   - **Brand cap (2026-11-05, Willy: "10 / month").** At most `SITE_EDIT_MONTHLY_SENDS_PER_BRAND` = 10 sends per brand
     per calendar month, Hong Kong time, on every entitled plan. A send is a job (one per approved version; a revert
-    counts) with a `sent` or `unknown` outcome, or a claim still in flight, this month; a refused (`failed`) hand-off
+    counts) with a `sent` or `unknown` outcome, or a claim with no outcome yet (however old), this month; a refused (`failed`) hand-off
     does not count, and re-sending a job already counted adds nothing. Enforced inside the claim statement under a
     per-brand advisory lock (so two versions cannot both take the tenth slot); the panel shows "This brand has used
     its 10 site edits for this month." and the route answers `429 HANDOFF_LIMIT_REACHED` before any claim or call.

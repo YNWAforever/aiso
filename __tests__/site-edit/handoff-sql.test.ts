@@ -212,6 +212,25 @@ describe('089 + handoff store', () => {
     expect((await claimHandoff(scope(), h1, new Date(nowInNov.getTime() - 60_000), pin, nowInNov)).kind).toBe('claimed')
   })
 
+  it('S8 cap: a stale claim with no outcome (may have reached the developer) keeps counting', async () => {
+    const item2 = '40000000-0000-4000-8000-000000000004'
+    await q('insert into evidence_work_items (id, account_id, client_id) values ($1, $2, $3) on conflict do nothing', [item2, account, client])
+    for (let i = 0; i < 10; i++) {
+      const vid = `53000000-0000-4000-8000-${String(i).padStart(12, '0')}`
+      await q('insert into work_item_versions values ($1, $2, $3, $4, $5, $6)', [vid, account, client, item2, i + 1, 'e'.repeat(64)])
+      const [j] = await q(`insert into site_edit_jobs (account_id, client_id, work_item_id, version_id, content_hash, created_by)
+        values ($1, $2, $3, $4, $5, $6) returning id`, [account, client, item2, vid, 'e'.repeat(64), member])
+      await q(`insert into site_edit_job_events (job_id, account_id, seq, kind, actor_id, created_at) values ($1, $2, 1, 'claim', $3, '2026-11-14T00:00:00Z')`, [j.id, account, member])
+      // Nine accepted; the tenth's process died after the claim, so it has no outcome and is long stale.
+      if (i < 9) await q(`insert into site_edit_job_events (job_id, account_id, seq, kind, actor_id, executor_status, created_at)
+        values ($1, $2, 2, 'sent', $3, 202, '2026-11-14T00:00:01Z')`, [j.id, account, member])
+    }
+    const now = new Date('2026-11-15T00:00:00Z')
+    expect(await claimHandoff(scope(), h1, new Date(now.getTime() - 60_000), pin, now)).toEqual({ kind: 'capped' })
+    const read = await readHandoff(scope(), now)
+    expect(read.kind === 'ok' && read.monthSends).toEqual({ others: 10, selfCounted: false })
+  })
+
   it('S8 cap: a refused hand-off does not count, and a job already counted can be re-sent at the cap', async () => {
     const item2 = '40000000-0000-4000-8000-000000000003'
     await q('insert into evidence_work_items (id, account_id, client_id) values ($1, $2, $3) on conflict do nothing', [item2, account, client])

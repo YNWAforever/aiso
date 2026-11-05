@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { retryWrite, versionDTO, versionLocks } from '@/lib/change-sets/store'
 import type { EditSpecDomainPin } from './domain'
 import type { VersionDetail } from '@/lib/change-sets/types'
-import { HANDOFF_STALE_MS, SITE_EDIT_CAP_TIME_ZONE, SITE_EDIT_MONTHLY_SENDS_PER_BRAND, type HandoffEvent } from './handoff'
+import { SITE_EDIT_CAP_TIME_ZONE, SITE_EDIT_MONTHLY_SENDS_PER_BRAND, type HandoffEvent } from './handoff'
 
 /**
  * Site-edit S2 store (migration 089). Every statement is scoped by the
@@ -60,7 +60,6 @@ function liveCheckRow(value: unknown): LiveCheckView | null {
 
 export async function readHandoff(scope: HandoffScope, now: Date = new Date()): Promise<HandoffRead> {
   const { accountId, clientId, itemId, versionId, actorId } = scope
-  const staleBefore = new Date(now.getTime() - HANDOFF_STALE_MS).toISOString()
   const [row] = await db()`
     WITH member AS MATERIALIZED (
       SELECT p.id FROM profiles p WHERE p.id = ${actorId}::uuid AND p.account_id = ${accountId}::uuid AND p.deactivated_at IS NULL
@@ -86,7 +85,7 @@ export async function readHandoff(scope: HandoffScope, now: Date = new Date()): 
       JOIN site_edit_job_events e2 ON e2.job_id = j2.id AND e2.account_id = j2.account_id
       WHERE j2.account_id = ${accountId}::uuid AND j2.client_id = ${clientId}::uuid AND EXISTS (SELECT 1 FROM owned)
         AND e2.created_at >= (date_trunc('month', ${now.toISOString()}::timestamptz AT TIME ZONE ${SITE_EDIT_CAP_TIME_ZONE}::text) AT TIME ZONE ${SITE_EDIT_CAP_TIME_ZONE}::text)
-        AND (e2.kind IN ('sent', 'unknown') OR (e2.kind = 'claim' AND e2.created_at > ${staleBefore}::timestamptz
+        AND (e2.kind IN ('sent', 'unknown') OR (e2.kind = 'claim'
           AND e2.seq = (SELECT max(e3.seq) FROM site_edit_job_events e3 WHERE e3.job_id = j2.id AND e3.account_id = j2.account_id)))
     )
     SELECT EXISTS (SELECT 1 FROM member) AS member, EXISTS (SELECT 1 FROM owned) AS owned,
@@ -173,7 +172,7 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
           JOIN site_edit_job_events e2 ON e2.job_id = j2.id AND e2.account_id = j2.account_id
           WHERE j2.account_id = ${accountId}::uuid AND j2.client_id = ${clientId}::uuid
             AND e2.created_at >= (date_trunc('month', ${now.toISOString()}::timestamptz AT TIME ZONE ${SITE_EDIT_CAP_TIME_ZONE}::text) AT TIME ZONE ${SITE_EDIT_CAP_TIME_ZONE}::text)
-            AND (e2.kind IN ('sent', 'unknown') OR (e2.kind = 'claim' AND e2.created_at > ${staleBefore.toISOString()}::timestamptz
+            AND (e2.kind IN ('sent', 'unknown') OR (e2.kind = 'claim'
               AND e2.seq = (SELECT max(e3.seq) FROM site_edit_job_events e3 WHERE e3.job_id = j2.id AND e3.account_id = j2.account_id)))
         ), cap AS MATERIALIZED (
           SELECT EXISTS (SELECT 1 FROM counted c JOIN existing x ON c.id = x.id)
