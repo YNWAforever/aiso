@@ -74,6 +74,23 @@ Comes first, because Slices B and C have nothing to report without it.
     overdue, brands near the 10-send cap, stale Search Console connections.
 - **Expect a migration** (period table plus snapshots). As always, it ships file-only and is applied under a named
   Approve.
+- **B1 (2026-11-06, draft PR, migration `097`):** the month record and its API. B2 (operator views: the month page
+  and the cross-brand queue) follows.
+  - `brand_month_snapshots`: one `opening` and one `closing` row per brand per Hong Kong month, insert-only
+    (`aeo_app` has `select, insert` only). A CHECK pins `as_of` to the month's Hong Kong midnight for its kind.
+  - Figures are computed **as of the boundary** from rows dated before it, so a snapshot written late still
+    describes the boundary; `taken_at` records when it was written. Scan: latest score. Pulse: the latest fully
+    ended week, per platform. Search Console: property clicks and impressions for the 28 days before the
+    boundary, under the current binding. Missing is `none`, unbound is `not_connected`, never 0.
+  - **Q4 default taken (the brief's proposal): the snapshot is automatic.** The opening is due at the boundary; the
+    closing 3 days after the month ends, so late Pulse and Search Console syncs land first. B1 records due
+    snapshots on `POST` (idempotent); B2 adds the scheduled call. Willy can still override Q4.
+  - Activity is derived, not copied: work items opened and marked done, site edits sent, receipts, and C9e
+    deliveries split into verified live and self-reported (withdrawn ones excluded).
+  - **Not included: Studio answers saved.** Studio threads are private to each member, so counting them into an
+    operator record needs its own decision.
+  - `GET`/`POST /api/clients/[clientId]/months/[YYYY-MM]`: auth → `client_reports_online` → ownership (404).
+    The current month and the 12 before it only.
 
 ### Slice C — The monthly deliverables report
 
