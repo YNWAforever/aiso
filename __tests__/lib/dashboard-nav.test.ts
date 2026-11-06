@@ -28,6 +28,10 @@ describe('conversation studio navigation', () => {
     expect(locateDashboard('/zh-HK/dashboard/c1', 'home')).toEqual({ section: 'overview', item: null, clientId: 'c1' })
     expect(locateDashboard('/zh-HK/dashboard/c1', 'overview')).toEqual({ section: 'overview', item: null, clientId: 'c1' })
   })
+
+  it('keeps the month record under reports', () => {
+    expect(locateDashboard('/en/dashboard/c1/month', null)).toEqual({ section: 'reports', item: 'reports', clientId: 'c1' })
+  })
 })
 
 describe('dashboard navigation model', () => {

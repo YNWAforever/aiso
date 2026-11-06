@@ -124,7 +124,7 @@ const SEGMENT_LOCATION: Record<string, [SectionKey, string]> = {
   studio: ['studio', 'studio'],
   opportunities: ['scan', 'opportunities'], tasks: ['scan', 'tasks'], 'work-items': ['scan', 'tasks'], result: ['scan', 'results'],
   observations: ['monitor', 'observations'], prompts: ['monitor', 'prompts'], competitors: ['monitor', 'competitors'], citations: ['monitor', 'citations'],
-  reports: ['reports', 'reports'],
+  reports: ['reports', 'reports'], month: ['reports', 'reports'],
   entities: ['settings', 'entities'], sources: ['settings', 'sources'], assets: ['settings', 'assets'],
 }
 

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
-import { LockKeyhole, Plus } from 'lucide-react'
+import { CalendarDays, LockKeyhole, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ReportsList, type ReportsListItem } from '@/components/reports/ReportsList'
@@ -61,6 +61,7 @@ export default async function ClientReportsPage({
   const scanQuery = scanId ? `?scanId=${encodeURIComponent(scanId)}` : ''
   const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
   const t = await getTranslations('reports')
+  const m = await getTranslations('month')
   const profile = await requireAuth(locale)
   const entitlement = resolveCommercialEntitlement(profile.accounts)
   const client = await loadOwnedReportClient({ accountId: profile.account_id, clientId })
@@ -102,12 +103,20 @@ export default async function ClientReportsPage({
           <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('list_title')}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t('list_body')}</p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline" className="min-h-11">
+          <Link href={`/${locale}/dashboard/${clientId}/month`}>
+            <CalendarDays aria-hidden="true" />
+            {m('open')}
+          </Link>
+        </Button>
         <Button asChild className="min-h-11">
           <Link href={`/${locale}/dashboard/${clientId}/reports/new${scanQuery}`}>
             <Plus aria-hidden="true" />
             {t('create_share_report')}
           </Link>
         </Button>
+        </div>
       </div>
 
       {unavailable ? (

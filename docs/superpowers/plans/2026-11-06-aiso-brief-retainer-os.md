@@ -91,6 +91,12 @@ Comes first, because Slices B and C have nothing to report without it.
     operator record needs its own decision.
   - `GET`/`POST /api/clients/[clientId]/months/[YYYY-MM]`: auth → `client_reports_online` → ownership (404).
     The current month and the 12 before it only.
+- **B2a (draft PR): the month page,** `/{lang}/dashboard/[clientId]/month?m=YYYY-MM`, linked from Reports (the nav
+  keeps Reports highlighted). Order: delivered (verified live, then self-reported), opening versus closing, then
+  activity. Each missing value says why: 未有 (none), 未連接 (not connected), 未記錄 (not recorded). A due
+  snapshot that is not recorded shows "Record now" (the idempotent `POST`). Page views never write.
+- **B2b (next):** the cross-brand queue and the scheduled snapshot route. The schedule itself (a Worker cron line)
+  needs Willy's Approve like any schedule change.
 
 ### Slice C — The monthly deliverables report
 

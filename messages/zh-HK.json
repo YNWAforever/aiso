@@ -4775,5 +4775,32 @@
     "workspaceAdmin": "工作區管理員（Manager）",
     "platformAdmin": "平台管理員",
     "assignmentRevision": "角色修訂及不可變更紀錄"
+  },
+  "month": {
+    "title": "月度",
+    "previous": "上個月",
+    "next": "下個月",
+    "delivered": "已交付",
+    "verified_live": "已上線核實",
+    "self_reported": "自行申報",
+    "none": "未有",
+    "figures": "月初及月底",
+    "opening": "月初",
+    "closing": "月底",
+    "not_recorded": "未記錄",
+    "not_connected": "未連接",
+    "scan_score": "掃描分數",
+    "share_of_voice": "聲量佔有率",
+    "search_clicks": "搜尋點擊（28 日）",
+    "search_impressions": "搜尋曝光（28 日）",
+    "activity": "本月工作",
+    "work_items_opened": "新增工作項目",
+    "work_items_done": "完成工作項目",
+    "site_edits_sent": "已發送網站修改",
+    "receipts_completed": "開發者回條：已完成",
+    "receipts_rejected": "開發者回條：已拒絕",
+    "record": "立即記錄",
+    "record_failed": "未能記錄，請再試。",
+    "open": "月度"
   }
 }
