@@ -473,6 +473,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - **`093` recorded on the hosted branch (`--verify`, 2026-11-04) before #160 merged** (constraint-only, so `n/a`).
 - **`094` recorded on the hosted branch (`--verify`, 2026-11-04) before #162 merged** (columns + constraint, so `n/a`).
 - **`095` recorded on the hosted branch (`--verify`, 2026-11-05) before #166 merged** (constraint-only, so `n/a`).
+- **`096` recorded on the hosted branch (`--verify`, 2026-11-05) before #167 merged** (constraint-only, so `n/a`).
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,
