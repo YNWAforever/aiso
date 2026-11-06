@@ -39,7 +39,8 @@ Comes first, because Slices B and C have nothing to report without it.
 - **The operator approves or edits** each draft before it enters `prompt_bank`. Nothing is activated automatically.
 - **Brands without Search Console** keep today's onboarding seed and `suggest-questions` path. Those prompts are
   labelled as profile-based in the UI, never as demand.
-- **Respect the 50-prompt cap**, and show how many slots are left.
+- **At most 10 active questions per brand** (Q2), well inside the store's 50-prompt cap. Show how many of the 10
+  are used.
 - **Spend gate.** Seeding prompts makes Pulse spend real LLM money every week. A per-brand prompt budget and the
   platforms Pulse runs on need a named Approve **before** any brand is seeded in production.
 - **Done when:** one Fimmick-owned brand has an approved bank, and Pulse has written at least one weekly rollup
@@ -88,16 +89,19 @@ Comes first, because Slices B and C have nothing to report without it.
     of answers behind each week. Otherwise show "not enough data yet".
   - Proposal: decide this by replaying it on the first 4–6 weeks of real Pulse data from Slice A **before** building
     Slice C's visibility section.
-- **Q2 — Prompt budget and platforms (blocks Slice A in production).** How many prompts per brand, and which AI
-  platforms Pulse runs? Both drive weekly LLM spend, so this needs a named Approve.
+- **Q2 — Prompt budget and platforms. Partly decided (Willy, 2026-11-06): 10 questions per brand.** Slice A drafts
+  and activates at most 10 Pulse questions per brand. The `MAX_PROMPTS` cap of 50 stays as the store's limit. **Which AI
+  platforms Pulse runs on is still open**, and it sets the weekly LLM spend, so it needs a named Approve before
+  production seeding.
 - **Q3 — How a query becomes a question.** Is it a rule-based template, or an LLM rewrite? An LLM rewrite costs money
   and must be reviewed by the operator either way.
 - **Q4 — Month close.** Does a month close automatically at Hong Kong midnight, or when the operator presses "close
   month"? The proposal is automatic for the snapshot, with the operator finalising the report.
 - **Q5 — What the client sees.** Is it only the shared report, or also a read-only month view? The proposal is the
   report only for this phase.
-- **Q6 — Scheduling.** Who deploys the cron Worker so Pulse actually runs weekly? This is a prerequisite for any
-  monthly series.
+- **Q6 — Scheduling. Decided (Willy, 2026-11-06): Willy deploys the cron Worker** (`cloudflare/aiso-worker`,
+  following `docs/runbooks/deploy-cron-worker.md`), so Pulse runs weekly. Until it is deployed and verified, no monthly
+  series exists.
 
 ## 4. Guardrails (unchanged from the rest of AISO)
 
@@ -122,7 +126,8 @@ Comes first, because Slices B and C have nothing to report without it.
 
 0. **Re-check production first:** how many brands have an active prompt bank, and whether any `pulse_weekly_summary`
    rows exist. This decides how much of Slice A is new and how much is switching it on.
-1. **Before any code:** Willy answers Q2 and Q6, and names a start for Slice A.
+1. **Before any code:** Q2 (10 questions per brand) and Q6 (Willy deploys the Worker) are decided. Still needed: the
+   Pulse platforms (Q2) and a named start for Slice A.
 2. **Slice A**, then 4–6 weeks of real Pulse data on a Fimmick-owned brand. That data is what answers Q1.
 3. **Slice B**, which can run in parallel with step 2's waiting period.
 4. **Slice C**, once Q1 is decided against real data.
