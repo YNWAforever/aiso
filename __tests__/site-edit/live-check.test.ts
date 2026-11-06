@@ -36,7 +36,7 @@ const sent = [{ seq: 1, kind: 'claim', at: '2026-11-04T00:00:00Z', executorStatu
 const read = (over: Record<string, unknown> = {}) => ({
   kind: 'ok', latestId: VERSION, clientName: 'Bakery', job: { id: JOB }, events: sent, receipt: null, liveCheck: null,
   monthSends: { others: 0, selfCounted: true },
-  version: { id: VERSION, contentHash: HASH, editSpec: spec, decision: { decision: 'approved', decidedAt: '2026-11-04T00:00:00.000000Z' } }, ...over,
+  version: { id: VERSION, contentHash: HASH, editSpec: spec, decision: { decision: 'approved', decidedAt: '2026-11-04T00:00:00.000000Z', decidedBy: { profileId: PROFILE, displayName: null, role: 'account_approver' } } }, ...over,
 })
 const page = (body: string, init: ResponseInit = { headers: { 'content-type': 'text/html; charset=utf-8' } }) => new Response(body, init)
 const block = (value: unknown) => `<script type="application/ld+json">${JSON.stringify(value)}</script>`

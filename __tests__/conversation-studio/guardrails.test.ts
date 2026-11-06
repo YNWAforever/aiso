@@ -45,7 +45,7 @@ it('disables deployment for the exact Stage 6d and 6e branches', () => {
   expect(config.functions).not.toHaveProperty('app/api/dashboard/clients/[clientId]/studio/search-console/route.ts')
 })
 
-it('disables deployment for the exact Stage 6f, Save-to-Docs and site-edit S2–S8, S9 (meta) and S10 (llms.txt) branches and keeps the 35-key set', () => {
+it('disables deployment for the exact Stage 6f, Save-to-Docs and site-edit S2–S8, S9 (meta), S10 (llms.txt) and S11 (approver send) branches and keeps the 36-key set', () => {
   const config = JSON.parse(readFileSync('vercel.json', 'utf8'))
   expect(config.git.deploymentEnabled['claude/stage-6f-firecrawl-1mqfrv']).toBe(false)
   expect(config.git.deploymentEnabled['claude/drive-save-to-docs']).toBe(false)
@@ -58,8 +58,9 @@ it('disables deployment for the exact Stage 6f, Save-to-Docs and site-edit S2–
   expect(config.git.deploymentEnabled['claude/site-edit-s8']).toBe(false)
   expect(config.git.deploymentEnabled['claude/site-edit-meta']).toBe(false)
   expect(config.git.deploymentEnabled['claude/site-edit-llms-txt']).toBe(false)
+  expect(config.git.deploymentEnabled['claude/site-edit-approver-send']).toBe(false)
   expect(config.git.deploymentEnabled['codex/conversation-studio-stage-6e']).toBe(false)
-  expect(Object.keys(config.git.deploymentEnabled)).toHaveLength(35)
+  expect(Object.keys(config.git.deploymentEnabled)).toHaveLength(36)
   expect(config.functions).not.toHaveProperty('app/api/dashboard/clients/[clientId]/studio/firecrawl/route.ts')
 })
 
