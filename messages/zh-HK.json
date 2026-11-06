@@ -2930,7 +2930,8 @@
       "no_edit_spec": "此版本沒有網站修改可發送。",
       "not_connected": "未連接 — 尚未設定開發團隊交接。",
       "not_entitled": "交由開發團隊修改網站屬 Pro 及 Enterprise 計劃功能。",
-      "limit_reached": "此品牌本月的 10 次網站修改已用完。"
+      "limit_reached": "此品牌本月的 10 次網站修改已用完。",
+      "not_approver": "只有批核此版本的成員可以發送。"
     },
     "errors": {
       "HANDOFF_NOT_APPROVED": "只可發送已批核的版本。",
@@ -2944,7 +2945,8 @@
       "LIVE_CHECK_NOT_OPEN": "未有可檢查的項目，請先交由開發團隊。",
       "LIVE_CHECK_TOO_SOON": "剛剛已檢查，請一分鐘後再試。",
       "HANDOFF_UPGRADE_REQUIRED": "交由開發團隊修改網站屬 Pro 及 Enterprise 計劃功能。",
-      "HANDOFF_LIMIT_REACHED": "此品牌本月的 10 次網站修改已用完。"
+      "HANDOFF_LIMIT_REACHED": "此品牌本月的 10 次網站修改已用完。",
+      "HANDOFF_NOT_APPROVER": "只有批核此版本的成員可以發送。"
     },
     "receipt": {
       "completed": "開發團隊回報已於 {date} 完成，尚未在實際網頁核實。",

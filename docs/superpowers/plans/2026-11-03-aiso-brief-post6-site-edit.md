@@ -109,6 +109,9 @@ afterwards (public fetch + check), and it is easy to revert.
 requires independent approval). Any member of the owning account may then *send*
 it, mirroring C9e.
 
+**Decided (Willy, 2026-11-06): the approver only.** Only the member who recorded the approval of that exact version may
+send it (S11). Anyone in the account can still see the hand-off and run a live check.
+
 **Q6 — Plan and spend.** Is site-edit a plan feature (Pro/Enterprise) with a per-brand
 cap, as the lock's «pre-packaged in the commercial plan» suggests? Is there vendor
 cost (executor fees, platform API tiers)? **No spend without a named Approve.**
@@ -365,6 +368,16 @@ until a receipt arrives).
   spec CHECKs and gives each kind its own stored-size cap. JSON-LD and `meta` keep 20 KiB. `llms_txt` gets 40 KiB,
   because JSON escaping can nearly double a newline-heavy 16 KiB file. **Rick to confirm** the executor can write
   the file.
+
+- **S11 — who may send (Q5).** **Started 2026-11-06 (Willy: "continue", chose "Approver only (Q5)").** Only the member
+  who approved a version (`work_item_decisions.actor_id` on its `approved` decision for that exact hash) may press Send.
+  - **Before any claim or call:** another member sees "Only the member who approved this version can send it.", and Send
+    answers `403 HANDOFF_NOT_APPROVER`.
+  - **Inside the claim statement:** the same rule is enforced, so it cannot be raced.
+  - **Unchanged:** a job someone already sent still shows as sent to everyone. Live checks and the automatic check after
+    a receipt are untouched; the automatic check already runs as the sender, who is now the approver.
+  - **Approver removed:** if the approver is deactivated before sending, the version can no longer be sent, and a new
+    version needs a new approval. No migration.
 
 Each slice: a draft PR, `vercel.json` +1 for its branch, migrations file-only, and a Ready packet for Willy.
 

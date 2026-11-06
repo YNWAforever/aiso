@@ -128,7 +128,7 @@ export type ClaimResult = { kind: 'claimed'; jobId: string; seq: number } | { ki
  * under the same item/actor locks version submission takes (versionLocks), so
  * a newer version cannot be submitted between the check and the claim. The
  * statement re-establishes, at write time: the actor is a still-active member;
- * the version is the LATEST, approved for exactly `contentHash`; the brand's
+ * the version is the LATEST, approved for exactly `contentHash` BY this actor (S11); the brand's
  * domain and its verification still equal the pin the caller checked (so a
  * repoint since the check refuses the send); and the job's newest event allows
  * a send (none, failed, unknown, or a claim older than `staleBefore`). Two
@@ -156,6 +156,8 @@ export async function claimHandoff(scope: HandoffScope, contentHash: string, sta
           SELECT v.id, v.client_id, v.work_item_id, v.content_hash FROM work_item_versions v
           JOIN work_item_decisions r ON r.account_id = v.account_id AND r.client_id = v.client_id AND r.work_item_id = v.work_item_id
             AND r.version_id = v.id AND r.content_hash = v.content_hash AND r.decision = 'approved'
+            -- S11 (Q5): the sender must be the member who approved this version.
+            AND r.actor_id = ${actorId}::uuid
           WHERE v.account_id = ${accountId}::uuid AND v.client_id = ${clientId}::uuid AND v.work_item_id = ${itemId}::uuid
             AND v.id = ${versionId}::uuid AND v.content_hash = ${contentHash} AND EXISTS (SELECT 1 FROM member)
             AND v.work_item_id::text = current_setting('aiso.version_item_locked', true)

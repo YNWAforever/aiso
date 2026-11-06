@@ -89,7 +89,8 @@ site.
 
 1. **Signature gate:** an unsigned `POST` to `/api/site-edit/receipts` answers `401`. This proves the receipt secret is
    set.
-2. **Send:** create a work item, add a `meta` edit on a test page, submit, approve as a second member, and press Send.
+2. **Send:** create a work item, add a `meta` edit on a test page, and submit. A second member who is an approver
+   approves it and then presses Send: only the member who approved a version can send it (S11).
    Expect "sent" and Rick's reference if he returns one.
 3. **Receipt:** Rick applies the edit and sends a `completed` receipt. Expect `201`. AISO runs one live check right after
    recording it, and a reload of the panel shows the result. "Found" records a verified delivery on the version.

@@ -71,7 +71,7 @@ beforeAll(async () => {
     create table evidence_work_items(id uuid primary key, account_id uuid not null, client_id uuid not null, source_kind text not null default 'scan-check', unique (account_id, client_id, id));
     create table work_item_versions(id uuid primary key, account_id uuid not null, client_id uuid not null, work_item_id uuid not null,
       version_number int not null, content_hash text not null, unique (account_id, client_id, work_item_id, id, content_hash));
-    create table work_item_decisions(account_id uuid, client_id uuid, work_item_id uuid, version_id uuid, content_hash text, decision text, decided_at timestamptz default now(), id uuid primary key default gen_random_uuid());
+    create table work_item_decisions(account_id uuid, client_id uuid, work_item_id uuid, version_id uuid, content_hash text, decision text, decided_at timestamptz default now(), id uuid primary key default gen_random_uuid(), actor_id uuid not null default '20000000-0000-4000-8000-000000000001');
   `)
   await state.pg.exec(readFileSync('supabase/migrations/043_delivery_attestations.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/089_site_edit_jobs.sql', 'utf8'))
@@ -134,6 +134,20 @@ describe('089 + handoff store', () => {
     if (first.kind !== 'claimed') throw new Error()
     await q(`update site_edit_job_events set created_at = now() - interval '5 minutes'`)
     expect(await claimHandoff(scope(), h1, fresh(), pin)).toEqual({ kind: 'claimed', jobId: first.jobId, seq: 2 })
+  })
+
+  it('S11 (Q5): refuses a teammate who did not approve the version, writing nothing; the approver may send', async () => {
+    const teammate = '20000000-0000-4000-8000-000000000009'
+    await q('insert into profiles values ($1, $2, null) on conflict do nothing', [teammate, account])
+    expect(await claimHandoff(scope(v1, teammate), h1, fresh(), pin)).toEqual({ kind: 'ineligible' })
+    expect(await q('select count(*)::int as n from site_edit_jobs')).toEqual([{ n: 0 }])
+    expect(await q('select count(*)::int as n from site_edit_job_events')).toEqual([{ n: 0 }])
+    // Same teammate, now the approver: the claim goes through, so the approver rule was the only refusal.
+    await q('delete from work_item_decisions')
+    await q(`insert into work_item_decisions (account_id, client_id, work_item_id, version_id, content_hash, decision, actor_id) values ($1, $2, $3, $4, $5, 'approved', $6)`, [account, client, item, v1, h1, teammate])
+    expect((await claimHandoff(scope(v1, teammate), h1, fresh(), pin)).kind).toBe('claimed')
+    // The original member is no longer this version's approver: refused before the in-flight check.
+    expect(await claimHandoff(scope(), h1, fresh(), pin)).toEqual({ kind: 'ineligible' })
   })
 
   it('refuses unapproved, superseded, wrong-hash and removed-member claims, writing nothing', async () => {

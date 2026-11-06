@@ -31,6 +31,7 @@ const statuses = {
   HANDOFF_DENIED: 403,
   HANDOFF_NOT_FOUND: 404,
   HANDOFF_UPGRADE_REQUIRED: 403,
+  HANDOFF_NOT_APPROVER: 403,
   HANDOFF_LIMIT_REACHED: 429,
   HANDOFF_NOT_APPROVED: 409,
   HANDOFF_SUPERSEDED: 409,
@@ -53,7 +54,7 @@ function errorResponse(error: unknown): Response {
   return json({ error: 'HANDOFF_UNAVAILABLE' }, 503)
 }
 
-export type HandoffBlock = 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_entitled' | 'limit_reached' | 'not_connected' | 'in_flight' | 'already_sent' | null
+export type HandoffBlock = 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_approver' | 'not_entitled' | 'limit_reached' | 'not_connected' | 'in_flight' | 'already_sent' | null
 export type HandoffView = {
   state: HandoffState
   jobId: string | null
@@ -69,7 +70,7 @@ export type HandoffView = {
   checkBlock: 'not_open' | 'too_soon' | null
 }
 
-function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok' }>, connected: boolean, now: Date, entitled = true): HandoffView {
+function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok' }>, connected: boolean, now: Date, entitled = true, actorId?: string): HandoffView {
   const state = handoffState(read.events, now)
   const latest = [...read.events].sort((a, b) => b.seq - a.seq)[0] as HandoffEvent | undefined
   const sent = [...read.events].reverse().find(e => e.kind === 'sent')
@@ -78,6 +79,8 @@ function view(read: Extract<Awaited<ReturnType<typeof readHandoff>>, { kind: 'ok
     : !read.version.editSpec ? 'no_edit_spec'
     : state === 'sent' || read.receipt ? 'already_sent'
     : state === 'sending' ? 'in_flight'
+    // S11 (Q5): only the member who approved this version may send it. Enforced again inside the claim.
+    : actorId !== undefined && read.version.decision?.decidedBy?.profileId !== actorId ? 'not_approver'
     // S8 (Q6): sending is a Pro/Enterprise feature. A job already sent keeps its receipt and live checks.
     : !entitled ? 'not_entitled'
     // S8 cap: 10 sends per brand per Hong Kong calendar month; re-sending a job already counted is free.
@@ -116,7 +119,7 @@ export async function readAuthenticatedHandoff(clientId: string, itemId: string,
   try {
     const { scope, entitled } = await sessionScope(clientId, itemId, versionId)
     const read = await load(scope)
-    return json({ handoff: view(read, handoffConfig() !== null, new Date(), entitled) })
+    return json({ handoff: view(read, handoffConfig() !== null, new Date(), entitled, scope.actorId) })
   } catch (error) { return errorResponse(error) }
 }
 
@@ -143,14 +146,14 @@ export async function checkAuthenticatedLivePage(clientId: string, itemId: strin
     const contentHash = readHash(raw)
     const read = await load(scope)
     if (read.version.contentHash !== contentHash) throw new HandoffError('HANDOFF_CONFLICT')
-    const current = view(read, handoffConfig() !== null, new Date())
+    const current = view(read, handoffConfig() !== null, new Date(), true, scope.actorId)
     if (current.checkBlock) throw new HandoffError(current.checkBlock === 'too_soon' ? 'LIVE_CHECK_TOO_SOON' : 'LIVE_CHECK_NOT_OPEN')
     const written = await runLiveCheck(scope, read, 'member')
     if (written.kind === 'denied') throw new HandoffError('HANDOFF_DENIED')
     if (written.kind === 'not_found') throw new HandoffError('HANDOFF_NOT_FOUND')
     if (written.kind === 'ineligible') throw new HandoffError('LIVE_CHECK_NOT_OPEN')
     const after = await load(scope)
-    return json({ handoff: view(after, handoffConfig() !== null, new Date()),
+    return json({ handoff: view(after, handoffConfig() !== null, new Date(), true, scope.actorId),
       check: { outcome: written.outcome, attested: written.attested, alreadyAttested: written.alreadyAttested } }, 201)
   } catch (error) { return errorResponse(error) }
 }
@@ -219,14 +222,14 @@ export async function sendAuthenticatedHandoff(clientId: string, itemId: string,
 
     const read = await load(scope)
     const config = handoffConfig()
-    const current = view(read, config !== null, new Date(), entitled)
+    const current = view(read, config !== null, new Date(), entitled, scope.actorId)
     // Already accepted: return the existing job, make no call (one hand-off per version).
     if (current.block === 'already_sent') return json({ handoff: current })
     if (read.version.contentHash !== contentHash) throw new HandoffError('HANDOFF_CONFLICT')
     const blocks: Record<Exclude<HandoffBlock, null | 'already_sent'>, Code> = {
       not_approved: 'HANDOFF_NOT_APPROVED', superseded: 'HANDOFF_SUPERSEDED', no_edit_spec: 'HANDOFF_NO_EDIT_SPEC',
       in_flight: 'HANDOFF_IN_FLIGHT', not_entitled: 'HANDOFF_UPGRADE_REQUIRED', limit_reached: 'HANDOFF_LIMIT_REACHED',
-      not_connected: 'HANDOFF_NOT_CONNECTED',
+      not_connected: 'HANDOFF_NOT_CONNECTED', not_approver: 'HANDOFF_NOT_APPROVER',
     }
     if (current.block) throw new HandoffError(blocks[current.block])
     const spec = read.version.editSpec!
@@ -259,6 +262,6 @@ export async function sendAuthenticatedHandoff(clientId: string, itemId: string,
       return json({ error: 'HANDOFF_UNAVAILABLE' }, 503)
     }
     const after = await load(scope)
-    return json({ handoff: view(after, true, new Date()) }, outcome.kind === 'sent' ? 201 : 200)
+    return json({ handoff: view(after, true, new Date(), true, scope.actorId) }, outcome.kind === 'sent' ? 201 : 200)
   } catch (error) { return errorResponse(error) }
 }

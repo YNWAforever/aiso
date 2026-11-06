@@ -35,7 +35,7 @@ const post = (body: unknown = { contentHash: HASH }) => POST(new Request('https:
 const read = (over: Record<string, unknown> = {}, events: unknown[] = []) => ({
   kind: 'ok', latestId: VERSION, clientName: 'Bakery', job: events.length ? { id: JOB } : null, events,
   monthSends: { others: 0, selfCounted: false },
-  version: { id: VERSION, contentHash: HASH, editSpec: spec, decision: { decision: 'approved', decidedAt: '2026-11-04T00:00:00.000000Z' }, ...over },
+  version: { id: VERSION, contentHash: HASH, editSpec: spec, decision: { decision: 'approved', decidedAt: '2026-11-04T00:00:00.000000Z', decidedBy: { profileId: PROFILE, displayName: null, role: 'account_approver' } }, ...over },
 })
 const fetchMock = vi.fn()
 
@@ -69,6 +69,24 @@ describe('S8 brand cap', () => {
     m.claimHandoff.mockResolvedValueOnce({ kind: 'capped' })
     expect((await post()).status).toBe(429)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('S11 approver-only send (Q5)', () => {
+  const otherApprover = { decision: 'approved', decidedAt: '2026-11-04T00:00:00.000000Z', decidedBy: { profileId: '20000000-0000-4000-8000-000000000099', displayName: 'Mei', role: 'account_approver' } }
+  it('shows not_approver to a member who did not approve, and refuses 403 before claiming or calling', async () => {
+    m.readHandoff.mockResolvedValue(read({ decision: otherApprover }))
+    expect((await (await GET(new Request('https://x/handoff'), ctx)).json()).handoff).toMatchObject({ canSend: false, block: 'not_approver' })
+    const res = await post()
+    expect(res.status).toBe(403)
+    expect((await res.json()).error).toBe('HANDOFF_NOT_APPROVER')
+    expect(m.claimHandoff).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+  it('still shows a job someone else already sent as sent, not as blocked for this member', async () => {
+    m.readHandoff.mockResolvedValue({ ...read({ decision: otherApprover }), job: { id: 'j1' },
+      events: [{ seq: 1, kind: 'claim', at: '2026-11-04T00:00:00Z', executorStatus: null, executorRef: null }, { seq: 2, kind: 'sent', at: '2026-11-04T00:00:01Z', executorStatus: 202, executorRef: null }] })
+    expect((await (await GET(new Request('https://x/handoff'), ctx)).json()).handoff).toMatchObject({ state: 'sent', block: 'already_sent' })
   })
 })
 
