@@ -132,3 +132,26 @@ describe('S9 meta kind (page title and/or meta description)', () => {
     expect(code({ ...meta, targetUrl: 'http://www.example.com/' })).toBe('url')
   })
 })
+
+describe('S10 llms_txt kind (the domain root /llms.txt)', () => {
+  const llms = { schemaVersion: 1, kind: 'llms_txt', targetUrl: 'https://www.example.com/llms.txt', content: '# Example Bakery\n\n> Fresh bread daily.\n' }
+  it('accepts the root file, normalising line endings and NFC, and keeps Markdown as written', () => {
+    const spec = parseEditSpec({ ...llms, content: '# Café\r\n\r\n- [Menu](https://www.example.com/menu): <b>daily</b>\r\n' })
+    expect(spec).toEqual({ ...llms, content: '# Café\n\n- [Menu](https://www.example.com/menu): <b>daily</b>\n' })
+    expect(parseEditSpec(spec)).toEqual(spec)
+    expect(parseEditSpec({ ...llms, content: 'Tab\tok\n' })).toMatchObject({ content: 'Tab\tok\n' })
+  })
+  it('refuses another path, a query, blank or oversized text, controls and wrong shapes', () => {
+    expect(code({ ...llms, targetUrl: 'https://www.example.com/docs/llms.txt' })).toBe('url')
+    expect(code({ ...llms, targetUrl: 'https://www.example.com/llms.txt?v=2' })).toBe('url')
+    expect(code({ ...llms, targetUrl: 'https://www.example.com/llms-full.txt' })).toBe('url')
+    expect(code({ ...llms, content: ' \n\t\n' })).toBe('llms')
+    expect(code({ ...llms, content: 'bell\u0007' })).toBe('llms')
+    expect(code({ ...llms, content: 'x'.repeat(16 * 1024 + 1) })).toBe('size')
+    expect(code({ ...llms, content: 'x'.repeat(16 * 1024) })).toBeNull()
+    expect(code({ ...llms, content: 7 })).toBe('llms')
+    expect(code({ ...llms, title: 'x' })).toBe('shape')
+    const { content: _c, ...missing } = llms
+    expect(code(missing)).toBe('shape')
+  })
+})

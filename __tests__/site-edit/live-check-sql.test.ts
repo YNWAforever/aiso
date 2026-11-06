@@ -63,7 +63,7 @@ const scope = (actorId = member, accountId = account, versionId = v1) => ({ acco
 const q = async (text: string, values: unknown[] = []) => (await state.pg!.query(text, values)).rows as Record<string, unknown>[]
 const check = (outcome: 'found' | 'missing' | 'fetch_failed' = 'found', over: Record<string, unknown> = {}) => ({
   outcome, httpStatus: outcome === 'fetch_failed' ? null : 200, pageSha256: outcome === 'fetch_failed' ? null : 'c'.repeat(64),
-  checkedAt: new Date(), targetUrl: target, kind: 'jsonld' as 'jsonld' | 'jsonld_remove' | 'meta', ...over })
+  checkedAt: new Date(), targetUrl: target, kind: 'jsonld' as 'jsonld' | 'jsonld_remove' | 'meta' | 'llms_txt', ...over })
 const event = (seq: number, kind: string, status: number | null = null) => q(
   'insert into site_edit_job_events (job_id, account_id, seq, kind, actor_id, executor_status) values ($1, $2, $3, $4, $5, $6)', [job, account, seq, kind, member, status])
 const attestations = () => q(`select provenance, site_edit_job_id, destination, kind from work_item_delivery_events order by recorded_at`)
@@ -165,6 +165,13 @@ describe('091 + live-check store', () => {
     expect(await meta('fetch_failed')).toMatchObject({ kind: 'recorded', attested: false })
     expect(await meta('found')).toEqual({ kind: 'recorded', outcome: 'found', attested: true, alreadyAttested: false })
     expect(await q('select note from work_item_delivery_events')).toEqual([{ note: 'Approved page title/description found on the live page at check time.' }])
+  })
+
+  it('S10: an llms.txt edit verifies by being found, with its own note', async () => {
+    await event(2, 'sent', 202)
+    expect(await recordLiveCheck(scope(), h1, check('missing', { kind: 'llms_txt' }))).toMatchObject({ attested: false })
+    expect(await recordLiveCheck(scope(), h1, check('found', { kind: 'llms_txt' }))).toMatchObject({ kind: 'recorded', attested: true })
+    expect(await q('select note from work_item_delivery_events')).toEqual([{ note: 'Approved llms.txt content found on the live site at check time.' }])
   })
 
   it('S6: resolves an automatic check to the job’s own scope and its sender, and says so in the note', async () => {

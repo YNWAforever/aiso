@@ -5,7 +5,7 @@
  * Browser-safe and pure: the editor and the server share this contract.
  *
  * S1 had one kind, one JSON-LD block on one page; S9 adds `meta` (the page's
- * title and/or meta description). Nothing here contacts a site; the brand-domain check needs the database and lives with
+ * title and/or meta description) and S10 `llms_txt` (the domain's /llms.txt). Nothing here contacts a site; the brand-domain check needs the database and lives with
  * the callers (draft save, version submit).
  */
 
@@ -18,7 +18,7 @@ export type EditSpecSchemaType = typeof EDIT_SPEC_SCHEMA_TYPES[number]
  * the same work item added exactly that block (checked server-side). There is
  * no silent rollback: a revert is reviewed, approved and handed off like an add.
  */
-export const EDIT_SPEC_KINDS = ['jsonld', 'jsonld_remove', 'meta'] as const
+export const EDIT_SPEC_KINDS = ['jsonld', 'jsonld_remove', 'meta', 'llms_txt'] as const
 export type EditSpecKind = typeof EDIT_SPEC_KINDS[number]
 
 export type JsonLdEditSpec = {
@@ -43,7 +43,22 @@ export type MetaEditSpec = {
   description: string | null
 }
 
-export type EditSpecV1 = JsonLdEditSpec | MetaEditSpec
+/**
+ * S10: replace the domain's `/llms.txt` with `content`. The target is always
+ * the root file (`https://<host>/llms.txt`, no query). Line endings are stored
+ * as LF. Like `meta`, undoing is another reviewed edit with the old text.
+ */
+export type LlmsTxtEditSpec = {
+  schemaVersion: 1
+  kind: 'llms_txt'
+  targetUrl: string
+  content: string
+}
+
+export type EditSpecV1 = JsonLdEditSpec | MetaEditSpec | LlmsTxtEditSpec
+
+/** Bytes (UTF-8) of llms.txt content; the whole spec stays inside 095's 20 KiB floor. */
+export const EDIT_SPEC_LLMS_TXT_MAX_BYTES = 16 * 1024
 
 export const EDIT_SPEC_TITLE_MAX = 200
 export const EDIT_SPEC_DESCRIPTION_MAX = 500
@@ -55,7 +70,7 @@ export const EDIT_SPEC_MAX_DEPTH = 8
 export const EDIT_SPEC_MAX_NODES = 500
 
 export class EditSpecError extends Error {
-  constructor(readonly code: 'shape' | 'url' | 'type' | 'payload' | 'size' | 'markup' | 'meta') {
+  constructor(readonly code: 'shape' | 'url' | 'type' | 'payload' | 'size' | 'markup' | 'meta' | 'llms') {
     super(`INVALID_EDIT_SPEC:${code}`)
     this.name = 'EditSpecError'
   }
@@ -148,6 +163,27 @@ function parseMetaSpec(input: Record<string, unknown>, targetUrl: string): MetaE
 }
 
 /**
+ * The file's text as approved: LF line endings, NFC, no controls other than tab
+ * and newline, not blank, and at most 16 KiB. Markup is allowed: llms.txt is
+ * served as plain text (it is Markdown by convention), never inside a page.
+ */
+export function normalizeLlmsTxt(value: string): string {
+  return value.replace(/\r\n?/g, '\n').normalize('NFC')
+}
+
+function parseLlmsTxtSpec(input: Record<string, unknown>, targetUrl: string): LlmsTxtEditSpec {
+  const keys = ['schemaVersion', 'kind', 'targetUrl', 'content']
+  if (Object.keys(input).length !== keys.length || !keys.every(key => Object.hasOwn(input, key))) fail('shape')
+  const url = new URL(targetUrl)
+  if (url.pathname !== '/llms.txt' || url.search) fail('url')
+  if (typeof input.content !== 'string') return fail('llms')
+  const content = normalizeLlmsTxt(input.content)
+  if (!content.trim() || /[\u0000-\u0008\u000b-\u001f\u007f\uD800-\uDFFF]/u.test(content)) fail('llms')
+  if (new TextEncoder().encode(content).byteLength > EDIT_SPEC_LLMS_TXT_MAX_BYTES) fail('size')
+  return { schemaVersion: 1, kind: 'llms_txt', targetUrl, content }
+}
+
+/**
  * Strict parse of an edit spec. Unknown keys, a mismatched `@type`, a non-
  * schema.org `@context`, an oversized or over-deep payload, or a non-https URL
  * are refused. The result is canonical: re-parsing it returns an equal value.
@@ -156,6 +192,7 @@ export function parseEditSpec(value: unknown): EditSpecV1 {
   const input = record(value, 'shape')
   if (input.schemaVersion !== 1 || !(EDIT_SPEC_KINDS as readonly unknown[]).includes(input.kind)) fail('shape')
   if (input.kind === 'meta') return parseMetaSpec(input, parseTargetUrl(input.targetUrl))
+  if (input.kind === 'llms_txt') return parseLlmsTxtSpec(input, parseTargetUrl(input.targetUrl))
   const keys = ['schemaVersion', 'kind', 'targetUrl', 'schemaType', 'payload']
   if (Object.keys(input).length !== keys.length || !keys.every(key => Object.hasOwn(input, key))) fail('shape')
   const kind = input.kind as JsonLdEditSpec['kind']

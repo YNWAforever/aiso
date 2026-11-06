@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { parse } from 'parse5'
 import { checkStructuredData } from '@/lib/checks/structuredData'
 import { createPublicUrlFetcher, type PublicUrlFetch } from '@/lib/security/public-url'
-import type { EditSpecV1, MetaEditSpec } from './edit-spec'
+import { normalizeLlmsTxt, type EditSpecV1, type MetaEditSpec } from './edit-spec'
 
 /**
  * Site-edit S4: fetch the frozen target URL and look for the approved JSON-LD
@@ -150,10 +150,26 @@ export function pageHasMeta(html: string, spec: Pick<MetaEditSpec, 'title' | 'de
   return true
 }
 
-/** Whether the page carries what the spec puts there (for a revert: whether the block is still there). */
-export function specOnPage(html: string, spec: EditSpecV1): boolean {
-  return spec.kind === 'meta' ? pageHasMeta(html, spec) : pageHasPayload(html, spec.payload)
+/**
+ * S10: the served llms.txt equals the approved content. Both sides get LF line
+ * endings and NFC, the served file loses a leading BOM, and both lose trailing
+ * whitespace at the very end (an editor's final newline is not a difference).
+ * Everything else, including Markdown's trailing double spaces, must match.
+ */
+export function fileHasLlmsTxt(body: string, content: string): boolean {
+  const norm = (text: string) => normalizeLlmsTxt(text.replace(/^\uFEFF/, '')).trimEnd()
+  return norm(body) === norm(content)
 }
+
+/** Whether the target carries what the spec puts there (for a revert: whether the block is still there). */
+export function specOnPage(body: string, spec: EditSpecV1): boolean {
+  if (spec.kind === 'llms_txt') return fileHasLlmsTxt(body, spec.content)
+  return spec.kind === 'meta' ? pageHasMeta(body, spec) : pageHasPayload(body, spec.payload)
+}
+
+/** An HTML page for page edits; a plain-text (or Markdown) file for llms.txt, never an HTML page in its place. */
+const ACCEPT = { page: 'text/html', file: 'text/plain, text/markdown' } as const
+const TYPE_OK = { page: /text\/html|application\/xhtml\+xml/i, file: /^\s*text\/(plain|markdown|x-markdown)\s*(;|$)/i } as const
 
 async function readCapped(response: Response): Promise<string | null> {
   if (!response.body) return ''
@@ -170,14 +186,15 @@ async function readCapped(response: Response): Promise<string | null> {
   return new TextDecoder().decode(Buffer.concat(chunks))
 }
 
-/** One GET of the target. Never throws: any transport failure, non-2xx, non-HTML or oversized page is `fetch_failed`. */
+/** One GET of the target. Never throws: any transport failure, non-2xx, wrong content type or oversized body is `fetch_failed`. */
 export async function fetchLivePage(url: string, spec: EditSpecV1, fetcher: PublicUrlFetch = liveCheckFetcher): Promise<LiveFetch> {
   let httpStatus: number | null = null
   try {
-    const response = await fetcher(url, { method: 'GET', headers: { Accept: 'text/html' } })
+    const target = spec.kind === 'llms_txt' ? 'file' : 'page'
+    const response = await fetcher(url, { method: 'GET', headers: { Accept: ACCEPT[target] } })
     httpStatus = response.status
     const type = response.headers.get('content-type') ?? ''
-    if (!response.ok || !/text\/html|application\/xhtml\+xml/i.test(type)) {
+    if (!response.ok || !TYPE_OK[target].test(type)) {
       await response.body?.cancel()
       return { outcome: 'fetch_failed', httpStatus, pageSha256: null, checkedAt: new Date() }
     }
@@ -185,8 +202,8 @@ export async function fetchLivePage(url: string, spec: EditSpecV1, fetcher: Publ
     if (html === null) return { outcome: 'fetch_failed', httpStatus, pageSha256: null, checkedAt: new Date() }
     const pageSha256 = createHash('sha256').update(html).digest('hex')
     const checkedAt = new Date()
-    // S7's c4 verdict is about structured data, so it is recorded for JSON-LD edits only (S9: not for `meta`).
-    const structuredData = spec.kind === 'meta' ? null : await structuredDataVerdict(url, html).catch(() => null)
+    // S7's c4 verdict is about structured data, so it is recorded for JSON-LD edits only (not `meta` or `llms_txt`).
+    const structuredData = spec.kind === 'meta' || spec.kind === 'llms_txt' ? null : await structuredDataVerdict(url, html).catch(() => null)
     return { outcome: specOnPage(html, spec) ? 'found' : 'missing', httpStatus, pageSha256, checkedAt, structuredData }
   } catch {
     return { outcome: 'fetch_failed', httpStatus: null, pageSha256: null, checkedAt: new Date() }

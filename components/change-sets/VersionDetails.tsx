@@ -29,7 +29,16 @@ export function VersionDetails({
       </h3>
       <p className="whitespace-pre-wrap break-words">{version.action}</p>
       <p className="whitespace-pre-wrap break-words">{version.notes}</p>
-      {version.editSpec?.kind === 'meta' ? (
+      {version.editSpec?.kind === 'llms_txt' ? (
+        // Site-edit S10: the exact llms.txt this version's approval covers.
+        <section className="space-y-2 rounded-lg border border-border p-3" aria-label={t('editSpecLlmsTxtTitle')}>
+          <h3 className="font-semibold">{t('editSpecLlmsTxtTitle')}</h3>
+          <p className="break-all">{version.editSpec.targetUrl}</p>
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm" tabIndex={0}>
+            {version.editSpec.content}
+          </pre>
+        </section>
+      ) : version.editSpec?.kind === 'meta' ? (
         // Site-edit S9: the exact page title/description this version's approval covers.
         <section className="space-y-2 rounded-lg border border-border p-3" aria-label={t('editSpecMetaTitle')}>
           <h3 className="font-semibold">{t('editSpecMetaTitle')}</h3>

@@ -197,6 +197,7 @@ export function DraftEditor({
                 onChange={(e) => setSpec({ mode: e.target.value as SpecMode })}>
                 <option value="jsonld">{t('editSpecModeJsonld')}</option>
                 <option value="meta">{t('editSpecModeMeta')}</option>
+                <option value="llms_txt">{t('editSpecModeLlmsTxt')}</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -204,7 +205,14 @@ export function DraftEditor({
               <input className={field} id={fieldId + '-spec-url'} type="url" inputMode="url" value={spec.url} disabled={busy}
                 onChange={(e) => setSpec({ url: e.target.value })} />
             </div>
-            {spec.mode === 'meta' ? <>
+            {spec.mode === 'llms_txt' ? <>
+              <div className="space-y-2">
+                <label className="block" htmlFor={fieldId + '-spec-content'}>{t('editSpecLlmsTxt')}</label>
+                <textarea className={`${field} font-mono text-sm`} rows={12} id={fieldId + '-spec-content'} value={spec.content ?? ''}
+                  disabled={busy} spellCheck={false} onChange={(e) => setSpec({ content: e.target.value })} />
+              </div>
+              <p className="text-sm">{t('editSpecLlmsTxtRules')}</p>
+            </> : spec.mode === 'meta' ? <>
               <div className="space-y-2">
                 <label className="block" htmlFor={fieldId + '-spec-title'}>{t('editSpecPageTitle')}</label>
                 <input className={field} id={fieldId + '-spec-title'} value={spec.title ?? ''} maxLength={EDIT_SPEC_TITLE_MAX} disabled={busy}
