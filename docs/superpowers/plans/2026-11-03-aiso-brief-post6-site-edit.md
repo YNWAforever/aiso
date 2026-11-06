@@ -220,6 +220,8 @@ window, as `GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS` does.
 so neither table is ever rewritten. Current state is the newest row, derived on
 read, as `search_console_sync_runs` does it.
 
+**Readiness checklist for ops and Rick:** [`docs/runbooks/site-edit-readiness.md`](../../runbooks/site-edit-readiness.md).
+
 **Still to confirm with Rick:** endpoint URL per environment, whether they can
 sign receipts with HMAC-SHA256 as above, their idempotency handling of `jobId`,
 and the turnaround they commit to (shown to members as "sent", never "done",
