@@ -161,6 +161,8 @@ function allRelations() {
     'site_edit_receipts',
     // 091: site-edit S4 live-page checks; authored only.
     'site_edit_live_checks',
+    // 097: Retainer OS Slice B insert-only month snapshots; authored only.
+    'brand_month_snapshots',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

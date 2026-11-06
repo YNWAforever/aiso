@@ -78,6 +78,7 @@ describe('migration runner against a real branch', () => {
     expect(rows.map((r) => r.table_name)).toEqual([
       'account_report_branding',
       'authenticated_scan_monthly_usage',
+      'brand_month_snapshots',
       'client_report_versions',
       'client_reports',
       'google_drive_connections',
