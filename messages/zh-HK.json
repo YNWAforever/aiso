@@ -4801,6 +4801,25 @@
     "receipts_rejected": "開發者回條：已拒絕",
     "record": "立即記錄",
     "record_failed": "未能記錄，請再試。",
-    "open": "月度"
+    "open": "月度",
+    "all_brands": "所有品牌"
+  },
+  "monthQueue": {
+    "title": "本月",
+    "brand": "品牌",
+    "approvals": "待審批",
+    "edits_unverified": "已發送未核實",
+    "sends": "已發送網站修改",
+    "pulse": "Pulse",
+    "search_console": "Search Console",
+    "month_record": "月度紀錄",
+    "overdue": "逾期",
+    "not_enabled": "未啟用",
+    "not_connected": "未連接",
+    "stale": "未更新",
+    "recorded": "已記錄",
+    "not_recorded": "未記錄",
+    "none": "未有",
+    "all_clear": "本月沒有待處理事項。"
   }
 }

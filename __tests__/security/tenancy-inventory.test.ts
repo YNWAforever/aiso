@@ -182,6 +182,11 @@ const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
   'lib/visibility/jobs.ts::repairVisibilityLeases': 'Cron-only bounded stale-lease repair matches job/account/client/token to each existing attempt and never sends a provider request.',
   'lib/outcome-integrations/credentials.ts::loadOutcomeCredential':
     'Opaque key establishes scope; active creator, owned client/account joins, commercial entitlement and exact-body HMAC are required before ingestion. No caller account parameter.',
+  'lib/brand-month/queue.ts::loadDueMonthBrands':
+    'The selection made by the scheduled month-snapshot cron (Retainer OS Slice B, Q4 automatic): brands of ' +
+    'every account missing a due snapshot. The cron is authenticated by CRON_SECRET and has no session. Its only ' +
+    'account predicate is the join (a.id = c.account_id); the route checks entitlement per account and writes ' +
+    'only through recordDueSnapshots, whose insert carries account_id and client ownership.',
   'lib/integrations/search-console/store.ts::loadDueBindings':
     'The selection made by the Search Console cron (spec §6): the due bindings of every account, by ' +
     'design, like alert evaluation. The cron is authenticated by CRON_SECRET and has no session to ' +

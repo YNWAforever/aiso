@@ -58,12 +58,13 @@ export default async function BrandMonthPage({ params, searchParams }: {
       brandName={month.brandName}
       monthLabel={monthLabel}
       previousHref={isViewableMonth(previous, now) ? href(previous) : null}
+      queueHref={`/${locale}/dashboard/this-month`}
       nextHref={isViewableMonth(next, now) ? href(next) : null}
       snapshots={month.snapshots}
       activity={month.activity}
       recordAction={pending ? <RecordSnapshotsButton clientId={clientId} month={key} label={t('record')} failed={t('record_failed')} /> : undefined}
       copy={{
-        title: t('title'), previous: t('previous'), next: t('next'),
+        title: t('title'), previous: t('previous'), next: t('next'), allBrands: t('all_brands'),
         delivered: t('delivered'), verifiedLive: t('verified_live'), selfReported: t('self_reported'), none: t('none'),
         figures: t('figures'), opening: t('opening'), closing: t('closing'), notRecorded: t('not_recorded'), notConnected: t('not_connected'),
         scanScore: t('scan_score'), shareOfVoice: t('share_of_voice'), searchClicks: t('search_clicks'), searchImpressions: t('search_impressions'),
