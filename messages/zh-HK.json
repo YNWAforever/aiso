@@ -1251,7 +1251,21 @@
     "qb_bulk_fix_id": "從此品牌的問題列表重新選取；不要重複 id 或使用其他品牌的 id。",
     "qb_bulk_fix_limit": "修正後的問題庫不可超過 50 題。",
     "qb_bulk_fix_row": "修正此列後重新預覽。",
-    "qb_bulk_projection_unknown": "原預覽投影為 {active} 條啟用問題。儲存結果未確認，可能已套用；請核對同一次更改。"
+    "qb_bulk_projection_unknown": "原預覽投影為 {active} 條啟用問題。儲存結果未確認，可能已套用；請核對同一次更改。",
+    "qb_bulk_fix_active_limit": "這會令啟用的問題超過 10 條。請先停用部分問題，或將新行設為 false。",
+    "qb_active_limit": "此品牌已啟用 {max} 條問題。請先停用其中一條。",
+    "qb_added_paused": "已儲存為暫停：此品牌已啟用 {max} 條問題。",
+    "qb_demand_title": "按搜尋需求擬定",
+    "qb_demand_draft": "從 Search Console 擬定問題",
+    "qb_demand_not_connected": "此品牌未連接 Search Console。",
+    "qb_demand_no_data": "此品牌未有已同步的搜尋查詢。",
+    "qb_demand_none": "沒有可擬定的新非品牌查詢。",
+    "qb_demand_window": "香港搜尋，{start} 至 {end}。",
+    "qb_demand_branded": "已略去 {count} 個品牌查詢。",
+    "qb_demand_source": "第 {row} 行：「{query}」· {impressions} 次曝光 · {clicks} 次點擊",
+    "qb_demand_edit": "草稿已放入下方 CSV 欄。請逐條改寫問題，然後預覽。",
+    "qb_demand_budget": "啟用問題：{active}／{max}。",
+    "qb_demand_budget_over": "啟用問題：{active}，超出 {max} 條的上限。請先停用部分問題，才可啟用新問題。"
   },
   "upsell": {
     "title": "每週追蹤 {domain} 的 AI 能見度",

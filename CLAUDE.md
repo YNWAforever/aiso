@@ -125,6 +125,10 @@ lib/
                    # vocabularies, and limits.ts. MAX_PROMPTS is shared — pulse/run
                    # scans `limit MAX_PROMPTS`, so the writer must cap at the same
                    # number or the excess is silently never scanned.
+                   # PULSE_ACTIVE_QUESTIONS_PER_BRAND (10, Retainer OS Q2) caps
+                   # ACTIVE questions on every activating write (add, toggle, bulk,
+                   # onboarding seed); pausing always passes, and pulse/run itself
+                   # is not truncated. prompts/demand drafts from Search Console.
   db.ts            # db() — Neon serverless SQL singleton  ← use this
   auth.ts          # getProfile() — reads Neon Auth session server-side
   neon-auth.ts     # auth() — server-side Neon Auth singleton

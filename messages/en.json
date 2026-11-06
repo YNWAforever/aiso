@@ -1251,7 +1251,21 @@
     "qb_bulk_fix_id": "Select an existing question from this brand; do not repeat its id or use an id from another brand.",
     "qb_bulk_fix_limit": "Keep the projected question bank within 50 questions.",
     "qb_bulk_fix_row": "Correct this row and prepare a fresh preview.",
-    "qb_bulk_projection_unknown": "Original preview projects {active} active questions. Save outcome is unknown and may already be applied; reconcile this same intent."
+    "qb_bulk_projection_unknown": "Original preview projects {active} active questions. Save outcome is unknown and may already be applied; reconcile this same intent.",
+    "qb_bulk_fix_active_limit": "This would switch on more than 10 questions. Switch some off, or set new rows to false.",
+    "qb_active_limit": "This brand already runs {max} active questions. Switch one off first.",
+    "qb_added_paused": "Saved as paused: this brand already runs {max} active questions.",
+    "qb_demand_title": "Draft from search demand",
+    "qb_demand_draft": "Draft questions from Search Console",
+    "qb_demand_not_connected": "Search Console is not connected for this brand.",
+    "qb_demand_no_data": "No search queries synced for this brand yet.",
+    "qb_demand_none": "No new non-branded queries to draft from.",
+    "qb_demand_window": "Hong Kong searches, {start} to {end}.",
+    "qb_demand_branded": "{count, plural, one {# branded query left out} other {# branded queries left out}}.",
+    "qb_demand_source": "Row {row}: “{query}” · {impressions} impressions · {clicks} clicks",
+    "qb_demand_edit": "Drafts are in the CSV box below. Rewrite each question, then preview.",
+    "qb_demand_budget": "Active questions: {active} of {max}.",
+    "qb_demand_budget_over": "Active questions: {active}, over the budget of {max}. Switch some off to activate new ones."
   },
   "upsell": {
     "title": "Track {domain}'s AI presence every week",

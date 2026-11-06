@@ -1,7 +1,8 @@
 # AISO brief — Retainer OS (the next phase, in bigger slices)
 
-> **Status: proposed, not started.** It comes from a brainstorm with Willy on 2026-11-06. No code, migration, env change or
-> vendor spend follows from this file until Willy names a start and approves each gate below.
+> **Status: Slice A started 2026-11-06 (draft PR, no migration).** It comes from a brainstorm with Willy on 2026-11-06.
+> Willy approved the platforms (follow the plan: all five on Pro/Enterprise) and named the start of Slice A. Seeding any
+> brand in production is still a separate named Approve (§2 Slice A, spend gate).
 
 ## 0. What Willy decided (2026-11-06)
 
@@ -45,6 +46,17 @@ Comes first, because Slices B and C have nothing to report without it.
   platforms Pulse runs on need a named Approve **before** any brand is seeded in production.
 - **Done when:** one Fimmick-owned brand has an approved bank, and Pulse has written at least one weekly rollup
   row in Preview.
+- **Built in the Slice A PR (2026-11-06):**
+  - `PULSE_ACTIVE_QUESTIONS_PER_BRAND` = 10 (`lib/pulse/limits.ts`), enforced on every write that switches a question
+    on: single add (saved paused past the limit, and the response says so), toggle (`409 ACTIVE_LIMIT_REACHED`), bulk
+    preview/apply (`ACTIVE_LIMIT_REACHED`) and the onboarding seed (only free slots start active). Pausing is always
+    allowed. Brands already over 10 are **not** changed; they see the budget line and can pause down.
+  - `GET …/prompts/demand` drafts up to 10 questions from the last 28 synced days of the brand's own Search Console
+    queries (current binding only, `synced_at >= bound_at`, domain still covered). Branded queries are left out.
+    Rule-based wording (Q3: template, no LLM spend). The operator edits the CSV and applies it through the existing
+    bulk preview → apply. Each draft shows its query, clicks, impressions and position, plus the date range.
+  - Not built yet: a stored source label (demand versus profile) on each prompt. It needs a column, so a migration;
+    left for a later slice rather than inferred.
 
 ### Slice B — The Brand Month ("one record per brand per month")
 

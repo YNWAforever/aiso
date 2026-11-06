@@ -178,8 +178,10 @@ function AddPromptRow({ category, clientId, onAdd, onError, onStart, contextDefa
       body: JSON.stringify({ category, question: text.trim(), ...context }),
     })
     if (res.ok) {
-      const { prompt } = await res.json()
+      const { prompt, activeLimitReached, activeLimit } = await res.json()
       onAdd(prompt); setText('')
+      // Saved, but paused: the brand already runs its full weekly budget of active questions.
+      if (activeLimitReached) onError(t('qb_added_paused', { max: activeLimit ?? 10 }))
     } else if (res.status === 409) {
       const body = await res.json().catch(() => ({}))
       onError(t('qb_limit_reached', { max: body.max ?? 50 }))
@@ -252,8 +254,12 @@ export function PromptBankEditor({ clientId, prompts, onPromptsChange, contextDe
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active }),
     }).catch(() => null)
-    await revertOn(res, () =>
+    const ok = await revertOn(res, () =>
       setPrompts(ps => ps.map(p => p.id === id ? { ...p, is_active: !is_active } : p)))
+    if (!ok && res?.status === 409) {
+      const body = await res.json().catch(() => ({}))
+      setError(t('qb_active_limit', { max: body.max ?? 10 }))
+    }
   }
 
   const handleEdit = async (id: string, question: string, context: PromptContextDefaults = {}) => {

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { authorizePromptBank } from '@/lib/prompts/guard'
 import { parsePromptContext } from '@/lib/prompts/context'
+import { PULSE_ACTIVE_QUESTIONS_PER_BRAND } from '@/lib/pulse/limits'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,10 +84,20 @@ export async function PATCH(
          and p.client_id = ${clientId}
          and c.id = p.client_id
          and c.account_id = ${access.accountId}
+         -- Q2 budget: switching a paused question on is refused at the limit; edits and pausing always pass.
+         and (${isActive}::boolean is not true or p.is_active
+              or (select count(*) from prompt_bank b where b.client_id = c.id and b.is_active) < ${PULSE_ACTIVE_QUESTIONS_PER_BRAND})
       returning p.id, p.client_id, p.category, p.question,
                 p.language, p.market, p.is_active, p.created_at
     `])
-    if (!updated[0]) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!updated[0]) {
+      if (isActive === true) {
+        const [exists] = await sql`select p.id from prompt_bank p join clients c on c.id = p.client_id
+          where p.id = ${promptId} and p.client_id = ${clientId} and c.account_id = ${access.accountId}`
+        if (exists) return Response.json({ error: 'ACTIVE_LIMIT_REACHED', max: PULSE_ACTIVE_QUESTIONS_PER_BRAND }, { status: 409 })
+      }
+      return Response.json({ error: 'Not found' }, { status: 404 })
+    }
     return Response.json({ prompt: updated[0] })
   } catch {
     return Response.json({ error: 'Prompt update failed' }, { status: 500 })

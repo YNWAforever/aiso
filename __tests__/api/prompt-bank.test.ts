@@ -234,6 +234,16 @@ describe('POST /prompts', () => {
     expect(await res.json()).toEqual({ prompt: PROMPT })
   })
 
+  it('saves a question paused, and says so, once the brand runs the active budget', async () => {
+    writeRows = [{ ...PROMPT, is_active: false }]
+    const res = await post()
+    expect(res.status).toBe(201)
+    expect(await res.json()).toEqual({ prompt: { ...PROMPT, is_active: false }, activeLimitReached: true, activeLimit: 10 })
+    const insert = calls.find(c => /insert into prompt_bank/i.test(c.text))!
+    expect(insert.text).toMatch(/p\.is_active\) < \?/)
+    expect(insert.params).toContain(10)
+  })
+
   it('returns 500 rather than a success over a failed insert', async () => {
     failOn = /insert into prompt_bank/i
     expect((await post()).status).toBe(500)
@@ -265,7 +275,7 @@ describe('PATCH /prompts/[promptId]', () => {
   it('sends only question and is_active to the statement', async () => {
     await patch({ question: 'Updated?', is_active: false, category: 'pain_point', id: 'other' })
 
-    expect(calls[1].params).toEqual(['Updated?', false, false, 'en', false, null, 'prompt-1', 'client-1', 'acc-1'])
+    expect(calls[1].params).toEqual(['Updated?', false, false, 'en', false, null, 'prompt-1', 'client-1', 'acc-1', false, 10])
   })
 
   it('scopes the update by prompt, client and account in one statement', async () => {
@@ -298,6 +308,23 @@ describe('PATCH /prompts/[promptId]', () => {
   it('returns 404 when the statement matches no row', async () => {
     writeRows = []
     expect((await patch()).status).toBe(404)
+  })
+
+  it('refuses switching a question on past the active budget with 409, not 404', async () => {
+    writeRows = []
+    promptRows = [{ id: 'prompt-1' }]
+    const res = await patch({ is_active: true })
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({ error: 'ACTIVE_LIMIT_REACHED', max: 10 })
+    expect(calls[1].text).toMatch(/b\.is_active\) < \?/)
+    expect(calls[2].text).toMatch(/c\.account_id = \?/)
+    expect(calls[2].params).toContain('acc-1')
+  })
+
+  it('still answers 404 for an activation of a prompt that is not the caller\'s', async () => {
+    writeRows = []
+    promptRows = []
+    expect((await patch({ is_active: true })).status).toBe(404)
   })
 
   it('returns 500 when the update throws', async () => {

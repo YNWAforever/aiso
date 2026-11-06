@@ -1,6 +1,6 @@
 import {isPromptLanguage,isPromptMarket} from './context'
 import {isPromptCategory} from './categories'
-import {MAX_PROMPTS} from '@/lib/pulse/limits'
+import {MAX_PROMPTS,PULSE_ACTIVE_QUESTIONS_PER_BRAND} from '@/lib/pulse/limits'
 export type PromptBatchRow={id?:string;question:string;category:string;language:string;market:string|null;is_active:boolean}
 export type PromptRowError={row:number;field:string;code:string}
 export function parsePromptCsv(text:string):PromptBatchRow[]{
@@ -65,6 +65,10 @@ export function previewPromptRows(existing: PromptBatchRow[], rows: PromptBatchR
   const replaced = new Set(validRows.map(row => row.id).filter(Boolean))
   const after = [...existing.filter(row => !replaced.has(row.id)), ...validRows]
   if (after.length > MAX_PROMPTS) errors.push({ row: 0, field: 'rows', code: 'PROMPT_LIMIT_REACHED' })
+  // Q2 budget: a batch may not raise the active count past the limit. Lowering it is always allowed,
+  // so a brand that was already over the budget can still deactivate its way back under it.
+  const activeBefore = existing.filter(row => row.is_active).length, activeAfterCount = after.filter(row => row.is_active).length
+  if (activeAfterCount > PULSE_ACTIVE_QUESTIONS_PER_BRAND && activeAfterCount > activeBefore) errors.push({ row: 0, field: 'is_active', code: 'ACTIVE_LIMIT_REACHED' })
   errors.sort((a, b) => a.row - b.row)
   return {
     validRows, errors, duplicates, activeAfter: after.filter(row => row.is_active).length,
