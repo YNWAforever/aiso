@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
+import { PULSE_ACTIVE_QUESTIONS_PER_BRAND } from '@/lib/pulse/limits'
 import { onboardingInputHash, seedKey, type OnboardingInput, type OnboardingProgress, type OnboardingScope, type SeedPrompt } from './schema'
 
 type ProgressRow = Record<string, unknown> & { intent_key: string; client_id: string; scan_id: string | null; prompt_status: OnboardingProgress['prompts']; prompt_count: number; error_code: string | null; trial_ends_at: Date | string; lease_until: Date | string | null }
@@ -111,7 +112,10 @@ export async function commitOnboardingSeed(scope: OnboardingScope, intentKey: st
         ${prompts.map(p => p.language)}::text[], ${prompts.map(p => p.market ?? null)}::text[], ${prompts.map(seedKey)}::text[]) as t(cat, question, language, market, seed_key)
     ), inserted as (
       insert into prompt_bank (client_id, category, question, language, market, is_active, onboarding_seed_key)
-      select leased.client_id, input.cat, input.question, input.language, input.market, true, input.seed_key from leased join input on true
+      -- Q2 budget: only as many seeded questions start active as the brand has free active slots.
+      select leased.client_id, input.cat, input.question, input.language, input.market,
+        input.n <= greatest(0, ${PULSE_ACTIVE_QUESTIONS_PER_BRAND} - (select count(*) from prompt_bank where client_id = leased.client_id and is_active)),
+        input.seed_key from leased join input on true
       where input.n <= greatest(0, 50 - (select count(*) from prompt_bank where client_id = leased.client_id))
       on conflict (client_id, onboarding_seed_key) where onboarding_seed_key is not null do nothing returning id
     ) update onboarding_progress set prompt_status = 'ready', error_code = null, lease_token = null, lease_until = null,

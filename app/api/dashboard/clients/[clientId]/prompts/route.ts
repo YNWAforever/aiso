@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { isPromptCategory } from '@/lib/prompts/categories'
 import { authorizePromptBank } from '@/lib/prompts/guard'
-import { MAX_PROMPTS } from '@/lib/pulse/limits'
+import { MAX_PROMPTS, PULSE_ACTIVE_QUESTIONS_PER_BRAND } from '@/lib/pulse/limits'
 import { parsePromptContext } from '@/lib/prompts/context'
 
 export const dynamic = 'force-dynamic'
@@ -115,7 +115,10 @@ export async function POST(
       sql`select c.id from clients c where c.id=${clientId} and c.account_id=${access.accountId} for no key update`,
       sql`
       insert into prompt_bank (client_id, category, question, language, market, is_active)
-      select c.id, ${body.category}::text, ${question}::text, ${context.language}::text, ${context.market}::text, true
+      -- Q2 budget: a new question is active only while the brand runs fewer than the limit; otherwise it is
+      -- saved paused (the response says so), never refused for budget alone and never silently dropped.
+      select c.id, ${body.category}::text, ${question}::text, ${context.language}::text, ${context.market}::text,
+        (select count(*) from prompt_bank p where p.client_id=c.id and p.is_active) < ${PULSE_ACTIVE_QUESTIONS_PER_BRAND}
       from clients c
       where c.id = ${clientId} and c.account_id = ${access.accountId}
         and (select count(*) from prompt_bank p where p.client_id=c.id)<${MAX_PROMPTS}
@@ -123,7 +126,7 @@ export async function POST(
     `])
     if (!locked[0]) return Response.json({ error: 'Not found' }, { status: 404 })
     if (!inserted[0]) return Response.json({error:'PROMPT_LIMIT_REACHED',max:MAX_PROMPTS},{status:409})
-    return Response.json({ prompt: inserted[0] }, { status: 201 })
+    return Response.json({ prompt: inserted[0], ...(inserted[0].is_active ? {} : { activeLimitReached: true, activeLimit: PULSE_ACTIVE_QUESTIONS_PER_BRAND }) }, { status: 201 })
   } catch {
     // A 2xx must mean the write happened.
     return Response.json({ error: 'Prompt create failed' }, { status: 500 })

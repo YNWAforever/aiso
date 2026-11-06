@@ -40,3 +40,17 @@ const REASONING_PLATFORMS: ReadonlySet<string> = new Set(['gemini-flash'])
 export function pulseAnswerMaxTokens(platform: string): number {
   return REASONING_PLATFORMS.has(platform) ? PULSE_REASONING_ANSWER_MAX_TOKENS : PULSE_ANSWER_MAX_TOKENS
 }
+
+/**
+ * Retainer OS Q2 (Willy, 2026-11-06): at most 10 ACTIVE questions per brand.
+ * Pulse asks every active question on every platform the plan grants each week,
+ * so this is the weekly spend budget; the bank itself may still hold up to
+ * `MAX_PROMPTS` rows (inactive ones cost nothing).
+ *
+ * Enforced on every write that can switch a question on (single add, single
+ * edit, bulk apply, onboarding seed). Turning questions off is always allowed,
+ * so a brand already above the budget before this rule is never blocked from
+ * getting back under it, and nothing is ever deactivated behind the
+ * operator's back.
+ */
+export const PULSE_ACTIVE_QUESTIONS_PER_BRAND = 10
