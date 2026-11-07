@@ -478,9 +478,14 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - **`093` recorded on the hosted branch (`--verify`, 2026-11-04) before #160 merged** (constraint-only, so `n/a`).
 - **`094` recorded on the hosted branch (`--verify`, 2026-11-04) before #162 merged** (columns + constraint, so `n/a`).
 - **`095` recorded on the hosted branch (`--verify`, 2026-11-05) before #166 merged** (constraint-only, so `n/a`).
-- **`096` recorded on the hosted branch (`--verify`, 2026-11-05) before #167 merged** (constraint-only, so `n/a`).
-- **`097` (Retainer OS Slice B, `brand_month_snapshots`) is file-only until Willy applies it.** Insert-only per-brand
-  Hong Kong month snapshots, figures as of the boundary (`lib/brand-month/`). Apply and `--verify` before its PR merges.
+- **`096` was NOT recorded on the database production builds check until 2026-11-06.** The schema gate failed every
+  production build from #167 to #171 (`the database has not recorded 1 migration(s) this code ships:
+  096_site_edit_llms_txt_spec_kind.sql`), so production kept serving #166's build (`dpl_BbX93uBpEvLeTv9v6tNxABd55c3T`)
+  for #167–#171. The 2026-11-05 `recorded` reading did not hold for that database. Willy's `npm run migrate` on
+  2026-11-06 recorded `096` with `097`; #172's build logged `schema gate: all 95 shipped migrations are recorded.`
+  Lesson: after a migration merges, confirm the **production build log** says the gate passed, not only `--verify`.
+- **`097` (Retainer OS Slice B, `brand_month_snapshots`) recorded 2026-11-06** (schema gate on #172's production build).
+  Insert-only per-brand Hong Kong month snapshots, figures as of the boundary (`lib/brand-month/`).
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,
