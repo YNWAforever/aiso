@@ -4775,5 +4775,32 @@
     "workspaceAdmin": "Workspace admin (Manager)",
     "platformAdmin": "Platform administrator",
     "assignmentRevision": "Role revision and immutable event"
+  },
+  "month": {
+    "title": "Month",
+    "previous": "Previous",
+    "next": "Next",
+    "delivered": "Delivered",
+    "verified_live": "Verified live",
+    "self_reported": "Self-reported",
+    "none": "None",
+    "figures": "Opening and closing",
+    "opening": "Opening",
+    "closing": "Closing",
+    "not_recorded": "Not recorded",
+    "not_connected": "Not connected",
+    "scan_score": "Scan score",
+    "share_of_voice": "Share of voice",
+    "search_clicks": "Search clicks (28 days)",
+    "search_impressions": "Search impressions (28 days)",
+    "activity": "Activity",
+    "work_items_opened": "Work items opened",
+    "work_items_done": "Work items done",
+    "site_edits_sent": "Site edits sent",
+    "receipts_completed": "Developer receipts: done",
+    "receipts_rejected": "Developer receipts: refused",
+    "record": "Record now",
+    "record_failed": "Not recorded. Try again.",
+    "open": "Month"
   }
 }
