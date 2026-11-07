@@ -63,7 +63,11 @@ export async function createMonthlyReport(input: WriteInput & { month: string })
       ${input.narrative}::text, ${JSON.stringify(input.snapshot)}::jsonb, ${input.actorId}::uuid) as result`
     return written(row?.result)
   } catch (error) {
-    if (error instanceof Error && /CLIENT_REPORT_MONTH_EXISTS|client_reports_monthly_unique_idx/.test(error.message)) throw new MonthlyReportExistsError()
+    // db() sanitises driver errors: the RPC's signal survives by name (lib/db.ts allow-list), and a
+    // unique violation keeps only its SQLSTATE. In this RPC, 23505 can only be the monthly unique
+    // index (a concurrent create): the report row is new, so its version 1 cannot collide.
+    const code = error && typeof error === 'object' ? (error as { code?: unknown }).code : undefined
+    if (code === '23505' || (error instanceof Error && error.message === 'CLIENT_REPORT_MONTH_EXISTS')) throw new MonthlyReportExistsError()
     throw error
   }
 }

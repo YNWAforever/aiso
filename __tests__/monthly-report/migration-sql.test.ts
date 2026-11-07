@@ -10,8 +10,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const state = vi.hoisted(() => ({ pg: null as PGlite | null }))
 vi.mock('server-only', () => ({}))
-vi.mock('@/lib/db', () => {
-  const run = async (text: string, values: unknown[]) => (await state.pg!.query(text, values)).rows
+// Errors pass through lib/db.ts's real sanitiser, so these tests see what production code sees.
+vi.mock('@/lib/db', async () => {
+  const { databaseFailure } = await vi.importActual<typeof import('@/lib/db')>('@/lib/db')
+  const run = async (text: string, values: unknown[]) => {
+    try { return (await state.pg!.query(text, values)).rows } catch (error) { throw databaseFailure(error) }
+  }
   const tag = (strings: TemplateStringsArray, ...values: unknown[]) => {
     const text = strings.reduce((out, part, index) => out + (index ? '$' + index : '') + part, '')
     return { text, values, then: (ok: (v: unknown) => unknown, ko: (e: unknown) => unknown) => run(text, values).then(ok, ko) }
@@ -93,6 +97,22 @@ describe('monthly report RPCs through the store', () => {
     expect(await q('select kind, report_month::text from client_reports')).toEqual([{ kind: 'monthly', report_month: '2026-11-01' }])
     expect(await q('select version_number, snapshot_schema_version, source_scan_id from client_report_versions order by version_number'))
       .toEqual([{ version_number: 1, snapshot_schema_version: 2, source_scan_id: null }, { version_number: 2, snapshot_schema_version: 2, source_scan_id: null }])
+  })
+
+  it('recognises a concurrent first draft by its unique-index conflict, through the sanitised client', async () => {
+    const sql = readFileSync('supabase/migrations/098_monthly_client_reports.sql', 'utf8')
+    const start = sql.indexOf('create or replace function public.create_monthly_client_report_with_version')
+    const create = sql.slice(start, sql.indexOf('$function$;', start) + '$function$;'.length)
+    // What the second of two concurrent creates sees: the pre-check passed before the first committed.
+    const racing = create.replace(/\n  if exists \([\s\S]*?CLIENT_REPORT_MONTH_EXISTS';\n  end if;\n/, '\n')
+    expect(racing).not.toContain('CLIENT_REPORT_MONTH_EXISTS')
+    await createMonthlyReport({ ...write(), month: '2026-11-01' })
+    await state.pg!.exec(racing)
+    try {
+      await expect(createMonthlyReport({ ...write(), month: '2026-11-01' })).rejects.toBeInstanceOf(MonthlyReportExistsError)
+    } finally {
+      await state.pg!.exec(create)
+    }
   })
 
   it('refuses another account\'s brand, a mid-month date, and appending to a scan report', async () => {

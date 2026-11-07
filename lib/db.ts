@@ -16,9 +16,11 @@ const APPLICATION_ERRORS = new Set([
   'BRAND_LIMIT_REACHED', 'ACCOUNT_ENTITLEMENT_INVALID',
   'CLIENT_REPORT_NOT_FOUND', 'CLIENT_REPORT_SCAN_NOT_FOUND',
   'CLIENT_REPORT_PREVIOUS_SCAN_INVALID', 'reviewed version is stale',
+  'CLIENT_REPORT_MONTH_EXISTS', 'CLIENT_REPORT_MONTH_INVALID',
 ])
 
-function databaseFailure(error: unknown, message = 'Database operation failed'): Error {
+/** Exported for tests that run real Postgres (PGlite) through the same sanitisation production applies. */
+export function databaseFailure(error: unknown, message = 'Database operation failed'): Error {
   const fields = error && typeof error === 'object' ? error as { code?: unknown; message?: unknown } : {}
   const code = typeof fields.code === 'string' && ERROR_CODES.has(fields.code) ? fields.code : undefined
   const signal = code === 'P0001' && typeof fields.message === 'string' && APPLICATION_ERRORS.has(fields.message)

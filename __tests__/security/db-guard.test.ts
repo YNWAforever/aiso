@@ -246,7 +246,7 @@ describe('database diagnostic boundary after binding', () => {
     await expect(sql`select 2`).rejects.toMatchObject({ code, message: 'Database operation failed' })
   })
 
-  it.each(['BRAND_LIMIT_REACHED', 'ACCOUNT_ENTITLEMENT_INVALID', 'CLIENT_REPORT_NOT_FOUND', 'reviewed version is stale'])('retains the exact application signal %s', async message => {
+  it.each(['BRAND_LIMIT_REACHED', 'ACCOUNT_ENTITLEMENT_INVALID', 'CLIENT_REPORT_NOT_FOUND', 'CLIENT_REPORT_MONTH_EXISTS', 'CLIENT_REPORT_MONTH_INVALID', 'reviewed version is stale'])('retains the exact application signal %s', async message => {
     const sql = (await loadDb())()
     await sql`select 1 as ok`
     neonConfig.fetchFunction = async () => ({ ok: false, status: 400, json: async () => ({ code: 'P0001', message, detail: DSN }) })
