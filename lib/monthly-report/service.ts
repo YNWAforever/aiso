@@ -6,7 +6,7 @@ import type { BrandMonthPeriod } from '@/lib/brand-month/period'
 import { readBrandMonth } from '@/lib/brand-month/store'
 import { buildMonthlyReportSnapshot, normalizeNarrative } from './snapshot'
 import { appendMonthlyReport, createMonthlyReport, loadMonthlyReport, loadOpenWorkItems, MonthlyReportExistsError, publishMonthlyReport, revokeMonthlyReport } from './store'
-import { buildReportShareUrl } from '@/lib/reports/share'
+import { buildReportShareUrl, prepareReportShareUrl } from '@/lib/reports/share'
 import { appOrigin } from '@/lib/app-origin'
 
 export type DraftResult =
@@ -74,9 +74,10 @@ export async function publishMonthly(input: { accountId: string; clientId: strin
   if (!report) return { state: 'not_found' }
   if (report.versionId !== input.reviewedVersionId) return { state: 'stale' }
   try {
+    const shareUrlBuilder = prepareReportShareUrl(appOrigin())
     const published = await publishMonthlyReport({ accountId: input.accountId, clientId: input.clientId, reportId: report.reportId, reviewedVersionId: input.reviewedVersionId })
     return { state: 'ok', versionNumber: report.versionNumber,
-      shareUrl: buildReportShareUrl({ origin: appOrigin(), locale: report.snapshot.locale, slug: published.publicSlug, shareVersion: published.shareVersion }) }
+      shareUrl: shareUrlBuilder({ locale: report.snapshot.locale, slug: published.publicSlug, shareVersion: published.shareVersion }) }
   } catch (error) {
     if (error instanceof Error && /reviewed version is stale/.test(error.message)) return { state: 'stale' }
     throw error

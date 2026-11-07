@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { PGlite } from '@electric-sql/pglite'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
-import { ACCOUNT, OTHER_ACCOUNT, MEMBER, CLIENT, FOREIGN_CLIENT, ITEM, VERSION, reportDatabase } from './sql-fixture'
+import { ACCOUNT, OTHER_ACCOUNT, MEMBER, CLIENT, FOREIGN_CLIENT, SECOND_CLIENT, ITEM, VERSION, reportDatabase } from './sql-fixture'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 
@@ -71,12 +71,14 @@ const share = async () => {
   expect(response.status).toBe(200)
   return (await response.json()).shareUrl as string
 }
+const SIGNING_KEY = 'isolated-c2-test-signing-key-with-no-real-value'
+const APP_URL = 'https://fixture.example'
 
 beforeAll(async () => { h.pg = await reportDatabase() })
 afterAll(async () => { await h.pg?.close() })
 beforeEach(async () => {
-  vi.stubEnv('REPORT_SHARE_SECRET', 'isolated-c2-test-signing-key-with-no-real-value')
-  vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://fixture.example')
+  vi.stubEnv('REPORT_SHARE_SECRET', SIGNING_KEY)
+  vi.stubEnv('NEXT_PUBLIC_APP_URL', APP_URL)
   h.accountId = ACCOUNT; h.fail = false; h.beforePublish = null; h.calls = []
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   await h.pg!.exec(`truncate client_report_versions, client_reports cascade;
@@ -175,6 +177,135 @@ describe('C2 isolated route + PostgreSQL lifecycle (simulated integration, no br
       reviewedVersionId: draft.versionId })).rejects.toThrow('CLIENT_REPORT_NOT_FOUND')
     await expect(revokeMonthlyReport({ accountId: OTHER_ACCOUNT, clientId: CLIENT, reportId: draft.reportId })).rejects.toThrow('CLIENT_REPORT_NOT_FOUND')
     expect(await q('select to_jsonb(r) as row from client_reports r')).toEqual(before)
+  })
+
+  it('isolates reads, publication and revocation between two brands in the same account', async () => {
+    expect((await save('en', 'First brand public narrative.')).status).toBe(201)
+    const first = (await load())!
+    const firstLink = await share()
+    const rows = () => q('select to_jsonb(r) as row from client_reports r where account_id = $1 order by client_id', [ACCOUNT])
+    const firstPublished = await rows()
+    expect(await loadMonthlyReport(ACCOUNT, SECOND_CLIENT, '2026-10-01')).toBeNull()
+    const empty = await GET(request(), ctx(SECOND_CLIENT))
+    expect(empty.status).toBe(200)
+    expect(await empty.json()).toEqual({ report: null })
+    for (const response of [await publish(first.versionId, SECOND_CLIENT), await REVOKE(request(), ctx(SECOND_CLIENT))]) {
+      expect(response.status).toBe(404)
+      expect(await response.json()).toEqual({ error: 'Not found' })
+    }
+    expect(await rows()).toEqual(firstPublished)
+
+    expect((await save('zh-HK', 'Second brand public narrative.', SECOND_CLIENT)).status).toBe(201)
+    const second = (await loadMonthlyReport(ACCOUNT, SECOND_CLIENT, '2026-10-01'))!
+    expect(second.reportId).not.toBe(first.reportId)
+    const secondPublish = await publish(second.versionId, SECOND_CLIENT)
+    expect(secondPublish.status).toBe(200)
+    const secondLink = (await secondPublish.json()).shareUrl as string
+    const before = await rows()
+    const versionsBefore = await q('select to_jsonb(v) as row from client_report_versions v where account_id = $1 order by id', [ACCOUNT])
+    for (const [clientId, wrongReport] of [[CLIENT, second], [SECOND_CLIENT, first]] as const) {
+      const response = await publish(wrongReport.versionId, clientId)
+      expect(response.status).toBe(409)
+      expect(await response.json()).toEqual({ error: 'STALE_VERSION' })
+      await expect(publishMonthlyReport({ accountId: ACCOUNT, clientId, reportId: wrongReport.reportId,
+        reviewedVersionId: wrongReport.versionId })).rejects.toThrow('CLIENT_REPORT_NOT_FOUND')
+      await expect(revokeMonthlyReport({ accountId: ACCOUNT, clientId, reportId: wrongReport.reportId }))
+        .rejects.toThrow('CLIENT_REPORT_NOT_FOUND')
+    }
+    for (const [clientId, report, name, narrative] of [
+      [CLIENT, first, 'Fixture Bakery', 'First brand public narrative.'],
+      [SECOND_CLIENT, second, 'Second brand', 'Second brand public narrative.'],
+    ] as const) {
+      const response = await GET(request(), ctx(clientId))
+      expect(response.status).toBe(200)
+      expect((await response.json()).report).toMatchObject({ reportId: report.reportId,
+        versionId: report.versionId, snapshot: { client: { name }, executiveSummary: narrative } })
+    }
+    expect(await rows()).toEqual(before)
+    expect(await q('select to_jsonb(v) as row from client_report_versions v where account_id = $1 order by id', [ACCOUNT])).toEqual(versionsBefore)
+    expect((await resolvePublishedMonthlyReport(linkInput(firstLink)))!.report.executiveSummary).toBe('First brand public narrative.')
+    expect((await resolvePublishedMonthlyReport(linkInput(secondLink)))!.report.executiveSummary).toBe('Second brand public narrative.')
+    expect((await REVOKE(request(), ctx(SECOND_CLIENT))).status).toBe(200)
+    expect((await rows()).filter((r) => (r.row as { client_id: string }).client_id === CLIENT)).toEqual(firstPublished)
+    expect(await resolvePublishedMonthlyReport(linkInput(secondLink))).toBeNull()
+    expect((await resolvePublishedMonthlyReport(linkInput(firstLink)))!.report.executiveSummary).toBe('First brand public narrative.')
+  })
+
+  describe.each(['initial publish', 'republish'])('%s configuration failures', mode => {
+    it.each([
+      ['HTTP origin', 'NEXT_PUBLIC_APP_URL', 'http://fixture.example'],
+      ['malformed origin', 'NEXT_PUBLIC_APP_URL', 'not-a-url'],
+      ['credentialed origin', 'NEXT_PUBLIC_APP_URL', 'https://fixture:synthetic@fixture.example'],
+      ['origin with path', 'NEXT_PUBLIC_APP_URL', 'https://fixture.example/path'],
+      ['origin with query', 'NEXT_PUBLIC_APP_URL', 'https://fixture.example/?fixture=1'],
+      ['origin with fragment', 'NEXT_PUBLIC_APP_URL', 'https://fixture.example/#fixture'],
+      ['missing signing key', 'REPORT_SHARE_SECRET', undefined],
+      ['empty signing key', 'REPORT_SHARE_SECRET', ''],
+      ['short signing key', 'REPORT_SHARE_SECRET', 'k'.repeat(31)],
+    ] as const)('leaves publication and public content unchanged with %s', async (_label, variable, value) => {
+      expect((await save('en', 'Old public narrative.')).status).toBe(201)
+      const first = (await load())!
+      const oldLink = mode === 'republish' ? await share() : null
+      const link = oldLink ?? `${APP_URL}/en/r/${first.publicSlug}?v=${first.shareVersion}&s=${signReportShare({
+        slug: first.publicSlug, shareVersion: first.shareVersion,
+      })}`
+      if (oldLink) expect((await save('zh-HK', 'Replacement draft narrative.')).status).toBe(201)
+      const reviewed = (await load())!
+      const before = await q('select to_jsonb(r) as row from client_reports r where account_id = $1 and client_id = $2', [ACCOUNT, CLIENT])
+      vi.stubEnv(variable, value)
+      h.calls = []
+      const response = await publish(reviewed.versionId)
+      expect(response.status).toBe(503)
+      expect(response.headers.get('Cache-Control')).toBe('no-store')
+      expect(await response.json()).toEqual({ error: 'MONTHLY_REPORT_UNAVAILABLE' })
+      expect.soft(await q('select to_jsonb(r) as row from client_reports r where account_id = $1 and client_id = $2', [ACCOUNT, CLIENT])).toEqual(before)
+      expect.soft(h.calls.some(text => text.includes('public.publish_client_report_latest'))).toBe(false)
+      vi.stubEnv('REPORT_SHARE_SECRET', SIGNING_KEY)
+      vi.stubEnv('NEXT_PUBLIC_APP_URL', APP_URL)
+      const resolved = await resolvePublishedMonthlyReport(linkInput(link))
+      if (oldLink) {
+        expect.soft(resolved?.report.executiveSummary).toBe('Old public narrative.')
+        const html = await publicPage(oldLink)
+        expect.soft(html).toContain('Old public narrative.')
+        expect.soft(html).not.toContain('Replacement draft narrative.')
+      } else {
+        expect.soft(resolved).toBeNull()
+        await expect(publicPage(link)).rejects.toThrow('NEXT_NOT_FOUND')
+      }
+    })
+  })
+
+  it('captures valid URL and signing configuration before the publication mutation', async () => {
+    expect((await save()).status).toBe(201)
+    h.beforePublish = async () => {
+      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://fixture.example')
+      vi.stubEnv('REPORT_SHARE_SECRET', 'short-fixture-key')
+    }
+    const response = await publish((await load())!.versionId)
+    expect(response.status).toBe(200)
+    const { shareUrl } = await response.json()
+    expect(new URL(shareUrl).origin).toBe(APP_URL)
+    vi.stubEnv('REPORT_SHARE_SECRET', SIGNING_KEY)
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', APP_URL)
+    expect((await resolvePublishedMonthlyReport(linkInput(shareUrl)))!.report.executiveSummary).toBe((await load())!.snapshot.executiveSummary)
+  })
+
+  it('signs the authoritative slug and generation after a revoke between publish read and mutation', async () => {
+    expect((await save('en', 'Previously published narrative.')).status).toBe(201)
+    const oldLink = await share()
+    expect((await save('zh-HK', 'Reviewed replacement narrative.')).status).toBe(201)
+    const reviewed = (await load())!
+    h.beforePublish = async () => { expect((await REVOKE(request(), ctx())).status).toBe(200) }
+    const response = await publish(reviewed.versionId)
+    expect(response.status).toBe(200)
+    const { shareUrl } = await response.json()
+    const published = (await load())!
+    expect(published.shareVersion).toBe(reviewed.shareVersion + 2)
+    expect(published.publicSlug).not.toBe(reviewed.publicSlug)
+    expect(linkInput(shareUrl)).toMatchObject({ slug: published.publicSlug, version: String(published.shareVersion) })
+    expect(new URL(shareUrl).pathname).toBe(`/zh-HK/r/${published.publicSlug}`)
+    expect((await resolvePublishedMonthlyReport(linkInput(shareUrl)))!.report.executiveSummary).toBe('Reviewed replacement narrative.')
+    expect(await resolvePublishedMonthlyReport(linkInput(oldLink))).toBeNull()
   })
 
   it('publishes only the explicitly reviewed version and returns 409 for a superseded review', async () => {

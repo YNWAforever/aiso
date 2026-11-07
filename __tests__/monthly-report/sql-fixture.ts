@@ -9,6 +9,7 @@ export const MEMBER = '20000000-0000-4000-8000-000000000001'
 export const OTHER_MEMBER = '20000000-0000-4000-8000-000000000002'
 export const CLIENT = '30000000-0000-4000-8000-000000000001'
 export const FOREIGN_CLIENT = '30000000-0000-4000-8000-000000000002'
+export const SECOND_CLIENT = '30000000-0000-4000-8000-000000000003'
 export const ITEM = '40000000-0000-4000-8000-000000000001'
 export const VERSION = '50000000-0000-4000-8000-000000000001'
 
@@ -44,7 +45,8 @@ export async function reportDatabase(cap: 65536 | 262144 = 262144): Promise<PGli
   await pg.query('insert into accounts(id) values ($1), ($2)', [ACCOUNT, OTHER_ACCOUNT])
   await pg.query('insert into profiles values ($1, $2), ($3, $4)', [MEMBER, ACCOUNT, OTHER_MEMBER, OTHER_ACCOUNT])
   await pg.query(`insert into clients values ($1, $2, 'Fixture Bakery', 'bakery.example'),
-    ($3, $4, 'Foreign sentinel', 'foreign.example')`, [CLIENT, ACCOUNT, FOREIGN_CLIENT, OTHER_ACCOUNT])
+    ($3, $4, 'Foreign sentinel', 'foreign.example'),
+    ($5, $2, 'Second brand', 'second.example')`, [CLIENT, ACCOUNT, FOREIGN_CLIENT, OTHER_ACCOUNT, SECOND_CLIENT])
   await pg.query(`insert into account_report_branding(account_id, agency_name, primary_color)
     values ($1, 'Fixture Agency', '#123ABC')`, [ACCOUNT])
   return pg
