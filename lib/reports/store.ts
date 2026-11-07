@@ -782,6 +782,8 @@ export async function listClientReportVersions(input: {
 export async function resolvePublicClientReport(input: {
   publicSlug: string
   shareVersion: number
+  /** Scan reports by default; the monthly public page (Retainer OS C2) passes 'monthly'. */
+  kind?: 'scan' | 'monthly'
 }): Promise<{
   report: ClientReportRow
   version: ClientReportVersionRow
@@ -799,7 +801,7 @@ export async function resolvePublicClientReport(input: {
     where public_slug = ${input.publicSlug}
       and share_version = ${input.shareVersion}::int
       and status = 'published'
-      and kind = 'scan'
+      and kind = ${input.kind ?? 'scan'}
     limit 1
   `)
   // A revoked report, an unknown slug, and a stale share_version all land

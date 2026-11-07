@@ -5,7 +5,9 @@ import type { ReportLocale } from '@/lib/reports/types'
 import type { BrandMonthPeriod } from '@/lib/brand-month/period'
 import { readBrandMonth } from '@/lib/brand-month/store'
 import { buildMonthlyReportSnapshot, normalizeNarrative } from './snapshot'
-import { appendMonthlyReport, createMonthlyReport, loadMonthlyReport, loadOpenWorkItems, MonthlyReportExistsError } from './store'
+import { appendMonthlyReport, createMonthlyReport, loadMonthlyReport, loadOpenWorkItems, MonthlyReportExistsError, publishMonthlyReport, revokeMonthlyReport } from './store'
+import { buildReportShareUrl } from '@/lib/reports/share'
+import { appOrigin } from '@/lib/app-origin'
 
 export type DraftResult =
   | { state: 'not_found' }
@@ -56,4 +58,41 @@ export async function draftMonthlyReport(input: {
     if (!raced) throw error
     return { state: 'ok', ...await appendMonthlyReport({ ...write, reportId: raced.reportId }) }
   }
+}
+
+export type PublishResult =
+  | { state: 'not_found' } | { state: 'stale' }
+  | { state: 'ok'; shareUrl: string; versionNumber: number }
+
+/**
+ * Publishes the draft the operator reviewed. 027's RPC refuses it when a newer
+ * draft has been saved since ('reviewed version is stale'), so what goes out is
+ * exactly what was looked at.
+ */
+export async function publishMonthly(input: { accountId: string; clientId: string; period: BrandMonthPeriod; reviewedVersionId: string }): Promise<PublishResult> {
+  const report = await loadMonthlyReport(input.accountId, input.clientId, input.period.month)
+  if (!report) return { state: 'not_found' }
+  if (report.versionId !== input.reviewedVersionId) return { state: 'stale' }
+  try {
+    const published = await publishMonthlyReport({ accountId: input.accountId, clientId: input.clientId, reportId: report.reportId, reviewedVersionId: input.reviewedVersionId })
+    return { state: 'ok', versionNumber: report.versionNumber,
+      shareUrl: buildReportShareUrl({ origin: appOrigin(), locale: report.snapshot.locale, slug: published.publicSlug, shareVersion: published.shareVersion }) }
+  } catch (error) {
+    if (error instanceof Error && /reviewed version is stale/.test(error.message)) return { state: 'stale' }
+    throw error
+  }
+}
+
+export async function revokeMonthly(input: { accountId: string; clientId: string; period: BrandMonthPeriod }): Promise<{ state: 'not_found' } | { state: 'ok' }> {
+  const report = await loadMonthlyReport(input.accountId, input.clientId, input.period.month)
+  if (!report || report.status !== 'published') return { state: 'not_found' }
+  await revokeMonthlyReport({ accountId: input.accountId, clientId: input.clientId, reportId: report.reportId })
+  return { state: 'ok' }
+}
+
+/** The live share link for a published monthly report, or null. Built server-side; the signature never leaves the server otherwise. */
+export function monthlyShareUrl(report: { status: string; publicSlug: string; shareVersion: number; publishedLocale: 'en' | 'zh-HK' | null }): string | null {
+  return report.status === 'published' && report.publishedLocale
+    ? buildReportShareUrl({ origin: appOrigin(), locale: report.publishedLocale, slug: report.publicSlug, shareVersion: report.shareVersion })
+    : null
 }

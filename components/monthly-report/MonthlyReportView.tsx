@@ -12,7 +12,9 @@ export type MonthlyReportCopy = {
  * (verified live, then self-reported), visibility, search demand, next month.
  * Renders only what the frozen snapshot holds; a missing figure says why.
  */
-export function MonthlyReportView({ snapshot, lang, copy }: { snapshot: MonthlyReportSnapshotV2; lang: 'en' | 'zh-HK'; copy: MonthlyReportCopy }) {
+export function MonthlyReportView({ snapshot, lang, copy }: {
+  snapshot: Pick<MonthlyReportSnapshotV2, 'executiveSummary' | 'delivered' | 'search' | 'nextMonth'>; lang: 'en' | 'zh-HK'; copy: MonthlyReportCopy
+}) {
   const number = new Intl.NumberFormat(lang)
   const day = new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', timeZone: 'Asia/Hong_Kong' })
   const dateOnly = (d: string) => day.format(new Date(`${d}T00:00:00+08:00`))
