@@ -489,6 +489,6 @@ describe('scan reports stay isolated from monthly reports (098)', () => {
     await resolvePublicClientReport({ publicSlug: 'slug', shareVersion: 1 }).catch(() => null)
     const reads = state.calls.filter(c => /from client_reports/.test(c.text))
     expect(reads.length).toBe(3)
-    for (const read of reads) expect(read.text).toMatch(/kind = 'scan'/)
+    for (const read of reads) expect(/kind = 'scan'/.test(read.text) || (/kind = \?/.test(read.text) && read.values.includes('scan'))).toBe(true)
   })
 })
