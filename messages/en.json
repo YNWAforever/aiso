@@ -4847,6 +4847,15 @@
     "failed": "Not saved. Try again.",
     "branding_required": "Set up report branding first.",
     "invalid_narrative": "Use 1–1,200 characters of plain text.",
-    "open": "Report"
+    "open": "Report",
+    "published": "Published",
+    "publish": "Publish",
+    "publish_latest": "Publish this version",
+    "revoke": "Stop sharing",
+    "share_link": "Share link",
+    "shared": "Shared",
+    "not_shared": "Not shared",
+    "publish_failed": "Not published. Try again.",
+    "stale": "A newer draft exists. Reload and review it first."
   }
 }

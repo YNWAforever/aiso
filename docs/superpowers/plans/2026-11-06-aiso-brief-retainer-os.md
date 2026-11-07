@@ -123,7 +123,14 @@ Comes first, because Slices B and C have nothing to report without it.
     未連接/未記錄/未有); next month (open work items).
   - The narrative is the operator's (1–1,200 characters). The default only restates the delivered counts.
   - `/{lang}/dashboard/[clientId]/month/report?m=YYYY-MM` shows the latest draft and saves a new version.
-  - **C2 (next):** render schema 2 on the public share page and allow publishing it.
+- **C2 (draft PR, stacked on C1, no migration): publish and share.**
+  - Publish sends exactly the reviewed draft (`versionId`); 027's RPC refuses a stale one (409). Stop sharing uses
+    027's revoke, which rotates the slug so the old link dies. Both read the report with `kind = 'monthly'` and check
+    the RPC result is that kind again.
+  - The share link has the same signed format as scan reports. `/{lang}/r/[slug]` tries the scan resolver first, then
+    `resolvePublishedMonthlyReport`, which repeats every scan check (HMAC first, published, tuple, entitlement,
+    locale) and copies an allow-list: no raw logo/contact URL, no internal version id.
+  - Not yet: the agency logo and contact link on the public monthly page (their proxy routes serve scan reports).
 
 - **Drafted from the Brand Month,** extending the existing `client_reports` versions and share links rather than
   building a second report system.
