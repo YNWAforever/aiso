@@ -36,16 +36,25 @@ export async function GET(req: Request) {
   const current = periodOf(hongKongMonthKey(now))!, previous = periodOf(shiftMonth(current.key, -1))!
   let due = 0, recorded = 0, notEntitled = 0, failed = 0
   try {
-    for (const brand of await loadDueMonthBrands(now, BATCH)) {
-      if (Date.now() - started >= START_CUTOFF_MS) break
-      if (!resolveCommercialEntitlement(brand.account, now).features.client_reports_online) { notEntitled++; continue }
-      due++
-      try {
-        for (const period of [previous, current]) {
-          const result = await recordDueSnapshots(brand.accountId, brand.clientId, period, now)
-          if (result.state === 'ok') recorded += result.recorded.length
-        }
-      } catch { failed++ }
+    // Keyset pages: a brand that is skipped (not entitled) still advances the cursor,
+    // so it can never hold the batch and starve entitled brands behind it.
+    let after: string | null = null
+    pages: while (Date.now() - started < START_CUTOFF_MS) {
+      const batch = await loadDueMonthBrands(now, BATCH, after)
+      if (!batch.length) break
+      for (const brand of batch) {
+        if (Date.now() - started >= START_CUTOFF_MS) break pages
+        after = brand.clientId
+        if (!resolveCommercialEntitlement(brand.account, now).features.client_reports_online) { notEntitled++; continue }
+        due++
+        try {
+          for (const period of [previous, current]) {
+            const result = await recordDueSnapshots(brand.accountId, brand.clientId, period, now)
+            if (result.state === 'ok') recorded += result.recorded.length
+          }
+        } catch { failed++ }
+      }
+      if (batch.length < BATCH) break
     }
   } catch {
     await finishCronRun(runId, 'error', { due, recorded, notEntitled, failed }, 'DEPENDENCY_UNAVAILABLE')

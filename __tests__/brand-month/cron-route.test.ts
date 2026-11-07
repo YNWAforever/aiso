@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const m = vi.hoisted(() => ({ due: [] as unknown[], record: vi.fn(), runs: [] as unknown[][] }))
 vi.mock('@/lib/cron/recordRun', () => ({ startCronRun: vi.fn(async () => 'run-1'), finishCronRun: vi.fn(async (...a: unknown[]) => { m.runs.push(a) }) }))
-vi.mock('@/lib/brand-month/queue', () => ({ loadDueMonthBrands: vi.fn(async () => m.due) }))
+// Pages like the real query: ordered by client id, after the cursor, at most `limit`.
+vi.mock('@/lib/brand-month/queue', () => ({ loadDueMonthBrands: vi.fn(async (_now: Date, limit: number, after: string | null = null) =>
+  (m.due as { clientId: string }[]).filter(b => after === null || b.clientId > after).slice(0, limit)) }))
 vi.mock('@/lib/brand-month/store', () => ({ recordDueSnapshots: m.record }))
 
 import { GET } from '@/app/api/cron/brand-months/route'
@@ -39,6 +41,13 @@ describe('GET /api/cron/brand-months', () => {
     expect(m.record.mock.calls.map(c => [c[1], (c[2] as { key: string }).key])).toEqual([['c1', '2026-11'], ['c1', '2026-12']])
     expect(m.record.mock.calls[0][0]).toBe('acc-c1')
     expect(m.runs[0].slice(0, 2)).toEqual(['run-1', 'ok'])
+  })
+
+  it('pages past a full batch of brands it skips, so an entitled brand behind them is still recorded', async () => {
+    m.due = [...Array.from({ length: 200 }, (_, i) => brand(`a${String(i).padStart(3, '0')}`, 'free')), brand('z-entitled', 'pro')]
+    const res = await call()
+    expect(await res.json()).toEqual({ due: 1, recorded: 2, notEntitled: 200, failed: 0 })
+    expect(m.record.mock.calls.every(c => c[1] === 'z-entitled')).toBe(true)
   })
 
   it('answers 502 when every due brand failed, and 200 when only some did', async () => {

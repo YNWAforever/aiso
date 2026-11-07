@@ -80,18 +80,21 @@ export type DueMonthBrand = { accountId: string; clientId: string; account: NonN
  * Deliberately account-blind, like `loadDueBindings`: the cron has no session.
  * Its only account predicate is the join; the caller checks entitlement per
  * account and writes through `recordDueSnapshots`, which scopes every write.
+ * Keyset-paged by client id (`after`), so brands the caller skips (not
+ * entitled) cannot hold a batch and starve the brands behind them.
  */
-export async function loadDueMonthBrands(now: Date, limit: number): Promise<DueMonthBrand[]> {
+export async function loadDueMonthBrands(now: Date, limit: number, after: string | null = null): Promise<DueMonthBrand[]> {
   const sql = db()
   const current = periodOf(hongKongMonthKey(now))!, previous = periodOf(shiftMonth(current.key, -1))!
   const closeDue = now.getTime() >= Date.parse(previous.end) + CLOSE_GRACE_DAYS * 86_400_000
   const rows = await sql`
     select c.id as client_id, c.account_id, a.plan, a.status, a.stripe_subscription_id, a.trial_ends_at, a.override_plan, a.override_expires_at
     from clients c join accounts a on a.id = c.account_id
-    where not exists (select 1 from brand_month_snapshots m where m.account_id = c.account_id and m.client_id = c.id
-        and m.month = ${current.month}::date and m.kind = 'opening')
-      or (${closeDue}::boolean and not exists (select 1 from brand_month_snapshots m where m.account_id = c.account_id
-        and m.client_id = c.id and m.month = ${previous.month}::date and m.kind = 'closing'))
+    where (${after}::uuid is null or c.id > ${after}::uuid)
+      and (not exists (select 1 from brand_month_snapshots m where m.account_id = c.account_id and m.client_id = c.id
+          and m.month = ${current.month}::date and m.kind = 'opening')
+        or (${closeDue}::boolean and not exists (select 1 from brand_month_snapshots m where m.account_id = c.account_id
+          and m.client_id = c.id and m.month = ${previous.month}::date and m.kind = 'closing')))
     order by c.id limit ${limit}`
   return rows.map(r => ({ accountId: String(r.account_id), clientId: String(r.client_id), account: {
     plan: r.plan, status: r.status, stripe_subscription_id: r.stripe_subscription_id, trial_ends_at: r.trial_ends_at,

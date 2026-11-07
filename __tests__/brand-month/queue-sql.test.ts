@@ -141,5 +141,8 @@ describe('loadDueMonthBrands', () => {
     }
     expect((await loadDueMonthBrands(NOW, 10)).map(d => d.clientId)).not.toContain(bakery)
     expect(await loadDueMonthBrands(NOW, 1)).toHaveLength(1)
+    // Keyset paging: everything after the cursor, never the cursor itself.
+    expect((await loadDueMonthBrands(NOW, 10, cafe)).map(d => d.clientId)).toEqual([foreign])
+    expect(await loadDueMonthBrands(NOW, 10, foreign)).toEqual([])
   })
 })
