@@ -64,6 +64,17 @@ describe('publishing a monthly report', () => {
     expect(m.revoke.mock.calls[0][0]).toEqual({ accountId: 'acc-1', clientId: CLIENT, reportId: 'r1' })
   })
 
+  it('lets the owner stop sharing a report older than the month view\'s lookback, but never a future month', async () => {
+    m.load.mockResolvedValue(draft({ status: 'published' }))
+    const old = { params: Promise.resolve({ clientId: CLIENT, month: '2024-03' }) }
+    expect((await REVOKE(new Request('http://localhost', { method: 'POST' }), old)).status).toBe(200)
+    expect(m.load.mock.calls.at(-1)?.[2]).toBe('2024-03-01')
+    const future = { params: Promise.resolve({ clientId: CLIENT, month: '2027-01' }) }
+    expect((await REVOKE(new Request('http://localhost', { method: 'POST' }), future)).status).toBe(404)
+    const oldPublish = PUBLISH(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ versionId: VERSION }) }), old)
+    expect((await oldPublish).status).toBe(404)
+  })
+
   it('shows a share link only while published, in the published version\'s language', () => {
     expect(monthlyShareUrl(draft())).toBeNull()
     const url = monthlyShareUrl(draft({ status: 'published', publishedLocale: 'en' }))!

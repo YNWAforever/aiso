@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic'
 
 /** Retainer OS Slice C2: stop sharing the monthly report. The old link stops working (027 rotates the slug). */
 export async function POST(_req: Request, ctx: { params: Promise<{ clientId: string; month: string }> }) {
-  const access = await monthlyReportAccess(ctx.params)
+  // Any past month: an old published link must stay withdrawable after the month leaves the view's lookback.
+  const access = await monthlyReportAccess(ctx.params, { anyPastMonth: true })
   if (!access.ok) return access.response
   try {
     const result = await revokeMonthly({ accountId: access.accountId, clientId: access.clientId, period: access.period })

@@ -4,6 +4,7 @@ import { createTranslator, NextIntlClientProvider } from 'next-intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 
+process.env.REPORT_SHARE_SECRET = 'test-report-share-secret-that-is-at-least-32-characters'
 const h = vi.hoisted(() => ({ report: null as unknown }))
 vi.mock('server-only', () => ({}))
 // getTranslations('ns') follows the request (dashboard) locale, here en; getTranslations({ locale, namespace }) follows the argument.
@@ -28,8 +29,8 @@ const snapshot = (locale: 'en' | 'zh-HK', summary: string) => ({
   search: { opening: { state: 'not_connected' }, closing: { state: 'not_recorded' } }, nextMonth: { openWorkItems: [] },
   executiveSummary: summary, builtAt: 'x',
 })
-const render = async () => renderToStaticMarkup(
-  <NextIntlClientProvider locale="en" messages={en}>{await MonthlyReportPage({ params: Promise.resolve({ lang: 'en', clientId: CLIENT }), searchParams: Promise.resolve({ m: '2026-11' }) })}</NextIntlClientProvider>)
+const render = async (m = '2026-11') => renderToStaticMarkup(
+  <NextIntlClientProvider locale="en" messages={en}>{await MonthlyReportPage({ params: Promise.resolve({ lang: 'en', clientId: CLIENT }), searchParams: Promise.resolve({ m }) })}</NextIntlClientProvider>)
 
 beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-12-05T00:00:00Z')) })
 
@@ -49,5 +50,17 @@ describe('monthly report page', () => {
     h.report = { reportId: 'r1', status: 'draft', versionId: 'v1', versionNumber: 1, snapshot: snapshot('en', 'November 2026: 0 changes verified live and 0 self-reported.') }
     const html = await render()
     expect(html).toMatch(/<textarea[^>]*>November 2026: 0 changes verified live and 0 self-reported\.<\/textarea>/)
+  })
+
+  it('opens a month older than the lookback only to stop sharing its report, and 404s one with no report', async () => {
+    h.report = { reportId: 'r1', status: 'published', versionId: 'v1', versionNumber: 1, publicSlug: 'p'.repeat(32), shareVersion: 1,
+      publishedVersionId: 'v1', publishedLocale: 'en', snapshot: snapshot('en', 'Old month.') }
+    const html = await render('2024-03')
+    expect(html).toContain('Stop sharing')
+    expect(html).not.toContain('Save draft')
+    expect(html).not.toContain('Publish this version')
+    h.report = null
+    await expect(render('2024-03')).rejects.toThrow('NEXT_NOT_FOUND')
+    await expect(render('2027-01')).rejects.toThrow('NEXT_NOT_FOUND')
   })
 })

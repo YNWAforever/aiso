@@ -10,8 +10,10 @@ type Copy = { shared: string; notShared: string; shareLink: string; publish: str
  * stops sharing. The share link comes from the server and is shown only while
  * the report is published.
  */
-export function MonthlyReportPublish({ clientId, month, versionId, latestIsPublished, shareUrl, copy }: {
+export function MonthlyReportPublish({ clientId, month, versionId, latestIsPublished, shareUrl, copy, canPublish = true }: {
   clientId: string; month: string; versionId: string; latestIsPublished: boolean; shareUrl: string | null; copy: Copy
+  /** False for a month outside the view's lookback: it can still stop sharing, never publish. */
+  canPublish?: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -36,7 +38,7 @@ export function MonthlyReportPublish({ clientId, month, versionId, latestIsPubli
       ) : null}
       {error ? <p role="alert" className="text-sm text-tone-danger-fg">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
-        {!latestIsPublished ? <Button type="button" className="min-h-11" disabled={busy} aria-busy={busy} onClick={() => void call('publish', { versionId })}>{copy.publish}</Button> : null}
+        {canPublish && !latestIsPublished ? <Button type="button" className="min-h-11" disabled={busy} aria-busy={busy} onClick={() => void call('publish', { versionId })}>{copy.publish}</Button> : null}
         {shareUrl ? <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => void call('revoke')}>{copy.revoke}</Button> : null}
       </div>
     </section>

@@ -27,10 +27,13 @@ export default async function MonthlyReportPage({ params, searchParams }: {
   const now = new Date(), asked = (await searchParams)?.m
   const key = typeof asked === 'string' ? asked : hongKongMonthKey(now)
   const period = periodOf(key)
-  if (!UUID.test(clientId) || !period || !isViewableMonth(key, now)) notFound()
+  // Drafting and publishing stay within the month view's lookback; an older month opens only to stop sharing its report.
+  const canDraft = isViewableMonth(key, now)
+  if (!UUID.test(clientId) || !period || key > hongKongMonthKey(now)) notFound()
   const [client] = await db()`select brand_name, domain from clients where id = ${clientId}::uuid and account_id = ${profile.account_id}::uuid`
   if (!client) notFound()
   const report = await loadMonthlyReport(profile.account_id, clientId, period.month)
+  if (!canDraft && !report) notFound()
   const t = await getTranslations('monthlyReport')
   // The report renders in its own language, whatever the dashboard's: a zh-HK report reads the same from /en and /zh-HK.
   const reportLang = report?.snapshot.locale ?? locale
@@ -43,20 +46,20 @@ export default async function MonthlyReportPage({ params, searchParams }: {
           <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('title')} · {monthLabel(locale, period)}</h1>
           {report ? <p className="mt-1 text-sm text-muted-foreground">{t('draft_version', { n: report.versionNumber })}</p> : null}
         </div>
-        <Link href={`/${locale}/dashboard/${clientId}/month?m=${key}`} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-muted">{t('back_to_month')}</Link>
+        {canDraft ? <Link href={`/${locale}/dashboard/${clientId}/month?m=${key}`} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-muted">{t('back_to_month')}</Link> : null}
       </header>
       {report ? <div lang={reportLang}><MonthlyReportView snapshot={report.snapshot} lang={reportLang} copy={{
         delivered: r('delivered'), verifiedLive: r('verified_live'), selfReported: r('self_reported'), none: r('none'),
         visibility: r('visibility'), visibilityPending: r('visibility_pending'), search: r('search'), before: r('before'), endOfMonth: r('end_of_month'),
         clicks: r('clicks'), impressions: r('impressions'), notConnected: r('not_connected'), notRecorded: r('not_recorded'), nextMonth: r('next_month'),
       }} /></div> : null}
-      {report ? <MonthlyReportPublish clientId={clientId} month={key} versionId={report.versionId}
+      {report ? <MonthlyReportPublish clientId={clientId} month={key} versionId={report.versionId} canPublish={canDraft}
         latestIsPublished={report.status === 'published' && report.publishedVersionId === report.versionId} shareUrl={monthlyShareUrl(report)}
         copy={{ shared: t('shared'), notShared: t('not_shared'), shareLink: t('share_link'), publish: t('publish_latest'), revoke: t('revoke'),
           failed: t('publish_failed'), stale: t('stale') }} /> : null}
       {/* Keyed by the saved version, so a save (including the first, server-written default) remounts it with the stored text. */}
-      <MonthlyReportEditor key={report?.versionId ?? 'new'} clientId={clientId} month={key} locale={report?.snapshot.locale ?? locale} narrative={report?.snapshot.executiveSummary ?? null}
-        copy={{ language: t('language'), narrative: t('narrative'), save: t('save'), failed: t('failed'), brandingRequired: t('branding_required'), invalidNarrative: t('invalid_narrative') }} />
+      {canDraft ? <MonthlyReportEditor key={report?.versionId ?? 'new'} clientId={clientId} month={key} locale={report?.snapshot.locale ?? locale} narrative={report?.snapshot.executiveSummary ?? null}
+        copy={{ language: t('language'), narrative: t('narrative'), save: t('save'), failed: t('failed'), brandingRequired: t('branding_required'), invalidNarrative: t('invalid_narrative') }} /> : null}
     </main>
   )
 }
