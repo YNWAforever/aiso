@@ -6,7 +6,7 @@ import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 
 const copyFrom = (m: typeof en.month): MonthRecordCopy => ({
-  title: m.title, previous: m.previous, next: m.next, delivered: m.delivered, verifiedLive: m.verified_live, selfReported: m.self_reported,
+  title: m.title, previous: m.previous, next: m.next, allBrands: m.all_brands, delivered: m.delivered, verifiedLive: m.verified_live, selfReported: m.self_reported,
   none: m.none, figures: m.figures, opening: m.opening, closing: m.closing, notRecorded: m.not_recorded, notConnected: m.not_connected,
   scanScore: m.scan_score, shareOfVoice: m.share_of_voice, searchClicks: m.search_clicks, searchImpressions: m.search_impressions,
   activity: m.activity, workItemsOpened: m.work_items_opened, workItemsDone: m.work_items_done, siteEditsSent: m.site_edits_sent,

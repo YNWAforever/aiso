@@ -95,8 +95,19 @@ Comes first, because Slices B and C have nothing to report without it.
   keeps Reports highlighted). Order: delivered (verified live, then self-reported), opening versus closing, then
   activity. Each missing value says why: 未有 (none), 未連接 (not connected), 未記錄 (not recorded). A due
   snapshot that is not recorded shows "Record now" (the idempotent `POST`). Page views never write.
-- **B2b (next):** the cross-brand queue and the scheduled snapshot route. The schedule itself (a Worker cron line)
-  needs Willy's Approve like any schedule change.
+- **B2b (draft PR): the cross-brand queue and the snapshot route.**
+  - `/{lang}/dashboard/this-month`: one row per brand, those needing something first. Approvals waiting (a work
+    item's latest version with no decision), edits sent but not verified (no refused receipt, no standing
+    `verified_live` attestation), site-edit sends this month by the cap's own rule (flagged from 8 of 10), Pulse
+    overdue (active questions, no rollup for a week starting in the last 14 days; 未啟用 with none active), Search
+    Console stale (bound, nothing synced under the current binding for 3 days; 未連接 if unbound), and month
+    snapshots not recorded. Reads only; each brand links to its month page.
+  - `GET /api/cron/brand-months` (Vercel Cron header shape, `CRON_SECRET`): records every due snapshot for brands
+    whose account has `client_reports_online`; idempotent. Its brand selection is account-blind by design
+    (`loadDueMonthBrands`, declared in the tenancy inventory). **Not scheduled:** adding it to the cron Worker is a
+    separate schedule change for Willy to approve. Until then the month page's "Record now" covers it.
+  - Note: while the 09:00 Search Console trigger stays unscheduled, every bound brand will read as stale. That is
+    true, not a bug.
 
 ### Slice C — The monthly deliverables report
 

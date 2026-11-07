@@ -4801,6 +4801,25 @@
     "receipts_rejected": "Developer receipts: refused",
     "record": "Record now",
     "record_failed": "Not recorded. Try again.",
-    "open": "Month"
+    "open": "Month",
+    "all_brands": "All brands"
+  },
+  "monthQueue": {
+    "title": "This month",
+    "brand": "Brand",
+    "approvals": "Approvals waiting",
+    "edits_unverified": "Sent, not verified",
+    "sends": "Site edits sent",
+    "pulse": "Pulse",
+    "search_console": "Search Console",
+    "month_record": "Month record",
+    "overdue": "Overdue",
+    "not_enabled": "Not enabled",
+    "not_connected": "Not connected",
+    "stale": "Stale",
+    "recorded": "Recorded",
+    "not_recorded": "Not recorded",
+    "none": "None",
+    "all_clear": "Nothing waiting this month."
   }
 }
