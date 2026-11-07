@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+vi.mock('server-only', () => ({}))
 const m = vi.hoisted(() => ({ profile: null as unknown, draft: vi.fn(), load: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ getProfile: vi.fn(async () => m.profile) }))
 vi.mock('@/lib/monthly-report/service', () => ({ draftMonthlyReport: m.draft }))

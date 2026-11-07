@@ -1,28 +1,11 @@
-import { getProfile } from '@/lib/auth'
-import { resolveCommercialEntitlement } from '@/lib/tier'
-import { isViewableMonth, periodOf, type BrandMonthPeriod } from '@/lib/brand-month/period'
 import { loadMonthlyReport } from '@/lib/monthly-report/store'
 import { draftMonthlyReport } from '@/lib/monthly-report/service'
+import { monthlyReportAccess, NO_STORE as headers } from '@/lib/monthly-report/gate'
 
 export const dynamic = 'force-dynamic'
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const headers = { 'Cache-Control': 'no-store' }
 type Params = { params: Promise<{ clientId: string; month: string }> }
-type Access = { ok: false; response: Response } | { ok: true; accountId: string; actorId: string; clientId: string; period: BrandMonthPeriod; now: Date }
-
-/** Retainer OS Slice C1: the brand's monthly report draft. Auth → client_reports_online → ownership (404). */
-async function gate({ params }: Params): Promise<Access> {
-  const profile = await getProfile()
-  if (!profile) return { ok: false, response: Response.json({ error: 'Unauthorized' }, { status: 401, headers }) }
-  if (!resolveCommercialEntitlement(profile.accounts).features.client_reports_online) {
-    return { ok: false, response: Response.json({ error: 'UPGRADE_REQUIRED' }, { status: 403, headers }) }
-  }
-  const { clientId, month } = await params
-  const now = new Date(), period = periodOf(month)
-  if (!UUID.test(clientId) || !period || !isViewableMonth(month, now)) return { ok: false, response: Response.json({ error: 'Not found' }, { status: 404, headers }) }
-  return { ok: true, accountId: profile.account_id, actorId: profile.id, clientId, period, now }
-}
+const gate = (ctx: Params) => monthlyReportAccess(ctx.params)
 
 export async function GET(_req: Request, ctx: Params) {
   const access = await gate(ctx)

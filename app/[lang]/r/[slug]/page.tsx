@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import { OnePageReport } from '@/components/reports/OnePageReport'
 import { resolvePublishedClientReport } from '@/lib/reports/public'
 import { incrementClientReportView } from '@/lib/reports/store'
+import { resolvePublishedMonthlyReport } from '@/lib/monthly-report/public'
+import { PublicMonthlyReport } from '@/components/monthly-report/PublicMonthlyReport'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 
@@ -39,7 +41,27 @@ export default async function PublicReportPage({
     version: query.v,
     signature: query.s,
   })
-  if (!resolved) notFound()
+  if (!resolved) {
+    // Retainer OS C2: a published monthly report shares the same signed link
+    // format; the scan resolver never reads monthly rows (kind = 'scan').
+    const monthly = await resolvePublishedMonthlyReport({ slug, version: query.v, signature: query.s })
+    if (!monthly) notFound()
+    try {
+      await incrementClientReportView({ publicSlug: slug, shareVersion: Number(query.v) })
+    } catch {
+      // Aggregate engagement is best-effort and must never block a valid report.
+    }
+    const m = (monthly.report.locale === 'zh-HK' ? zhHK : en).monthlyReport
+    return (
+      <main className="min-h-dvh w-full overflow-x-clip bg-background px-4 py-6 text-foreground sm:px-6 sm:py-10 print:min-h-0 print:bg-white print:p-0">
+        <PublicMonthlyReport report={monthly.report} publishedAt={monthly.publishedAt} title={m.title} publishedLabel={m.published}
+          copy={{ delivered: m.delivered, verifiedLive: m.verified_live, selfReported: m.self_reported, none: m.none,
+            visibility: m.visibility, visibilityPending: m.visibility_pending, search: m.search, before: m.before,
+            endOfMonth: m.end_of_month, clicks: m.clicks, impressions: m.impressions, notConnected: m.not_connected,
+            notRecorded: m.not_recorded, nextMonth: m.next_month }} />
+      </main>
+    )
+  }
 
   try {
     await incrementClientReportView({

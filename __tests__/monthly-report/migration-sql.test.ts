@@ -44,7 +44,7 @@ beforeAll(async () => {
     create table accounts(id uuid primary key);
     create table clients(id uuid primary key, account_id uuid not null, brand_name text, domain text, unique (id, account_id));
     create table client_reports(id uuid primary key default gen_random_uuid(), account_id uuid not null, client_id uuid not null,
-      status text not null default 'draft', latest_version_id uuid, published_version_id uuid, created_by uuid,
+      status text not null default 'draft', public_slug text not null default md5(random()::text), share_version integer not null default 1, latest_version_id uuid, published_version_id uuid, created_by uuid,
       created_at timestamptz not null default now(), updated_at timestamptz not null default now(), unique (id, account_id, client_id));
     create table client_report_versions(id uuid primary key default gen_random_uuid(), report_id uuid not null, account_id uuid not null,
       client_id uuid not null, version_number integer not null, source_scan_id uuid, previous_scan_id uuid, locale text not null,

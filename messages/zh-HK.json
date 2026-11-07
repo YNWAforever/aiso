@@ -4847,6 +4847,15 @@
     "failed": "未能儲存，請再試。",
     "branding_required": "請先設定報告品牌。",
     "invalid_narrative": "請輸入 1–1,200 字的純文字。",
-    "open": "報告"
+    "open": "報告",
+    "published": "發佈於",
+    "publish": "發佈",
+    "publish_latest": "發佈此版本",
+    "revoke": "停止分享",
+    "share_link": "分享連結",
+    "shared": "已分享",
+    "not_shared": "未分享",
+    "publish_failed": "未能發佈，請再試。",
+    "stale": "已有較新的草稿，請重新載入並先檢視。"
   }
 }
