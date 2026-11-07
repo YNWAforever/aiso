@@ -31,6 +31,9 @@ export default async function MonthlyReportPage({ params, searchParams }: {
   if (!client) notFound()
   const report = await loadMonthlyReport(profile.account_id, clientId, period.month)
   const t = await getTranslations('monthlyReport')
+  // The report renders in its own language, whatever the dashboard's: a zh-HK report reads the same from /en and /zh-HK.
+  const reportLang = report?.snapshot.locale ?? locale
+  const r = await getTranslations({ locale: reportLang, namespace: 'monthlyReport' })
   return (
     <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8 sm:px-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -41,12 +44,13 @@ export default async function MonthlyReportPage({ params, searchParams }: {
         </div>
         <Link href={`/${locale}/dashboard/${clientId}/month?m=${key}`} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-muted">{t('back_to_month')}</Link>
       </header>
-      {report ? <MonthlyReportView snapshot={report.snapshot} lang={locale} copy={{
-        delivered: t('delivered'), verifiedLive: t('verified_live'), selfReported: t('self_reported'), none: t('none'),
-        visibility: t('visibility'), visibilityPending: t('visibility_pending'), search: t('search'), before: t('before'), endOfMonth: t('end_of_month'),
-        clicks: t('clicks'), impressions: t('impressions'), notConnected: t('not_connected'), notRecorded: t('not_recorded'), nextMonth: t('next_month'),
-      }} /> : null}
-      <MonthlyReportEditor clientId={clientId} month={key} locale={report?.snapshot.locale ?? locale} narrative={report?.snapshot.executiveSummary ?? null}
+      {report ? <div lang={reportLang}><MonthlyReportView snapshot={report.snapshot} lang={reportLang} copy={{
+        delivered: r('delivered'), verifiedLive: r('verified_live'), selfReported: r('self_reported'), none: r('none'),
+        visibility: r('visibility'), visibilityPending: r('visibility_pending'), search: r('search'), before: r('before'), endOfMonth: r('end_of_month'),
+        clicks: r('clicks'), impressions: r('impressions'), notConnected: r('not_connected'), notRecorded: r('not_recorded'), nextMonth: r('next_month'),
+      }} /></div> : null}
+      {/* Keyed by the saved version, so a save (including the first, server-written default) remounts it with the stored text. */}
+      <MonthlyReportEditor key={report?.versionId ?? 'new'} clientId={clientId} month={key} locale={report?.snapshot.locale ?? locale} narrative={report?.snapshot.executiveSummary ?? null}
         copy={{ language: t('language'), narrative: t('narrative'), save: t('save'), failed: t('failed'), brandingRequired: t('branding_required'), invalidNarrative: t('invalid_narrative') }} />
     </main>
   )
