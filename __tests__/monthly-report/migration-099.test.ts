@@ -30,17 +30,27 @@ describe('099 monthly snapshot size CHECK forward migration', () => {
   it('rejects transaction control and keeps the reviewed ALTER/CHECK payload', () => {
     expect(() => assertNoTransactionControl('099_monthly_snapshot_size_check.sql', migration099)).not.toThrow()
     expect(migration099).not.toMatch(/(^|;)\s*(begin|commit|rollback)\s*;/i)
+    // Exact reviewed executable statements (Option A forward artifact), committed in-repo only.
+    const expectedExecutable = [
+      "SET LOCAL lock_timeout = '5s';",
+      "SET LOCAL statement_timeout = '30s';",
+      'ALTER TABLE public.client_report_versions',
+      '  DROP CONSTRAINT client_report_versions_monthly_shape_check,',
+      '  ADD CONSTRAINT client_report_versions_monthly_shape_check',
+      '  CHECK ((',
+      '    snapshot_schema_version <> 2 OR (',
+      '      source_scan_id IS NULL AND previous_scan_id IS NULL',
+      "      AND jsonb_typeof(snapshot) = 'object'",
+      '      AND octet_length(snapshot::text) <= 262144',
+      '    )',
+      '  ) IS TRUE);',
+    ].join('\n')
     const executable = migration099
       .split('\n')
       .filter((line) => !line.trimStart().startsWith('--'))
       .join('\n')
       .trim()
-    const reviewed = readFileSync('/workspace/cli-logs/aiso-cap-correction-next/forward.review.sql', 'utf8')
-      .split('\n')
-      .filter((line) => !line.trimStart().startsWith('--'))
-      .join('\n')
-      .trim()
-    expect(executable).toBe(reviewed)
+    expect(executable).toBe(expectedExecutable)
     expect(migration099).toContain('octet_length(snapshot::text) <= 262144')
     expect(MONTHLY_SNAPSHOT_MAX_BYTES).toBe(262144)
   })
