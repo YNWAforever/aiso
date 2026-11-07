@@ -479,3 +479,16 @@ describe('report store tenant boundary', () => {
       .rejects.toMatchObject({ name: 'ReportStoreError', message: 'connection terminated' })
   })
 })
+
+describe('scan reports stay isolated from monthly reports (098)', () => {
+  it('filters every scan-report read to kind = scan, so a monthly report never enters the scan flow', async () => {
+    state.calls.length = 0
+    state.nextResults = []
+    await listClientReports({ accountId: 'account-1', clientId: 'client-1' })
+    await loadOwnedClientReportById({ accountId: 'account-1', reportId: 'report-1' }).catch(() => null)
+    await resolvePublicClientReport({ publicSlug: 'slug', shareVersion: 1 }).catch(() => null)
+    const reads = state.calls.filter(c => /from client_reports/.test(c.text))
+    expect(reads.length).toBe(3)
+    for (const read of reads) expect(read.text).toMatch(/kind = 'scan'/)
+  })
+})

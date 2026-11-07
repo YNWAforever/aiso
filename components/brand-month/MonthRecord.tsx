@@ -7,7 +7,7 @@ import type { SnapshotKind } from '@/lib/brand-month/period'
 import { platformName } from '@/lib/brand-month/labels'
 
 export type MonthRecordCopy = {
-  title: string; previous: string; next: string; allBrands: string
+  title: string; previous: string; next: string; allBrands: string; report?: string
   delivered: string; verifiedLive: string; selfReported: string; none: string
   figures: string; opening: string; closing: string; notRecorded: string; notConnected: string
   scanScore: string; shareOfVoice: string; searchClicks: string; searchImpressions: string
@@ -20,6 +20,7 @@ type Props = {
   monthLabel: string
   previousHref: string | null
   queueHref?: string
+  reportHref?: string
   nextHref: string | null
   snapshots: MonthSnapshot[]
   activity: MonthActivity
@@ -36,7 +37,7 @@ type Cell = { text: string; muted?: boolean }
  * closing figures as recorded, then what happened. Every missing value says
  * why (none / not connected / not recorded) instead of showing a zero.
  */
-export function MonthRecord({ lang, brandName, monthLabel, previousHref, queueHref, nextHref, snapshots, activity, copy, recordAction }: Props) {
+export function MonthRecord({ lang, brandName, monthLabel, previousHref, queueHref, reportHref, nextHref, snapshots, activity, copy, recordAction }: Props) {
   const number = new Intl.NumberFormat(lang)
   const day = new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', timeZone: 'Asia/Hong_Kong' })
   const byKind = (kind: SnapshotKind) => snapshots.find(s => s.kind === kind)?.figures ?? null
@@ -92,6 +93,7 @@ export function MonthRecord({ lang, brandName, monthLabel, previousHref, queueHr
           <h1 className="mt-1 text-2xl font-bold tracking-tight">{copy.title} · {monthLabel}</h1>
         </div>
         <nav aria-label={copy.title} className="flex flex-wrap gap-2">
+          {reportHref && copy.report ? <Link href={reportHref} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-muted">{copy.report}</Link> : null}
           {queueHref ? <Link href={queueHref} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-muted">{copy.allBrands}</Link> : null}
           {previousHref ? <Link href={previousHref} className="inline-flex min-h-11 items-center gap-1 rounded-md border border-border px-3 text-sm hover:bg-muted"><ChevronLeft aria-hidden="true" className="size-4" />{copy.previous}</Link> : null}
           {nextHref ? <Link href={nextHref} className="inline-flex min-h-11 items-center gap-1 rounded-md border border-border px-3 text-sm hover:bg-muted">{copy.next}<ChevronRight aria-hidden="true" className="size-4" /></Link> : null}
