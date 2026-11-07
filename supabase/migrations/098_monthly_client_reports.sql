@@ -35,13 +35,15 @@ alter table public.client_report_versions
   add constraint client_report_versions_snapshot_schema_version_check
   check (snapshot_schema_version in (1, 2));
 
--- A monthly version: schema 2, no scans, a JSON object of bounded size.
+-- A monthly version: schema 2, no scans, a JSON object of bounded size (MONTHLY_SNAPSHOT_MAX_BYTES).
 alter table public.client_report_versions
   add constraint client_report_versions_monthly_shape_check check ((
     snapshot_schema_version <> 2 or (
       source_scan_id is null and previous_scan_id is null
       and jsonb_typeof(snapshot) = 'object'
-      and octet_length(snapshot::text) <= 65536
+      -- 256 KiB: the builder's own caps (50 + 50 deliveries, 20 open items, 160-character titles,
+      -- a 1,200-character narrative) stay far inside it even in Traditional Chinese.
+      and octet_length(snapshot::text) <= 262144
     )
   ) is true);
 

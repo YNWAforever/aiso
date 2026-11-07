@@ -21,6 +21,8 @@ export const MONTHLY_NARRATIVE_MIN = 1
 export const MONTHLY_NARRATIVE_MAX = 1200
 export const MONTHLY_DELIVERED_MAX = 50
 export const MONTHLY_OPEN_ITEMS_MAX = 20
+/** 098's CHECK on a schema-2 snapshot's JSON size. Every snapshot the builder can produce fits (tested at the worst case). */
+export const MONTHLY_SNAPSHOT_MAX_BYTES = 262144
 
 export type MonthlyDeliveredItem = { title: string; recordedAt: string; versionId: string }
 type SearchFigure = SnapshotFigures['search'] | { state: 'not_recorded' }

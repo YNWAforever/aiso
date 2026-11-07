@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { buildMonthlyReportSnapshot, defaultNarrative, normalizeNarrative, parseMonthlyReportSnapshot, MONTHLY_DELIVERED_MAX } from '@/lib/monthly-report/snapshot'
+import { buildMonthlyReportSnapshot, defaultNarrative, normalizeNarrative, parseMonthlyReportSnapshot, MONTHLY_DELIVERED_MAX, MONTHLY_OPEN_ITEMS_MAX, MONTHLY_SNAPSHOT_MAX_BYTES } from '@/lib/monthly-report/snapshot'
+import { readFileSync } from 'node:fs'
 import { MonthlyReportView, type MonthlyReportCopy } from '@/components/monthly-report/MonthlyReportView'
 import { periodOf } from '@/lib/brand-month/period'
 import type { MonthActivity, MonthSnapshot } from '@/lib/brand-month/store'
@@ -46,6 +47,18 @@ describe('monthly report snapshot', () => {
     const many = { ...activity, verifiedLive: Array.from({ length: MONTHLY_DELIVERED_MAX + 5 }, (_, i) => delivery(`Edit ${i}`, 6)) }
     expect(build({ activity: many }).delivered.verifiedLive).toHaveLength(MONTHLY_DELIVERED_MAX)
     expect(defaultNarrative('zh-HK', '2026年11月', { verifiedLive: [], selfReported: [] })).toBe('2026年11月：已上線核實 0 項修改，自行申報 0 項。')
+  })
+
+  it('fits 098\'s size CHECK at its worst case: every list full of 160-character Traditional Chinese titles', () => {
+    const title = '繁'.repeat(160)
+    const full = Array.from({ length: MONTHLY_DELIVERED_MAX }, (_, i) => ({ ...delivery(title, 6), versionId: `5000000${i}-0000-4000-8000-000000000000` }))
+    const s = build({ activity: { ...activity, verifiedLive: full, selfReported: full },
+      openWorkItems: Array.from({ length: MONTHLY_OPEN_ITEMS_MAX }, () => ({ title })), narrative: '繁'.repeat(1200),
+      branding: { ...branding, agencyName: '繁'.repeat(120), contactLabel: '繁'.repeat(80), contactUrl: 'https://agency.example/' + 'x'.repeat(2000), logoUrl: 'https://agency.example/' + 'y'.repeat(2000) } })
+    const bytes = Buffer.byteLength(JSON.stringify(s), 'utf8')
+    expect(bytes).toBeGreaterThan(65536)
+    expect(bytes).toBeLessThan(MONTHLY_SNAPSHOT_MAX_BYTES / 2)
+    expect(readFileSync('supabase/migrations/098_monthly_client_reports.sql', 'utf8')).toContain(`octet_length(snapshot::text) <= ${MONTHLY_SNAPSHOT_MAX_BYTES}`)
   })
 
   it('rejects any stored shape that is not a schema-2 monthly snapshot', () => {
