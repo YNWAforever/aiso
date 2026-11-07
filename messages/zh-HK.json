@@ -4802,7 +4802,8 @@
     "record": "立即記錄",
     "record_failed": "未能記錄，請再試。",
     "open": "月度",
-    "all_brands": "所有品牌"
+    "all_brands": "所有品牌",
+    "report": "報告"
   },
   "monthQueue": {
     "title": "本月",
@@ -4821,5 +4822,31 @@
     "not_recorded": "未記錄",
     "none": "未有",
     "all_clear": "本月沒有待處理事項。"
+  },
+  "monthlyReport": {
+    "title": "月度報告",
+    "draft_version": "草稿 · 第 {n} 版",
+    "back_to_month": "月度",
+    "delivered": "本月已交付",
+    "verified_live": "已上線核實",
+    "self_reported": "自行申報",
+    "none": "未有",
+    "visibility": "能見度",
+    "visibility_pending": "數據尚未足夠。",
+    "search": "搜尋需求",
+    "before": "月初前",
+    "end_of_month": "月底",
+    "clicks": "點擊",
+    "impressions": "曝光",
+    "not_connected": "未連接",
+    "not_recorded": "未記錄",
+    "next_month": "下個月",
+    "language": "報告語言",
+    "narrative": "摘要",
+    "save": "儲存草稿",
+    "failed": "未能儲存，請再試。",
+    "branding_required": "請先設定報告品牌。",
+    "invalid_narrative": "請輸入 1–1,200 字的純文字。",
+    "open": "報告"
   }
 }

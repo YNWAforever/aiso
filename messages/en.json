@@ -4802,7 +4802,8 @@
     "record": "Record now",
     "record_failed": "Not recorded. Try again.",
     "open": "Month",
-    "all_brands": "All brands"
+    "all_brands": "All brands",
+    "report": "Report"
   },
   "monthQueue": {
     "title": "This month",
@@ -4821,5 +4822,31 @@
     "not_recorded": "Not recorded",
     "none": "None",
     "all_clear": "Nothing waiting this month."
+  },
+  "monthlyReport": {
+    "title": "Monthly report",
+    "draft_version": "Draft · version {n}",
+    "back_to_month": "Month",
+    "delivered": "Delivered this month",
+    "verified_live": "Verified live",
+    "self_reported": "Self-reported",
+    "none": "None",
+    "visibility": "Visibility",
+    "visibility_pending": "Not enough data yet.",
+    "search": "Search demand",
+    "before": "Before the month",
+    "end_of_month": "End of the month",
+    "clicks": "Clicks",
+    "impressions": "Impressions",
+    "not_connected": "Not connected",
+    "not_recorded": "Not recorded",
+    "next_month": "Next month",
+    "language": "Report language",
+    "narrative": "Summary",
+    "save": "Save draft",
+    "failed": "Not saved. Try again.",
+    "branding_required": "Set up report branding first.",
+    "invalid_narrative": "Use 1–1,200 characters of plain text.",
+    "open": "Report"
   }
 }

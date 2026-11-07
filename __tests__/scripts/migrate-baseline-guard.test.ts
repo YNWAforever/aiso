@@ -194,7 +194,9 @@ describe('unappliedBaselineClaims', () => {
   it('says nothing about a migration excluded via --except', () => {
     // Pending migrations legitimately have no tables yet; excepting them is the
     // correct action, so they must not be reported.
-    const files = listMigrationFiles().filter(f => f !== '027_client_report_snapshots.sql')
+    // 098 builds on 027's client_report tables (its partial index names one), so excepting
+    // 027 means excepting 098 too.
+    const files = listMigrationFiles().filter(f => f !== '027_client_report_snapshots.sql' && f !== '098_monthly_client_reports.sql')
     const without027 = new Set([...allRelations()].filter(t => !t.startsWith('client_report')))
 
     expect(unappliedBaselineClaims(entries(files), without027)).toEqual([])

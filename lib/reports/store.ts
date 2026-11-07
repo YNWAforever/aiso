@@ -717,7 +717,7 @@ export async function loadOwnedClientReportById(input: {
            cta_click_count::int as cta_click_count, first_viewed_at, last_viewed_at,
            published_at, revoked_at, created_by, created_at, updated_at
     from client_reports
-    where account_id = ${input.accountId} and id = ${input.reportId}
+    where account_id = ${input.accountId} and id = ${input.reportId} and kind = 'scan'
     limit 1
   `)
   return exactOwnedReport(normalizeClientReportRows(rows), input)
@@ -735,12 +735,16 @@ export async function loadOwnedClientReport(input: {
            cta_click_count::int as cta_click_count, first_viewed_at, last_viewed_at,
            published_at, revoked_at, created_by, created_at, updated_at
     from client_reports
-    where account_id = ${input.accountId} and client_id = ${input.clientId} and id = ${input.reportId}
+    where account_id = ${input.accountId} and client_id = ${input.clientId} and id = ${input.reportId} and kind = 'scan'
     limit 1
   `)
   return exactOwnedReport(normalizeClientReportRows(rows), input)
 }
 
+/**
+ * Scan reports only (`kind = 'scan'`, migration 098). Monthly reports (Retainer
+ * OS Slice C) live in the same tables but never enter the scan flow.
+ */
 export async function listClientReports(input: {
   accountId: string
   clientId: string
@@ -752,7 +756,7 @@ export async function listClientReports(input: {
            cta_click_count::int as cta_click_count, first_viewed_at, last_viewed_at,
            published_at, revoked_at, created_by, created_at, updated_at
     from client_reports
-    where account_id = ${input.accountId} and client_id = ${input.clientId}
+    where account_id = ${input.accountId} and client_id = ${input.clientId} and kind = 'scan'
     order by created_at desc
   `)
   return normalizeClientReportRows(rows)
@@ -795,6 +799,7 @@ export async function resolvePublicClientReport(input: {
     where public_slug = ${input.publicSlug}
       and share_version = ${input.shareVersion}::int
       and status = 'published'
+      and kind = 'scan'
     limit 1
   `)
   // A revoked report, an unknown slug, and a stale share_version all land

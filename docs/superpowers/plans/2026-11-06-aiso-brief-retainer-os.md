@@ -111,6 +111,20 @@ Comes first, because Slices B and C have nothing to report without it.
 
 ### Slice C — The monthly deliverables report
 
+- **C1 (2026-11-07, draft PR, migration `098`): drafts, no publishing.** Willy chose to build Slice C now with the
+  visibility section held back until Q1 is decided against real Pulse data.
+  - A monthly report is a second **kind** of client report (`client_reports.kind = 'monthly'`, one per brand per
+    Hong Kong month), versioned like a scan report. Its versions are schema 2, built from the Brand Month (097) and
+    the delivery rows; they name no scan. Two monthly-only RPCs create and append them.
+  - Isolation, not a union: every scan-report read now filters `kind = 'scan'`, so a monthly report never enters the
+    scan flow (list, detail, append, AI summary, publish), and the public resolver still serves only schema 1.
+  - Sections, frozen in this order: delivered (verified live, then self-reported); visibility = "not enough data
+    yet" (`movement_rule_pending`); search demand (opening and closing snapshot figures with their dates, or
+    未連接/未記錄/未有); next month (open work items).
+  - The narrative is the operator's (1–1,200 characters). The default only restates the delivered counts.
+  - `/{lang}/dashboard/[clientId]/month/report?m=YYYY-MM` shows the latest draft and saves a new version.
+  - **C2 (next):** render schema 2 on the public share page and allow publishing it.
+
 - **Drafted from the Brand Month,** extending the existing `client_reports` versions and share links rather than
   building a second report system.
 - **Fixed section order** (this order is the product decision from §0):
