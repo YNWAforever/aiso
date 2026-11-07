@@ -30,7 +30,7 @@ console.log(JSON.stringify({command: args[0], file, name: config.name, origin: c
       expect(JSON.parse(result.stdout)).toEqual({
         command, file: resolve(root, '../aiso-worker/wrangler.jsonc'),
         name: 'aiso-cron-worker', origin: 'https://aiso-kappa.vercel.app',
-        crons: ['17 4 * * *', '47 7 * * 1'],
+        crons: ['17 4 * * *', '47 7 * * 1', '17 16 * * *'],
       })
     } finally { rmSync(dir, { recursive: true, force: true }) }
   })
