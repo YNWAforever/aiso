@@ -69,7 +69,7 @@ describe('scheduled', () => {
     await expect(worker.scheduled(controller('17 4 * * *'), env, ctx)).rejects.toThrow(
       '[cron-worker] /api/cron/pulse responded 500',
     )
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('rejects an unmapped cron without making a request', async () => {
@@ -90,30 +90,46 @@ function parseWranglerJsonc(raw: string): { triggers?: { crons?: string[] } } {
   return JSON.parse(withoutComments)
 }
 
+const SCHEDULED_CRONS = ['17 4 * * *', '47 7 * * 1', '17 16 * * *'] as const
+
 describe('ROUTES stays in sync with wrangler.jsonc', () => {
-  it('has exactly one entry per configured cron trigger, in the same order', async () => {
-    const raw = readFileSync(join(import.meta.dirname, '..', 'wrangler.jsonc'), 'utf8')
-    const config = parseWranglerJsonc(raw)
+  it('schedules the live baseline plus one brand-months tick and leaves 09:00 unscheduled', () => {
+    const template = parseWranglerJsonc(readFileSync(join(import.meta.dirname, '..', 'wrangler.jsonc'), 'utf8'))
+    const deployed = parseWranglerJsonc(readFileSync(join(import.meta.dirname, '..', '..', 'aiso-worker', 'wrangler.jsonc'), 'utf8'))
 
-    // Every configured cron in wrangler.jsonc must have a matching ROUTES entry
-    // and dispatch (doesn't throw as unmapped).
-    for (const cron of config.triggers?.crons ?? []) {
-      const hasMappedRoute = cron in ROUTES
-      expect(hasMappedRoute, `wrangler.jsonc's "${cron}" has no matching ROUTES entry`).toBe(true)
+    expect(template.triggers?.crons).toEqual([...SCHEDULED_CRONS])
+    expect(deployed.triggers?.crons).toEqual([...SCHEDULED_CRONS])
+    for (const cron of SCHEDULED_CRONS) {
+      expect(cron in ROUTES, `${cron} has no ROUTES entry`).toBe(true)
     }
 
-    // Every ROUTES entry must have a corresponding cron in wrangler.jsonc
-    const configCrons = config.triggers?.crons ?? []
-    for (const cron of Object.keys(ROUTES)) {
-      const isConfigured = configCrons.includes(cron)
-      expect(isConfigured, `ROUTES has "${cron}" but wrangler.jsonc doesn't configure it`).toBe(true)
-    }
-
-    // Same length = same set (with both checks above)
-    expect(Object.keys(ROUTES)).toHaveLength(configCrons.length)
+    expect(ROUTES['17 4 * * *']).toEqual(['/api/cron/pulse', '/api/cron/pulse?mode=repair'])
+    expect(ROUTES['47 7 * * 1']).toEqual(['/api/cron/evaluate-alerts'])
+    expect(ROUTES['17 16 * * *']).toEqual(['/api/cron/brand-months'])
+    expect(ROUTES['0 9 * * *']).toEqual(['/api/cron/trial-emails', '/api/cron/search-console'])
+    expect(template.triggers?.crons).not.toContain('0 9 * * *')
+    expect(deployed.triggers?.crons).not.toContain('0 9 * * *')
+    expect(Object.keys(ROUTES).sort()).toEqual([...SCHEDULED_CRONS, '0 9 * * *'].sort())
   })
 })
 
-it('AISO deployed profile schedules outcome collection on the approved daily trigger without email dispatch',()=>{const config=parseWranglerJsonc(readFileSync(join(import.meta.dirname,'..','..','aiso-worker','wrangler.jsonc'),'utf8'));expect(config.triggers?.crons).toEqual(['17 4 * * *','47 7 * * 1']);expect(ROUTES['17 4 * * *']).toEqual(['/api/cron/pulse','/api/cron/pulse?mode=repair','/api/cron/search-console','/api/cron/outcomes']);expect(ROUTES['17 4 * * *'].every(route=>!route.includes('trial-emails'))).toBe(true)});
+it('00:17 UTC+8 tick fans out only to brand-months', async () => {
+  const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200 })
+  globalThis.fetch = fetchSpy as never
+  await worker.scheduled(controller('17 16 * * *'), env, ctx)
+  expect(fetchSpy.mock.calls.map(call => call[0])).toEqual(['https://app.example.com/api/cron/brand-months'])
+})
 
-it.each(['http','network'])('disables runtime retry before dispatch on %s failure',async(kind)=>{const scheduled=controller('17 4 * * *'),fetchSpy=vi.fn(kind==='network'?async()=>{throw Error('outcome unknown')}:async()=>({ok:false,status:503}));globalThis.fetch=fetchSpy as never;await expect(worker.scheduled(scheduled,env,ctx)).rejects.toThrow();expect(scheduled.noRetry).toHaveBeenCalledOnce();expect(scheduled.noRetry.mock.invocationCallOrder[0]).toBeLessThan(fetchSpy.mock.invocationCallOrder[0]);expect(fetchSpy).toHaveBeenCalledTimes(4)});
+it.each(['http', 'network'])('brand-months %s failure calls noRetry once and fans out to nothing else', async (kind) => {
+  const scheduled = controller('17 16 * * *')
+  const fetchSpy = vi.fn(async (_url: string) => {
+    if (kind === 'network') throw Error('outcome unknown')
+    return { ok: false, status: 503 }
+  })
+  globalThis.fetch = fetchSpy as never
+  await expect(worker.scheduled(scheduled, env, ctx)).rejects.toThrow()
+  expect(scheduled.noRetry).toHaveBeenCalledOnce()
+  expect(scheduled.noRetry.mock.invocationCallOrder[0]).toBeLessThan(fetchSpy.mock.invocationCallOrder[0])
+  expect(fetchSpy).toHaveBeenCalledTimes(1)
+  expect(fetchSpy.mock.calls.map(call => call[0])).toEqual(['https://app.example.com/api/cron/brand-months'])
+})

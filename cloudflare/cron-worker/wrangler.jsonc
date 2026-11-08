@@ -10,13 +10,14 @@
   "vars": {
     "APP_BASE_URL": "https://aiso-kappa.vercel.app"
   },
-  // Vercel Cron's exact three schedules, moved here because Vercel Hobby caps
-  // at 2 crons/day-granularity and Cloudflare's free tier allows 3 per Worker.
+  // Proposed source only. Parity with the dedicated config: the verified live
+  // Pulse and alerts ticks, plus `17 16 * * *` (00:17 UTC+8, brand-months only).
+  // `0 9 * * *` stays unscheduled. Deploying this file is not authorized.
   "triggers": {
     "crons": [
       "17 4 * * *",
       "47 7 * * 1",
-      "0 9 * * *"
+      "17 16 * * *"
     ]
   }
 }

@@ -1,10 +1,18 @@
 # Runbook: activate the dedicated AISO cron Worker
 
+## Proposed source — deployment remains HOLD
+
+`17 16 * * *` is 00:17 in Hong Kong and Singapore (UTC+8). That tick calls only `/api/cron/brand-months`. The daily key `17 4 * * *` stays the verified live baseline: `/api/cron/pulse` and `/api/cron/pulse?mode=repair`. It does not call Search Console or outcomes. `47 7 * * 1` is unchanged, including its literal weekday field. `0 9 * * *` remains mapped to `/api/cron/trial-emails` and `/api/cron/search-console` and is absent from both Worker cron arrays.
+
+Both cron arrays are exactly `17 4 * * *`, `47 7 * * 1`, and `17 16 * * *`. Committing them activates nothing. Deploying `cloudflare/aiso-worker/wrangler.jsonc` would activate every configured tick, including the existing Pulse and alerts ticks, and that deployment stays separately HOLD.
+
+Rollback of a later activation returns to deployment `65eab498-2658-4306-8810-94dcfbc610fc`, version `09063648-8612-44fe-bd25-70cffc914c85`, configured crons `17 4 * * *` and `47 7 * * 1`, daily routes pulse and repair only. Restoring that version does not cancel an in-flight request and does not undo database rows already written.
+
 ## 2026-10-11 audit correction
 
-The dated schedule discussion below is retained as historical evidence and is superseded by the current dedicated config: only `17 4 * * *` and `47 7 * * 1` are enabled. Pulse saved-raw repair is now dispatched independently on the existing17:04 Pulse trigger. The template09:00 email/Search Console trigger is not enabled. The Worker calls `controller.noRetry()` before requests; no live deployment or scheduled receipt follows from this code. Use the [current release packet](../remediation/2026-10-11/release-runbook.md) for exact source, approval, migration and rollback gates.
+The dated schedule discussion below is retained as historical evidence. The proposed source above is the schedule this branch describes. Pulse saved-raw repair stays on `17 4 * * *`. The `0 9 * * *` email/Search Console trigger is not enabled. The Worker calls `controller.noRetry()` before requests; no live deployment or scheduled receipt follows from this code. Use the [current release packet](../remediation/2026-10-11/release-runbook.md) for exact source, approval, migration and rollback gates.
 
-The previous table is a dated plan, not current deployed-source acceptance.
+The previous table is a dated plan, not current deployed-source acceptance. It places repair on `0 9 * * *`; the verified live daily routes are pulse and repair on `17 4 * * *` only.
 
 ## Current status and scope
 
@@ -38,10 +46,7 @@ n8n. Record observed timestamps, schedules, enabled state and owner. A missing
 Establish one producer per enabled job before activation. Unknown ownership blocks
 activation; do not retire a workflow based only on repository configuration.
 
-Since the 2026-10-09 audit (finding P0-1) the dedicated config carries these three
-schedules, so that the config the runbook deploys is the one the schedule test pins.
-**Committing them activates nothing**: the Worker still has to be deployed, and that
-deployment remains a separately approved step under the rest of this runbook.
+The table below is the dated 2026-10-09 plan, not the proposed source at the top of this runbook. The dedicated config does not schedule `0 9 * * *`. **Committing a cron array activates nothing**: the Worker still has to be deployed, and that deployment remains a separately approved step under the rest of this runbook.
 
 | Route | Cron (UTC) | Acceptance evidence |
 | --- | --- | --- |
@@ -113,7 +118,9 @@ write. Changing delivery guarantees is a separate implementation decision.
 
 ## Rollback
 
-The pre-activation baseline for the dedicated Worker is no schedules, no bindings and
+The verified live schedule baseline, if this proposal is later deployed, is deployment `65eab498-2658-4306-8810-94dcfbc610fc`, version `09063648-8612-44fe-bd25-70cffc914c85`, configured crons `17 4 * * *` and `47 7 * * 1`, with daily routes pulse and repair only. Restoring it stops later ticks. It cannot undo in-flight effects or database rows already written.
+
+The older pre-activation baseline for the dedicated Worker is no schedules, no bindings and
 disabled public/preview access. Prepare a configuration rollback for this exact resource,
 including restoration/removal of activation-added origin and secret bindings through the
 approved secret-management path. Removing schedules prevents future triggers; it does not

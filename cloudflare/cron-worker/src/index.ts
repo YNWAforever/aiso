@@ -3,18 +3,17 @@ export interface Env {
   APP_BASE_URL: string
 }
 
-// Keep in sync with wrangler.jsonc's triggers.crons — test/scheduled.test.ts
-// asserts the keys agree. A schedule may call several routes: the free tier
-// allows three triggers per Worker and all three are used, so the daily trigger
-// carries trial emails and Search Console sync in the three-cron template.
-// The deployed two-cron AISO profile collects outcomes on its existing Pulse
-// schedule; it does not activate the template email schedule.
+// Scheduled keys match both wrangler configs. `0 9 * * *` stays mapped and
+// unscheduled. `17 16 * * *` is 16:17 UTC, which is 00:17 in Hong Kong and
+// Singapore (UTC+8), and calls brand-months only.
 export const ROUTES: Record<string, readonly string[]> = {
-  // Daily: the driver only picks clients whose week is not yet rolled up, so
-  // the Tuesday–Sunday firings finish weeks a failed hop left incomplete.
-  '17 4 * * *': ['/api/cron/pulse', '/api/cron/pulse?mode=repair', '/api/cron/search-console', '/api/cron/outcomes'],
+  // Daily verified-live baseline: pulse plus saved-raw repair. The driver only
+  // picks clients whose week is not yet rolled up, so Tuesday–Sunday firings
+  // finish weeks a failed hop left incomplete. Search Console and outcomes stay off.
+  '17 4 * * *': ['/api/cron/pulse', '/api/cron/pulse?mode=repair'],
   '47 7 * * 1': ['/api/cron/evaluate-alerts'],
   '0 9 * * *': ['/api/cron/trial-emails', '/api/cron/search-console'],
+  '17 16 * * *': ['/api/cron/brand-months'],
 }
 
 export default {

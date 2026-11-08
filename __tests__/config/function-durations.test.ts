@@ -87,17 +87,19 @@ describe('Cloudflare cron-worker schedule', () => {
     // finish weeks a failed hop left incomplete — they cost no LLM calls
     // otherwise. Weekly, one broken hop lost the rest of the week.
     //
-    // Only Pulse and alert evaluation are approved for activation (2026-10-10).
-    // The Worker still routes '0 9 * * *' (trial emails + Search Console), but
-    // the deployed config does not schedule it: the trial drip sends real
-    // customer email, which is its own approval.
+    // Source lists the verified live Pulse and alerts ticks plus one isolated
+    // 00:17 UTC+8 brand-months tick. Deploying that list is a separate HOLD.
+    // '0 9 * * *' stays routed to trial emails and Search Console and is not
+    // scheduled: the trial drip sends real customer email.
     expect(workerConfig.triggers?.crons).toEqual([
       '17 4 * * *',
       '47 7 * * 1',
+      '17 16 * * *',
     ])
 
     const paths = [
       '/api/cron/pulse', '/api/cron/evaluate-alerts', '/api/cron/trial-emails', '/api/cron/search-console',
+      '/api/cron/brand-months',
     ]
     for (const path of paths) {
       const route = join(process.cwd(), 'app', `${path}/route.ts`)
@@ -107,11 +109,15 @@ describe('Cloudflare cron-worker schedule', () => {
     }
   })
 
-  it('runs the Search Console sync on the existing daily trigger, not a fourth one', () => {
+  it('keeps the live two-route daily baseline, leaves 09:00 unscheduled, and limits 00:17 UTC+8 to brand-months', () => {
     const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
     expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
-    // The deployed AISO profile enables the Pulse trigger and leaves emails disabled.
-    expect(worker).toMatch(/'17 4 \* \* \*':\s*\[\s*'\/api\/cron\/pulse',\s*'\/api\/cron\/pulse\?mode=repair',\s*'\/api\/cron\/search-console',\s*'\/api\/cron\/outcomes'\s*\]/)
+    expect(worker).toMatch(/'17 4 \* \* \*':\s*\[\s*'\/api\/cron\/pulse',\s*'\/api\/cron\/pulse\?mode=repair'\s*\]/)
+    expect(worker).toMatch(/'17 16 \* \* \*':\s*\[\s*'\/api\/cron\/brand-months'\s*\]/)
+    expect(workerConfig.triggers?.crons ?? []).not.toContain('0 9 * * *')
+    expect(legacyWorkerConfig.triggers?.crons ?? []).not.toContain('0 9 * * *')
+    expect(worker).not.toMatch(/'17 4 \* \* \*':\s*\[[^\]]*\/api\/cron\/search-console/)
+    expect(worker).not.toMatch(/'17 4 \* \* \*':\s*\[[^\]]*\/api\/cron\/outcomes/)
   })
 
   it('maps every scheduled cron string to routes in the Worker', () => {
