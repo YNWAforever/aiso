@@ -163,6 +163,15 @@ Comes first, because Slices B and C have nothing to report without it.
     reason and the view renders it as "not enough data yet", so history is never rewritten.
   - Thresholds are where Q1 is now decided; changing them means bumping `MOVEMENT_RULE_VERSION` so a frozen report
     still records which rule produced it.
+  - **C4 (built 2026-11-09): an AI wording draft the operator approves.** The plan already allowed AI-drafted wording
+    as a draft the operator must approve, restating figures only. `POST …/report/ai-narrative` (gated like the other
+    monthly routes, body `{ locale }`) loads the month's **stored** version and hands the model a closed fact set:
+    delivered counts, visibility state with rising/falling platform counts, search state with its recorded clicks and
+    impressions, open-item count, and the current narrative. The reply passes the same plain-text guard as scan-report
+    summaries (`validatePolishedText`): no Markdown, currency, percentages, rank or competitor claims, and no number
+    absent from the facts. The editor only fills its textarea; saving a version is the approval step, so the route
+    writes nothing and a month with no saved draft returns `DRAFT_REQUIRED`. A refused or failed draft leaves the
+    operator's text untouched.
 
 - **Drafted from the Brand Month,** extending the existing `client_reports` versions and share links rather than
   building a second report system.
