@@ -49,7 +49,7 @@ describe('onboarding assistant provider request', () => {
     expect(request).toHaveBeenCalledTimes(1)
     expect(request.mock.calls[0][0]).toBe('https://openrouter.ai/api/v1/chat/completions')
     expect(JSON.parse(request.mock.calls[0][1].body)).toMatchObject({
-      model: 'anthropic/claude-haiku-4.5', max_tokens: 700,
+      model: 'anthropic/claude-haiku-4.5', max_tokens: 900,
       provider: { require_parameters: true },
       response_format: { type: 'json_schema', json_schema: { name: 'brand_draft', strict: true } },
     })
@@ -70,6 +70,9 @@ describe('onboarding assistant provider request', () => {
         { type: 'null' },
       ],
     })
+    // Competitor proposals are part of the contract but are never evidence.
+    expect(payload.response_format.json_schema.schema.required).toContain('competitors')
+    expect(payload.response_format.json_schema.schema.properties.competitors.items.required).toEqual(['name', 'domain'])
     expect(JSON.parse(payload.messages[1].content)).toEqual({ language: 'zh-HK', market: 'HK', source: 'https://example.com/', pageText })
   })
 

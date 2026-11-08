@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { generateBrandDraft, parseBrandAssistInput } from '@/lib/onboarding/brand-assistant'
+import { generateBrandDraft, parseBrandAssistInput, validateSuggestedCompetitors } from '@/lib/onboarding/brand-assistant'
+import { MAX_SUGGESTED_COMPETITORS } from '@/lib/onboarding/brand-draft'
 
 const input = { url: 'https://example.com/', language: 'zh-HK', market: 'HK' }
 const html = '<html><script>secret script</script><title>Example</title><body><h1>Example workshops</h1><p>We teach design.</p></body></html>'
@@ -14,13 +15,14 @@ describe('brand assistant', () => {
   it.each(['https://user:pass@example.com', 'file:///etc/passwd', 'http://localhost', 'https://127.0.0.1', 'https://example.com:8443'])('rejects unsafe or credentialed URL %s', url => {
     expect(() => parseBrandAssistInput({ ...input, url })).toThrow()
   })
-  it('returns an editable draft with source and chosen context, never model-supplied URLs or competitors', async () => {
+  it('returns an editable draft with source and chosen context, and competitor proposals only', async () => {
     const generate = vi.fn().mockResolvedValue(draft)
     const result = await generateBrandDraft(parseBrandAssistInput(input), {
       fetchPage: async () => new Response(html, { headers: { 'content-type': 'text/html' } }), generate,
     })
     expect(result).toMatchObject({ brandName: 'Example', domain: 'example.com', industry: 'education', language: 'zh-HK', market: 'HK', sourceUrl: input.url })
-    expect(result).not.toHaveProperty('competitors')
+    // No proposals in this model output: the contract is an empty list, not an absent key.
+    expect(result.competitors).toEqual([])
     expect(generate.mock.calls[0][0]).not.toContain('secret script')
     expect(generate).toHaveBeenCalledTimes(1)
   })
@@ -65,10 +67,43 @@ it('returns a manual-only draft for a tiny page without calling the model',async
  expect(result).toMatchObject({brandName:'',description:'',industry:null,evidence:[],reviewRequired:true})
  expect(model).not.toHaveBeenCalled()
 })
-it('records server fetch time before model latency instead of accepting a model timestamp',async()=>{
- vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-13T00:00:00.000Z'))
+it('records server fetch time before model latency instead of accepting a model timestamp',async()=>{ vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-13T00:00:00.000Z'))
  try{
   const result=await generateBrandDraft(parseBrandAssistInput(input),{fetchPage:async()=>new Response(html,{headers:{'content-type':'text/html'}}),generate:async()=>{vi.setSystemTime(new Date('2026-10-13T00:00:30.000Z'));return draft}})
   expect(result.fetchedAt).toBe('2026-10-13T00:00:00.000Z')
  }finally{vi.useRealTimers()}
+})
+
+describe('AI competitor proposals', () => {
+  const withCompetitors = (competitors: unknown) => JSON.stringify({ ...JSON.parse(draft), competitors })
+  const run = async (competitors: unknown) => generateBrandDraft(parseBrandAssistInput(input), {
+    fetchPage: async () => new Response(html, { headers: { 'content-type': 'text/html' } }),
+    generate: async () => withCompetitors(competitors),
+  })
+  it('normalises domains, strips www, and keeps unconfident proposals by name only', async () => {
+    expect((await run([
+      { name: 'Semrush', domain: 'https://www.Semrush.com/pricing' },
+      { name: 'Ahrefs', domain: '' },
+      { name: 'Moz', domain: 'not a domain' },
+    ])).competitors).toEqual([
+      { name: 'Semrush', domain: 'semrush.com' },
+      { name: 'Ahrefs', domain: null },
+      { name: 'Moz', domain: null },
+    ])
+  })
+  it('drops the brand itself, duplicates, unusable names and anything past the cap', () => {
+    expect(validateSuggestedCompetitors([
+      { name: 'example', domain: 'example.com' },
+      { name: 'Acme', domain: 'acme.com' },
+      { name: 'ACME', domain: 'acme.co' },
+      { name: '   ', domain: 'blank.example' },
+      { name: 'x'.repeat(121), domain: 'long.example' },
+      ...Array.from({ length: 8 }, (_, i) => ({ name: `Rival ${i}`, domain: `rival${i}.example` })),
+    ], 'Example')).toHaveLength(MAX_SUGGESTED_COMPETITORS)
+    expect(validateSuggestedCompetitors([{ name: 'example', domain: 'example.com' }], 'Example')).toEqual([])
+  })
+  it('never repairs a proposal into something that could be saved without review', () => {
+    expect(validateSuggestedCompetitors([{ name: 'Acme' }, null, 42, ['x']], 'Brand')).toEqual([{ name: 'Acme', domain: null }])
+    expect(validateSuggestedCompetitors('Acme', 'Brand')).toEqual([])
+  })
 })
