@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { OnePageReport } from '@/components/reports/OnePageReport'
+import { PrintButton, PrintThemeGuard } from '@/components/reports/PrintButton'
 import { resolvePublishedClientReport } from '@/lib/reports/public'
 import { incrementClientReportView } from '@/lib/reports/store'
 import { resolvePublishedMonthlyReport } from '@/lib/monthly-report/public'
@@ -54,6 +55,11 @@ export default async function PublicReportPage({
     const m = (monthly.report.locale === 'zh-HK' ? zhHK : en).monthlyReport
     return (
       <main className="min-h-dvh w-full overflow-x-clip bg-background px-4 py-6 text-foreground sm:px-6 sm:py-10 print:min-h-0 print:bg-white print:p-0">
+        {/* Same "Download PDF" affordance as the scan report's one-page view. */}
+        <PrintThemeGuard />
+        <div className="mx-auto mb-4 flex w-full max-w-3xl justify-end print:hidden">
+          <PrintButton />
+        </div>
         <PublicMonthlyReport report={monthly.report} publishedAt={monthly.publishedAt} title={m.title} publishedLabel={m.published}
           logoProxyUrl={monthly.logoProxyUrl} contactProxyUrl={monthly.contactProxyUrl}
           copy={{ delivered: m.delivered, verifiedLive: m.verified_live, selfReported: m.self_reported, none: m.none,
