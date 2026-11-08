@@ -114,8 +114,10 @@ Comes first, because Slices B and C have nothing to report without it.
     snapshots not recorded. Reads only; each brand links to its month page.
   - `GET /api/cron/brand-months` (Vercel Cron header shape, `CRON_SECRET`): records every due snapshot for brands
     whose account has `client_reports_online`; idempotent. Its brand selection is account-blind by design
-    (`loadDueMonthBrands`, declared in the tenancy inventory). **Not scheduled:** adding it to the cron Worker is a
-    separate schedule change for Willy to approve. Until then the month page's "Record now" covers it.
+    (`loadDueMonthBrands`, declared in the tenancy inventory). **Scheduled and deployed 2026-11-09** at
+    `17 16 * * *` (00:17 HKT, the only route on that trigger) after the drift recorded here was found: the tick was
+    configured by #180 but the Worker had not been redeployed, so no snapshot had ever been recorded. The month
+    page's "Record now" remains available for an operator who wants a figure sooner.
   - Note: while the 09:00 Search Console trigger stays unscheduled, every bound brand will read as stale. That is
     true, not a bug.
 

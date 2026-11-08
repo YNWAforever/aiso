@@ -44,7 +44,7 @@ week, with in-app notifications written and readable. Migrations `033`–`035` g
 gate — restoring one means adding a real auth/entitlement/ownership gate, not just deleting
 the `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
 
-## Retainer OS (Slices A–C): built, one deployment from live
+## Retainer OS (Slices A–C): built and deployed
 
 Everything the 2026-11-06 brief calls for is in `main` and deployed to Vercel:
 demand-seeded Pulse with the 10-active-question budget and a stored `prompt_bank.source`
@@ -53,15 +53,14 @@ monthly deliverables report with publish/share, agency branding, the Q1 movement
 (`lib/monthly-report/movement.ts`), a recorded open/close figures section, and an
 operator-approved AI narrative draft.
 
-What is still **not live** is operational, not code:
+The cron side went live on 2026-11-09: the Worker now runs all three ticks — Pulse, alerts and
+the 00:17 HKT brand-months tick — so `brand_month_snapshots` records automatically from the
+next firing. Before that deployment the third tick was configured but never deployed, the
+reason every month figure read "not recorded"; `npm run worker:schedules` exists so that drift
+cannot be mistaken for a code bug again.
 
-- **The brand-months tick has never been deployed.** `cloudflare/aiso-worker/wrangler.jsonc`
-  configures three crons (`17 4 * * *` Pulse, `47 7 * * 1` alerts, `17 16 * * *` brand-months),
-  but the deployed Worker runs only the first two (readback 2026-11-09). So
-  `brand_month_snapshots` is empty in production and month pages/reports can only say
-  "not recorded" until a Worker deployment includes the third tick. Verify with
-  `npm run worker:schedules`; deploy is the separately approved step in
-  [the cron-worker runbook](runbooks/deploy-cron-worker.md).
+What remains is a data question, not code:
+
 - **Q1's thresholds are provisionally confirmed.** The rule refuses a direction unless three
   consecutive weekly comparisons move the same way with at least five answers behind each
   week. Production has four weekly Pulse rollups for one brand with the 19 Oct week missing, so
@@ -70,12 +69,20 @@ What is still **not live** is operational, not code:
 
 ## Scheduler readback
 
-**Runtime readback, 2026-11-09:** the deployed `aiso-cron-worker` has **two** schedules —
-`17 4 * * *` (Pulse, modified 2026-10-23) and `47 7 * * 1` (alerts, modified 2026-10-12) — and
-`APP_BASE_URL` is set. The third configured tick, `17 16 * * *` (brand-months, 00:17 HKT), is
-**not deployed**, and the deployed script predates the route that serves it. Weekly Pulse and
-alert evaluation are running; month snapshots are not. Re-run `npm run worker:schedules` before
-relying on this line, and see the [cron-worker runbook](runbooks/deploy-cron-worker.md) for the
-activation and rollback gates. The 2026-10-03 observation (no schedules, no `APP_BASE_URL` at
-all) is superseded.
+**Runtime readback after the 2026-11-09 deployment:** the deployed `aiso-cron-worker` runs all
+**three** configured schedules, and `npm run worker:schedules` reports no drift:
+
+| Schedule (UTC) | Routes | Status |
+| --- | --- | --- |
+| `17 4 * * *` | `/api/cron/pulse` (+ `?mode=repair`) | live |
+| `47 7 * * 1` | `/api/cron/evaluate-alerts` | live |
+| `17 16 * * *` (00:17 HKT) | `/api/cron/brand-months` | live since 2026-11-09 |
+
+Deployment version `f25fd6fc-3de6-4e1e-8ea2-4967980dec7f`; the deployed script was read back
+and contains the brand-months route and all three cron keys, and the `CRON_SECRET` secret is
+bound. The `0 9 * * *` trigger (trial emails + Search Console) remains unscheduled in the
+deployable config — the free tier allows three triggers and all three are now spent. Re-run
+`npm run worker:schedules` before relying on this line, and see the
+[cron-worker runbook](runbooks/deploy-cron-worker.md) for the activation and rollback gates.
+
 

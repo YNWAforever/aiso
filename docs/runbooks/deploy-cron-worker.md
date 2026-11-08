@@ -1,34 +1,50 @@
 # Runbook: activate the dedicated AISO cron Worker
 
-## Readback (2026-11-09): the third tick is still not deployed
+## Deployed 2026-11-09: all three ticks live
 
-The deployed Worker runs two schedules and the deployable config declares three. Use the
-repository readback rather than trusting either side alone:
+The missing brand-months tick was deployed on 2026-11-09 together with the current source, so
+the deployed Worker and the repository config agree for the first time since #180:
+
+| Schedule (UTC) | Meaning | Deployed |
+| --- | --- | --- |
+| `17 4 * * *` | `/api/cron/pulse` and `?mode=repair` | yes |
+| `47 7 * * 1` | `/api/cron/evaluate-alerts` | yes |
+| `17 16 * * *` | `/api/cron/brand-months` (00:17 HKT) | **yes (2026-11-09)** |
+
+Deployment evidence: `wrangler deploy --config cloudflare/aiso-worker/wrangler.jsonc` from
+`cloudflare/cron-worker`, version `f25fd6fc-3de6-4e1e-8ea2-4967980dec7f`; wrangler reported
+all three `schedule:` lines; the deployed script was read back and contains
+`/api/cron/brand-months`, all three cron keys and `noRetry`; the `CRON_SECRET` secret is bound;
+`npm run worker:schedules` reports **no drift**. The first automatic brand-months firing is
+`17 16 * * *` UTC (00:17 HKT). Rollback target remains the previous version
+`09063648-8612-44fe-bd25-70cffc914c85` with two schedules (see below).
+
+Verify after a firing:
+
+```bash
+npm run worker:schedules          # expected: three deployed, no drift
+npm run migrate -- --verify       # not needed for this; the cron writes rows, not schema
+```
+
+and check that `brand_month_snapshots` gained an opening row for the current Hong Kong month
+(plus last month's closing, due three days after it ended) and that `cron_runs` recorded
+`/api/cron/brand-months`. A brand needs `client_reports_online` (Pro/Enterprise) to be included;
+brands without it are counted in `notEntitled` and skipped.
+
+## Historical readback: the third tick was missing until 2026-11-09
+
+Until the deployment above, the live Worker ran only `17 4 * * *` and `47 7 * * 1`. The
+`17 16 * * *` tick was in `cloudflare/aiso-worker/wrangler.jsonc` (added by #180) but never
+deployed, and the deployed script predated the `/api/cron/brand-months` route. The symptom was
+silent: `brand_month_snapshots` stayed empty, every month page and monthly report said
+未記錄 / "Not recorded", and nothing errored because a cron that is not deployed simply never
+fires. `npm run worker:schedules` exists to catch exactly that drift before it is mistaken for
+a code bug:
 
 ```bash
 npm run worker:schedules          # human output, exit 1 on drift
 npm run worker:schedules -- --json
 ```
-
-It compares `cloudflare/aiso-worker/wrangler.jsonc` with the schedules Cloudflare reports and
-never prints its credential (it uses `CLOUDFLARE_API_TOKEN`, else the local `wrangler login`
-token). Observed on 2026-11-09:
-
-| Schedule (UTC) | Meaning | Deployed? |
-| --- | --- | --- |
-| `17 4 * * *` | `/api/cron/pulse` and `?mode=repair` | yes (modified 2026-10-23) |
-| `47 7 * * 1` | `/api/cron/evaluate-alerts` | yes (modified 2026-10-12) |
-| `17 16 * * *` | `/api/cron/brand-months` (00:17 HKT) | **no — missing** |
-
-Consequences until it is deployed: `brand_month_snapshots` stays empty, so the month page and
-monthly report show 未記錄 / "Not recorded" for every opening and closing figure, and the Q1
-movement rule cannot be replayed against a full month. Pulse weekly rollups and alert
-evaluation are unaffected — they are the two schedules that are live.
-
-The deployed script also predates the route: PR #180 added `/api/cron/brand-months` to the
-Worker's `ROUTES` after the last deployment (2026-10-23). A deployment of the current source is
-required, not just a schedule edit, and that deployment remains the separately approved step
-described below.
 
 ## Proposed source — deployment remains HOLD
 
