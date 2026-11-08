@@ -24,7 +24,8 @@
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report",
     "e2e:auth:capture": "node --env-file-if-exists=.env.local scripts/e2e/capture-auth-state.mjs",
-    "e2e:authenticated": "node --env-file-if-exists=.env.local scripts/e2e/run-authenticated.mjs"
+    "e2e:authenticated": "node --env-file-if-exists=.env.local scripts/e2e/run-authenticated.mjs",
+    "worker:schedules": "node scripts/worker-schedules.mjs"
   },
   "dependencies": {
     "@neondatabase/auth": "0.5.0-beta",
