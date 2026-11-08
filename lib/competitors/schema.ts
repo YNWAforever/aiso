@@ -1,10 +1,10 @@
 import { normalizeVerificationDomain } from '@/lib/domain-verification/schema'
+import { MAX_ALIASES, MAX_COMPETITORS, MAX_DOMAINS, MAX_NAME_LENGTH } from './limits'
 
-/** The classifier's own cap (lib/pulse/analysis-fallback.ts slices to 10). */
-export const MAX_COMPETITORS = 10
-export const MAX_ALIASES = 5
-export const MAX_DOMAINS = 5
-export const MAX_NAME_LENGTH = 120
+// Canonical definitions live in ./limits so the onboarding wizard can import
+// them without pulling in this module's domain normalisation. Re-exported
+// here because every existing reader imports the caps from this file.
+export { MAX_ALIASES, MAX_COMPETITORS, MAX_DOMAINS, MAX_NAME_LENGTH }
 
 /** What the matcher needs about a competitor: its name and configured spellings. */
 export type CompetitorRef = { name: string; aliases: string[] }

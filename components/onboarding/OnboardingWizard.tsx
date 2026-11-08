@@ -10,6 +10,8 @@ import { createTranslator } from 'next-intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
+import { MAX_COMPETITORS, MAX_NAME_LENGTH } from '@/lib/competitors/limits'
+import { addCompetitorNames, type CompetitorInputProblem } from '@/lib/onboarding/competitors'
 import { Wordmark } from '@/components/brand/Wordmark'
 
 const INDUSTRIES = [
@@ -116,6 +118,7 @@ function WizardForm({
   const [description, setDescription] = useState(draft.description ?? '')
   const [competitors, setCompetitors] = useState<string[]>(draft.competitors ?? [])
   const [competitorInput, setCompetitorInput] = useState('')
+  const [competitorProblem, setCompetitorProblem] = useState<CompetitorInputProblem | null>(null)
 
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
@@ -139,15 +142,15 @@ function WizardForm({
   }
 
   function addCompetitor() {
-    const val = competitorInput.trim()
-    if (val && !competitors.includes(val)) {
-      setCompetitors(prev => [...prev, val])
-    }
+    const result = addCompetitorNames(competitors, competitorInput, brand)
+    setCompetitors(result.competitors)
     setCompetitorInput('')
+    setCompetitorProblem(result.problem)
   }
 
   function removeCompetitor(c: string) {
     setCompetitors(prev => prev.filter(x => x !== c))
+    setCompetitorProblem(null)
   }
 
   const inFlight=useRef(false)
@@ -184,7 +187,17 @@ function WizardForm({
       const res=await send(values,requestIntent,targetClientId)
       const data = await res.json()
       if (res.status === 403 && data.error === 'BRAND_LIMIT_REACHED') { setBrandLimit(true); return }
-      if (!res.ok) { setError(typeof data.error === 'string' ? data.error : t('genericError')); return }
+      if (!res.ok) {
+        // The server's 400s are stable codes, not user copy; the competitor
+        // one is reachable from this step, so it gets a translated message
+        // instead of the raw "Invalid onboarding input".
+        if (res.status === 400) {
+          setError(data.error === 'COMPETITORS_INVALID'
+            ? t('competitorsInvalid', { max: MAX_COMPETITORS, nameMax: MAX_NAME_LENGTH })
+            : t('invalidInput'))
+        } else setError(typeof data.error === 'string' ? data.error : t('genericError'))
+        return
+      }
       if (typeof data.clientId !== 'string' || !data.progress) throw new Error('Invalid progress')
       setClientId(data.clientId)
       // Keep the request intent: recovery may reuse the original progress row's identity.
@@ -377,14 +390,22 @@ function WizardForm({
               <label htmlFor="onboarding-competitor" className="block text-xs font-semibold text-foreground mb-1.5">
                 {t('competitorsLabel')} <span className="text-muted-foreground font-normal">{t('optional')}</span>
               </label>
-              <p className="text-2xs text-muted-foreground mb-2">{t('competitorsHint')}</p>
+              <p id="onboarding-competitor-hint" className="text-2xs text-muted-foreground mb-2">
+                {t('competitorsHint')}{' '}
+                <span aria-live="polite">{t('competitorCount', { count: competitors.length, max: MAX_COMPETITORS })}</span>
+              </p>
               <div className="flex gap-2 mb-2">
                 <input
                   id="onboarding-competitor"
                   name="competitor"
                   value={competitorInput}
+                  maxLength={MAX_NAME_LENGTH}
+                  aria-describedby="onboarding-competitor-hint"
                   onChange={e => setCompetitorInput(e.target.value)}
                   onKeyDown={e => {
+                    // Committing a CJK candidate also fires Enter; adding the
+                    // half-composed text then is a bug for zh-HK members.
+                    if (e.nativeEvent.isComposing) return
                     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addCompetitor() }
                   }}
                   placeholder={t('competitorsPlaceholder')}
@@ -393,18 +414,27 @@ function WizardForm({
                 <button
                   type="button"
                   onClick={addCompetitor}
-                  disabled={!competitorInput.trim()}
+                  disabled={!competitorInput.trim() || competitors.length >= MAX_COMPETITORS}
                   className="h-9 px-3 rounded-lg bg-secondary text-foreground text-xs font-semibold border border-border hover:bg-muted transition disabled:opacity-40"
                 >
                   {t('add')}
                 </button>
               </div>
+              {competitorProblem && (
+                <p role="alert" className="text-xs text-destructive mb-2">
+                  {competitorProblem === 'brand'
+                    ? t('competitorIsBrand')
+                    : competitorProblem === 'limit'
+                      ? t('competitorLimit', { max: MAX_COMPETITORS })
+                      : t('competitorTooLong', { max: MAX_NAME_LENGTH })}
+                </p>
+              )}
               {competitors.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {competitors.map(competitor => (
-                    <span key={competitor} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-full font-medium">
-                      {competitor}
-                      <button type="button" onClick={() => removeCompetitor(competitor)} aria-label={t('removeCompetitor', { name: competitor })} className="min-h-6 min-w-6 inline-flex items-center justify-center hover:text-destructive transition">
+                    <span key={competitor} className="inline-flex max-w-full items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-full font-medium">
+                      <span className="break-all">{competitor}</span>
+                      <button type="button" onClick={() => removeCompetitor(competitor)} aria-label={t('removeCompetitor', { name: competitor })} className="shrink-0 min-h-6 min-w-6 inline-flex items-center justify-center hover:text-destructive transition">
                         <X className="size-2.5" />
                       </button>
                     </span>
