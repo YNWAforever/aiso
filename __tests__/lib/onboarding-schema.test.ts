@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseOnboardingInput, parseSeedPrompts } from '@/lib/onboarding/schema'
+import { MAX_COMPETITORS, MAX_NAME_LENGTH } from '@/lib/competitors/limits'
 describe('persistent onboarding input and provider validation', () => {
   it('derives a stable legacy intent from normalized brand and domain', () => {
     expect(parseOnboardingInput({brandName:' Synthetic ',domain:'synthetic.test'}).intentKey)
@@ -19,3 +20,21 @@ describe('persistent onboarding input and provider validation', () => {
 
 it('normalizes safe domains and canonical industries without fetching them',()=>{const a=parseOnboardingInput({brandName:'Brand',domain:'https://www.example.com/path',industry:'Technology'});expect(a.domain).toBe('example.com');expect(a.industry).toBe('technology')});
 it.each([42,'https://user:pass@example.com','http://localhost','https://127.0.0.1'])('rejects unsafe onboarding domain %s',domain=>expect(()=>parseOnboardingInput({brandName:'Brand',domain})).toThrow());
+
+const withCompetitors = (competitors: unknown[], brandName = 'Brand') => parseOnboardingInput({ brandName, competitors })
+it('accepts the shared competitor cap', () => {
+  expect(withCompetitors(Array.from({ length: MAX_COMPETITORS }, (_, i) => `Rival ${i}`)).competitors).toHaveLength(MAX_COMPETITORS)
+})
+it('refuses one competitor beyond the shared cap', () => {
+  expect(() => withCompetitors(Array.from({ length: MAX_COMPETITORS + 1 }, (_, i) => `Rival ${i}`))).toThrow('COMPETITORS_INVALID')
+})
+it('refuses a competitor name past the shared length', () => {
+  expect(() => withCompetitors(['x'.repeat(MAX_NAME_LENGTH + 1)])).toThrow('COMPETITORS_INVALID')
+})
+it('NFC-normalises and de-duplicates competitors case/width-insensitively, keeping the first spelling', () => {
+  expect(withCompetitors([' Acme ', 'ACME', 'ＡＣＭＥ', 'Cafe\u0301']).competitors).toEqual(['Acme', 'Café'])
+})
+it('refuses the brand itself as a competitor', () => {
+  expect(() => withCompetitors([' acme '], 'Acme')).toThrow('COMPETITORS_INVALID')
+})
+

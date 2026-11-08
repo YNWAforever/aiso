@@ -33,8 +33,15 @@ describe('resumable onboarding API boundary', () => {
   })
   it.each([{},null,[],{brandName:' '},{brandName:42},{brandName:'x'.repeat(161)},
     {brandName:'Synthetic',description:'x'.repeat(4001)}, {brandName:'Synthetic',competitors:[42]},
+    {brandName:'Synthetic',competitors:Array.from({length:11},(_,i)=>`Rival ${i}`)},
+    {brandName:'Synthetic',competitors:['SYNTHETIC']},
     {brandName:'Synthetic',clientId:'invalid'}, {brandName:'Synthetic',scanId:'invalid'}])('rejects invalid input before effects: %j', async body => {
     expect((await POST(request(body))).status).toBe(400); expect(mocks.complete).not.toHaveBeenCalled()
+  })
+  it('reports a competitor rejection as a translatable code, not raw English', async () => {
+    const response = await POST(request({brandName:'Synthetic',competitors:['SYNTHETIC']}))
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({error:'COMPETITORS_INVALID'})
   })
   it('rejects invalid JSON', async () => {
     expect((await POST(new NextRequest('https://example.test', {method:'POST',body:'{'}))).status).toBe(400)

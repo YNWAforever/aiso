@@ -5,6 +5,8 @@ import {readIndustry} from './industry'
 import { createHash } from 'node:crypto'
 import { isPromptCategory } from '@/lib/prompts/categories'
 import { isPromptLanguage, parsePromptContext, type PromptLanguage, type PromptContext } from '@/lib/prompts/context'
+import { MAX_COMPETITORS, MAX_NAME_LENGTH } from '@/lib/competitors/limits'
+import { competitorKey, competitorName } from './competitors'
 
 export type OnboardingScope = { accountId: string }
 export type SeedPrompt = { category: string; question: string; language: string; market?: string | null }
@@ -18,6 +20,31 @@ export type OnboardingProgress = {
   scanId: string | null; retryable: boolean; errorCode: string | null;
 }
 export const UUID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i
+/**
+ * Competitor names arrive from the wizard, but the request body is caller
+ * supplied: validate shape, bound the list to the shared caps, normalise
+ * Unicode and refuse the brand itself. A name the classifier would never match
+ * is a validation error, never stored and silently ignored.
+ */
+function parseCompetitors(raw: unknown, brandName: string): string[] {
+  if (raw === undefined) return []
+  if (!Array.isArray(raw) || raw.length > MAX_COMPETITORS
+    || raw.some(value => typeof value !== 'string' || !value.trim() || value.length > MAX_NAME_LENGTH)) {
+    throw new Error('COMPETITORS_INVALID')
+  }
+  const brand = competitorKey(brandName)
+  const seen = new Set<string>()
+  const competitors: string[] = []
+  for (const value of raw) {
+    const name = competitorName(value)
+    const key = competitorKey(name)
+    if (key === brand) throw new Error('COMPETITORS_INVALID')
+    if (seen.has(key)) continue
+    seen.add(key)
+    competitors.push(name)
+  }
+  return competitors
+}
 export function parseOnboardingInput(raw: Record<string, unknown>): OnboardingInput {
   if (typeof raw.brandName !== 'string' || !raw.brandName.trim() || raw.brandName.length > 160) throw new Error('brandName required')
   const text = (key: string, max: number) => {
@@ -33,8 +60,7 @@ export function parseOnboardingInput(raw: Record<string, unknown>): OnboardingIn
   const scanId = text('scanId', 36), clientId = text('clientId', 36)
   if ([scanId, clientId].some(id => id && !UUID.test(id))) throw new Error('Invalid onboarding input')
   const intentKey = text('intentKey', 128) ?? `legacy:${createHash('sha256').update(`${brandName.toLowerCase()}\n${domain ?? ''}`).digest('hex')}`
-  if (raw.competitors !== undefined && (!Array.isArray(raw.competitors) || raw.competitors.length > 20
-    || raw.competitors.some(value => typeof value !== 'string' || !value.trim() || value.length > 160))) throw new Error('Invalid onboarding input')
+  const competitors = parseCompetitors(raw.competitors, brandName)
   // A legacy request may still save its brand. It cannot start a seed until
   // language is confirmed; missing context is not evidence of English.
   if (raw.language !== undefined && !isPromptLanguage(raw.language)) throw new Error('Invalid prompt context')
@@ -42,7 +68,7 @@ export function parseOnboardingInput(raw: Record<string, unknown>): OnboardingIn
   const context = parsePromptContext({ language: raw.language ?? 'en', market: raw.market }, { market: region })
   return { intentKey, brandName, domain, scanId, clientId, industry: readIndustry(text('industry', 60)), region,
     language: raw.language === undefined ? null : context.language, market: context.market,
-    description: text('description', 4000), competitors: [...new Set((raw.competitors as string[] ?? []).map(value => value.trim()))] }
+    description: text('description', 4000), competitors }
 }
 export function parseSeedPrompts(raw: string, context?: PromptContext): SeedPrompt[] {
   const match = raw.match(/\[[\s\S]*\]/)
