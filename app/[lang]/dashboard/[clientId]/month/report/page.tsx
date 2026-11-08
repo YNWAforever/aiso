@@ -74,8 +74,10 @@ export default async function MonthlyReportPage({ params, searchParams }: {
         copy={{ shared: t('shared'), notShared: t('not_shared'), shareLink: t('share_link'), publish: t('publish_latest'), revoke: t('revoke'),
           failed: t('publish_failed'), stale: t('stale') }} /> : null}
       {/* Keyed by the saved version, so a save (including the first, server-written default) remounts it with the stored text. */}
-      {canDraft ? <MonthlyReportEditor key={report?.versionId ?? 'new'} clientId={clientId} month={key} locale={report?.snapshot.locale ?? locale} narrative={report?.snapshot.executiveSummary ?? null}
-        copy={{ language: t('language'), narrative: t('narrative'), save: t('save'), failed: t('failed'), brandingRequired: t('branding_required'), invalidNarrative: t('invalid_narrative') }} /> : null}
+      {canDraft ? <MonthlyReportEditor key={report?.versionId ?? 'new'} clientId={clientId} month={key} locale={report?.snapshot.locale ?? locale} narrative={report?.snapshot.executiveSummary ?? null} hasDraft={Boolean(report)}
+        copy={{ language: t('language'), narrative: t('narrative'), save: t('save'), failed: t('failed'), brandingRequired: t('branding_required'), invalidNarrative: t('invalid_narrative'),
+          aiDraft: t('ai_draft'), aiDrafting: t('ai_drafting'), aiDraftNote: t('ai_draft_note'), aiDraftUnavailable: t('ai_draft_unavailable'),
+          aiDraftInvalid: t('ai_draft_invalid'), aiDraftFirstSave: t('ai_draft_requires_draft') }} /> : null}
     </main>
   )
 }

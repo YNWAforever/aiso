@@ -58,24 +58,30 @@ function numericTokens(value: string): ReadonlyArray<string> {
   return value.match(NUMERIC_TOKEN) ?? []
 }
 
-function allowedNumericTokens(facts: ReportAiFacts): Set<string> {
-  const factsForPrompt = {
-    currentScore: facts.currentScore,
-    previousScore: facts.previousScore,
-    signedDelta: facts.signedDelta,
-    changeCounts: facts.changeCounts,
-    deterministicSummary: facts.deterministicSummary,
-  }
-  const tokens = numericTokens(JSON.stringify(factsForPrompt))
+function allowedNumericTokens(facts: unknown): Set<string> {
+  const tokens = numericTokens(JSON.stringify(facts))
   return new Set(tokens)
 }
 
-function validateAiOutput(value: unknown, facts: ReportAiFacts): string | null {
+/**
+ * The one plain-text guard every AI-drafted report wording goes through: no
+ * Markdown/HTML/links, no currency or percentage symbols, no unsupported claims,
+ * 40–1200 characters, and no number that is not present in the supplied facts.
+ *
+ * Exported because the monthly report's narrative draft is the same kind of
+ * surface with a different fact set; duplicating these rules would let the two
+ * drift until one of them stopped refusing invented figures.
+ */
+export function validatePolishedText(value: unknown, facts: unknown): string | null {
   const normalized = normalizePlainText(value)
   if (!normalized) return null
   const allowed = allowedNumericTokens(facts)
   if (numericTokens(normalized).some(token => !allowed.has(token))) return null
   return normalized
+}
+
+function validateAiOutput(value: unknown, facts: ReportAiFacts): string | null {
+  return validatePolishedText(value, facts)
 }
 
 function promptFacts(facts: ReportAiFacts) {

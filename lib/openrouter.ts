@@ -35,6 +35,7 @@ export type CallLabel =
   | 'pulse.answer_analysis'
   | 'pulse.suggest_questions'
   | 'report.summary_polish'
+  | 'monthly_report.narrative_draft'
 
 interface CallOptions {
   onEvidence?:(evidence:import('@/lib/pulse/runs/schema').ProviderEvidence)=>void

@@ -34,12 +34,14 @@ function publisher(locale = 'en', overrides: Partial<Parameters<typeof MonthlyRe
     copy: { shared: t.shared, notShared: t.not_shared, shareLink: t.share_link, publish: t.publish_latest,
       revoke: t.revoke, failed: t.publish_failed, stale: t.stale }, ...overrides })
 }
-function editor(locale: 'en' | 'zh-HK') {
+function editor(locale: 'en' | 'zh-HK', overrides: Partial<Parameters<typeof MonthlyReportEditor>[0]> = {}) {
   const t = copyFor(locale)
   h.cursor = 0
-  return MonthlyReportEditor({ clientId, month: '2026-10', locale, narrative: 'Keep my edited narrative.',
+  return MonthlyReportEditor({ clientId, month: '2026-10', locale, narrative: 'Keep my edited narrative.', hasDraft: true,
     copy: { language: t.language, narrative: t.narrative, save: t.save, failed: t.failed,
-      brandingRequired: t.branding_required, invalidNarrative: t.invalid_narrative } })
+      brandingRequired: t.branding_required, invalidNarrative: t.invalid_narrative,
+      aiDraft: t.ai_draft, aiDrafting: t.ai_drafting, aiDraftNote: t.ai_draft_note, aiDraftUnavailable: t.ai_draft_unavailable,
+      aiDraftInvalid: t.ai_draft_invalid, aiDraftFirstSave: t.ai_draft_requires_draft }, ...overrides })
 }
 function click(tree: ReactNode, label: string) {
   const button = nodes(tree).find(node => node.props.children === label && typeof node.props.onClick === 'function')!
@@ -120,5 +122,43 @@ describe.each(['en', 'zh-HK'] as const)('monthly report interaction in %s', loca
     expect(old).not.toContain(copyFor(locale).publish_latest)
     const current = renderToStaticMarkup(publisher(locale, { latestIsPublished: true, shareUrl: null }))
     expect(current).not.toContain('<button')
+  })
+
+  it('fills the textarea with an AI draft but never saves it', async () => {
+    const t = copyFor(locale)
+    const fetch = vi.fn(async () => Response.json({ narrative: 'AI whispered a reviewed sentence.', polished: true, code: 'ai_polished' }))
+    vi.stubGlobal('fetch', fetch)
+    click(editor(locale), t.ai_draft)
+    // state order: 0 language, 1 text, 2 saving, 3 drafting, 4 error, 5 notice
+    await vi.waitFor(() => expect(h.values[1]).toBe('AI whispered a reviewed sentence.'))
+    await vi.waitFor(() => expect(h.values[5]).toBe(t.ai_draft_note))
+    expect(fetch).toHaveBeenCalledOnce()
+    expect(fetch).toHaveBeenCalledWith(`/api/clients/${clientId}/months/2026-10/report/ai-narrative`, expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ locale }),
+    }))
+    // A draft is wording, not a version: only the save path advances the report.
+    expect(h.refresh).not.toHaveBeenCalled()
+  })
+
+  it('keeps the operator text when the AI draft is refused or fails', async () => {
+    const t = copyFor(locale)
+    const cases = [
+      [Response.json({ error: 'DRAFT_REQUIRED' }, { status: 409 }), t.ai_draft_requires_draft],
+      [Response.json({ error: 'MONTHLY_REPORT_UNAVAILABLE' }, { status: 503 }), t.ai_draft_unavailable],
+      [Response.json({ narrative: 'x', polished: false, code: 'ai_invalid_output' }), t.ai_draft_invalid],
+    ] as const
+    for (const [response, message] of cases) {
+      h.values = []; h.cursor = 0
+      vi.stubGlobal('fetch', vi.fn(async () => response.clone()))
+      click(editor(locale), t.ai_draft)
+      await vi.waitFor(() => expect(h.values[4]).toBe(message))
+      expect(h.values[1]).toBe('Keep my edited narrative.')
+      expect(h.refresh).not.toHaveBeenCalled()
+    }
+  })
+
+  it('disables the AI button until the month has a saved draft', () => {
+    const html = renderToStaticMarkup(editor(locale, { hasDraft: false }))
+    expect(html).toMatch(new RegExp(`<button[^>]*disabled[^>]*>${copyFor(locale).ai_draft}</button>`))
   })
 })
