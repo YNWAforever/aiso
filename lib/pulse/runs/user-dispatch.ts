@@ -5,7 +5,7 @@ import {resolveCommercialEntitlement,type CommercialAccount} from '@/lib/tier'
 import {isFeatureEnabled} from '@/lib/flags'
 import {MAX_PROMPTS} from '@/lib/pulse/limits'
 import {modelVariantsFor} from '@/lib/openrouter'
-import {runtimePlatformsFor} from '@/lib/pulse/platforms'
+import {pulsePlatformsFor} from '@/lib/pulse/platforms'
 import {isPromptLanguage,isPromptMarket} from '@/lib/prompts/context'
 import {currentScanWeek} from '@/lib/pulse/schedule'
 import {isoDate} from '@/lib/iso-date'
@@ -64,7 +64,7 @@ export async function readUserPulseRun(scope:PulseScope,runId:string):Promise<Us
 export async function readUserPulseOptions(scope:PulseScope){
  const sql=db();const [client]=await sql`select a.plan,a.status,a.stripe_subscription_id,a.trial_ends_at,a.override_plan,a.override_expires_at from clients c join accounts a on a.id=c.account_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and c.status='active'`
  if(!client)throw new Error('PULSE_RUN_NOT_FOUND')
- const entitlement=resolveCommercialEntitlement(client as CommercialAccount),variants=modelVariantsFor(runtimePlatformsFor(entitlement.features.platform_access))
+ const entitlement=resolveCommercialEntitlement(client as CommercialAccount),variants=modelVariantsFor(pulsePlatformsFor(entitlement.features.platform_access))
  const week=currentScanWeek(),cap=userPulseBudget(entitlement.features.max_brands,variants.length)
  // Independent reads, so they go out together: run back to back over Neon's
  // HTTP driver they held the monitor panel on "loading" for ~4 s.

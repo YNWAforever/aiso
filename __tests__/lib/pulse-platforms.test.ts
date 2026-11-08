@@ -7,8 +7,10 @@ import { PLATFORM_KEYS } from '@/lib/openrouter'
 import {
   CITATION_PLATFORMS,
   ENTITLEMENT_TO_RUNTIME,
+  PULSE_PLATFORM_BUDGET,
   RUNTIME_TO_CITATION,
   citationPlatformFor,
+  pulsePlatformsFor,
   runtimePlatformsFor,
 } from '@/lib/pulse/platforms'
 
@@ -96,5 +98,29 @@ describe('pulse platform vocabularies', () => {
     // AI Overviews, so nothing emits it today.
     expect(CITATION_PLATFORMS).toContain('google_aio')
     expect(Object.values(RUNTIME_TO_CITATION)).not.toContain('google_aio')
+  })
+
+  it('pins the approved weekly Pulse platform budget (Q2)', () => {
+    // Q2 was approved on 2026-11-08 with the measured cost: one Pulse week for
+    // one brand at 8 questions over these five platforms cost $0.574 in
+    // collection plus ~$0.006 classification ≈ $3.10/month at the 10-question
+    // budget. Adding a platform here raises recurring spend, so it is a
+    // deliberate change, not a default.
+    expect([...PULSE_PLATFORM_BUDGET].sort()).toEqual(
+      ['claude', 'gemini', 'gpt4o', 'perplexity-p', 'perplexity-s'],
+    )
+    // Every budgeted key must be a real entitlement key that translates.
+    for (const key of PULSE_PLATFORM_BUDGET) expect(ENTITLEMENT_TO_RUNTIME[key], key).toBeDefined()
+  })
+
+  it('a Pulse run queries the plan access intersected with the budget', () => {
+    expect(pulsePlatformsFor(getPlanDefinition('free').features.platform_access)).toEqual([])
+    expect(pulsePlatformsFor(getPlanDefinition('basic').features.platform_access)).toEqual(['gemini-flash'])
+    // Today's pro/enterprise plans grant exactly the approved budget.
+    expect(pulsePlatformsFor(getPlanDefinition('pro').features.platform_access))
+      .toEqual(runtimePlatformsFor(getPlanDefinition('pro').features.platform_access))
+    // A plan entitlement added outside the budget cannot raise weekly spend.
+    expect(pulsePlatformsFor(['gemini', 'gpt4o', 'some-future-platform']))
+      .toEqual(['gemini-flash', 'gpt-4o'])
   })
 })

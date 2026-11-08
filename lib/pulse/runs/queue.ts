@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement,type CommercialAccount } from '@/lib/tier'
-import { runtimePlatformsFor } from '@/lib/pulse/platforms'
+import { pulsePlatformsFor } from '@/lib/pulse/platforms'
 import { modelVariantsFor } from '@/lib/openrouter'
 import { isoDate } from '@/lib/iso-date'
 import type { PulseScope } from './schema'
@@ -12,7 +12,7 @@ export async function readPulseTarget(clientId:string){
   const rows=await db()`select c.account_id,c.id as client_id,a.plan,a.status,a.stripe_subscription_id,a.trial_ends_at,a.override_plan,a.override_expires_at
     from clients c join accounts a on a.id=c.account_id where c.id=${clientId}::uuid and c.status='active'`
   const row=rows[0]
-  return row?{accountId:String(row.account_id),clientId:String(row.client_id),allowedPlatforms:runtimePlatformsFor(resolveCommercialEntitlement(row as CommercialAccount).features.platform_access)}:null
+  return row?{accountId:String(row.account_id),clientId:String(row.client_id),allowedPlatforms:pulsePlatformsFor(resolveCommercialEntitlement(row as CommercialAccount).features.platform_access)}:null
 }
 
 /** Machine-only inventory; saved answers and their derived rollup can need independent repair. */
@@ -31,7 +31,7 @@ export async function listPendingRunPage(after:string|null){
               where latest.run_id=r.id and latest.account_id=r.account_id and latest.client_id=r.client_id)
         ))) order by r.id limit 50`
   return {runs:rows.map(row=>({id:String(row.id),accountId:String(row.account_id),clientId:String(row.client_id),scanWeek:isoDate(row.scan_week as string|Date,''),
-    allowedPlatforms:runtimePlatformsFor(resolveCommercialEntitlement(row as CommercialAccount).features.platform_access),purpose:row.purpose as 'canonical'|'retest'})),
+    allowedPlatforms:pulsePlatformsFor(resolveCommercialEntitlement(row as CommercialAccount).features.platform_access),purpose:row.purpose as 'canonical'|'retest'})),
     cursor:rows.length?String(rows.at(-1)!.id):null,exhausted:rows.length<50}
 }
 

@@ -183,10 +183,17 @@ Comes first, because Slices B and C have nothing to report without it.
     of answers behind each week. Otherwise show "not enough data yet".
   - Proposal: decide this by replaying it on the first 4–6 weeks of real Pulse data from Slice A **before** building
     Slice C's visibility section.
-- **Q2 — Prompt budget and platforms. Partly decided (Willy, 2026-11-06): 10 questions per brand.** Slice A drafts
-  and activates at most 10 Pulse questions per brand. The `MAX_PROMPTS` cap of 50 stays as the store's limit. **Which AI
-  platforms Pulse runs on is still open**, and it sets the weekly LLM spend, so it needs a named Approve before
-  production seeding.
+- **Q2 — Prompt budget and platforms. Decided (Willy, 2026-11-08): 10 questions per brand.**
+  - `PULSE_PLATFORM_BUDGET` is the approved weekly platform set: gemini, gpt4o, claude, perplexity-s,
+    perplexity-p. A Pulse run queries the plan's `platform_access` **intersected with this budget**, so a future
+    plan entitlement cannot raise weekly spend silently, and cutting cost later is one edit rather than a plan change
+    every customer sees. The 10-question cap stays as the per-brand budget.
+  - Cost basis, measured on production before the approval: one Pulse week for one brand at 8 questions over the five
+    platforms cost **$0.574** in collection calls (claude-haiku $0.102, gemini-flash $0.192, gpt-4o $0.133,
+    perplexity-sonar $0.045, perplexity-sonar-pro $0.102) plus ~$0.006 in answer classification
+    (gpt-4o-mini, ~$0.00015/answer) — **≈ $3.10/month per brand** at the 10-question budget.
+  - The approved set is pinned by `__tests__/lib/pulse-platforms.test.ts`; changing it is a deliberate, cost-checked
+    edit.
 - **Q3 — How a query becomes a question.** Is it a rule-based template, or an LLM rewrite? An LLM rewrite costs money
   and must be reviewed by the operator either way.
 - **Q4 — Month close.** Does a month close automatically at Hong Kong midnight, or when the operator presses "close
