@@ -35,7 +35,7 @@ export async function GET(
     // 24 rows an onboarding writes share one value and intra-category order
     // would otherwise vary between requests.
     const prompts = await sql`
-      select p.id, p.client_id, p.category, p.question, p.language, p.market, p.is_active, p.created_at
+      select p.id, p.client_id, p.category, p.question, p.language, p.market, p.is_active, p.source, p.created_at
       from prompt_bank p join clients c on c.id = p.client_id
       where p.client_id = ${clientId} and c.account_id = ${access.accountId}
       order by p.category, p.created_at, p.id

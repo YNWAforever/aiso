@@ -1,4 +1,5 @@
 import type { CheckDiagnostic, ScanEvidence } from '@/lib/scan-evidence'
+import type { PromptSource } from '@/lib/prompts/source'
 export type CheckStatus = 'pass' | 'warn' | 'fail'
 
 export interface CollectorAccess {
@@ -139,6 +140,8 @@ export interface PromptBankItem {
   language: string
   market?: string | null
   is_active: boolean
+  /** Where the question came from (migration 100). Null means it was not recorded, never "manual". */
+  source?: PromptSource | null
   created_at: string
 }
 
