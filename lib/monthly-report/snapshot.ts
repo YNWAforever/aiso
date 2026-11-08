@@ -62,6 +62,17 @@ const plain = (value: string, field: string) => {
   return text
 }
 
+/**
+ * Client identity is the one part of a report allowed to be blank. A brand may
+ * have skipped its website at onboarding (and the name falls back to the
+ * domain), and refusing the draft over an empty field would report a 503 for a
+ * report that is otherwise perfectly honest. Control characters are still refused.
+ */
+const optionalPlain = (value: string, field: string) => {
+  if (CONTROL.test(value)) throw new Error(`${field} must be plain text`)
+  return value.normalize('NFC').replace(/\s+/g, ' ').trim()
+}
+
 function brandingSnapshot(input: ReportBrandingInput): ReportBrandingSnapshot {
   const optional = (v: string | null, f: string) => v === null ? null : plain(v, f)
   return {
@@ -111,7 +122,7 @@ export function buildMonthlyReportSnapshot(input: {
     snapshotSchemaVersion: MONTHLY_REPORT_SCHEMA_VERSION, kind: 'monthly', locale: input.locale,
     month: input.period.key, period: { start: input.period.start, end: input.period.end },
     branding: brandingSnapshot(input.branding),
-    client: { name: plain(input.client.name, 'Client name'), domain: plain(input.client.domain, 'Client domain') },
+    client: { name: optionalPlain(input.client.name, 'Client name'), domain: optionalPlain(input.client.domain, 'Client domain') },
     delivered,
     visibility: buildVisibility({
       weeks: input.pulseWeeks,

@@ -131,6 +131,13 @@ export async function readMonthPulseWeeks(accountId: string, clientId: string, p
   return rows.map(r => ({ platform: String(r.platform), week: String(r.week), sov: num(r.sov), answers: num(r.answers) }))
 }
 
+/** Which snapshots the month already has. Used where the full month read would be an unnecessary expense. */
+export async function readRecordedSnapshotKinds(accountId: string, clientId: string, period: BrandMonthPeriod): Promise<SnapshotKind[]> {
+  const rows = await db()`select kind from brand_month_snapshots
+    where account_id = ${accountId}::uuid and client_id = ${clientId}::uuid and month = ${period.month}::date`
+  return rows.map(r => r.kind as SnapshotKind)
+}
+
 export type BrandMonth =
   | { state: 'not_found' }
   | { state: 'ok'; brandName: string; snapshots: MonthSnapshot[]; activity: MonthActivity }
