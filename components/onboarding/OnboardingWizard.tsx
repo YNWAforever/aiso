@@ -569,7 +569,11 @@ function WizardForm({
                   {t('add')}
                 </button>
               </div>
-              <p id="onboarding-competitor-status" role="status" aria-live="polite" className={`text-2xs mb-2 ${competitorMessage?.tone === 'ok' ? 'text-emerald-600 font-semibold' : competitorMessage?.tone === 'warn' ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {/* A live region that exists empty from the start, so the first
+                  result is announced. Deliberately not role="status": this
+                  screen already has one (the recovery notice), and two status
+                  landmarks make a strict getByRole('status') ambiguous. */}
+              <p id="onboarding-competitor-status" aria-live="polite" aria-atomic="true" className={`text-2xs mb-2 ${competitorMessage?.tone === 'ok' ? 'text-emerald-600 font-semibold' : competitorMessage?.tone === 'warn' ? 'text-destructive' : 'text-muted-foreground'}`}>
                 {competitorMessage?.text ?? ''}
               </p>
               {competitorProblem && (
