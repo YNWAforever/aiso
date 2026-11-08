@@ -2171,6 +2171,12 @@
   "workspaceHome": {
     "title": "工作區總覽",
     "summary": "查看已儲存的觀察與待處理工作。這些資料不代表已交付的改善或可歸因的成效。",
+    "monthlyReport": {
+      "title": "本月報告",
+      "version": "第 {n} 版",
+      "status": { "draft": "草稿", "published": "已發佈", "revoked": "已撤回" },
+      "open": "開啟報告"
+    },
     "siteHealth": "網站健康",
     "visibility": "最新觀察到的 AI 可見度",
     "recommendations": "生成的建議",

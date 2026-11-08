@@ -2171,6 +2171,12 @@
   "workspaceHome": {
     "title": "Workspace home",
     "summary": "Review saved observations and work to consider. These records do not establish delivered improvements or attributed outcomes.",
+    "monthlyReport": {
+      "title": "This month's report",
+      "version": "Version {n}",
+      "status": { "draft": "Draft", "published": "Published", "revoked": "Revoked" },
+      "open": "Open report"
+    },
     "siteHealth": "Site health",
     "visibility": "Latest observed AI visibility",
     "recommendations": "Generated recommendations",

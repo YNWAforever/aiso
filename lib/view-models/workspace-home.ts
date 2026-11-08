@@ -16,6 +16,12 @@ export type WorkspaceSection<T> = {
   observedAt: string | null
   freshness: 'unknown'
 }
+/** The current month's saved deliverable, for the dashboard's one-line entry. */
+export type MonthlyReportHomeEntry = {
+  month: string
+  status: 'draft' | 'published' | 'revoked'
+  versionNumber: number
+}
 export type WorkspaceHome = {
   client: WorkspaceClient
   /**
@@ -35,6 +41,12 @@ export type WorkspaceHome = {
   stats?: OverviewStats | null
   /** First-run checklist; null once done or when it cannot be told. */
   gettingStarted?: GettingStarted
+  /**
+   * This month's monthly report, when one has been saved. Null when none exists
+   * or the brand's plan has no online reports; the dashboard then shows no entry
+   * rather than an empty promise.
+   */
+  monthlyReport?: MonthlyReportHomeEntry | null
 }
 function section<T>(read: WorkspaceRead<unknown>, data: T | null, observedAt: string | null): WorkspaceSection<T> {
   const state = read.status === 'ok' ? data === null ? 'empty' : 'ready' : read.status
@@ -42,7 +54,7 @@ function section<T>(read: WorkspaceRead<unknown>, data: T | null, observedAt: st
 }
 
 /** Pure display adapter. It never recalculates historical diagnostics or asserts outcomes. */
-export function buildWorkspaceHome(workspace: OwnedWorkspace): WorkspaceHome {
+export function buildWorkspaceHome(workspace: OwnedWorkspace, monthlyReport: MonthlyReportHomeEntry | null = null): WorkspaceHome {
   const { scan, history, pulse, recommendations } = workspace
   const row = scan.data
   const persisted = row?.results?.pillarScores
@@ -63,5 +75,6 @@ export function buildWorkspaceHome(workspace: OwnedWorkspace): WorkspaceHome {
     gettingStarted: buildGettingStarted({ scans: workspace.trend, tasks: workspace.tasks, setup: workspace.setup }),
     recommendations: { ...section(recommendations, recommendations.data.length ? recommendations.data : null,
       recommendations.data.map(row => row.created_at).filter(Boolean).sort().at(-1) ?? null), generated: true },
+    monthlyReport,
   }
 }
