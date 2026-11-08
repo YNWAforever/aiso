@@ -11,7 +11,7 @@ import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
 import { MAX_COMPETITORS, MAX_NAME_LENGTH } from '@/lib/competitors/limits'
-import { addCompetitorNames, type CompetitorInputProblem } from '@/lib/onboarding/competitors'
+import { addCompetitorNames, competitorName, splitCompetitorInput, type CompetitorInputProblem } from '@/lib/onboarding/competitors'
 import { Wordmark } from '@/components/brand/Wordmark'
 
 const INDUSTRIES = [
@@ -54,8 +54,10 @@ interface Props {
   scanId?: string
 }
 
-type Draft = { intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean; recoveredReady?: boolean; submittedPayload?: string }
+type Draft = { intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; competitorDomains?: Record<string,string>; step?: number; clientId?: string; partial?: boolean; recoveredReady?: boolean; submittedPayload?: string }
 type DomainCheck = { status: 'idle' | 'checking' | 'live' | 'unreachable' | 'limited' | 'error'; domain?: string; title?: string | null }
+/** A competitor website is checked when it is added, never on submit. */
+type CompetitorCheck = { status: 'checking' | 'live' | 'unreachable' | 'limited' | 'error'; title?: string | null }
 const subscribeHydration = () => () => {}
 export function OnboardingWizard(props: Props) {
   const ready = useSyncExternalStore(subscribeHydration, () => true, () => false)
@@ -72,6 +74,13 @@ export function OnboardingWizard(props: Props) {
         if (typeof saved[key] === 'string') clean[key] = saved[key]
       }
       if (Array.isArray(saved.competitors) && saved.competitors.every((v: unknown) => typeof v === 'string')) clean.competitors = saved.competitors
+      if (saved.competitorDomains && typeof saved.competitorDomains === 'object' && !Array.isArray(saved.competitorDomains)) {
+        const domains: Record<string, string> = {}
+        for (const [name, domain] of Object.entries(saved.competitorDomains as Record<string, unknown>)) {
+          if (typeof domain === 'string' && domain.trim()) domains[name] = domain
+        }
+        if (Object.keys(domains).length) clean.competitorDomains = domains
+      }
       if (Number.isInteger(saved.step) && saved.step >= 1 && saved.step <= TOTAL_STEPS) clean.step = saved.step
       clean.partial = saved.partial === true
       clean.recoveredReady = saved.recoveredReady === true
@@ -119,7 +128,12 @@ function WizardForm({
   const [description, setDescription] = useState(draft.description ?? '')
   const [competitors, setCompetitors] = useState<string[]>(draft.competitors ?? [])
   const [competitorInput, setCompetitorInput] = useState('')
+  const [competitorDomainInput, setCompetitorDomainInput] = useState('')
+  const [competitorDomains, setCompetitorDomains] = useState<Record<string,string>>(draft.competitorDomains ?? {})
+  const [competitorChecks, setCompetitorChecks] = useState<Record<string,CompetitorCheck>>({})
   const [competitorProblem, setCompetitorProblem] = useState<CompetitorInputProblem | null>(null)
+  const [competitorMessage, setCompetitorMessage] = useState<{ text: string; tone: 'ok' | 'warn' | 'info' } | null>(null)
+  const competitorCheckVersion = useRef(0)
   const [domainCheck, setDomainCheck] = useState<DomainCheck>({ status: 'idle' })
   const domainCheckVersion = useRef(0)
 
@@ -134,9 +148,9 @@ function WizardForm({
   const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
   useEffect(() => {
     if (!draftReady || submitted.current) return
-    try { saveBrowserDraft(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial,recoveredReady,submittedPayload:submittedPayload.current })) }
+    try { saveBrowserDraft(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, competitorDomains, step, clientId, partial,recoveredReady,submittedPayload:submittedPayload.current })) }
     catch { /* Form state still survives in this tab when storage is unavailable. */ }
-  }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial, recoveredReady])
+  }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, competitorDomains, step, clientId, partial, recoveredReady])
 
   function handleDomainChange(raw: string) {
     // Normalise on the fly as the user types. Any earlier result belongs to a
@@ -173,15 +187,78 @@ function WizardForm({
   }
 
   function addCompetitor() {
+    const typedDomain = competitorDomainInput.trim()
+    const incoming = splitCompetitorInput(competitorInput)
     const result = addCompetitorNames(competitors, competitorInput, brand)
     setCompetitors(result.competitors)
     setCompetitorInput('')
+    setCompetitorDomainInput('')
     setCompetitorProblem(result.problem)
+    // A domain belongs to one competitor. A pasted list of names cannot say
+    // which one it is for, so it is only attached to a single-name add.
+    if (result.problem || !typedDomain || incoming.length !== 1) return
+    const name = competitorName(incoming[0])
+    if (!result.competitors.includes(name)) return
+    setCompetitorDomains(prev => ({ ...prev, [name]: typedDomain }))
+    void checkCompetitorDomain(name, typedDomain)
+  }
+
+  async function checkCompetitorDomain(name: string, target: string) {
+    const version = ++competitorCheckVersion.current
+    const stale = () => version !== competitorCheckVersion.current
+    setCompetitorMessage({ text: t('competitorChecking', { domain: target }), tone: 'info' })
+    setCompetitorChecks(prev => ({ ...prev, [name]: { status: 'checking' } }))
+    try {
+      const response = await fetch('/api/onboarding/domain-check', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: target }),
+      })
+      const body = await response.json().catch(() => null) as { status?: unknown; pageTitle?: unknown } | null
+      if (stale()) return
+      if (response.status === 400) {
+        // The saved competitor stays; only the unusable website is dropped, so
+        // what is shown is exactly what would be submitted.
+        setCompetitorDomains(prev => { const next = { ...prev }; delete next[name]; return next })
+        setCompetitorChecks(prev => { const next = { ...prev }; delete next[name]; return next })
+        setCompetitorMessage({ text: t('competitorDomainInvalid', { domain: target }), tone: 'warn' })
+        return
+      }
+      if (response.status === 429) {
+        setCompetitorChecks(prev => ({ ...prev, [name]: { status: 'limited' } }))
+        setCompetitorMessage({ text: t('competitorCheckLimited', { domain: target }), tone: 'info' })
+        return
+      }
+      if (!response.ok) {
+        setCompetitorChecks(prev => ({ ...prev, [name]: { status: 'error' } }))
+        setCompetitorMessage({ text: t('competitorCheckUnavailable', { domain: target }), tone: 'info' })
+        return
+      }
+      if (body?.status === 'live') {
+        setCompetitorChecks(prev => ({ ...prev, [name]: { status: 'live', title: typeof body.pageTitle === 'string' ? body.pageTitle : null } }))
+        setCompetitorMessage({ text: t('competitorLive', { domain: target }), tone: 'ok' })
+      } else {
+        setCompetitorChecks(prev => ({ ...prev, [name]: { status: 'unreachable' } }))
+        setCompetitorMessage({ text: t('competitorUnreachable', { domain: target }), tone: 'warn' })
+      }
+    } catch {
+      if (stale()) return
+      setCompetitorChecks(prev => ({ ...prev, [name]: { status: 'error' } }))
+      setCompetitorMessage({ text: t('competitorCheckUnavailable', { domain: target }), tone: 'info' })
+    }
   }
 
   function removeCompetitor(c: string) {
     setCompetitors(prev => prev.filter(x => x !== c))
+    setCompetitorDomains(prev => { const next = { ...prev }; delete next[c]; return next })
+    setCompetitorChecks(prev => { const next = { ...prev }; delete next[c]; return next })
     setCompetitorProblem(null)
+    setCompetitorMessage(null)
+  }
+
+  /** Only domains still attached to a listed competitor are submitted. */
+  function submittedCompetitorDomains() {
+    return competitors
+      .filter(name => competitorDomains[name])
+      .map(name => ({ name, domain: competitorDomains[name] }))
   }
 
   const inFlight=useRef(false)
@@ -191,10 +268,10 @@ function WizardForm({
     setLoading(true)
     setError('')
     try {
-      const values={brand,domain,industry,region,language,description,competitors,scanId}
+      const values={brand,domain,industry,region,language,description,competitors,competitorDomains:submittedCompetitorDomains(),scanId}
       const payload=JSON.stringify(values)
       const send=(v:typeof values,key:string,target:string|null)=>fetch('/api/onboarding/complete',{
-        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brandName:v.brand,domain:v.domain||undefined,industry:v.industry||undefined,region:v.region||undefined,language:v.language||undefined,market:v.region||null,description:v.description||undefined,competitors:v.competitors.length?v.competitors:undefined,scanId:v.scanId,intentKey:key||undefined,clientId:target||undefined})
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brandName:v.brand,domain:v.domain||undefined,industry:v.industry||undefined,region:v.region||undefined,language:v.language||undefined,market:v.region||null,description:v.description||undefined,competitors:v.competitors.length?v.competitors:undefined,competitorDomains:v.competitorDomains.length?v.competitorDomains:undefined,scanId:v.scanId,intentKey:key||undefined,clientId:target||undefined})
       })
       let targetClientId=clientId
       const previous=submittedPayload.current
@@ -208,12 +285,12 @@ function WizardForm({
         if(body.progress.prompts==='ready'){
           // Original setup committed. Preserve the edited draft without rewriting it.
           setPartial(false);setRecoveredReady(true)
-          try{saveBrowserDraft(draftKey,JSON.stringify({intentKey,...values,websiteUrl,step,clientId:body.clientId,partial:false,recoveredReady:true,submittedPayload:previous}))}catch{}
+          try{saveBrowserDraft(draftKey,JSON.stringify({intentKey,...values,competitorDomains,websiteUrl,step,clientId:body.clientId,partial:false,recoveredReady:true,submittedPayload:previous}))}catch{}
           return
         }
       }
       const requestIntent=targetClientId&&previous!==undefined&&previous!==payload?crypto.randomUUID():intentKey
-      if(!saveBrowserDraft(draftKey,JSON.stringify({intentKey:requestIntent,...values,websiteUrl,step,clientId:targetClientId,partial,submittedPayload:payload}))){setError(recoveryCopy.cacheUnavailable);return}
+      if(!saveBrowserDraft(draftKey,JSON.stringify({intentKey:requestIntent,...values,competitorDomains,websiteUrl,step,clientId:targetClientId,partial,submittedPayload:payload}))){setError(recoveryCopy.cacheUnavailable);return}
       submittedPayload.current=payload;setIntentKey(requestIntent)
       const res=await send(values,requestIntent,targetClientId)
       const data = await res.json()
@@ -446,13 +523,14 @@ function WizardForm({
                 {t('competitorsHint')}{' '}
                 <span aria-live="polite">{t('competitorCount', { count: competitors.length, max: MAX_COMPETITORS })}</span>
               </p>
-              <div className="flex gap-2 mb-2">
+              <p id="onboarding-competitor-domain-hint" className="text-2xs text-muted-foreground mb-2">{t('competitorDomainHint')}</p>
+              <div className="flex flex-wrap gap-2 mb-2">
                 <input
                   id="onboarding-competitor"
                   name="competitor"
                   value={competitorInput}
                   maxLength={MAX_NAME_LENGTH}
-                  aria-describedby="onboarding-competitor-hint"
+                  aria-describedby="onboarding-competitor-hint onboarding-competitor-domain-hint onboarding-competitor-status"
                   onChange={e => setCompetitorInput(e.target.value)}
                   onKeyDown={e => {
                     // Committing a CJK candidate also fires Enter; adding the
@@ -461,17 +539,39 @@ function WizardForm({
                     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addCompetitor() }
                   }}
                   placeholder={t('competitorsPlaceholder')}
-                  className="min-w-0 flex-1 h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="min-w-0 flex-1 basis-40 min-h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+                <input
+                  id="onboarding-competitor-domain"
+                  name="competitorDomain"
+                  type="url"
+                  inputMode="url"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={competitorDomainInput}
+                  maxLength={2048}
+                  aria-label={t('competitorDomainLabel')}
+                  aria-describedby="onboarding-competitor-domain-hint onboarding-competitor-status"
+                  onChange={e => setCompetitorDomainInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.nativeEvent.isComposing) return
+                    if (e.key === 'Enter') { e.preventDefault(); addCompetitor() }
+                  }}
+                  placeholder={t('competitorDomainPlaceholder')}
+                  className="min-w-0 flex-1 basis-36 min-h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 <button
                   type="button"
                   onClick={addCompetitor}
                   disabled={!competitorInput.trim() || competitors.length >= MAX_COMPETITORS}
-                  className="h-9 px-3 rounded-lg bg-secondary text-foreground text-xs font-semibold border border-border hover:bg-muted transition disabled:opacity-40"
+                  className="min-h-11 px-3 rounded-lg bg-secondary text-foreground text-xs font-semibold border border-border hover:bg-muted transition disabled:opacity-40"
                 >
                   {t('add')}
                 </button>
               </div>
+              <p id="onboarding-competitor-status" role="status" aria-live="polite" className={`text-2xs mb-2 ${competitorMessage?.tone === 'ok' ? 'text-emerald-600 font-semibold' : competitorMessage?.tone === 'warn' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {competitorMessage?.text ?? ''}
+              </p>
               {competitorProblem && (
                 <p role="alert" className="text-xs text-destructive mb-2">
                   {competitorProblem === 'brand'
@@ -483,14 +583,27 @@ function WizardForm({
               )}
               {competitors.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {competitors.map(competitor => (
-                    <span key={competitor} className="inline-flex max-w-full items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-full font-medium">
-                      <span className="break-all">{competitor}</span>
-                      <button type="button" onClick={() => removeCompetitor(competitor)} aria-label={t('removeCompetitor', { name: competitor })} className="shrink-0 min-h-6 min-w-6 inline-flex items-center justify-center hover:text-destructive transition">
-                        <X className="size-2.5" />
-                      </button>
-                    </span>
-                  ))}
+                  {competitors.map(competitor => {
+                    const domain = competitorDomains[competitor]
+                    const check = competitorChecks[competitor]
+                    const failed = check?.status === 'unreachable' || check?.status === 'error'
+                    return (
+                      <span key={competitor} className={`inline-flex max-w-full items-center gap-1 text-xs border px-2 py-1 rounded-full font-medium ${failed ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                        <span className="break-all">{competitor}</span>
+                        {domain && <span className="break-all opacity-70">· {domain}</span>}
+                        {check && <span aria-hidden="true" className="shrink-0">{check.status === 'checking' ? '…' : check.status === 'live' ? '✓' : '⚠'}</span>}
+                        {check && (
+                          <span className="sr-only">
+                            {check.status === 'checking' ? t('competitorCheckingShort')
+                              : check.status === 'live' ? t('competitorLiveShort') : t('competitorUnreachableShort')}
+                          </span>
+                        )}
+                        <button type="button" onClick={() => removeCompetitor(competitor)} aria-label={t('removeCompetitor', { name: competitor })} className="shrink-0 min-h-6 min-w-6 inline-flex items-center justify-center hover:text-destructive transition">
+                          <X className="size-2.5" />
+                        </button>
+                      </span>
+                    )
+                  })}
                 </div>
               )}
             </div>

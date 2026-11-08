@@ -12,6 +12,7 @@ const COPY = {
     steps: ['Set up your brand', 'Your website domain', 'Your industry & region', 'Tell AI what you do'],
     continue: 'Continue', back: 'Back', industry: 'Industry (optional)', region: 'Region (optional)',
     check: 'Check', liveTitle: '✓ Live — Example Domain',
+    competitorWebsite: 'Competitor website (optional)', competitorLive: '✓ fixture.example is live',
     description: 'Brand description', competitors: 'Main competitors', finish: 'Go to my dashboard',
     completeError: 'Something went wrong',
   },
@@ -24,6 +25,7 @@ const COPY = {
     steps: ['設定你的品牌', '你的網站域名', '你的行業及地區', '讓 AI 了解你的業務'],
     continue: '繼續', back: '返回', industry: '行業（可選）', region: '地區（可選）',
     check: '檢查', liveTitle: '✓ 已連線 — Example Domain',
+    competitorWebsite: '競爭對手網站（可選）', competitorLive: '✓ fixture.example 可存取',
     description: '品牌描述', competitors: '主要競爭對手', finish: '前往我的儀表板',
     completeError: '發生錯誤，請再試一次',
   },
@@ -186,14 +188,20 @@ for (const locale of A11Y_LOCALES) {
     await activateButtonByKeyboard(page, c.continue)
     await expectStep(3)
     const competitor = page.getByRole('textbox', { name: new RegExp(c.competitors) })
+    const competitorWebsite = page.getByRole('textbox', { name: c.competitorWebsite, exact: true })
     await competitor.fill('Fixture competitor')
+    await competitorWebsite.fill('fixture.example')
     await competitor.press('Enter')
     const remove = page.getByRole('button', {
       name: locale === 'en' ? 'Remove Fixture competitor' : '移除Fixture competitor', exact: true,
     })
+    await expect(page.getByText(c.competitorLive, { exact: true })).toBeVisible()
     await expect(remove).toBeVisible()
-    // Adding clears the input and disables Add, so the next Tab reaches Remove.
-    await page.keyboard.press('Tab')
+    // Adding clears both inputs; the next few Tabs reach the saved chip's Remove.
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      if (await remove.evaluate(element => document.activeElement === element)) break
+      await page.keyboard.press('Tab')
+    }
     await expect(remove).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(remove).toHaveCount(0)

@@ -145,8 +145,24 @@ describe('T10 persistent onboarding resume through guarded HTTP SQL', () => {
       from prompt_bank where client_id = ${initialized!.clientId}`
     expect(counts).toMatchObject({ total: 50, manual: 49 })
   }))
-  it('fences a late seed worker after lease expiry and preserves the new lease', async () => fixture(async accountId => {
-    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Fenced fixture', language: 'en', region: 'HK', market: 'HK' })
+  it('stores competitor websites as entities so citations can be attributed', async () => fixture(async accountId => {
+    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Synthetic competitors',
+      language: 'en', region: 'HK', market: 'HK', competitors: ['Acme', 'Globex'],
+      competitorDomains: [
+        { name: 'Acme', domain: 'https://www.Acme.com/pricing' },
+        { name: 'Globex', domain: 'globex.example' },
+      ] })
+    const progress = (await initializeOnboarding({ accountId }, input))!
+    const rows = await sql`select name, domains from competitors
+      where client_id = ${progress.clientId}::uuid and account_id = ${accountId}::uuid order by name`
+    expect(rows).toEqual([
+      { name: 'Acme', domains: ['acme.com'] },
+      { name: 'Globex', domains: ['globex.example'] },
+    ])
+    const [client] = await sql`select competitors from clients where id = ${progress.clientId}::uuid`
+    expect([...client.competitors].sort()).toEqual(['Acme', 'Globex'])
+  }))
+  it('fences a late seed worker after lease expiry and preserves the new lease', async () => fixture(async accountId => {    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Fenced fixture', language: 'en', region: 'HK', market: 'HK' })
     await initializeOnboarding({ accountId }, input)
     const old = await claimOnboardingSeed({ accountId }, input.intentKey)
     await sql`update onboarding_progress set lease_until = now() - interval '1 second' where account_id = ${accountId}`
