@@ -5,10 +5,13 @@ import { CalendarDays, LockKeyhole, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ReportsList, type ReportsListItem } from '@/components/reports/ReportsList'
+import { MonthlyReportsList } from '@/components/reports/MonthlyReportsList'
 import { requireAuth } from '@/lib/auth'
 import { listAuthenticatedClientReports } from '@/lib/reports/service'
 import { loadOwnedReportClient } from '@/lib/reports/store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
+import { listMonthlyReports, type MonthlyReportListItem } from '@/lib/monthly-report/store'
+import { monthlyShareUrl } from '@/lib/monthly-report/service'
 
 function isNullableNonNegativeInteger(value: unknown): value is number | null {
   return value === null
@@ -48,17 +51,28 @@ function toReportsListItem(value: Record<string, unknown>): ReportsListItem | nu
   }
 }
 
+const TABS = ['scan', 'monthly'] as const
+type ListKind = typeof TABS[number]
+
+/**
+ * The brand's reports: scan-derived client reports and the monthly deliverables
+ * reports, each on its own tab. Monthly rows were reachable only from the month
+ * page before this, so an operator could publish one but never find it again
+ * from the reports surface.
+ */
 export default async function ClientReportsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ lang: string; clientId: string }>
-  searchParams?: Promise<{ scanId?: string | string[] }>
+  searchParams?: Promise<{ scanId?: string | string[]; kind?: string | string[] }>
 }) {
   const { lang, clientId } = await params
   const query = await searchParams
   const scanId = typeof query?.scanId === 'string' ? query.scanId : null
   const scanQuery = scanId ? `?scanId=${encodeURIComponent(scanId)}` : ''
+  const requestedKind = typeof query?.kind === 'string' ? query.kind : ''
+  const kind: ListKind = requestedKind === 'monthly' ? 'monthly' : 'scan'
   const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
   const t = await getTranslations('reports')
   const m = await getTranslations('month')
@@ -85,23 +99,31 @@ export default async function ClientReportsPage({
   }
 
   let reports: ReportsListItem[] = []
+  let monthly: (MonthlyReportListItem & { signedUrl: string | null })[] = []
   let unavailable = false
   try {
-    const result = await listAuthenticatedClientReports(clientId)
-    const parsedReports = result.reports.map(toReportsListItem)
-    if (parsedReports.some(report => report === null)) throw new Error('Invalid report DTO')
-    reports = parsedReports.filter((report): report is ReportsListItem => report !== null)
+    if (kind === 'monthly') {
+      monthly = (await listMonthlyReports(profile.account_id, clientId))
+        .map(row => ({ ...row, signedUrl: monthlyShareUrl(row) }))
+    } else {
+      const result = await listAuthenticatedClientReports(clientId)
+      const parsedReports = result.reports.map(toReportsListItem)
+      if (parsedReports.some(report => report === null)) throw new Error('Invalid report DTO')
+      reports = parsedReports.filter((report): report is ReportsListItem => report !== null)
+    }
   } catch {
     unavailable = true
   }
+
+  const tabHref = (next: ListKind) => `/${locale}/dashboard/${clientId}/reports${next === 'scan' ? '' : `?kind=${next}`}`
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-primary">{client.name}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('list_title')}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t('list_body')}</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">{t(kind === 'monthly' ? 'monthly_list_title' : 'list_title')}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t(kind === 'monthly' ? 'monthly_list_body' : 'list_body')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline" className="min-h-11">
@@ -110,14 +132,24 @@ export default async function ClientReportsPage({
             {m('open')}
           </Link>
         </Button>
-        <Button asChild className="min-h-11">
+        {kind === 'scan' ? <Button asChild className="min-h-11">
           <Link href={`/${locale}/dashboard/${clientId}/reports/new${scanQuery}`}>
             <Plus aria-hidden="true" />
             {t('create_share_report')}
           </Link>
-        </Button>
+        </Button> : null}
         </div>
       </div>
+
+      <nav aria-label={t('tabs_label')} className="mb-6 flex gap-1 border-b border-border">
+        {TABS.map(tab => (
+          <Link key={tab} href={tabHref(tab)} aria-current={kind === tab ? 'page' : undefined}
+            className={`-mb-px inline-flex min-h-11 items-center border-b-2 px-3 text-sm font-medium ${kind === tab
+              ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+            {t(tab === 'monthly' ? 'tab_monthly' : 'tab_scan')}
+          </Link>
+        ))}
+      </nav>
 
       {unavailable ? (
         <Card>
@@ -125,10 +157,12 @@ export default async function ClientReportsPage({
             <h2 className="text-lg font-semibold">{t('unavailable_title')}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{t('unavailable_body')}</p>
             <Button asChild variant="outline" className="mt-5 min-h-11">
-              <Link href={`/${locale}/dashboard/${clientId}/reports`}>{t('retry')}</Link>
+              <Link href={tabHref(kind)}>{t('retry')}</Link>
             </Button>
           </CardContent>
         </Card>
+      ) : kind === 'monthly' ? (
+        <MonthlyReportsList lang={locale} clientId={clientId} rows={monthly} />
       ) : (
         <ReportsList
           lang={locale}

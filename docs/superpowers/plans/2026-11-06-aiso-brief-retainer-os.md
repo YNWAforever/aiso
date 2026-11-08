@@ -181,6 +181,11 @@ Comes first, because Slices B and C have nothing to report without it.
     absent from the facts. The editor only fills its textarea; saving a version is the approval step, so the route
     writes nothing and a month with no saved draft returns `DRAFT_REQUIRED`. A refused or failed draft leaves the
     operator's text untouched.
+  - **C5 (built 2026-11-09): monthly reports are discoverable.** The brand's Reports page gained scan/monthly tabs;
+    the monthly tab lists every `kind = 'monthly'` report for the brand, newest first, with its month, display
+    status, version, published date, a server-signed share link and an Open link. Before this, a published month
+    report was only reachable from that month's page, so an operator could publish it and lose the entry point.
+    The list fails closed to the existing unavailable card (never an empty state that would read as "no report").
 
 - **Drafted from the Brand Month,** extending the existing `client_reports` versions and share links rather than
   building a second report system.
