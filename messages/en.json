@@ -4863,7 +4863,8 @@
     "recorded": "Recorded",
     "not_recorded": "Not recorded",
     "none": "None",
-    "all_clear": "Nothing waiting this month."
+    "all_clear": "Nothing waiting this month.",
+    "empty": "No brands yet. Set up a brand to see its month here."
   },
   "monthlyReport": {
     "title": "Monthly report",

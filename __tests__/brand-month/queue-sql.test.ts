@@ -35,6 +35,10 @@ const row = async (clientId: string, now = NOW) => (await readMonthQueue(account
 
 beforeAll(async () => {
   state.pg = await PGlite.create()
+  // Neon's session timezone is UTC. PGlite otherwise inherits the host's, so a
+  // date-only literal inserted into timestamptz (`'2025-11-05'`) would mean
+  // local midnight and this suite would fail on any host east or west of UTC.
+  await state.pg.exec("set time zone 'UTC'")
   await state.pg.exec(`
     create table accounts(id uuid primary key, plan text, status text, stripe_subscription_id text, trial_ends_at timestamptz,
       override_plan text, override_expires_at timestamptz);
