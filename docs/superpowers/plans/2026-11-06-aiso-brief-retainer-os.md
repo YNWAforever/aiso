@@ -165,6 +165,13 @@ Comes first, because Slices B and C have nothing to report without it.
     reason and the view renders it as "not enough data yet", so history is never rewritten.
   - Thresholds are where Q1 is now decided; changing them means bumping `MOVEMENT_RULE_VERSION` so a frozen report
     still records which rule produced it.
+  - **Q1 replay tooling (2026-11-09).** `npm run report:movement-replay` reads the stored weekly rollups and the
+    month snapshots and prints, per brand-month and platform, the rule's verdict plus the longest run of
+    consecutive weekly readings, so "can Q1 be judged yet?" is a command rather than an argument. It writes
+    nothing and exits 0 either way (`--json` for machines). First production run: 2 brand-months, **0 with four
+    consecutive weeks** (October's 19 Oct week is missing, so the longest run is 2), 0 platform verdicts — the
+    rule correctly claims no movement, and the tool says so explicitly. Replay again once a month holds four
+    consecutive weeks; only then is Q1 confirmed or re-decided.
   - **C4 (built 2026-11-09): an AI wording draft the operator approves.** The plan already allowed AI-drafted wording
     as a draft the operator must approve, restating figures only. `POST …/report/ai-narrative` (gated like the other
     monthly routes, body `{ locale }`) loads the month's **stored** version and hands the model a closed fact set:
