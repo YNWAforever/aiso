@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { readLimitedJson } from '@/lib/approvals/request'
-import { parseDomainCheckInput, checkPublicHomepage } from '@/lib/onboarding/domain-check'
-import { DOMAIN_CHECK_LIMIT, consumeDomainCheckLimit } from '@/lib/onboarding/domain-check-limit'
+import { parseDomainCheckInput, checkPublicHomepage } from '@/lib/domain-check/check'
+import { DOMAIN_CHECK_LIMIT, consumeDomainCheckLimit } from '@/lib/domain-check/limit'
 import { buildRateLimitHeaders } from '@/lib/security/durable-rate-limit'
 
 export const dynamic = 'force-dynamic'

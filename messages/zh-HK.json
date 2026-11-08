@@ -3442,7 +3442,17 @@
     "err_exists": "此競爭對手已在列表中。",
     "err_limit": "最多可追蹤 {max} 個競爭對手。請先移除一個再新增。",
     "err_signed_out": "您的登入已結束，請重新登入再儲存。",
-    "err_generic": "未能儲存。請檢查網絡連線後重試。"
+    "err_generic": "未能儲存。請檢查網絡連線後重試。",
+    "check_website": "檢查網站",
+    "check_website_label": "檢查 {name} 的網站",
+    "checking_website": "檢查中…",
+    "website_live": "✓ 可存取",
+    "website_live_title": "✓ 可存取 · {title}",
+    "website_unreachable": "此網站沒有回應，被引用的頁面暫時無法歸屬於此競爭對手。",
+    "website_missing": "未儲存網站，被引用的頁面無法歸屬於此競爭對手。",
+    "err_check_invalid": "這不是有效的網站地址。",
+    "err_check_limited": "檢查次數過多，請稍後再試。",
+    "err_check_unavailable": "暫時無法即時檢查。"
   },
   "shareOfVoice": {
     "title": "與競爭對手的聲量佔比",

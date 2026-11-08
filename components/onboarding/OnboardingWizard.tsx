@@ -169,7 +169,7 @@ function WizardForm({
     const version = ++domainCheckVersion.current
     setDomainCheck({ status: 'checking' })
     try {
-      const response = await fetch('/api/onboarding/domain-check', {
+      const response = await fetch('/api/domain-check', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: target }),
       })
       if (version !== domainCheckVersion.current) return
@@ -212,7 +212,7 @@ function WizardForm({
     setCompetitorMessage({ text: t('competitorChecking', { domain: target }), tone: 'info' })
     setCompetitorChecks(prev => ({ ...prev, [name]: { status: 'checking' } }))
     try {
-      const response = await fetch('/api/onboarding/domain-check', {
+      const response = await fetch('/api/domain-check', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: target }),
       })
       const body = await response.json().catch(() => null) as { status?: unknown; pageTitle?: unknown } | null

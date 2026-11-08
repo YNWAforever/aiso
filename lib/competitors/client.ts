@@ -16,6 +16,12 @@ export type CompetitorErrorKey =
   | 'err_name_required' | 'err_name_too_long' | 'err_invalid_aliases' | 'err_too_many_aliases'
   | 'err_invalid_domain' | 'err_too_many_domains' | 'err_exists' | 'err_limit'
   | 'err_signed_out' | 'err_generic'
+  | 'err_check_invalid' | 'err_check_limited' | 'err_check_unavailable'
+
+/** The live-check answer for a competitor's website. `unreachable` is a valid answer, not a failure. */
+export type CompetitorWebsiteCheck =
+  | { ok: true; status: 'live' | 'unreachable'; domain: string; pageTitle: string | null }
+  | { ok: false; error: 'err_check_invalid' | 'err_check_limited' | 'err_check_unavailable' }
 
 type Fetcher = (input: string, init?: RequestInit) => Promise<Response>
 type Result<T> = ({ ok: true } & T) | { ok: false; error: CompetitorErrorKey }
@@ -109,4 +115,28 @@ export async function removeCompetitor(
   const res = await call(fetcher, `${base(clientId)}/${encodeURIComponent(target)}`, send('DELETE'))
   if (res && res.status === 200) return { ok: true }
   return { ok: false, error: res ? competitorErrorKey(res.status, res.body) : 'err_generic' }
+}
+
+/**
+ * Live-checks a competitor's stored website through the shared public-domain
+ * check. Nothing is written: this only tells the member whether the value they
+ * typed is the site they meant, which is what citation attribution depends on.
+ */
+export async function checkCompetitorWebsite(fetcher: Fetcher, domain: string): Promise<CompetitorWebsiteCheck> {
+  const target = domain.trim()
+  if (!target) return { ok: false, error: 'err_check_invalid' }
+  const res = await call(fetcher, '/api/domain-check', send('POST', { url: target }))
+  if (!res) return { ok: false, error: 'err_check_unavailable' }
+  if (res.status === 400) return { ok: false, error: 'err_check_invalid' }
+  if (res.status === 429) return { ok: false, error: 'err_check_limited' }
+  if (res.status === 401) return { ok: false, error: 'err_check_unavailable' }
+  const body = res.body as { status?: unknown; domain?: unknown; pageTitle?: unknown } | null
+  if (!res.status.toString().startsWith('2') || (body?.status !== 'live' && body?.status !== 'unreachable')) {
+    return { ok: false, error: 'err_check_unavailable' }
+  }
+  return {
+    ok: true, status: body.status,
+    domain: typeof body.domain === 'string' ? body.domain : target,
+    pageTitle: typeof body.pageTitle === 'string' ? body.pageTitle : null,
+  }
 }

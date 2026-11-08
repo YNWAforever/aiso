@@ -79,4 +79,18 @@ describe('CompetitorsEditor', () => {
       expect(render([saved, legacy], locale)).not.toMatch(/competitors\.|err_|_label|_hint/)
     }
   })
+
+  it('offers a live website check where a website exists, and names what its absence costs', () => {
+    // Citation attribution is by domain: a competitor with no website cannot be
+    // credited, so the editor says so and offers a check when there is one.
+    const html = render([saved, { ...saved, id: 'comp-2', name: 'No Site Co', domains: [] }])
+    expect(html).toContain('aria-label="Check the website for HSBC Holdings"')
+    expect(html).not.toContain('aria-label="Check the website for No Site Co"')
+    expect(html).toContain('No website saved, so a cited page can&#x27;t be credited to this competitor.')
+    // An onboarding-only name is not saved yet, so it gets the badge instead.
+    expect(render([legacy])).not.toContain('No website saved')
+    const zh = render([saved, { ...saved, id: 'comp-2', name: 'No Site Co', domains: [] }], 'zh-HK')
+    expect(zh).toContain('aria-label="檢查 HSBC Holdings 的網站"')
+    expect(zh).toContain('未儲存網站')
+  })
 })
