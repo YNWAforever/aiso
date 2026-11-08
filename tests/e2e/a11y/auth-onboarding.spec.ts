@@ -11,6 +11,7 @@ const COPY = {
     brand: "What's your brand name?",
     steps: ['Set up your brand', 'Your website domain', 'Your industry & region', 'Tell AI what you do'],
     continue: 'Continue', back: 'Back', industry: 'Industry (optional)', region: 'Region (optional)',
+    check: 'Check', liveTitle: '✓ Live — Example Domain',
     description: 'Brand description', competitors: 'Main competitors', finish: 'Go to my dashboard',
     completeError: 'Something went wrong',
   },
@@ -22,6 +23,7 @@ const COPY = {
     brand: '你的品牌名稱是？',
     steps: ['設定你的品牌', '你的網站域名', '你的行業及地區', '讓 AI 了解你的業務'],
     continue: '繼續', back: '返回', industry: '行業（可選）', region: '地區（可選）',
+    check: '檢查', liveTitle: '✓ 已連線 — Example Domain',
     description: '品牌描述', competitors: '主要競爭對手', finish: '前往我的儀表板',
     completeError: '發生錯誤，請再試一次',
   },
@@ -43,6 +45,8 @@ async function mockRequests(page: Page) {
       state.social += 1
       status = 400
       body = { code: 'PROVIDER_UNAVAILABLE', message: 'Mock failure' }
+    } else if (path === '/api/onboarding/domain-check') {
+      body = { status: 'live', domain: 'example.com', pageTitle: 'Example Domain' }
     } else if (path === '/api/onboarding/complete') {
       state.completions += 1
       status = 500
@@ -173,6 +177,8 @@ for (const locale of A11Y_LOCALES) {
     await firstControls[0].press('Enter')
     await expectStep(1)
     await firstControls[1].fill('example.com')
+    await page.getByRole('button', { name: c.check, exact: true }).click()
+    await expect(page.getByText(c.liveTitle, { exact: true })).toBeVisible()
     await firstControls[1].press('Enter')
     await expectStep(2)
     await page.getByRole('combobox', { name: c.region, exact: true }).selectOption('HK')

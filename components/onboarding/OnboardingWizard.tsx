@@ -55,6 +55,7 @@ interface Props {
 }
 
 type Draft = { intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean; recoveredReady?: boolean; submittedPayload?: string }
+type DomainCheck = { status: 'idle' | 'checking' | 'live' | 'unreachable' | 'limited' | 'error'; domain?: string; title?: string | null }
 const subscribeHydration = () => () => {}
 export function OnboardingWizard(props: Props) {
   const ready = useSyncExternalStore(subscribeHydration, () => true, () => false)
@@ -119,6 +120,8 @@ function WizardForm({
   const [competitors, setCompetitors] = useState<string[]>(draft.competitors ?? [])
   const [competitorInput, setCompetitorInput] = useState('')
   const [competitorProblem, setCompetitorProblem] = useState<CompetitorInputProblem | null>(null)
+  const [domainCheck, setDomainCheck] = useState<DomainCheck>({ status: 'idle' })
+  const domainCheckVersion = useRef(0)
 
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
@@ -136,9 +139,37 @@ function WizardForm({
   }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial, recoveredReady])
 
   function handleDomainChange(raw: string) {
-    // Normalise on the fly as the user types
+    // Normalise on the fly as the user types. Any earlier result belongs to a
+    // different domain, so it is discarded rather than shown next to this one.
+    domainCheckVersion.current++
+    setDomainCheck({ status: 'idle' })
     setDomain(normaliseDomain(raw))
     setWebsiteUrl(raw)
+  }
+
+  async function checkDomain() {
+    const target = websiteUrl.trim() || domain
+    if (!target) return
+    const version = ++domainCheckVersion.current
+    setDomainCheck({ status: 'checking' })
+    try {
+      const response = await fetch('/api/onboarding/domain-check', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: target }),
+      })
+      if (version !== domainCheckVersion.current) return
+      if (response.status === 429) { setDomainCheck({ status: 'limited' }); return }
+      if (!response.ok) { setDomainCheck({ status: 'error' }); return }
+      const result = await response.json() as { status?: unknown; domain?: unknown; pageTitle?: unknown }
+      if (version !== domainCheckVersion.current) return
+      const reported = typeof result.domain === 'string' ? result.domain : domain
+      if (result.status === 'live') {
+        setDomainCheck({ status: 'live', domain: reported, title: typeof result.pageTitle === 'string' ? result.pageTitle : null })
+      } else if (result.status === 'unreachable') {
+        setDomainCheck({ status: 'unreachable', domain: reported })
+      } else setDomainCheck({ status: 'error' })
+    } catch {
+      if (version === domainCheckVersion.current) setDomainCheck({ status: 'error' })
+    }
   }
 
   function addCompetitor() {
@@ -222,6 +253,17 @@ function WizardForm({
   const btnPrimary = "min-w-0 flex-1 basis-28 min-h-11 px-2 py-2 [overflow-wrap:anywhere] bg-primary text-primary-foreground font-semibold rounded-lg text-sm hover:bg-primary/90 transition disabled:opacity-40 flex items-center justify-center gap-2"
   const btnBack    = "flex-1 basis-28 min-h-11 border border-border text-foreground font-semibold rounded-lg text-sm hover:bg-muted transition"
 
+  // The idle line is the suggestion to check; every other state replaces it.
+  const domainCheckCopy = domainCheck.status === 'checking' ? t('s2Checking')
+    : domainCheck.status === 'live' ? (domainCheck.title ? t('s2LiveTitle', { title: domainCheck.title }) : t('s2Live'))
+      : domainCheck.status === 'unreachable' ? t('s2Unreachable', { domain: domainCheck.domain ?? domain })
+        : domainCheck.status === 'limited' ? t('s2CheckLimited')
+          : domainCheck.status === 'error' ? t('s2CheckUnavailable')
+            : t('s2CheckHint')
+  const domainCheckTone = domainCheck.status === 'live' ? 'text-emerald-600 font-semibold'
+    : domainCheck.status === 'unreachable' || domainCheck.status === 'error' ? 'text-destructive'
+      : 'text-muted-foreground'
+
   return (
     <>
       <a href="#main-content" className="sr-only fixed left-4 top-4 z-[60] rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-lg focus:not-sr-only focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{shared.nav.skip_to_main}</a>
@@ -252,8 +294,10 @@ function WizardForm({
           <div>
             <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary">{t('setupTitle')}</h1>
             <BrandAssistant lang={lang} context={{ url: websiteUrl, language, market: region }} onContextChange={next => {
+              domainCheckVersion.current++; setDomainCheck({ status: 'idle' })
               setWebsiteUrl(next.url); setDomain(normaliseDomain(next.url)); setLanguage(next.language); setRegion(next.market)
             }} onManual={() => manualBrandRef.current?.focus()} onApply={suggestion => {
+              domainCheckVersion.current++; setDomainCheck({ status: 'idle' })
               setBrand(suggestion.brandName); setDomain(suggestion.domain); setWebsiteUrl(suggestion.domain); setDescription(suggestion.description)
               setIndustry(suggestion.industry ?? ''); setLanguage(suggestion.language); setRegion(suggestion.market); setStep(4)
             }} />
@@ -281,23 +325,31 @@ function WizardForm({
           <div>
             <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary"><label htmlFor="onboarding-domain">{t('s2Title')}</label></h1>
             <p className="text-sm text-muted-foreground mb-1">{t('s2Subtitle')}</p>
-            <p className="text-2xs text-muted-foreground/60 mb-5">{t.rich('s2Hint', { domain: chunks => <span className="font-mono bg-muted px-1 rounded">{chunks}</span> })}</p>
-            <div className="relative mb-6">
+            <p id="onboarding-domain-hint" className="text-2xs text-muted-foreground/60 mb-5">{t.rich('s2Hint', { domain: chunks => <span className="font-mono bg-muted px-1 rounded">{chunks}</span> })}</p>
+            <div className="mb-2 flex gap-2">
               <input
                 id="onboarding-domain"
                 name="domain"
                 value={domain}
                 onChange={e => handleDomainChange(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && setStep(3)}
+                onKeyDown={e => {
+                  if (e.nativeEvent.isComposing) return
+                  if (e.key === 'Enter') setStep(3)
+                }}
                 placeholder="fimmick.com"
-                className={inputClass}
+                aria-describedby="onboarding-domain-hint onboarding-domain-status"
+                className={`${inputClass} min-w-0 flex-1`}
               />
-              {domain && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-2xs text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded">
-                  ✓ {domain}
-                </span>
-              )}
+              <button
+                type="button"
+                onClick={checkDomain}
+                disabled={!websiteUrl.trim() || domainCheck.status === 'checking'}
+                className="min-h-11 px-3 rounded-lg bg-secondary text-foreground text-xs font-semibold border border-border hover:bg-muted transition disabled:opacity-40"
+              >
+                {t('s2Check')}
+              </button>
             </div>
+            <p id="onboarding-domain-status" role="status" aria-live="polite" aria-busy={domainCheck.status === 'checking'} className={`text-2xs mb-6 ${domainCheckTone}`}>{domainCheckCopy}</p>
             <div className="flex flex-wrap gap-3">
               <button onClick={() => setStep(1)} className={btnBack}>{t('back')}</button>
               <button onClick={() => setStep(3)} className={btnPrimary}>
