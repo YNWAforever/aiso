@@ -1,5 +1,35 @@
 # Runbook: activate the dedicated AISO cron Worker
 
+## Readback (2026-11-09): the third tick is still not deployed
+
+The deployed Worker runs two schedules and the deployable config declares three. Use the
+repository readback rather than trusting either side alone:
+
+```bash
+npm run worker:schedules          # human output, exit 1 on drift
+npm run worker:schedules -- --json
+```
+
+It compares `cloudflare/aiso-worker/wrangler.jsonc` with the schedules Cloudflare reports and
+never prints its credential (it uses `CLOUDFLARE_API_TOKEN`, else the local `wrangler login`
+token). Observed on 2026-11-09:
+
+| Schedule (UTC) | Meaning | Deployed? |
+| --- | --- | --- |
+| `17 4 * * *` | `/api/cron/pulse` and `?mode=repair` | yes (modified 2026-10-23) |
+| `47 7 * * 1` | `/api/cron/evaluate-alerts` | yes (modified 2026-10-12) |
+| `17 16 * * *` | `/api/cron/brand-months` (00:17 HKT) | **no — missing** |
+
+Consequences until it is deployed: `brand_month_snapshots` stays empty, so the month page and
+monthly report show 未記錄 / "Not recorded" for every opening and closing figure, and the Q1
+movement rule cannot be replayed against a full month. Pulse weekly rollups and alert
+evaluation are unaffected — they are the two schedules that are live.
+
+The deployed script also predates the route: PR #180 added `/api/cron/brand-months` to the
+Worker's `ROUTES` after the last deployment (2026-10-23). A deployment of the current source is
+required, not just a schedule edit, and that deployment remains the separately approved step
+described below.
+
 ## Proposed source — deployment remains HOLD
 
 `17 16 * * *` is 00:17 in Hong Kong and Singapore (UTC+8). That tick calls only `/api/cron/brand-months`. The daily key `17 4 * * *` stays the verified live baseline: `/api/cron/pulse` and `/api/cron/pulse?mode=repair`. It does not call Search Console or outcomes. `47 7 * * 1` is unchanged, including its literal weekday field. `0 9 * * *` remains mapped to `/api/cron/trial-emails` and `/api/cron/search-console` and is absent from both Worker cron arrays.

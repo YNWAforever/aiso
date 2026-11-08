@@ -11,18 +11,22 @@ client: zero files import `lib/supabase.ts` / `lib/supabase-server.ts` (both del
 `@supabase/*` package remains, and an ESLint rule makes re-adding one an error rather than a
 convention. The dashboard and admin routes run on Neon.
 
-Two live caveats worth knowing before you touch the database:
+**Migrations `001`–`100` are recorded on the hosted branch** (`npm run migrate -- --verify`,
+2026-11-09). `100_prompt_source.sql` was applied that day under a named approval; it adds
+`prompt_bank.source` and backfills `profile` only where `onboarding_seed_key` already recorded
+it. The database-and-migration caveats below still hold and are the things to re-check before
+touching the database:
 
-- **All migrations `001`–`035` are applied** as of a `--verify` run against production on
-  2026-08-15, which also settled the long-running `021` dispute: it *did* run, its three
-  `local_trust_*` tables exist, and `021`'s own "never been applied" header comment (since
-  corrected) was the thing that was wrong. Run `npm run migrate -- --verify` against the target database before
-  believing any of this — it reports which migrations' objects actually exist, and this line
-  is only as fresh as its date.
+- **Run `npm run migrate -- --verify` first, and trust it over any dated line here.** It reports,
+  per migration, whether the objects that migration creates actually exist — and it is only as
+  fresh as its date. The 2026-08-15 run that settled the long-running `021` dispute (`021` *did*
+  run; its three `local_trust_*` tables exist) is the pattern: a `--verify` line beats a header
+  comment.
 - **RLS is not a backstop.** The app connects as `aeo_app` (migration `037` moved it off
   `neondb_owner` to a least-privilege role, which keeps `BYPASSRLS`), and migration `036`
   dropped the Supabase-era policies. Every query must filter by `account_id` explicitly.
-
+- **A merge is not an applied migration.** The schema gate fails a production build whose code
+  ships an unrecorded migration; apply and `--verify` before merging code that needs one.
 
 ## Feature fences
 
@@ -40,10 +44,38 @@ week, with in-app notifications written and readable. Migrations `033`–`035` g
 gate — restoring one means adding a real auth/entitlement/ownership gate, not just deleting
 the `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
 
+## Retainer OS (Slices A–C): built, one deployment from live
+
+Everything the 2026-11-06 brief calls for is in `main` and deployed to Vercel:
+demand-seeded Pulse with the 10-active-question budget and a stored `prompt_bank.source`
+(demand vs profile), the Brand Month record with its month page and cross-brand queue, and the
+monthly deliverables report with publish/share, agency branding, the Q1 movement rule
+(`lib/monthly-report/movement.ts`), a recorded open/close figures section, and an
+operator-approved AI narrative draft.
+
+What is still **not live** is operational, not code:
+
+- **The brand-months tick has never been deployed.** `cloudflare/aiso-worker/wrangler.jsonc`
+  configures three crons (`17 4 * * *` Pulse, `47 7 * * 1` alerts, `17 16 * * *` brand-months),
+  but the deployed Worker runs only the first two (readback 2026-11-09). So
+  `brand_month_snapshots` is empty in production and month pages/reports can only say
+  "not recorded" until a Worker deployment includes the third tick. Verify with
+  `npm run worker:schedules`; deploy is the separately approved step in
+  [the cron-worker runbook](runbooks/deploy-cron-worker.md).
+- **Q1's thresholds are provisionally confirmed.** The rule refuses a direction unless three
+  consecutive weekly comparisons move the same way with at least five answers behind each
+  week. Production has four weekly Pulse rollups for one brand with the 19 Oct week missing, so
+  no month yet has four consecutive weeks; the rule correctly claims no movement. Replay the
+  first month that does and record whether the thresholds hold.
+
 ## Scheduler readback
 
-**Runtime readback, 2026-10-03 13:25 HKT:** the deployed `aiso-cron-worker` has no enabled
-cron schedules and no `APP_BASE_URL` binding. Weekly operation and job coverage are
-unverified; the remediation candidate has not been deployed. See the
-[runtime evidence register](runbooks/aiso-runtime-evidence.md) and
-[release/rollback runbook](runbooks/aiso-remediation-release.md).
+**Runtime readback, 2026-11-09:** the deployed `aiso-cron-worker` has **two** schedules —
+`17 4 * * *` (Pulse, modified 2026-10-23) and `47 7 * * 1` (alerts, modified 2026-10-12) — and
+`APP_BASE_URL` is set. The third configured tick, `17 16 * * *` (brand-months, 00:17 HKT), is
+**not deployed**, and the deployed script predates the route that serves it. Weekly Pulse and
+alert evaluation are running; month snapshots are not. Re-run `npm run worker:schedules` before
+relying on this line, and see the [cron-worker runbook](runbooks/deploy-cron-worker.md) for the
+activation and rollback gates. The 2026-10-03 observation (no schedules, no `APP_BASE_URL` at
+all) is superseded.
+
