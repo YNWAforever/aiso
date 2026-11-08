@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/onboarding/assist/route'
+import { INDUSTRY_CODES } from '@/lib/onboarding/industry'
 
 const { fetchPage } = vi.hoisted(() => ({ fetchPage: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ getProfile: async () => ({ account_id: 'tenant-a' }) }))
@@ -63,7 +64,12 @@ describe('onboarding assistant provider request', () => {
     // Their bounds remain enforced by validateBrandEvidence on the server.
     const schema = JSON.stringify(payload.response_format.json_schema.schema)
     for (const keyword of ['minLength', 'maxLength', 'maxItems']) expect(schema).not.toContain(`"${keyword}"`)
-    expect(payload.response_format.json_schema.schema.properties.industry).toMatchObject({ type: ['string', 'null'] })
+    expect(payload.response_format.json_schema.schema.properties.industry).toEqual({
+      anyOf: [
+        { type: 'string', enum: [...INDUSTRY_CODES] },
+        { type: 'null' },
+      ],
+    })
     expect(JSON.parse(payload.messages[1].content)).toEqual({ language: 'zh-HK', market: 'HK', source: 'https://example.com/', pageText })
   })
 

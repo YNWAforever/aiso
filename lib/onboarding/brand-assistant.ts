@@ -28,7 +28,12 @@ async function generate(text: string, input: BrandAssistInput): Promise<string> 
       type: 'object', additionalProperties: false,
       properties: {
         brandName: { type: 'string' }, description: { type: 'string' },
-        industry: { type: ['string', 'null'], enum: [...INDUSTRY_CODES, null] },
+        industry: {
+          anyOf: [
+            { type: 'string', enum: [...INDUSTRY_CODES] },
+            { type: 'null' },
+          ],
+        },
         // Anthropic rejects maxItems/minLength/maxLength in structured outputs.
         // Keep these bounds in validateBrandEvidence, after generation.
         evidence: {
