@@ -51,7 +51,7 @@ async function mockRequests(page: Page) {
       state.social += 1
       status = 400
       body = { code: 'PROVIDER_UNAVAILABLE', message: 'Mock failure' }
-    } else if (path === '/api/onboarding/domain-check') {
+    } else if (path === '/api/domain-check') {
       body = { status: 'live', domain: 'example.com', pageTitle: 'Example Domain' }
     } else if (path === '/api/onboarding/complete') {
       state.completions += 1
