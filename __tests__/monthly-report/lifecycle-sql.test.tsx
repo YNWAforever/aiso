@@ -41,7 +41,7 @@ import { listClientReports, loadOwnedClientReport, resolvePublicClientReport } f
 import { resolvePublishedMonthlyReport } from '@/lib/monthly-report/public'
 import { signReportShare } from '@/lib/reports/share'
 import { buildMonthlyReportSnapshot } from '@/lib/monthly-report/snapshot'
-import { readBrandMonth } from '@/lib/brand-month/store'
+import { readBrandMonth, readMonthPulseWeeks } from '@/lib/brand-month/store'
 import { loadOpenWorkItems } from '@/lib/monthly-report/store'
 import { periodOf } from '@/lib/brand-month/period'
 import { buildClientReportSnapshot } from '@/lib/reports/snapshot'
@@ -410,6 +410,7 @@ describe('C2 isolated route + PostgreSQL lifecycle (simulated integration, no br
       if (month.state !== 'ok') throw new Error('Missing isolated fixture month')
       const snapshot = buildMonthlyReportSnapshot({
         locale: 'zh-HK', period, monthLabel: '2026-10', activity: month.activity, snapshots: month.snapshots,
+        pulseWeeks: await readMonthPulseWeeks(ACCOUNT, CLIENT, period),
         branding: { agencyName: 'Fixture Agency', primaryColor: '#123ABC', logoUrl: null, contactLabel: null, contactUrl: null },
         client: { name: 'Fixture Bakery', domain: 'bakery.example' }, openWorkItems: await loadOpenWorkItems(ACCOUNT, CLIENT),
         narrative: '\u7e41'.repeat(1200), now: new Date(),

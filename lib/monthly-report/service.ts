@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { loadReportBranding } from '@/lib/reports/store'
 import type { ReportLocale } from '@/lib/reports/types'
 import type { BrandMonthPeriod } from '@/lib/brand-month/period'
-import { readBrandMonth } from '@/lib/brand-month/store'
+import { readBrandMonth, readMonthPulseWeeks } from '@/lib/brand-month/store'
 import { buildMonthlyReportSnapshot, normalizeNarrative } from './snapshot'
 import { appendMonthlyReport, createMonthlyReport, loadMonthlyReport, loadOpenWorkItems, MonthlyReportExistsError, publishMonthlyReport, revokeMonthlyReport } from './store'
 import { buildReportShareUrl, prepareReportShareUrl } from '@/lib/reports/share'
@@ -44,7 +44,8 @@ export async function draftMonthlyReport(input: {
   const snapshot = buildMonthlyReportSnapshot({
     locale, period, monthLabel: monthLabel(locale, period), branding,
     client: { name: String(client.brand_name ?? client.domain ?? ''), domain: String(client.domain ?? '') },
-    activity: month.activity, snapshots: month.snapshots, openWorkItems: await loadOpenWorkItems(accountId, clientId),
+    activity: month.activity, snapshots: month.snapshots, pulseWeeks: await readMonthPulseWeeks(accountId, clientId, period),
+    openWorkItems: await loadOpenWorkItems(accountId, clientId),
     narrative, now: input.now,
   })
   const write = { accountId, clientId, locale, narrative: snapshot.executiveSummary, snapshot, actorId: input.actorId }

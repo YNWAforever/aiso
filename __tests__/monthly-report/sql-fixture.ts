@@ -33,6 +33,9 @@ export async function reportDatabase(cap: 65536 | 262144 = 262144): Promise<PGli
     create table work_item_delivery_events(id uuid primary key default gen_random_uuid(), account_id uuid, client_id uuid,
       work_item_id uuid, version_id uuid, kind text, provenance text, site_edit_job_id uuid,
       target_attestation_id uuid, recorded_at timestamptz);
+    create table pulse_weekly_summary(id uuid primary key default gen_random_uuid(), client_id uuid references clients(id),
+      scan_week date not null, platform text, total_queries int, brand_mentions int, sov_score numeric(5,2),
+      avg_sentiment_score numeric(3,2), top_competitors jsonb, created_at timestamptz default now());
   `)
   await pg.exec(readFileSync('supabase/migrations/027_client_report_snapshots.sql', 'utf8'))
   await pg.exec(readFileSync('supabase/migrations/097_brand_month_snapshots.sql', 'utf8'))

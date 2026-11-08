@@ -120,6 +120,17 @@ export async function readActivity(accountId: string, clientId: string, period: 
   }
 }
 
+/** Weeks of Pulse a month's movement rule judges: the rollups whose week starts inside the Hong Kong month. */
+export async function readMonthPulseWeeks(accountId: string, clientId: string, period: BrandMonthPeriod): Promise<{ platform: string; week: string; sov: number | null; answers: number | null }[]> {
+  const rows = await db()`
+    select s.platform, s.scan_week::text as week, s.sov_score::float8 as sov, s.total_queries::int as answers
+    from pulse_weekly_summary s join clients c on c.id = s.client_id and c.account_id = ${accountId}::uuid
+    where s.client_id = ${clientId}::uuid and s.platform is not null
+      and s.scan_week >= ${period.month}::date and s.scan_week < ${period.month}::date + interval '1 month'
+    order by s.platform, s.scan_week`
+  return rows.map(r => ({ platform: String(r.platform), week: String(r.week), sov: num(r.sov), answers: num(r.answers) }))
+}
+
 export type BrandMonth =
   | { state: 'not_found' }
   | { state: 'ok'; brandName: string; snapshots: MonthSnapshot[]; activity: MonthActivity }

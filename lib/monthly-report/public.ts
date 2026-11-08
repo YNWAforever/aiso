@@ -38,6 +38,13 @@ function copySearch(s: MonthlyReportSnapshotV2['search']['opening']): MonthlyRep
   return { state: s.state }
 }
 
+function copyVisibility(v: MonthlyReportSnapshotV2['visibility']): MonthlyReportSnapshotV2['visibility'] {
+  if (v.state === 'not_enough_data') return { state: 'not_enough_data', reason: v.reason }
+  return { state: 'recorded', rule: v.rule, minAnswersPerWeek: v.minAnswersPerWeek, minDelta: v.minDelta,
+    platforms: v.platforms.map(p => ({ platform: p.platform, opening: p.opening, closing: p.closing, delta: p.delta,
+      direction: p.direction, reason: p.reason, weeks: p.weeks })) }
+}
+
 function copyPublished(s: MonthlyReportSnapshotV2): PublicMonthlyReport {
   return {
     snapshotSchemaVersion: 2, kind: 'monthly', locale: s.locale, month: s.month,
@@ -46,7 +53,7 @@ function copyPublished(s: MonthlyReportSnapshotV2): PublicMonthlyReport {
     client: { name: s.client.name, domain: s.client.domain },
     // Version ids are internal; the public list is keyed by position instead.
     delivered: { verifiedLive: s.delivered.verifiedLive.map(item), selfReported: s.delivered.selfReported.map(item) },
-    visibility: { state: 'not_enough_data', reason: 'movement_rule_pending' },
+    visibility: copyVisibility(s.visibility),
     search: { opening: copySearch(s.search.opening), closing: copySearch(s.search.closing) },
     nextMonth: { openWorkItems: s.nextMonth.openWorkItems.map(w => ({ title: w.title })) },
     executiveSummary: s.executiveSummary,

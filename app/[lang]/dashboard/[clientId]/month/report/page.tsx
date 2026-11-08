@@ -50,7 +50,12 @@ export default async function MonthlyReportPage({ params, searchParams }: {
       </header>
       {report ? <div lang={reportLang}><MonthlyReportView snapshot={report.snapshot} lang={reportLang} copy={{
         delivered: r('delivered'), verifiedLive: r('verified_live'), selfReported: r('self_reported'), none: r('none'),
-        visibility: r('visibility'), visibilityPending: r('visibility_pending'), search: r('search'), before: r('before'), endOfMonth: r('end_of_month'),
+        visibility: r('visibility'), visibilityPending: r('visibility_pending'),
+        visibilityOpening: r('visibility_opening'), visibilityClosing: r('visibility_closing'),
+        visibilityChange: r('visibility_change'), visibilityVerdict: r('visibility_verdict'),
+        visibilityRising: r('visibility_rising'), visibilityFalling: r('visibility_falling'),
+        visibilityPlatform: r('visibility_platform'), visibilityRuleNote: r('visibility_rule_note'),
+        search: r('search'), before: r('before'), endOfMonth: r('end_of_month'),
         clicks: r('clicks'), impressions: r('impressions'), notConnected: r('not_connected'), notRecorded: r('not_recorded'), nextMonth: r('next_month'),
       }} /></div> : null}
       {report ? <MonthlyReportPublish clientId={clientId} month={key} versionId={report.versionId} canPublish={canDraft}

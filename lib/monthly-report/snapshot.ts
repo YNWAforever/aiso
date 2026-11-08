@@ -1,6 +1,7 @@
 import type { ReportBrandingInput, ReportBrandingSnapshot, ReportLocale } from '@/lib/reports/types'
 import type { MonthActivity, MonthSnapshot, SnapshotFigures } from '@/lib/brand-month/store'
 import type { BrandMonthPeriod } from '@/lib/brand-month/period'
+import { buildVisibility, type PulsePlatformWeek, type VisibilitySection } from './movement'
 
 /**
  * Retainer OS Slice C1: the monthly deliverables report snapshot (schema 2),
@@ -8,8 +9,10 @@ import type { BrandMonthPeriod } from '@/lib/brand-month/period'
  *
  * Fixed section order, the product decision in the brief (§0, §2 Slice C):
  *   1. delivered: verified live first, then self-reported, never merged;
- *   2. visibility: "not enough data yet" until Q1 (the movement rule) is
- *      decided against real Pulse data. Nothing is inferred before then;
+ *   2. visibility: the recorded opening and closing share of voice per platform,
+ *      with Q1's movement rule deciding whether a direction may be claimed. The
+ *      rule refuses a verdict more often than it gives one; "not enough data yet"
+ *      is a valid and expected result (lib/monthly-report/movement.ts);
  *   3. search demand: the recorded opening and closing figures, dated;
  *   4. next month: work items still open.
  * Every figure is copied from a stored row with its source date; nothing is
@@ -36,7 +39,7 @@ export interface MonthlyReportSnapshotV2 {
   branding: ReportBrandingSnapshot
   client: { name: string; domain: string }
   delivered: { verifiedLive: MonthlyDeliveredItem[]; selfReported: MonthlyDeliveredItem[] }
-  visibility: { state: 'not_enough_data'; reason: 'movement_rule_pending' }
+  visibility: VisibilitySection
   search: { opening: SearchFigure; closing: SearchFigure }
   nextMonth: { openWorkItems: { title: string }[] }
   executiveSummary: string
@@ -70,6 +73,9 @@ function brandingSnapshot(input: ReportBrandingInput): ReportBrandingSnapshot {
 
 const searchFrom = (snapshot: MonthSnapshot | undefined): SearchFigure => snapshot ? snapshot.figures.search : { state: 'not_recorded' }
 
+const pulsePlatforms = (snapshot: MonthSnapshot | undefined) =>
+  snapshot && snapshot.figures.pulse.state === 'ok' ? snapshot.figures.pulse.platforms : []
+
 /** Default narrative: restates only the figures in the snapshot. The operator rewrites it. */
 export function defaultNarrative(locale: ReportLocale, monthLabel: string, delivered: MonthlyReportSnapshotV2['delivered']): string {
   const v = delivered.verifiedLive.length, s = delivered.selfReported.length
@@ -86,6 +92,8 @@ export function buildMonthlyReportSnapshot(input: {
   client: { name: string; domain: string }
   activity: MonthActivity
   snapshots: MonthSnapshot[]
+  /** The month's stored weekly Pulse rollups, which is what the movement rule judges. */
+  pulseWeeks: readonly PulsePlatformWeek[]
   openWorkItems: { title: string }[]
   narrative: string | null
   now: Date
@@ -97,14 +105,20 @@ export function buildMonthlyReportSnapshot(input: {
   }
   const narrative = input.narrative === null ? defaultNarrative(input.locale, input.monthLabel, delivered) : normalizeNarrative(input.narrative)
   if (!narrative) throw new Error('Narrative must be 1–1200 characters of plain text')
+  const openingSnapshot = input.snapshots.find(s => s.kind === 'opening')
+  const closingSnapshot = input.snapshots.find(s => s.kind === 'closing')
   return {
     snapshotSchemaVersion: MONTHLY_REPORT_SCHEMA_VERSION, kind: 'monthly', locale: input.locale,
     month: input.period.key, period: { start: input.period.start, end: input.period.end },
     branding: brandingSnapshot(input.branding),
     client: { name: plain(input.client.name, 'Client name'), domain: plain(input.client.domain, 'Client domain') },
     delivered,
-    visibility: { state: 'not_enough_data', reason: 'movement_rule_pending' },
-    search: { opening: searchFrom(input.snapshots.find(s => s.kind === 'opening')), closing: searchFrom(input.snapshots.find(s => s.kind === 'closing')) },
+    visibility: buildVisibility({
+      weeks: input.pulseWeeks,
+      opening: pulsePlatforms(openingSnapshot).map(p => ({ platform: p.platform, sovScore: p.sovScore })),
+      closing: pulsePlatforms(closingSnapshot).map(p => ({ platform: p.platform, sovScore: p.sovScore })),
+    }),
+    search: { opening: searchFrom(openingSnapshot), closing: searchFrom(closingSnapshot) },
     nextMonth: { openWorkItems: input.openWorkItems.slice(0, MONTHLY_OPEN_ITEMS_MAX).map(w => ({ title: plain(w.title || '—', 'Title') })) },
     executiveSummary: narrative,
     builtAt: input.now.toISOString(),
@@ -123,7 +137,31 @@ export function parseMonthlyReportSnapshot(value: unknown): MonthlyReportSnapsho
     || typeof s.month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(s.month) || typeof s.executiveSummary !== 'string'
     || !delivered || !arr(delivered.verifiedLive) || !arr(delivered.selfReported)
     || !search || typeof search.opening !== 'object' || typeof search.closing !== 'object'
-    || !next || !arr(next.openWorkItems)
+    || !next || !arr(next.openWorkItems) || !validVisibility(s.visibility)
     || !s.branding || typeof s.branding !== 'object' || !s.client || typeof s.client !== 'object') return null
   return value as MonthlyReportSnapshotV2
 }
+
+const number = (value: unknown) => typeof value === 'number' && Number.isFinite(value)
+const nullableNumber = (value: unknown) => value === null || number(value)
+
+/**
+ * Three stored shapes are valid: the legacy "rule pending" section of versions
+ * frozen before Q1, the no-data answer, and a recorded section. A recorded
+ * platform is checked field by field so a half-written row is rejected rather
+ * than rendered as a claim.
+ */
+function validVisibility(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const v = value as Record<string, unknown>
+  if (v.state === 'not_enough_data') return v.reason === 'movement_rule_pending' || v.reason === 'no_pulse_data'
+  if (v.state !== 'recorded' || v.rule !== 1 || !number(v.minAnswersPerWeek) || !number(v.minDelta) || !Array.isArray(v.platforms)) return false
+  return v.platforms.every((platform: unknown) => {
+    if (!platform || typeof platform !== 'object') return false
+    const p = platform as Record<string, unknown>
+    return typeof p.platform === 'string' && (p.direction === null || p.direction === 'up' || p.direction === 'down')
+      && (p.reason === null || p.reason === 'insufficient_weeks' || p.reason === 'insufficient_answers' || p.reason === 'no_clear_trend')
+      && nullableNumber(p.opening) && nullableNumber(p.closing) && nullableNumber(p.delta) && number(p.weeks)
+  })
+}
+
