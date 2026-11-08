@@ -35,6 +35,7 @@ describe('resumable onboarding API boundary', () => {
     {brandName:'Synthetic',description:'x'.repeat(4001)}, {brandName:'Synthetic',competitors:[42]},
     {brandName:'Synthetic',competitors:Array.from({length:11},(_,i)=>`Rival ${i}`)},
     {brandName:'Synthetic',competitors:['SYNTHETIC']},
+    {brandName:'Synthetic',competitors:['Acme'],competitorDomains:[{name:'Acme',domain:'not a domain'}]},
     {brandName:'Synthetic',clientId:'invalid'}, {brandName:'Synthetic',scanId:'invalid'}])('rejects invalid input before effects: %j', async body => {
     expect((await POST(request(body))).status).toBe(400); expect(mocks.complete).not.toHaveBeenCalled()
   })
@@ -42,6 +43,12 @@ describe('resumable onboarding API boundary', () => {
     const response = await POST(request({brandName:'Synthetic',competitors:['SYNTHETIC']}))
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({error:'COMPETITORS_INVALID'})
+  })
+  it('passes normalised competitor websites to persistence', async () => {
+    expect((await POST(request({brandName:'Synthetic',competitors:['Acme'],
+      competitorDomains:[{name:'Acme',domain:'https://www.Acme.com/pricing'}]}))).status).toBe(200)
+    expect(mocks.complete).toHaveBeenCalledWith({accountId:'synthetic-account'},
+      expect.objectContaining({competitors:['Acme'],competitorDomains:[{name:'Acme',domain:'acme.com'}]}))
   })
   it('rejects invalid JSON', async () => {
     expect((await POST(new NextRequest('https://example.test', {method:'POST',body:'{'}))).status).toBe(400)

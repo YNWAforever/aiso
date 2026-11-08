@@ -38,3 +38,28 @@ it('refuses the brand itself as a competitor', () => {
   expect(() => withCompetitors([' acme '], 'Acme')).toThrow('COMPETITORS_INVALID')
 })
 
+const withDomains = (competitors: string[], competitorDomains: unknown) =>
+  parseOnboardingInput({ brandName: 'Brand', competitors, competitorDomains })
+it('normalises competitor websites keyed to their competitor', () => {
+  expect(withDomains(['Acme', 'Globex'], [
+    { name: 'acme', domain: 'https://www.Acme.com/pricing' },
+    { name: 'Globex', domain: 'globex.example' },
+  ]).competitorDomains).toEqual([
+    { name: 'Acme', domain: 'acme.com' },
+    { name: 'Globex', domain: 'globex.example' },
+  ])
+})
+it('accepts competitors without websites', () => {
+  expect(parseOnboardingInput({ brandName: 'Brand', competitors: ['Acme'] }).competitorDomains).toEqual([])
+})
+it.each([
+  [[{ name: 'Unknown', domain: 'unknown.example' }]],
+  [[{ name: 'Acme', domain: 'not a domain' }]],
+  [[{ name: 'Acme', domain: 'https://127.0.0.1' }]],
+  [[{ name: 'Acme', domain: '   ' }]],
+  [[{ name: 'Acme', domain: 'a.example' }, { name: 'ACME', domain: 'b.example' }]],
+  [[42]],
+])('refuses an unusable competitor website %j', competitorDomains => {
+  expect(() => withDomains(['Acme'], competitorDomains)).toThrow('COMPETITORS_INVALID')
+})
+

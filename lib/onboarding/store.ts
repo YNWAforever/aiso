@@ -75,6 +75,19 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
     ) select to_jsonb(progress) as progress,trial.trial_ends_at,null::text as reason from progress join trial on true
     union all select null::jsonb,null::timestamptz,'intent_conflict' from previous where request_hash is not null and request_hash <> ${onboardingInputHash(input)}
     union all select null::jsonb,null::timestamptz,'intent_conflict' from locked_context`,
+    // Competitor websites are stored as entities, not as the names-only array:
+    // an entity is what carries the domains citation attribution needs. Rows are
+    // created for the client the progress row just settled on, so a resumed or
+    // corrected setup writes them for the same brand. `on conflict do nothing`
+    // leaves an already-recorded competitor (and any dashboard edits to it) alone.
+    sql`insert into competitors (account_id, client_id, name, domains)
+      select p.account_id, p.client_id, d.name, array[d.domain]
+      from onboarding_progress p
+      cross join lateral jsonb_to_recordset(${JSON.stringify(input.competitorDomains)}::jsonb) as d(name text, domain text)
+      where p.account_id = ${scope.accountId}
+        and (p.intent_key = ${input.intentKey} or p.request_aliases ? ${input.intentKey})
+        and char_length(d.name) between 1 and 120 and char_length(d.domain) between 1 and 253
+      on conflict do nothing`,
   ])
   if(rows[0]?.reason==='intent_conflict')throw new Error('ONBOARDING_INTENT_CONFLICT')
   return rows[0] ? dto({...rows[0].progress as Record<string,unknown>,trial_ends_at:rows[0].trial_ends_at} as ProgressRow) : null
