@@ -51,6 +51,17 @@ describe('competitors store', () => {
     expect((await arrayOf(CLIENT)).sort()).toEqual(['Acme', 'Globex'])
   })
 
+  it('materialises array-only names in member order and never exceeds the shared cap', async () => {
+    const names = Array.from({ length: 12 }, (_, i) => `Rival ${i}`)
+    await sql`update clients set competitors = ${names}::text[] where id = ${CLIENT}::uuid`
+    // Ten slots are free: the first ten names materialise in the member's order,
+    // names past the cap do not, and an eleventh live competitor is still refused.
+    expect(await createCompetitor(sql as never, ACCOUNT, CLIENT, input('Acme'))).toEqual({ status: 'limit' })
+    expect((await listCompetitors(sql as never, ACCOUNT, CLIENT))!.map(c => c.name).sort())
+      .toEqual(names.slice(0, 10).sort())
+    expect((await arrayOf(CLIENT)).sort()).toEqual(names.slice(0, 10).sort())
+  })
+
   it('lists array-only names as unsaved entries without writing', async () => {
     await sql`update clients set competitors = array['Initech'] where id = ${CLIENT}::uuid`
     expect(await listCompetitors(sql as never, ACCOUNT, CLIENT)).toEqual([
