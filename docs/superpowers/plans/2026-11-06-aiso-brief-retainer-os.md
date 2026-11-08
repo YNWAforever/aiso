@@ -172,11 +172,6 @@ Comes first, because Slices B and C have nothing to report without it.
     consecutive weeks** (October's 19 Oct week is missing, so the longest run is 2), 0 platform verdicts — the
     rule correctly claims no movement, and the tool says so explicitly. Replay again once a month holds four
     consecutive weeks; only then is Q1 confirmed or re-decided.
-  - **C5 (built 2026-11-09): monthly reports are discoverable.** The brand's Reports page gained scan/monthly tabs;
-    the monthly tab lists every `kind = 'monthly'` report for the brand, newest first, with its month, display
-    status, version, published date, a server-signed share link and an Open link. Before this, a published month
-    report was only reachable from that month's page, so an operator could publish it and lose the entry point.
-    The list fails closed to the existing unavailable card (never an empty state that would read as "no report").
   - **C4 (built 2026-11-09): an AI wording draft the operator approves.** The plan already allowed AI-drafted wording
     as a draft the operator must approve, restating figures only. `POST …/report/ai-narrative` (gated like the other
     monthly routes, body `{ locale }`) loads the month's **stored** version and hands the model a closed fact set:
@@ -186,6 +181,11 @@ Comes first, because Slices B and C have nothing to report without it.
     absent from the facts. The editor only fills its textarea; saving a version is the approval step, so the route
     writes nothing and a month with no saved draft returns `DRAFT_REQUIRED`. A refused or failed draft leaves the
     operator's text untouched.
+  - **C5 (built 2026-11-09): monthly reports are discoverable.** The brand's Reports page gained scan/monthly tabs;
+    the monthly tab lists every `kind = 'monthly'` report for the brand, newest first, with its month, display
+    status, version, published date, a server-signed share link and an Open link. Before this, a published month
+    report was only reachable from that month's page, so an operator could publish it and lose the entry point.
+    The list fails closed to the existing unavailable card (never an empty state that would read as "no report").
 
 - **Drafted from the Brand Month,** extending the existing `client_reports` versions and share links rather than
   building a second report system.
