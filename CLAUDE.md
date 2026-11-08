@@ -185,19 +185,17 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   config is `cloudflare/aiso-worker/wrangler.jsonc`**; the legacy `cloudflare/cron-worker/wrangler.jsonc`
   is never deployed (its origin is NXDOMAIN) and is only kept in step. Until 2026-10-09 the
   deployable config had `"crons": []` while the test pinned the legacy one, so nothing was
-  scheduled. The deployable config enables only the two approved schedules (Pulse and alerts,
-  2026-10-10); the legacy config and `ROUTES` still list all three, so the 09:00 trigger (trial
-  emails — real customer email — plus Search Console) is one config line away once approved. The
-  schedules, in order — `17 4 * * *` (daily; a client whose week
-  is already rolled up is never selected, so extra firings only finish incomplete weeks) →
-  `/api/cron/pulse`, `47 7 * * 1` → `/api/cron/evaluate-alerts` (after pulse, because alerts
-  read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` **and**
-  `/api/cron/search-console` (one trigger fanning out to independent routes via
-  `Promise.allSettled`, because the free tier allows only three triggers) — calling each with
-  the exact `Authorization: Bearer $CRON_SECRET` header Vercel Cron used to send, so none of
-  the three original routes needed code changes (`cron/search-console` was written for that
-  header). Follow `docs/runbooks/deploy-cron-worker.md` to actually deploy and verify it;
-  until that runs, nothing schedules any of these four routes at all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
+  scheduled. Deployed schedules are now all three configured ticks (verified 2026-11-09,
+  `npm run worker:schedules`): `17 4 * * *` Pulse (+ saved-raw repair), `47 7 * * 1` alerts, and
+  `17 16 * * *` brand-months (00:17 HKT; it was configured by #180 but only deployed on
+  2026-11-09, which is why `brand_month_snapshots` stayed empty until then). The `0 9 * * *`
+  trigger (trial emails — real customer email — plus Search Console) remains **unscheduled in
+  the deployable config**; `ROUTES` still lists it, so it is one config line away once approved.
+  The free tier allows only three triggers, so the three schedules above are the whole budget.
+  Each route is called with the exact `Authorization: Bearer $CRON_SECRET` header Vercel Cron
+  used to send. Follow `docs/runbooks/deploy-cron-worker.md` for the deploy, readback and
+  rollback gates. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
+
   subroutes inherit nothing despite also calling OpenRouter.
   `__tests__/config/function-durations.test.ts` pins `aiso-worker/wrangler.jsonc`'s
   `triggers.crons` (not `vercel.json.crons`), requires every scheduled path to export `GET`
