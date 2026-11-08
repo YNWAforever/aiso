@@ -65,6 +65,15 @@ describe('monthly report snapshot', () => {
     expect(readFileSync('supabase/migrations/098_monthly_client_reports.sql', 'utf8')).toContain(`octet_length(snapshot::text) <= ${MONTHLY_SNAPSHOT_MAX_BYTES}`)
   })
 
+  it('drafts for a brand that skipped its website instead of refusing the report', () => {
+    // Onboarding lets a brand skip its domain, and the client name falls back to
+    // it. Refusing the draft over an empty field turned a perfectly honest report
+    // into a 503; control characters are still refused.
+    const s = build({ client: { name: '', domain: '' } })
+    expect(s.client).toEqual({ name: '', domain: '' })
+    expect(() => build({ client: { name: 'Bad\u0007name', domain: '' } })).toThrow(/plain text/)
+  })
+
   it('rejects any stored shape that is not a schema-2 monthly snapshot', () => {
     for (const bad of [null, {}, { ...build(), snapshotSchemaVersion: 1 }, { ...build(), kind: 'scan' }, { ...build(), month: '2026-13' }, { ...build(), delivered: {} }]) {
       expect(parseMonthlyReportSnapshot(bad)).toBeNull()

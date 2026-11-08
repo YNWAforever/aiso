@@ -5,7 +5,7 @@ import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 
 process.env.REPORT_SHARE_SECRET = 'test-report-share-secret-that-is-at-least-32-characters'
-const h = vi.hoisted(() => ({ report: null as unknown }))
+const h = vi.hoisted(() => ({ report: null as unknown, recorded: [] as string[] }))
 vi.mock('server-only', () => ({}))
 // getTranslations('ns') follows the request (dashboard) locale, here en; getTranslations({ locale, namespace }) follows the argument.
 vi.mock('next-intl/server', () => ({
@@ -17,6 +17,10 @@ vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_
 vi.mock('@/lib/auth', () => ({ requireAuth: async () => ({ account_id: 'acc', accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } }) }))
 vi.mock('@/lib/db', () => ({ db: () => async () => [{ brand_name: 'Bakery', domain: 'bakery.hk' }] }))
 vi.mock('@/lib/monthly-report/store', () => ({ loadMonthlyReport: async () => h.report }))
+vi.mock('@/lib/brand-month/store', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/lib/brand-month/store')>()
+  return { ...actual, readRecordedSnapshotKinds: async () => h.recorded }
+})
 
 import MonthlyReportPage from '@/app/[lang]/dashboard/[clientId]/month/report/page'
 
@@ -32,7 +36,7 @@ const snapshot = (locale: 'en' | 'zh-HK', summary: string) => ({
 const render = async (m = '2026-11') => renderToStaticMarkup(
   <NextIntlClientProvider locale="en" messages={en}>{await MonthlyReportPage({ params: Promise.resolve({ lang: 'en', clientId: CLIENT }), searchParams: Promise.resolve({ m }) })}</NextIntlClientProvider>)
 
-beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-12-05T00:00:00Z')) })
+beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-12-05T00:00:00Z')); h.report = null; h.recorded = ['opening', 'closing'] })
 
 describe('monthly report page', () => {
   it('renders a zh-HK report in zh-HK from the English dashboard, with the page chrome in English', async () => {
@@ -62,5 +66,17 @@ describe('monthly report page', () => {
     h.report = null
     await expect(render('2024-03')).rejects.toThrow('NEXT_NOT_FOUND')
     await expect(render('2027-01')).rejects.toThrow('NEXT_NOT_FOUND')
+  })
+
+  it('offers to record the month figures before drafting, and stays quiet once they are recorded', async () => {
+    // Production had never recorded a snapshot, so a drafted report would freeze
+    // "Not recorded" into a published document with no way to fix it from here.
+    h.report = null
+    h.recorded = []
+    const html = await render()
+    expect(html).toContain('Record month figures')
+    expect(html).toContain('This month&#x27;s opening and closing figures have not been recorded yet')
+    h.recorded = ['opening', 'closing']
+    expect(await render()).not.toContain('Record month figures')
   })
 })

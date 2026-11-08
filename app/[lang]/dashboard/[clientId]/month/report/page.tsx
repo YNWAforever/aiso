@@ -2,12 +2,14 @@ import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { MonthlyReportView } from '@/components/monthly-report/MonthlyReportView'
+import { RecordSnapshotsButton } from '@/components/brand-month/RecordSnapshotsButton'
 import { MonthlyReportEditor } from '@/components/monthly-report/MonthlyReportEditor'
 import { MonthlyReportPublish } from '@/components/monthly-report/MonthlyReportPublish'
 import { requireAuth } from '@/lib/auth'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { db } from '@/lib/db'
-import { hongKongMonthKey, isViewableMonth, periodOf } from '@/lib/brand-month/period'
+import { dueSnapshots, hongKongMonthKey, isViewableMonth, periodOf } from '@/lib/brand-month/period'
+import { readRecordedSnapshotKinds } from '@/lib/brand-month/store'
 import { loadMonthlyReport } from '@/lib/monthly-report/store'
 import { monthLabel, monthlyShareUrl } from '@/lib/monthly-report/service'
 
@@ -34,6 +36,11 @@ export default async function MonthlyReportPage({ params, searchParams }: {
   if (!client) notFound()
   const report = await loadMonthlyReport(profile.account_id, clientId, period.month)
   if (!canDraft && !report) notFound()
+  // A report drafted while the month's figures were never recorded freezes
+  // "Not recorded" into a published document. Offer the same idempotent record
+  // action the month page has, before the operator drafts.
+  const recordedKinds = canDraft ? await readRecordedSnapshotKinds(profile.account_id, clientId, period) : []
+  const pendingFigures = canDraft ? dueSnapshots(period, now).filter(k => !recordedKinds.includes(k)) : []
   const t = await getTranslations('monthlyReport')
   // The report renders in its own language, whatever the dashboard's: a zh-HK report reads the same from /en and /zh-HK.
   const reportLang = report?.snapshot.locale ?? locale
@@ -48,6 +55,10 @@ export default async function MonthlyReportPage({ params, searchParams }: {
         </div>
         {canDraft ? <Link href={`/${locale}/dashboard/${clientId}/month?m=${key}`} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-muted">{t('back_to_month')}</Link> : null}
       </header>
+      {pendingFigures.length > 0 ? <section role="status" className="flex flex-col gap-3 rounded-lg border border-border p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <p>{t('figures_pending')}</p>
+        <RecordSnapshotsButton clientId={clientId} month={key} label={t('record_figures')} failed={t('record_failed')} />
+      </section> : null}
       {report ? <div lang={reportLang}><MonthlyReportView snapshot={report.snapshot} lang={reportLang} copy={{
         delivered: r('delivered'), verifiedLive: r('verified_live'), selfReported: r('self_reported'), none: r('none'),
         visibility: r('visibility'), visibilityPending: r('visibility_pending'),
