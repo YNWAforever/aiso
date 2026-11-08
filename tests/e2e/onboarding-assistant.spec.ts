@@ -90,6 +90,46 @@ for (const lang of ['en', 'zh-HK']) {
   })
 }
 
+for (const lang of ['en', 'zh-HK']) {
+  test(`AI competitor suggestions are reviewable and their websites are live-checked (${lang})`, async ({ page }) => {
+    await openOnboardingComponent(page, lang)
+    const checked: string[] = []
+    await page.route('**/api/onboarding/assist', route => {
+      const body = route.request().postDataJSON()
+      return route.fulfill({ json: {
+        brandName: 'Suggested brand', domain: 'example.test', description: 'Synthetic design workshops.',
+        industry: 'education', language: body.language, market: body.market,
+        sourceUrl: 'https://example.test/', fetchedAt: '2026-10-11T00:00:00Z', reviewRequired: true, evidence: [],
+        competitors: [
+          { name: 'Rival One', domain: 'rival-one.test' },
+          { name: 'Rival Two', domain: 'rival-two.test' },
+          { name: 'Rival Three', domain: null },
+        ],
+      } })
+    })
+    await page.route('**/api/onboarding/domain-check', route => {
+      checked.push(route.request().postDataJSON().url)
+      return route.fulfill({ json: { status: 'live', domain: 'rival-one.test', pageTitle: 'Rival One' } })
+    })
+    await page.locator('#brand-assist-url').fill('example.test')
+    await page.locator('#brand-assist-language').selectOption(lang === 'en' ? 'zh-HK' : 'en')
+    await page.locator('#brand-assist-market').selectOption('TW')
+    await page.getByRole('button', { name: lang === 'en' ? 'Draft my brand profile' : '草擬我的品牌資料' }).click()
+    await expect(page.getByRole('heading', { name: lang === 'en' ? 'Suggested competitors' : '建議的競爭對手' })).toBeVisible()
+    await expect(page.getByText(lang === 'en' ? 'no website' : '未有網站')).toBeVisible()
+    // Unticking a proposal is how the member says no; it must not be added.
+    await page.getByRole('checkbox', { name: /Rival Two/ }).uncheck()
+    await page.getByRole('button', { name: lang === 'en' ? 'Use these details' : '使用這些資料' }).click()
+    await expect(page.getByRole('button', { name: lang === 'en' ? 'Remove Rival One' : '移除Rival One', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: lang === 'en' ? 'Remove Rival Three' : '移除Rival Three', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Rival Two/ })).toHaveCount(0)
+    // Only the confirmed proposal with a website is live-checked, and its result
+    // is what the member sees before saving anything.
+    await expect.poll(() => checked).toEqual(['rival-one.test'])
+    await expect(page.getByText(lang === 'en' ? '✓ rival-one.test is live' : '✓ rival-one.test 可存取', { exact: true })).toBeVisible()
+  })
+}
+
 for(const lang of ['en','zh-HK']){
  test('T32 source quotes and fetch time remain reviewable before any brand is created '+lang,async({page})=>{
   await openOnboardingComponent(page,lang)

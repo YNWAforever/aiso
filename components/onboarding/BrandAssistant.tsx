@@ -6,6 +6,7 @@ import { Sparkles } from 'lucide-react'
 import { INDUSTRY_CODES, industryLabel } from '@/lib/onboarding/industry'
 import { PROMPT_MARKETS, type PromptLanguage } from '@/lib/prompts/context'
 import type { BrandDraft } from '@/lib/onboarding/brand-draft'
+import { MAX_SUGGESTED_COMPETITORS } from '@/lib/onboarding/brand-draft'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 
@@ -28,6 +29,10 @@ function AssistantForm({ lang, context, onContextChange, onApply, onManual }: Pr
   const [state,setState]=useState<AssistantState>({key:contextKey,draft:null,busy:false,error:''})
   const active=state.key===contextKey?state:{key:contextKey,draft:null,busy:false,error:''}
   const {draft,busy,error}=active
+  // Proposals start selected: the member came here to be helped. Unchecking one
+  // is how they say no, and nothing is saved until the draft is applied.
+  const [dropped,setDropped]=useState<Record<string,boolean>>({})
+  const selected = (draft?.competitors ?? []).filter(competitor => !dropped[competitor.name])
   function patch(values:Partial<Omit<AssistantState,'key'>>){
     setState(current=>({... (current.key===contextKey?current:{key:contextKey,draft:null,busy:false,error:''}),...values,key:contextKey}))
   }
@@ -65,7 +70,12 @@ function AssistantForm({ lang, context, onContextChange, onApply, onManual }: Pr
         ||result.language!==language||result.market!==market)throw new Error('Invalid draft')
       if (!request.signal.aborted&&generation.current===version&&latestContext.current===key){
         const evidence=Array.isArray(result.evidence)?result.evidence.filter(e=>e&&['brandName','description','industry'].includes(e.field)&&typeof e.quote==='string'&&e.quote.length>0&&e.quote.length<=240).slice(0,6):[]
-        setDraft({...result,evidence})
+        // Suggestions are structural only: the server already bounded and
+        // normalised them, and a domain here is still just a proposal.
+        const competitors=Array.isArray(result.competitors)?result.competitors
+          .filter(c=>c&&typeof c.name==='string'&&!!c.name.trim()&&(c.domain===null||typeof c.domain==='string'))
+          .slice(0,MAX_SUGGESTED_COMPETITORS):[]
+        setDropped({});setDraft({...result,evidence,competitors})
       }
     } catch { if (!request.signal.aborted&&generation.current===version) setError(t('unavailable')) }
     finally { if(controller.current===request){controller.current=null;setBusy(false)} }
@@ -103,8 +113,24 @@ function AssistantForm({ lang, context, onContextChange, onApply, onManual }: Pr
       <label className="block text-sm" htmlFor="brand-draft-industry">{t('industry')}<select id="brand-draft-industry" value={draft.industry ?? ''} onChange={e => setDraft({ ...draft, industry: (e.target.value || null) as BrandDraft['industry'] })} className={field}>
         <option value="">{t('unknown')}</option>{INDUSTRY_CODES.map(i => <option key={i} value={i}>{industryLabel(i, lang)}</option>)}
       </select></label>
+      {draft.competitors?.length ? <section aria-labelledby="brand-competitors-title" className="space-y-2 rounded-lg border border-border p-3">
+        <h3 id="brand-competitors-title" className="text-sm font-semibold">{t('competitorsTitle')}</h3>
+        <p className="text-xs text-muted-foreground">{t('competitorsNote')}</p>
+        <ul className="space-y-2">
+          {draft.competitors.map(competitor => <li key={competitor.name}>
+            <label className="flex min-h-11 items-start gap-2 py-1 text-sm">
+              <input type="checkbox" className="mt-1 size-4 shrink-0" checked={!dropped[competitor.name]}
+                onChange={e => setDropped(previous => ({ ...previous, [competitor.name]: !e.target.checked }))} />
+              <span className="min-w-0">
+                <span className="font-medium break-all">{competitor.name}</span>
+                <span className="ml-1 text-xs text-muted-foreground break-all">{competitor.domain ?? t('competitorsNoDomain')}</span>
+              </span>
+            </label>
+          </li>)}
+        </ul>
+      </section> : null}
       <p className="text-xs text-muted-foreground">{t('reviewNote')}</p>
-      <button type="button" disabled={!draft.brandName.trim()} onClick={() => {trackFunnelEvent({name:'brand_draft_reviewed',locale:lang==='zh-HK'?'zh-HK':'en'});onApply(draft)}} className="min-h-11 w-full rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50">{t('apply')}</button>
+      <button type="button" disabled={!draft.brandName.trim()} onClick={() => {trackFunnelEvent({name:'brand_draft_reviewed',locale:lang==='zh-HK'?'zh-HK':'en'});onApply({ ...draft, competitors: selected })}} className="min-h-11 w-full rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50">{t('apply')}</button>
       <button type="button" onClick={() => setDraft(null)} className="min-h-11 w-full rounded-lg border border-border px-4 py-3 text-sm">{t('change')}</button>
     </div>}
     {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}

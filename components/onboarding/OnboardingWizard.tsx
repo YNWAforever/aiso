@@ -11,7 +11,7 @@ import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
 import { MAX_COMPETITORS, MAX_NAME_LENGTH } from '@/lib/competitors/limits'
-import { addCompetitorNames, competitorName, splitCompetitorInput, type CompetitorInputProblem } from '@/lib/onboarding/competitors'
+import { addCompetitorNames, competitorName, mergeSuggestedCompetitors, splitCompetitorInput, type CompetitorInputProblem } from '@/lib/onboarding/competitors'
 import { Wordmark } from '@/components/brand/Wordmark'
 
 const INDUSTRIES = [
@@ -133,7 +133,9 @@ function WizardForm({
   const [competitorChecks, setCompetitorChecks] = useState<Record<string,CompetitorCheck>>({})
   const [competitorProblem, setCompetitorProblem] = useState<CompetitorInputProblem | null>(null)
   const [competitorMessage, setCompetitorMessage] = useState<{ text: string; tone: 'ok' | 'warn' | 'info' } | null>(null)
-  const competitorCheckVersion = useRef(0)
+  // Per-name, not one counter: several suggestions are checked at once and each
+  // result must land on its own chip.
+  const competitorCheckVersion = useRef<Record<string, number>>({})
   const [domainCheck, setDomainCheck] = useState<DomainCheck>({ status: 'idle' })
   const domainCheckVersion = useRef(0)
 
@@ -204,8 +206,9 @@ function WizardForm({
   }
 
   async function checkCompetitorDomain(name: string, target: string) {
-    const version = ++competitorCheckVersion.current
-    const stale = () => version !== competitorCheckVersion.current
+    const versions = competitorCheckVersion.current
+    const version = (versions[name] = (versions[name] ?? 0) + 1)
+    const stale = () => versions[name] !== version
     setCompetitorMessage({ text: t('competitorChecking', { domain: target }), tone: 'info' })
     setCompetitorChecks(prev => ({ ...prev, [name]: { status: 'checking' } }))
     try {
@@ -250,6 +253,7 @@ function WizardForm({
     setCompetitors(prev => prev.filter(x => x !== c))
     setCompetitorDomains(prev => { const next = { ...prev }; delete next[c]; return next })
     setCompetitorChecks(prev => { const next = { ...prev }; delete next[c]; return next })
+    delete competitorCheckVersion.current[c]
     setCompetitorProblem(null)
     setCompetitorMessage(null)
   }
@@ -375,6 +379,15 @@ function WizardForm({
               setWebsiteUrl(next.url); setDomain(normaliseDomain(next.url)); setLanguage(next.language); setRegion(next.market)
             }} onManual={() => manualBrandRef.current?.focus()} onApply={suggestion => {
               domainCheckVersion.current++; setDomainCheck({ status: 'idle' })
+              // The member already confirmed these suggestions on the review
+              // panel; each one is added under the same rules as a manual entry,
+              // and its website is live-checked rather than trusted.
+              const merged = mergeSuggestedCompetitors(competitors, suggestion.competitors ?? [], suggestion.brandName || brand)
+              setCompetitors(merged.competitors)
+              if (Object.keys(merged.domains).length) {
+                setCompetitorDomains(prev => ({ ...prev, ...merged.domains }))
+                for (const [name, domain] of Object.entries(merged.domains)) void checkCompetitorDomain(name, domain)
+              }
               setBrand(suggestion.brandName); setDomain(suggestion.domain); setWebsiteUrl(suggestion.domain); setDescription(suggestion.description)
               setIndustry(suggestion.industry ?? ''); setLanguage(suggestion.language); setRegion(suggestion.market); setStep(4)
             }} />

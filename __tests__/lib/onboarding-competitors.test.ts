@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_COMPETITORS, MAX_NAME_LENGTH } from '@/lib/competitors/limits'
-import { addCompetitorNames, competitorKey, splitCompetitorInput } from '@/lib/onboarding/competitors'
+import { addCompetitorNames, competitorKey, mergeSuggestedCompetitors, splitCompetitorInput } from '@/lib/onboarding/competitors'
 
 describe('splitCompetitorInput', () => {
   it('splits a pasted list on ASCII and full-width commas and newlines', () => {
@@ -42,5 +42,23 @@ describe('addCompetitorNames', () => {
   })
   it('ignores an add that is already present', () => {
     expect(addCompetitorNames(['Acme'], 'acme', 'Brand')).toEqual({ competitors: ['Acme'], problem: null })
+  })
+})
+
+describe('mergeSuggestedCompetitors', () => {
+  it('adds confirmed proposals with their websites', () => {
+    expect(mergeSuggestedCompetitors([], [
+      { name: 'Semrush', domain: 'semrush.com' },
+      { name: 'Ahrefs', domain: null },
+    ], 'Brand')).toEqual({ competitors: ['Semrush', 'Ahrefs'], domains: { Semrush: 'semrush.com' } })
+  })
+  it('attaches a website to a competitor the member already typed', () => {
+    expect(mergeSuggestedCompetitors(['acme'], [{ name: 'ACME', domain: 'acme.com' }], 'Brand'))
+      .toEqual({ competitors: ['acme'], domains: { acme: 'acme.com' } })
+  })
+  it('never proposes the brand itself and never exceeds the shared cap', () => {
+    expect(mergeSuggestedCompetitors([], [{ name: 'brand', domain: 'brand.com' }], 'Brand').competitors).toEqual([])
+    const existing = Array.from({ length: 10 }, (_, i) => `Rival ${i}`)
+    expect(mergeSuggestedCompetitors(existing, [{ name: 'Extra', domain: 'extra.example' }], 'Brand').competitors).toHaveLength(10)
   })
 })

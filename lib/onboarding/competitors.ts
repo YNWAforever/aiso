@@ -56,3 +56,33 @@ export function addCompetitorNames(
   }
   return { competitors, problem }
 }
+
+/**
+ * Applies the member's confirmed AI proposals to the list they already have.
+ * Same rules as a manual add — brand excluded, de-duplicated case/width
+ * insensitively, the shared cap respected — plus two extras: a proposal that is
+ * already listed attaches its domain instead of being dropped, and only a
+ * domain that survives as a usable host is returned, so the caller can live-check
+ * exactly what will be saved.
+ */
+export function mergeSuggestedCompetitors(
+  existing: readonly string[],
+  suggestions: readonly { name: string; domain?: string | null }[],
+  brandName: string,
+): { competitors: string[]; domains: Record<string, string> } {
+  const brand = competitorKey(brandName)
+  const competitors = [...existing]
+  const known = new Map(competitors.map(name => [competitorKey(name), name]))
+  const domains: Record<string, string> = {}
+  for (const suggestion of suggestions) {
+    const name = competitorName(suggestion.name)
+    const key = competitorKey(name)
+    if (!name || name.length > MAX_NAME_LENGTH || (brand && key === brand)) continue
+    const listed = known.get(key) ?? (competitors.length < MAX_COMPETITORS ? name : null)
+    if (!listed) continue
+    if (!known.has(key)) { known.set(key, name); competitors.push(name) }
+    const domain = suggestion.domain?.trim()
+    if (domain) domains[listed] = domain
+  }
+  return { competitors, domains }
+}
