@@ -21,6 +21,49 @@ export class MonthlyReportExistsError extends Error {}
 
 const iso = (v: unknown) => v instanceof Date ? v.toISOString() : String(v)
 
+/**
+ * A brand's monthly reports, newest month first, for the reports list. Monthly
+ * rows share `client_reports` with scan reports but never appear in the scan
+ * flow, so this is the only reader that lists them across months (098).
+ */
+export type MonthlyReportListItem = {
+  reportId: string
+  month: string
+  status: 'draft' | 'published' | 'revoked'
+  publicSlug: string
+  shareVersion: number
+  locale: 'en' | 'zh-HK'
+  versionNumber: number
+  publishedVersionNumber: number | null
+  publishedLocale: 'en' | 'zh-HK' | null
+  publishedAt: string | null
+}
+
+export async function listMonthlyReports(accountId: string, clientId: string): Promise<MonthlyReportListItem[]> {
+  const rows = await db()`
+    select r.id as report_id, r.status, r.public_slug, r.share_version, r.published_at,
+           r.report_month::text as month, v.version_number,
+           v.snapshot->>'locale' as locale,
+           p.version_number as published_version_number, p.locale as published_locale
+    from client_reports r
+    join client_report_versions v on v.id = r.latest_version_id and v.report_id = r.id and v.account_id = r.account_id
+    left join client_report_versions p on p.id = r.published_version_id and p.report_id = r.id and p.account_id = r.account_id
+    where r.account_id = ${accountId}::uuid and r.client_id = ${clientId}::uuid and r.kind = 'monthly'
+    order by r.report_month desc`
+  return rows.map(row => ({
+    reportId: String(row.report_id),
+    month: String(row.month).slice(0, 7),
+    status: row.status as MonthlyReportListItem['status'],
+    publicSlug: String(row.public_slug),
+    shareVersion: Number(row.share_version),
+    locale: row.locale === 'zh-HK' ? 'zh-HK' : 'en',
+    versionNumber: Number(row.version_number),
+    publishedVersionNumber: row.published_version_number === null ? null : Number(row.published_version_number),
+    publishedLocale: row.published_locale === 'zh-HK' ? 'zh-HK' : row.published_locale === 'en' ? 'en' : null,
+    publishedAt: row.published_at ? iso(row.published_at) : null,
+  }))
+}
+
 /** This brand's monthly report for a month, with its latest version. Only `kind = 'monthly'` rows (098). */
 export async function loadMonthlyReport(accountId: string, clientId: string, month: string): Promise<MonthlyReportRead | null> {
   const [row] = await db()`
