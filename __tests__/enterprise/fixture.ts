@@ -1,7 +1,9 @@
 import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 export const ids={account:'11000000-0000-4000-8000-000000000001',foreign:'11000000-0000-4000-8000-000000000002',manager:'22000000-0000-4000-8000-000000000001',admin:'22000000-0000-4000-8000-000000000002',outsider:'22000000-0000-4000-8000-000000000003',client:'33000000-0000-4000-8000-000000000001',otherClient:'33000000-0000-4000-8000-000000000002',prompt:'44000000-0000-4000-8000-000000000001',request:'55000000-0000-4000-8000-000000000001'}
-export async function enterpriseFixture(delegation=true){const pg=await PGlite.create();await pg.exec(`
+export async function enterpriseFixture(delegation=true){const pg=await PGlite.create();
+ // Neon's session timezone is UTC; PGlite inherits the host's, which shifts date-only literals and `date + 1` boundaries.
+ await pg.exec("set time zone 'UTC'");await pg.exec(`
  create role aeo_app;create table accounts(id uuid primary key,plan text default 'enterprise',status text default 'active',stripe_subscription_id text default 'fixture',trial_ends_at timestamptz,override_plan text,override_expires_at timestamptz);
  create table profiles(id uuid primary key,account_id uuid references accounts(id),display_name text,is_admin boolean default false,deactivated_at timestamptz,unique(id,account_id));
  create table clients(id uuid primary key,account_id uuid references accounts(id),brand_name text default 'Brand',domain text default 'example.com',status text default 'active',unique(id,account_id));

@@ -36,6 +36,6 @@ export default async function MonthQueuePage({ params }: { params: Promise<{ lan
       monthHref={clientId => `/${locale}/dashboard/${clientId}/month`}
       copy={{ title: t('title'), brand: t('brand'), approvals: t('approvals'), editsUnverified: t('edits_unverified'), sends: t('sends'),
         pulse: t('pulse'), searchConsole: t('search_console'), monthRecord: t('month_record'), overdue: t('overdue'), notEnabled: t('not_enabled'),
-        notConnected: t('not_connected'), stale: t('stale'), recorded: t('recorded'), notRecorded: t('not_recorded'), none: t('none'), allClear: t('all_clear') }} />
+        notConnected: t('not_connected'), stale: t('stale'), recorded: t('recorded'), notRecorded: t('not_recorded'), none: t('none'), allClear: t('all_clear'), empty: t('empty') }} />
   )
 }

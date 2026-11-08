@@ -7,7 +7,7 @@ import zh from '@/messages/zh-HK.json'
 
 const copyFrom = (m: typeof en.monthQueue): MonthQueueCopy => ({ title: m.title, brand: m.brand, approvals: m.approvals, editsUnverified: m.edits_unverified,
   sends: m.sends, pulse: m.pulse, searchConsole: m.search_console, monthRecord: m.month_record, overdue: m.overdue, notEnabled: m.not_enabled,
-  notConnected: m.not_connected, stale: m.stale, recorded: m.recorded, notRecorded: m.not_recorded, none: m.none, allClear: m.all_clear })
+  notConnected: m.not_connected, stale: m.stale, recorded: m.recorded, notRecorded: m.not_recorded, none: m.none, allClear: m.all_clear, empty: m.empty })
 const base: QueueRow = { clientId: 'c', brandName: 'B', approvalsWaiting: 0, editsUnverified: 0, monthSends: 0, nearCap: false, activeQuestions: 0,
   lastPulseWeek: null, pulseOverdue: false, searchConsole: 'not_connected', lastSync: null, snapshotsPending: false }
 const text = (html: string) => html.replace(/<[^>]+>/g, '|').replace(/\|+/g, '|')
@@ -37,5 +37,12 @@ describe('MonthQueue', () => {
   it('uses the zh-HK honesty vocabulary', () => {
     const t = text(render([base], 'zh-HK'))
     expect(t).toContain('未啟用'); expect(t).toContain('未連接')
+  })
+
+  it('says there are no brands instead of rendering an empty table', () => {
+    const html = render([])
+    expect(text(html)).toContain('No brands yet. Set up a brand to see its month here.')
+    expect(html).not.toContain('<table')
+    expect(text(render([], 'zh-HK'))).toContain('尚未有品牌')
   })
 })

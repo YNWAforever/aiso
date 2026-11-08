@@ -4,6 +4,7 @@ import { needsAttention, type QueueRow } from '@/lib/brand-month/queue-rules'
 export type MonthQueueCopy = {
   title: string; brand: string; approvals: string; editsUnverified: string; sends: string; pulse: string; searchConsole: string; monthRecord: string
   overdue: string; notEnabled: string; notConnected: string; stale: string; recorded: string; notRecorded: string; none: string; allClear: string
+  empty: string
 }
 
 /**
@@ -18,6 +19,13 @@ export function MonthQueue({ lang, rows, monthHref, copy, sendCap }: {
   const day = new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', timeZone: 'Asia/Hong_Kong' })
   const ordered = [...rows.filter(needsAttention), ...rows.filter(r => !needsAttention(r))]
   const flag = (on: boolean, text: string) => <span className={on ? 'font-medium text-tone-warning-fg' : 'text-muted-foreground'}>{text}</span>
+  // An empty account would otherwise show a table header above nothing at all.
+  if (rows.length === 0) return (
+    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+      <h1 className="text-2xl font-bold tracking-tight">{copy.title}</h1>
+      <p className="text-sm text-muted-foreground">{copy.empty}</p>
+    </main>
+  )
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-bold tracking-tight">{copy.title}</h1>

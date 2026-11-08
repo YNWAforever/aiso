@@ -4863,7 +4863,8 @@
     "recorded": "已記錄",
     "not_recorded": "未記錄",
     "none": "未有",
-    "all_clear": "本月沒有待處理事項。"
+    "all_clear": "本月沒有待處理事項。",
+    "empty": "尚未有品牌。設定品牌後即可在此查看每月記錄。"
   },
   "monthlyReport": {
     "title": "月度報告",
