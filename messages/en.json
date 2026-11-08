@@ -3442,7 +3442,17 @@
     "err_exists": "That competitor is already on the list.",
     "err_limit": "You can track up to {max} competitors. Remove one to add another.",
     "err_signed_out": "Your session has ended. Sign in again to save.",
-    "err_generic": "Couldn't save. Check your connection and try again."
+    "err_generic": "Couldn't save. Check your connection and try again.",
+    "check_website": "Check website",
+    "check_website_label": "Check the website for {name}",
+    "checking_website": "Checking…",
+    "website_live": "✓ Live",
+    "website_live_title": "✓ Live · {title}",
+    "website_unreachable": "No response from this website, so citations can't be credited to this competitor yet.",
+    "website_missing": "No website saved, so a cited page can't be credited to this competitor.",
+    "err_check_invalid": "That isn't a valid website address.",
+    "err_check_limited": "Too many checks right now. Try again later.",
+    "err_check_unavailable": "The live check is unavailable right now."
   },
   "shareOfVoice": {
     "title": "Share of voice vs competitors",

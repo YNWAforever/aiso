@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { competitorErrorKey, removeCompetitor, saveCompetitor, splitList } from '@/lib/competitors/client'
+import { checkCompetitorWebsite, competitorErrorKey, removeCompetitor, saveCompetitor, splitList } from '@/lib/competitors/client'
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 const ROW = { id: 'comp-1', name: 'Acme', aliases: ['AC'], domains: ['acme.com'], created_at: 't', updated_at: 't' }
@@ -94,5 +94,41 @@ describe('removeCompetitor', () => {
 
   it('reports a failed removal', async () => {
     expect(await removeCompetitor(vi.fn(async () => json(500, {})), 'client-1', 'comp-1')).toEqual({ ok: false, error: 'err_generic' })
+  })
+})
+
+describe('checkCompetitorWebsite', () => {
+  it('posts the typed site to the shared public-domain check and returns its answer', async () => {
+    const fetcher = vi.fn(async () => json(200, { status: 'live', domain: 'hsbc.com.hk', pageTitle: 'HSBC Hong Kong' }))
+    expect(await checkCompetitorWebsite(fetcher, ' hsbc.com.hk ')).toEqual({
+      ok: true, status: 'live', domain: 'hsbc.com.hk', pageTitle: 'HSBC Hong Kong',
+    })
+    expect(fetcher).toHaveBeenCalledWith('/api/domain-check', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ url: 'hsbc.com.hk' }),
+    }))
+  })
+
+  it('keeps "unreachable" as a normal answer rather than an error', async () => {
+    const fetcher = vi.fn(async () => json(200, { status: 'unreachable', domain: 'offline.example', pageTitle: null }))
+    expect(await checkCompetitorWebsite(fetcher, 'offline.example')).toEqual({ ok: true, status: 'unreachable', domain: 'offline.example', pageTitle: null })
+  })
+
+  it.each([
+    [400, 'err_check_invalid'],
+    [429, 'err_check_limited'],
+    [401, 'err_check_unavailable'],
+    [503, 'err_check_unavailable'],
+    [200, 'err_check_unavailable'],
+  ])('maps HTTP %i to %s', async (status, key) => {
+    expect(await checkCompetitorWebsite(vi.fn(async () => json(status, status === 200 ? {} : { error: 'x' })), 'acme.com'))
+      .toEqual({ ok: false, error: key })
+  })
+
+  it('refuses a blank site without a request, and treats a network failure as unavailable', async () => {
+    const fetcher = vi.fn()
+    expect(await checkCompetitorWebsite(fetcher, '   ')).toEqual({ ok: false, error: 'err_check_invalid' })
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(await checkCompetitorWebsite(vi.fn(async () => { throw new TypeError('offline') }), 'acme.com'))
+      .toEqual({ ok: false, error: 'err_check_unavailable' })
   })
 })

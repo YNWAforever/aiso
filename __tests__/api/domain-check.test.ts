@@ -3,12 +3,12 @@ import { NextRequest } from 'next/server'
 
 const { profile, limit, check } = vi.hoisted(() => ({ profile: vi.fn(), limit: vi.fn(), check: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ getProfile: profile }))
-vi.mock('@/lib/onboarding/domain-check-limit', () => ({ consumeDomainCheckLimit: limit, DOMAIN_CHECK_LIMIT: 20 }))
-vi.mock('@/lib/onboarding/domain-check', async importOriginal => ({ ...await importOriginal<object>(), checkPublicHomepage: check }))
+vi.mock('@/lib/domain-check/limit', () => ({ consumeDomainCheckLimit: limit, DOMAIN_CHECK_LIMIT: 20 }))
+vi.mock('@/lib/domain-check/check', async importOriginal => ({ ...await importOriginal<object>(), checkPublicHomepage: check }))
 
 async function post(body: unknown = { url: 'example.com' }) {
-  const { POST } = await import('@/app/api/onboarding/domain-check/route')
-  return POST(new NextRequest('http://localhost/api/onboarding/domain-check', { method: 'POST', body: JSON.stringify(body) }))
+  const { POST } = await import('@/app/api/domain-check/route')
+  return POST(new NextRequest('http://localhost/api/domain-check', { method: 'POST', body: JSON.stringify(body) }))
 }
 beforeEach(() => {
   vi.clearAllMocks()

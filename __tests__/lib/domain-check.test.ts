@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { checkPublicHomepage, parseDomainCheckInput } from '@/lib/onboarding/domain-check'
+import { checkPublicHomepage, parseDomainCheckInput } from '@/lib/domain-check/check'
 
 describe('parseDomainCheckInput', () => {
   it('normalises any entered form to the public homepage origin', () => {

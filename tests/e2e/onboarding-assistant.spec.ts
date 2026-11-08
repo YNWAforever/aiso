@@ -107,7 +107,7 @@ for (const lang of ['en', 'zh-HK']) {
         ],
       } })
     })
-    await page.route('**/api/onboarding/domain-check', route => {
+    await page.route('**/api/domain-check', route => {
       checked.push(route.request().postDataJSON().url)
       return route.fulfill({ json: { status: 'live', domain: 'rival-one.test', pageTitle: 'Rival One' } })
     })

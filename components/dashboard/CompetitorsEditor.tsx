@@ -9,12 +9,14 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  removeCompetitor, saveCompetitor, splitList,
+  checkCompetitorWebsite, removeCompetitor, saveCompetitor, splitList,
   type CompetitorErrorKey, type CompetitorView,
 } from '@/lib/competitors/client'
 
 type Row = { key: string; id: string | null; legacyName: string | null; name: string; aliases: string; domains: string }
 type Notice = { kind: 'status' | 'alert'; text: string } | null
+/** A website check is a read: it never saves, so it has its own per-row state. */
+type SiteCheck = { site: string; state: 'checking' } | { site: string; state: 'live'; title: string | null } | { site: string; state: 'unreachable' } | { site: string; state: 'error'; key: CompetitorErrorKey }
 
 const toRow = (c: CompetitorView, index: number): Row => ({
   key: c.id ?? `legacy-${index}-${c.name}`,
@@ -41,9 +43,35 @@ export function CompetitorsEditor({
   // Which busy row is being removed, so its card does not claim to be saving.
   const [removing, setRemoving] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
+  const [siteChecks, setSiteChecks] = useState<Record<string, SiteCheck>>({})
 
   const fail = (error: CompetitorErrorKey) => setNotice({ kind: 'alert', text: t(error, { max }) })
   const update = (key: string, patch: Partial<Row>) => setRows(current => current.map(r => r.key === key ? { ...r, ...patch } : r))
+
+  /**
+   * Live-checks the first website in the row's field. The stored value is what
+   * citation attribution depends on, so a typo here silently credits nobody —
+   * this is the one place the member can see that before saving.
+   */
+  async function checkSite(row: Row) {
+    const site = splitList(row.domains)[0]
+    if (!site) return
+    setSiteChecks(current => ({ ...current, [row.key]: { site, state: 'checking' } }))
+    const result = await checkCompetitorWebsite(fetch, site)
+    setSiteChecks(current => {
+      // A stale answer for a previously typed site must not label the new one.
+      if (current[row.key]?.site !== site) return current
+      return { ...current, [row.key]: result.ok
+        ? result.status === 'live' ? { site, state: 'live', title: result.pageTitle } : { site, state: 'unreachable' }
+        : { site, state: 'error', key: result.error } }
+    })
+  }
+
+  function editDomains(row: Row, domains: string) {
+    update(row.key, { domains })
+    // Editing invalidates the previous answer.
+    setSiteChecks(current => { const next = { ...current }; delete next[row.key]; return next })
+  }
 
   async function save(row: Row) {
     setBusy(row.key); setNotice(null)
@@ -117,8 +145,26 @@ export function CompetitorsEditor({
                   <Label htmlFor={`${id}-domains`}>{t('domains_label')}</Label>
                   <Input id={`${id}-domains`} value={row.domains} aria-describedby={`${id}-domains-hint`} className="min-h-11"
                     inputMode="url" autoCapitalize="none" spellCheck={false}
-                    onChange={e => update(row.key, { domains: e.target.value })} />
+                    onChange={e => editDomains(row, e.target.value)} />
                   <p id={`${id}-domains-hint`} className="text-xs text-muted-foreground">{t('domains_hint')}</p>
+                  {splitList(row.domains).length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button type="button" variant="outline" className="min-h-11" disabled={busy === row.key}
+                        aria-label={t('check_website_label', { name: label })} onClick={() => checkSite(row)}>
+                        {siteChecks[row.key]?.state === 'checking' ? t('checking_website') : t('check_website')}
+                      </Button>
+                      {(() => {
+                        const check = siteChecks[row.key]
+                        if (!check) return null
+                        if (check.state === 'checking') return <p role="status" className="text-xs text-muted-foreground">{t('checking_website')}</p>
+                        if (check.state === 'live') return <p role="status" className="text-xs font-semibold text-emerald-600">
+                          {check.title ? t('website_live_title', { title: check.title }) : t('website_live')}
+                        </p>
+                        if (check.state === 'unreachable') return <p role="alert" className="text-xs text-destructive">{t('website_unreachable')}</p>
+                        return <p role="alert" className="text-xs text-destructive">{t(check.key)}</p>
+                      })()}
+                    </div>
+                  ) : !row.legacyName ? <p className="text-xs text-muted-foreground">{t('website_missing')}</p> : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" className="min-h-11" aria-label={t('save_label', { name: label })} onClick={() => save(row)}>
