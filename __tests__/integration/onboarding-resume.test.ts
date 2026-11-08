@@ -144,6 +144,13 @@ describe('T10 persistent onboarding resume through guarded HTTP SQL', () => {
     const [counts] = await sql`select count(*)::int as total, count(*) filter (where onboarding_seed_key is null)::int as manual
       from prompt_bank where client_id = ${initialized!.clientId}`
     expect(counts).toMatchObject({ total: 50, manual: 49 })
+    // Generated questions are labelled as profile-derived; the operator's own
+    // rows carry no recorded source, which is not the same as "manual".
+    const [sources] = await sql`select
+      count(*) filter (where source = 'profile')::int as profile,
+      count(*) filter (where source is null)::int as unrecorded
+      from prompt_bank where client_id = ${initialized!.clientId}`
+    expect(sources).toEqual({ profile: 1, unrecorded: 49 })
   }))
   it('stores competitor websites as entities so citations can be attributed', async () => fixture(async accountId => {
     const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Synthetic competitors',

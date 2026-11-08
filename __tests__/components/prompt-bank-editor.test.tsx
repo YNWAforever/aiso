@@ -191,4 +191,18 @@ describe('PromptBankEditor failure handling', () => {
     expect(source).toContain('res.status === 409')
     expect(source).toContain("t('qb_limit_reached'")
   })
+
+  it('labels recorded provenance and stays silent when it was never recorded', () => {
+    // Provenance is a stored fact (migration 100), not an inference: a row with
+    // no source is unrecorded and must not be labelled "manual".
+    const rendered = render([
+      prompt({ id: 'p1', question: 'Profile one', source: 'profile' }),
+      prompt({ id: 'p2', question: 'Demand one', source: 'demand' }),
+    ])
+    expect(rendered).toContain(messages('en').pulse.qb_source_profile)
+    expect(rendered).toContain(messages('en').pulse.qb_source_demand)
+    const unknown = render([prompt({ id: 'p3' })])
+    expect(unknown).not.toContain(messages('en').pulse.qb_source_profile)
+    expect(unknown).not.toContain(messages('en').pulse.qb_source_demand)
+  })
 })

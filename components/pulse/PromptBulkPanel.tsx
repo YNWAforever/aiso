@@ -8,7 +8,7 @@ type Preview=PromptBatchPreview
 type Demand={state:'ok'|'no_data'|'not_connected'|'failed';activeCount?:number;activeLimit?:number;excludedBranded?:number;window?:{start:string;end:string}|null;sources?:{query:string;clicks:number;impressions:number;language:string}[]}
 const ERROR_GUIDANCE:Record<string,string>={DUPLICATE_PROMPT:'qb_bulk_fix_duplicate',INVALID_CATEGORY:'qb_bulk_fix_category',MARKET_REQUIRED:'qb_bulk_fix_market',INVALID_LANGUAGE:'qb_bulk_fix_language',INVALID_QUESTION:'qb_bulk_fix_question',INVALID_ACTIVE:'qb_bulk_fix_active',INVALID_OWNED_ID:'qb_bulk_fix_id',PROMPT_LIMIT_REACHED:'qb_bulk_fix_limit',ACTIVE_LIMIT_REACHED:'qb_bulk_fix_active_limit'}
 export function PromptBulkPanel({clientId,prompts,onPromptsChange}:{clientId:string;prompts:PromptBankItem[];onPromptsChange:(p:PromptBankItem[])=>void}){
- const t=useTranslations('pulse'),lang=useLocale(),[selected,setSelected]=useState<string[]>([]),[filter,setFilter]=useState(''),[sort,setSort]=useState('question'),[csv,setCsv]=useState(''),[language,setLanguage]=useState(''),[market,setMarket]=useState(''),[active,setActive]=useState(''),[preview,setPreview]=useState<Preview|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[uncertain,setUncertain]=useState(false),[recent,setRecent]=useState<Record<string,{runId:string;week:string;expected:number;succeeded:number;classified:number}>>({});const [demand,setDemand]=useState<Demand|null>(null);const pending=useRef(false),intent=useRef<string|null>(null),uncertainFlag=useRef(false)
+ const t=useTranslations('pulse'),lang=useLocale(),[selected,setSelected]=useState<string[]>([]),[filter,setFilter]=useState(''),[sort,setSort]=useState('question'),[csv,setCsv]=useState(''),[language,setLanguage]=useState(''),[market,setMarket]=useState(''),[active,setActive]=useState(''),[preview,setPreview]=useState<Preview|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[uncertain,setUncertain]=useState(false),[recent,setRecent]=useState<Record<string,{runId:string;week:string;expected:number;succeeded:number;classified:number}>>({});const [demand,setDemand]=useState<Demand|null>(null);const [demandDrafted,setDemandDrafted]=useState(false);const pending=useRef(false),intent=useRef<string|null>(null),uncertainFlag=useRef(false)
  const endpoint=`/api/dashboard/clients/${clientId}/prompts/bulk`,visible=prompts.filter(p=>p.question.toLowerCase().includes(filter.toLowerCase())).sort((a,b)=>sort==='language'?String(a.language).localeCompare(String(b.language))||a.id.localeCompare(b.id):a.question.localeCompare(b.question)||a.id.localeCompare(b.id))
  async function load(){const response=await fetch(endpoint,{cache:'no-store'});if(!response.ok)throw new Error('load');const body=await response.json();setRecent(body.recent??{});return body}
  // Retainer OS Slice A: draft from the brand's own search demand into the CSV box, where the operator edits
@@ -21,7 +21,7 @@ export function PromptBulkPanel({clientId,prompts,onPromptsChange}:{clientId:str
    if(!response.ok){setDemand({state:'failed'});return}
    const body=await response.json()
    setDemand(body)
-   if(body.state==='ok'&&typeof body.csv==='string'&&body.csv)setCsv(body.csv)
+   if(body.state==='ok'&&typeof body.csv==='string'&&body.csv){setCsv(body.csv);setDemandDrafted(true)}
   }catch{setDemand({state:'failed'})}
   finally{pending.current=false;setBusy(false)}
  }
@@ -46,7 +46,10 @@ export function PromptBulkPanel({clientId,prompts,onPromptsChange}:{clientId:str
   pending.current=true;setBusy(true);setError('')
   try{
    // The store checks the scoped original intent before any possible write.
-   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({intentKey:intent.current,expectedVersion:preview.version,changes:preview.validRows})})
+   // The rows being applied came from search demand, so they carry that label.
+   // Editing the wording does not change where the question came from; clearing
+   // the box does, which is why an emptied CSV drops the label.
+   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({intentKey:intent.current,expectedVersion:preview.version,changes:preview.validRows,...(demandDrafted?{source:'demand'}:{})})})
    if(!response.ok){
     if(response.status>=500){uncertainFlag.current=true;setUncertain(true);setError(t('qb_bulk_unknown'));return}
     const body=await response.json()
@@ -57,7 +60,7 @@ export function PromptBulkPanel({clientId,prompts,onPromptsChange}:{clientId:str
    const result=await response.json()
    if(!result||!Array.isArray(result.updatedIds))throw new Error('unknown receipt')
    const current=await load();onPromptsChange(current.prompts)
-   setPreview(null);setSelected([]);setCsv('');intent.current=null;uncertainFlag.current=false;setUncertain(false)
+   setPreview(null);setSelected([]);setCsv('');setDemandDrafted(false);intent.current=null;uncertainFlag.current=false;setUncertain(false)
   }catch{uncertainFlag.current=true;setUncertain(true);setError(t('qb_bulk_unknown'))}
   finally{pending.current=false;setBusy(false)}
  }
@@ -83,7 +86,7 @@ export function PromptBulkPanel({clientId,prompts,onPromptsChange}:{clientId:str
  {typeof demand?.activeCount==='number'&&<p className="text-xs">{t(demand.activeCount>(demand.activeLimit??10)?'qb_demand_budget_over':'qb_demand_budget',{active:demand.activeCount,max:demand.activeLimit??10})}</p>}
  </section>
  <p className="text-xs">{t('qb_bulk_guidance')}</p><a className="inline-flex min-h-11 items-center underline" download="aiso-question-sample.csv" href={'data:text/csv;charset=utf-8,'+encodeURIComponent('question,category,language,market,is_active\n'+['brand_query','category_query','intent_query','pain_point'].map((category,i)=>'Synthetic sample question '+(i+1)+','+category+','+lang+',HK,true').join('\n'))}>{t('qb_bulk_sample')}</a>
- <label className="block break-words">{t('qb_bulk_csv')}<textarea className="block min-h-32 w-full rounded border p-2" maxLength={65536} value={csv} disabled={busy||uncertain} onChange={e=>{setCsv(e.target.value);setPreview(null)}} placeholder="question,category,language,market,is_active"/></label><button type="button" className="min-h-11 underline" disabled={busy||uncertain||!csv.trim()} onClick={()=>void prepare(true)}>{t('qb_bulk_preview_csv')}</button>
+ <label className="block break-words">{t('qb_bulk_csv')}<textarea className="block min-h-32 w-full rounded border p-2" maxLength={65536} value={csv} disabled={busy||uncertain} onChange={e=>{const next=e.target.value;setCsv(next);setPreview(null);if(!next.trim())setDemandDrafted(false)}} placeholder="question,category,language,market,is_active"/></label>{demandDrafted&&<p className="text-xs">{t('qb_demand_label_note')}</p>}<button type="button" className="min-h-11 underline" disabled={busy||uncertain||!csv.trim()} onClick={()=>void prepare(true)}>{t('qb_bulk_preview_csv')}</button>
  {preview&&<section aria-label={t('qb_bulk_preview')}>
  <p>{t('qb_bulk_summary',preview.summary)}</p>
  <p>{t(uncertain||busy?'qb_bulk_projection_unknown':'qb_bulk_projection',{active:preview.activeAfter})}</p>

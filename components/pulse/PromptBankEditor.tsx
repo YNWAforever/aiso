@@ -3,6 +3,7 @@ import {PromptBulkPanel} from './PromptBulkPanel'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { PROMPT_CATEGORIES, promptCategoryLabelKey } from '@/lib/prompts/categories'
+import { isPromptSource } from '@/lib/prompts/source'
 import type { PromptBankItem } from '@/lib/types'
 import { isPromptLanguage, isPromptMarket, PROMPT_MARKETS, readPromptLanguage, type PromptContextDefaults } from '@/lib/prompts/context'
 
@@ -141,6 +142,10 @@ function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
           <span className={`min-w-0 flex-1 break-words text-sm text-foreground ${!prompt.is_active ? 'line-through' : ''}`}>
             {prompt.question}
           </span>
+          {/* Provenance is shown only where it was recorded; a null source is unrecorded, never "manual". */}
+          {isPromptSource(prompt.source) && <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-2xs text-muted-foreground">
+            {t(prompt.source === 'demand' ? 'qb_source_demand' : 'qb_source_profile')}
+          </span>}
           <span className="text-xs text-muted-foreground">{readPromptLanguage(prompt.language) ?? `${t('qb_unknown_context')} (${prompt.language ?? '—'})`} · {isPromptMarket(prompt.market) ? prompt.market : t('qb_unspecified_market')}</span>
           <button type="button" ref={editButton} disabled={saving} onClick={() => { setDraft(prompt.question); setContext({ language: readPromptLanguage(prompt.language) ?? '', market: prompt.market ?? null }); setEditing(true) }} className={`${CONTROL} shrink-0 text-foreground`} aria-label={t('qb_edit_label', { question: prompt.question })} title={t('edit')}><span aria-hidden="true">✏️</span></button>
           <button type="button" id={`prompt-delete-${prompt.id}`} disabled={saving} onClick={() => onDelete(prompt.id)} className={`${CONTROL} shrink-0 text-destructive`} aria-label={t('qb_delete_label', { question: prompt.question })} title={t('delete')}><span aria-hidden="true">🗑</span></button>

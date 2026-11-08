@@ -57,6 +57,16 @@ Comes first, because Slices B and C have nothing to report without it.
     bulk preview → apply. Each draft shows its query, clicks, impressions and position, plus the date range.
   - Not built yet: a stored source label (demand versus profile) on each prompt. It needs a column, so a migration;
     left for a later slice rather than inferred.
+  - **A2 (built 2026-11-08, migration `100`, draft PR): the source label exists.**
+    - `prompt_bank.source text`, nullable, CHECK `(source is null or source in ('profile','demand'))`. NULL means the
+      provenance was never recorded — it is never "manual" and never inferred. The migration backfills `profile` only
+      where `onboarding_seed_key is not null`, a marker the onboarding seed itself wrote.
+    - Writers: the onboarding seed writes `profile`; the demand flow's apply (bulk preview → apply) carries
+      `source: 'demand'`, and `applyPromptBatch` accepts nothing else. A batch that applies existing rows never
+      relabels them, and any other value is refused as `INVALID_PROMPT_BATCH`.
+    - Readers: the prompts API and page select `source`, and the editor shows a label for recorded rows only.
+    - Blocked on Willy applying `100` (`npm run migrate -- --verify` must show it recorded) before this merges, per
+      the migration guardrail. Until then the schema gate correctly refuses a production build.
 
 ### Slice B — The Brand Month ("one record per brand per month")
 
