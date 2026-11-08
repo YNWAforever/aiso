@@ -15,7 +15,20 @@ export type PublicMonthlyReport = Omit<MonthlyReportSnapshotV2, 'delivered' | 'b
   delivered: { verifiedLive: { title: string; recordedAt: string; versionId: string }[]; selfReported: { title: string; recordedAt: string; versionId: string }[] }
 }
 
-export type ResolvedPublishedMonthlyReport = Readonly<{ report: PublicMonthlyReport; publishedAt: string }>
+export type ResolvedPublishedMonthlyReport = Readonly<{
+  report: PublicMonthlyReport
+  publishedAt: string
+  /**
+   * Same-origin proxy URLs, built from the link's own signature. The raw
+   * destinations are never part of this object — the page can only point at
+   * routes that re-verify the link.
+   */
+  logoProxyUrl: string | null
+  contactProxyUrl: string | null
+}>
+
+/** Raw branding destinations. Server-only: used by the proxy routes, never returned to a page. */
+export type MonthlyReportAssets = Readonly<{ logoUrl: string | null; contactLabel: string | null; contactUrl: string | null }>
 
 function parseShareVersion(value: unknown): number | null {
   if (typeof value !== 'string' || !/^[1-9]\d{0,9}$/.test(value)) return null
@@ -38,8 +51,7 @@ function copySearch(s: MonthlyReportSnapshotV2['search']['opening']): MonthlyRep
   return { state: s.state }
 }
 
-function copyVisibility(v: MonthlyReportSnapshotV2['visibility']): MonthlyReportSnapshotV2['visibility'] {
-  if (v.state === 'not_enough_data') return { state: 'not_enough_data', reason: v.reason }
+function copyVisibility(v: MonthlyReportSnapshotV2['visibility']): MonthlyReportSnapshotV2['visibility'] {  if (v.state === 'not_enough_data') return { state: 'not_enough_data', reason: v.reason }
   return { state: 'recorded', rule: v.rule, minAnswersPerWeek: v.minAnswersPerWeek, minDelta: v.minDelta,
     platforms: v.platforms.map(p => ({ platform: p.platform, opening: p.opening, closing: p.closing, delta: p.delta,
       direction: p.direction, reason: p.reason, weeks: p.weeks })) }
@@ -69,7 +81,20 @@ function copyPublished(s: MonthlyReportSnapshotV2): PublicMonthlyReport {
  * version / account tuple, the owner's entitlement, and a schema-2 snapshot
  * whose locale matches its version. Any miss is a neutral null (404).
  */
-export async function resolvePublishedMonthlyReport(input: { readonly slug: unknown; readonly version: unknown; readonly signature: unknown }): Promise<ResolvedPublishedMonthlyReport | null> {
+function publicAssetUrl(asset: 'logo' | 'contact', slug: string, shareVersion: number, signature: string): string {
+  const query = new URLSearchParams({ v: String(shareVersion), s: signature })
+  return `/api/public/monthly-reports/${encodeURIComponent(slug)}/${asset}?${query}`
+}
+
+/**
+ * Resolves and verifies the link once, returning the parsed snapshot and
+ * publication date. Everything that can publish a monthly report goes through
+ * this: the page, the logo proxy and the contact proxy must agree on what a
+ * valid link is, or one of them becomes the weaker door.
+ */
+async function resolveStoredMonthly(input: { readonly slug: unknown; readonly version: unknown; readonly signature: unknown }): Promise<{
+  parsed: MonthlyReportSnapshotV2; publishedAt: string; shareVersion: number
+} | null> {
   const shareVersion = parseShareVersion(input.version)
   if (typeof input.slug !== 'string' || typeof input.signature !== 'string' || shareVersion === null) return null
   try {
@@ -90,8 +115,33 @@ export async function resolvePublishedMonthlyReport(input: { readonly slug: unkn
     if (!resolveCommercialEntitlement(account).features.client_reports_online) return unavailable('entitlement')
     const parsed = parseMonthlyReportSnapshot(version.snapshot)
     if (!parsed || parsed.locale !== version.locale) return unavailable('snapshot')
-    return { report: copyPublished(parsed), publishedAt: report.published_at }
+    return { parsed, publishedAt: report.published_at, shareVersion }
   } catch {
     return unavailable('lookup')
   }
+}
+
+export async function resolvePublishedMonthlyReport(input: { readonly slug: unknown; readonly version: unknown; readonly signature: unknown }): Promise<ResolvedPublishedMonthlyReport | null> {
+  const stored = await resolveStoredMonthly(input)
+  if (!stored) return null
+  const signature = input.signature as string
+  const hasLogo = stored.parsed.branding.logoUrl !== null
+  const hasContact = stored.parsed.branding.contactLabel !== null && stored.parsed.branding.contactUrl !== null
+  return {
+    report: copyPublished(stored.parsed), publishedAt: stored.publishedAt,
+    logoProxyUrl: hasLogo ? publicAssetUrl('logo', input.slug as string, stored.shareVersion, signature) : null,
+    contactProxyUrl: hasContact ? publicAssetUrl('contact', input.slug as string, stored.shareVersion, signature) : null,
+  }
+}
+
+/**
+ * The raw branding destinations for the proxy routes. Deliberately a separate
+ * function rather than a field of the page result: this object must never be
+ * serialised into a response body.
+ */
+export async function resolvePublishedMonthlyReportAssets(input: { readonly slug: unknown; readonly version: unknown; readonly signature: unknown }): Promise<MonthlyReportAssets | null> {
+  const stored = await resolveStoredMonthly(input)
+  if (!stored) return null
+  const { logoUrl, contactLabel, contactUrl } = stored.parsed.branding
+  return { logoUrl, contactLabel, contactUrl: contactLabel !== null ? contactUrl : null }
 }

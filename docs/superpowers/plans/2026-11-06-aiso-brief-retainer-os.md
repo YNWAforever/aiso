@@ -140,7 +140,12 @@ Comes first, because Slices B and C have nothing to report without it.
   - The share link has the same signed format as scan reports. `/{lang}/r/[slug]` tries the scan resolver first, then
     `resolvePublishedMonthlyReport`, which repeats every scan check (HMAC first, published, tuple, entitlement,
     locale) and copies an allow-list: no raw logo/contact URL, no internal version id.
-  - Not yet: the agency logo and contact link on the public monthly page (their proxy routes serve scan reports).
+  - **Logo and contact link (built 2026-11-08).** The public monthly page shows the agency logo and its contact CTA,
+    but never the stored destinations: it links to `/api/public/monthly-reports/{slug}/logo|contact?v=&s=`, which
+    re-verify the same signed link (`resolvePublishedMonthlyReportAssets`) before serving the image (SSRF-hardened
+    `fetchReportLogo`, PNG/JPEG/WebP, 2 MiB) or a 303 to the re-normalised destination. The logo and contact are in
+    the frozen snapshot's branding, so a client sees exactly what the agency reviewed. Monthly CTA clicks use the
+    same aggregate counter as scan reports.
 - **C3 (Q1, the movement rule — built 2026-11-08): the visibility section is real.**
   - `lib/monthly-report/movement.ts` (pure, rule version 1). A direction is reported only when **three consecutive
     week-to-week comparisons move the same way**, the weeks are **seven days apart** (a missing week breaks the chain
