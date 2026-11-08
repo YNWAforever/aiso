@@ -14,6 +14,8 @@ const COPY = {
     check: 'Check', liveTitle: '✓ Live — Example Domain',
     competitorWebsite: 'Competitor website (optional)', competitorLive: '✓ fixture.example is live',
     description: 'Brand description', competitors: 'Main competitors', finish: 'Go to my dashboard',
+    add: 'Add', count0: '0 of 10', count1: '1 of 10', count10: '10 of 10',
+    competitorLimit: 'You can add up to 10 competitors.',
     completeError: 'Something went wrong',
   },
   'zh-HK': {
@@ -27,6 +29,8 @@ const COPY = {
     check: '檢查', liveTitle: '✓ 已連線 — Example Domain',
     competitorWebsite: '競爭對手網站（可選）', competitorLive: '✓ fixture.example 可存取',
     description: '品牌描述', competitors: '主要競爭對手', finish: '前往我的儀表板',
+    add: '新增', count0: '0 / 10', count1: '1 / 10', count10: '10 / 10',
+    competitorLimit: '最多可加入 10 個競爭對手。',
     completeError: '發生錯誤，請再試一次',
   },
 } as const
@@ -189,6 +193,8 @@ for (const locale of A11Y_LOCALES) {
     await expectStep(3)
     const competitor = page.getByRole('textbox', { name: new RegExp(c.competitors) })
     const competitorWebsite = page.getByRole('textbox', { name: c.competitorWebsite, exact: true })
+    const add = page.getByRole('button', { name: c.add, exact: true })
+    await expect(page.getByText(c.count0, { exact: true })).toBeVisible()
     await competitor.fill('Fixture competitor')
     await competitorWebsite.fill('fixture.example')
     await competitor.press('Enter')
@@ -197,7 +203,9 @@ for (const locale of A11Y_LOCALES) {
     })
     await expect(page.getByText(c.competitorLive, { exact: true })).toBeVisible()
     await expect(remove).toBeVisible()
-    // Adding clears both inputs; the next few Tabs reach the saved chip's Remove.
+    await expect(page.getByText(c.count1, { exact: true })).toBeVisible()
+    // Adding clears both inputs and disables Add, so the next few Tabs reach the
+    // saved chip's Remove.
     for (let attempt = 0; attempt < 6; attempt += 1) {
       if (await remove.evaluate(element => document.activeElement === element)) break
       await page.keyboard.press('Tab')
@@ -205,6 +213,27 @@ for (const locale of A11Y_LOCALES) {
     await expect(remove).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(remove).toHaveCount(0)
+    await expect(page.getByText(c.count0, { exact: true })).toBeVisible()
+
+    // The shared cap: ten names are accepted, the eleventh is refused with a
+    // translated message and no chip.
+    for (let i = 0; i < 10; i += 1) {
+      await competitor.fill(`Rival ${i}`)
+      await competitor.press('Enter')
+    }
+    await expect(page.getByText(c.count10, { exact: true })).toBeVisible()
+    await expect(add).toBeDisabled()
+    await competitor.fill('Rival extra')
+    await competitor.press('Enter')
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(c.competitorLimit)
+    await expect(page.getByRole('button', {
+      name: locale === 'en' ? 'Remove Rival extra' : '移除Rival extra', exact: true,
+    })).toHaveCount(0)
+    // A duplicate add clears the problem message at the cap, leaving the
+    // completion failure below as the only alert.
+    await competitor.fill('Rival 0')
+    await competitor.press('Enter')
+    await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0)
     await expectZoomReflow(page)
     for (const step of [2, 1, 0]) {
       await activateButtonByKeyboard(page, c.back)

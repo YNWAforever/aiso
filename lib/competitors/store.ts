@@ -29,18 +29,35 @@ function lock(sql: Sql, accountId: string, clientId: string) {
 }
 
 function syncArray(sql: Sql, accountId: string, clientId: string) {
+  // Onboarding and brand creation still write only the array, so it is copied
+  // in before every edit. Two bounds keep the table honest: names longer than
+  // the table's CHECK (impossible to store) and anything past the classifier's
+  // cap are not materialised. Distinct-on keeps the first spelling of a
+  // case-insensitive duplicate, and the outer order keeps the member's order —
+  // a row's created_at, which mirrorArray and the readers order by, is not
+  // stable within one statement.
   return sql`
     insert into competitors (account_id, client_id, name)
-    select c.account_id, c.id, btrim(n.value)
+    select c.account_id, c.id, names.name
     from clients c
-    cross join lateral unnest(coalesce(c.competitors, '{}'::text[])) as n(value)
+    cross join lateral (
+      select distinct on (lower(btrim(u.value)))
+        btrim(u.value) as name, u.ordinality
+      from unnest(coalesce(c.competitors, '{}'::text[])) with ordinality as u(value, ordinality)
+      where char_length(btrim(u.value)) between 1 and 120
+        and not exists (
+          select 1 from competitors k
+          where k.client_id = c.id and k.account_id = c.account_id
+            and k.archived_at is null and lower(k.name) = lower(btrim(u.value))
+        )
+      order by lower(btrim(u.value)), u.ordinality
+    ) as names
     where c.id = ${clientId} and c.account_id = ${accountId}
-      and char_length(btrim(n.value)) between 1 and 120
-      and not exists (
-        select 1 from competitors k
-        where k.client_id = c.id and k.account_id = c.account_id
-          and k.archived_at is null and lower(k.name) = lower(btrim(n.value))
-      )
+    order by names.ordinality
+    limit greatest(0, ${MAX_COMPETITORS} - (
+      select count(*)::int from competitors k
+      where k.client_id = ${clientId} and k.account_id = ${accountId} and k.archived_at is null
+    ))
     on conflict do nothing
   `
 }
