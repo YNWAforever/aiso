@@ -17,6 +17,14 @@ const PAGES = [
   'docs/runbooks/schema-equivalence.md',
 ]
 
+/**
+ * The README is checked out with CRLF endings on Windows, while CI has LF. The
+ * tests below are about content, not line endings, so normalise before asserting
+ * on line counts or a leading heading rather than failing on the checkout's
+ * `core.autocrlf` setting.
+ */
+const readPage = (page: string) => readFileSync(page, 'utf8').replace(/\r\n/g, '\n')
+
 function relativeLinks(markdown: string): string[] {
   return [...markdown.matchAll(/\]\(([^)\s]+)\)/g)]
     .map(match => match[1]!)
@@ -26,12 +34,12 @@ function relativeLinks(markdown: string): string[] {
 
 describe('README and the docs it points to', () => {
   it.each(PAGES)('%s links only to files that exist', page => {
-    const links = relativeLinks(readFileSync(page, 'utf8'))
+    const links = relativeLinks(readPage(page))
     for (const target of links) expect({ page, target, exists: existsSync(join(dirname(page), target)) }).toEqual({ page, target, exists: true })
   })
 
   it('keeps the README a front page, not a store of notes', () => {
-    const readme = readFileSync('README.md', 'utf8')
+    const readme = readPage('README.md')
     expect(readme.split('\n').length).toBeLessThan(130)
     expect(readme.startsWith('# Fimmick AISO\n')).toBe(true)
   })

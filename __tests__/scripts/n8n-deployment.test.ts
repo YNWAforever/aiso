@@ -69,7 +69,19 @@ else: sys.stdout.write(response)
   } finally { rmSync(dir, { recursive: true, force: true }) }
 }
 
-describe('n8n deployment security', () => {
+/**
+ * These suites execute the real deployment shell scripts under bash, in a temp
+ * directory whose path is passed straight to the interpreter, with a POSIX
+ * `PATH` separator and `chmod`. That only works on a POSIX host: a Windows
+ * checkout may have a bash (Git Bash or a WSL stub) that still cannot see a
+ * `C:\…` path, which reports 127 for every case. CI is Linux, where these run;
+ * here the suites are skipped loudly instead of failing about the environment.
+ */
+const posixHost = process.platform !== 'win32'
+const describeWithBash = posixHost ? describe : describe.skip
+if (!posixHost) console.warn('[n8n-deployment] Windows host: skipping the POSIX shell-script suites.')
+
+describeWithBash('n8n deployment security', () => {
   it.each(['configure-credentials.sh', 'deploy-workflows.sh'])('%s refuses a missing webhook secret before any remote action', script => {
     const result = run(script, '', '')
     expect(result.status).not.toBe(0)
