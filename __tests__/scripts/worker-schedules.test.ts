@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareSchedules, configuredCrons } from '@/scripts/worker-schedules.mjs'
+import { compareSchedules, configuredCrons, expiredLoginMessage } from '@/scripts/worker-schedules.mjs'
 
 /**
  * The readback's pure half. The failure it guards against is silent: a cron in
@@ -29,5 +29,13 @@ describe('worker schedule drift', () => {
   it('passes when the deployed schedules match, tolerating order and unknown result shapes', () => {
     expect(compareSchedules(['17 4 * * *', '47 7 * * 1'], [{ cron: '47 7 * * 1' }, { cron: '17 4 * * *' }]).drift).toBe(false)
     expect(compareSchedules(['17 4 * * *'], [null, {}, { cron: 42 }])).toMatchObject({ missing: ['17 4 * * *'], extra: [], drift: true })
+  })
+
+  it('explains an expired wrangler login with the command that refreshes it', () => {
+    const now = Date.parse('2026-11-09T05:00:00Z')
+    expect(expiredLoginMessage('2026-11-08T20:40:23.995Z', now)).toContain('npx wrangler whoami')
+    expect(expiredLoginMessage('2026-11-09T06:00:00Z', now)).toBeNull()
+    expect(expiredLoginMessage(null, now)).toBeNull()
+    expect(expiredLoginMessage('not a date', now)).toBeNull()
   })
 })

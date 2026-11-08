@@ -45,7 +45,7 @@ export function compareSchedules(configured, deployed) {
   }
 }
 
-function oauthToken() {
+function oauthCredential() {
   const candidates = [
     process.env.APPDATA ? join(process.env.APPDATA, 'xdg.config', '.wrangler', 'config', 'default.toml') : null,
     join(homedir(), '.config', '.wrangler', 'config', 'default.toml'),
@@ -53,10 +53,38 @@ function oauthToken() {
   ].filter(Boolean)
   for (const path of candidates) {
     if (!existsSync(path)) continue
-    const match = /oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(path, 'utf8'))
-    if (match) return match[1]
+    const toml = readFileSync(path, 'utf8')
+    const token = /oauth_token\s*=\s*"([^"]+)"/.exec(toml)?.[1]
+    if (!token) continue
+    return { token, expiresAt: /expiration_time\s*=\s*"([^"]+)"/.exec(toml)?.[1] ?? null }
   }
   return null
+}
+
+/**
+ * The message for a wrangler login that has expired, or null while it is still
+ * valid. Pure so the wording (and the refresh instruction) can be pinned by a
+ * test without touching a real login file.
+ */
+export function expiredLoginMessage(expiresAt, now = Date.now()) {
+  const expires = expiresAt ? Date.parse(expiresAt) : Number.NaN
+  if (!Number.isFinite(expires) || expires >= now) return null
+  return `the wrangler login expired at ${expiresAt}; run \`npx wrangler whoami\` to refresh it, or set CLOUDFLARE_API_TOKEN`
+}
+
+/**
+ * Resolves a credential without ever refreshing it: Cloudflare rotates the
+ * refresh token on use, so a tool that refreshed silently would invalidate the
+ * login the wrangler CLI itself depends on. An expired login is reported with
+ * the one command that fixes it instead.
+ */
+function credential() {
+  if (process.env.CLOUDFLARE_API_TOKEN) return process.env.CLOUDFLARE_API_TOKEN
+  const oauth = oauthCredential()
+  if (!oauth) throw new Error('No Cloudflare credential: set CLOUDFLARE_API_TOKEN or run `wrangler login`')
+  const expired = expiredLoginMessage(oauth.expiresAt)
+  if (expired) throw new Error(expired)
+  return oauth.token
 }
 
 async function main() {
@@ -66,8 +94,7 @@ async function main() {
   const accountId = config?.account_id, script = config?.name
   if (typeof accountId !== 'string' || typeof script !== 'string') throw new Error(`${CONFIG_PATH} is missing account_id or name`)
 
-  const token = process.env.CLOUDFLARE_API_TOKEN ?? oauthToken()
-  if (!token) throw new Error('No Cloudflare credential: set CLOUDFLARE_API_TOKEN or run `wrangler login`')
+  const token = credential()
 
   const response = await fetch(`${API}/accounts/${accountId}/workers/scripts/${script}/schedules`, {
     headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000),
@@ -75,7 +102,8 @@ async function main() {
   const body = await response.json()
   if (!response.ok || !body?.success) {
     const codes = (body?.errors ?? []).map(error => error?.code).filter(Boolean)
-    throw new Error(`Cloudflare readback failed (${response.status}${codes.length ? `, codes ${codes.join(',')}` : ''})`)
+    const hint = response.status === 401 ? ' — the credential was rejected; run `npx wrangler whoami` or refresh CLOUDFLARE_API_TOKEN' : ''
+    throw new Error(`Cloudflare readback failed (${response.status}${codes.length ? `, codes ${codes.join(',')}` : ''})${hint}`)
   }
   const result = compareSchedules(configured, body.result?.schedules)
   // Deployment evidence for the packet: when the schedules and script last changed.

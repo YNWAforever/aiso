@@ -46,6 +46,11 @@ npm run worker:schedules          # human output, exit 1 on drift
 npm run worker:schedules -- --json
 ```
 
+It uses `CLOUDFLARE_API_TOKEN` if set, else the local `wrangler login` token, and never prints
+either. The login itself expires after a few hours: an `expired at …; run \`npx wrangler whoami\``
+message means the local login needs refreshing, and `npx wrangler whoami` does that without
+printing the token it refreshes.
+
 ## Proposed source — deployment remains HOLD
 
 `17 16 * * *` is 00:17 in Hong Kong and Singapore (UTC+8). That tick calls only `/api/cron/brand-months`. The daily key `17 4 * * *` stays the verified live baseline: `/api/cron/pulse` and `/api/cron/pulse?mode=repair`. It does not call Search Console or outcomes. `47 7 * * 1` is unchanged, including its literal weekday field. `0 9 * * *` remains mapped to `/api/cron/trial-emails` and `/api/cron/search-console` and is absent from both Worker cron arrays.
