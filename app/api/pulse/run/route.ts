@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { callMultiPlatform } from '@/lib/openrouter'
 import { analyseAnswer } from '@/lib/pulse/analysis'
-import { citationPlatformFor, runtimePlatformsFor } from '@/lib/pulse/platforms'
+import { citationPlatformFor, pulsePlatformsFor } from '@/lib/pulse/platforms'
 import { MAX_PROMPTS, pulseAnswerMaxTokens } from '@/lib/pulse/limits'
 import { computeWeeklySummary } from '@/lib/pulse/summary'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
@@ -129,7 +129,8 @@ export async function POST(req: NextRequest) {
     // and enterprise all five. Translated out of the entitlement vocabulary,
     // which shares no key with the runtime one; see lib/pulse/platforms.ts.
     const entitlement = resolveCommercialEntitlement(row as CommercialAccount)
-    platforms = runtimePlatformsFor(entitlement.features.platform_access)
+    // Q2: the approved platform budget, intersected with the plan's access.
+    platforms = pulsePlatformsFor(entitlement.features.platform_access)
   } catch {
     // A failed lookup is a database incident, not "no such client" — never let
     // an outage read as a 404.

@@ -71,3 +71,31 @@ export function runtimePlatformsFor(platformAccess: readonly string[]): string[]
 export function citationPlatformFor(runtimeKey: string): string | null {
   return RUNTIME_TO_CITATION[runtimeKey] ?? null
 }
+
+/**
+ * Q2, decided 2026-11-08: the platforms a *weekly Pulse run* may spend on.
+ *
+ * This is the spend decision, not a plan feature. Plans grant platform access
+ * (catalog `platform_access`) and keep granting it — this budget only caps what
+ * a Pulse run actually queries, so cutting cost later is one edit here rather
+ * than a plan change every customer sees.
+ *
+ * Measured on production before the approval: one Pulse week for one brand at
+ * 8 questions across the five platforms cost **$0.574** in collection calls
+ * plus ~$0.006 in answer classification, ≈ $3.10/month per brand at Q2's
+ * 10-question budget. A platform added to this list without a cost check is a
+ * recurring spend increase, so `__tests__/lib/pulse-platforms.test.ts` pins the
+ * approved set.
+ */
+export const PULSE_PLATFORM_BUDGET: readonly string[] = [
+  'gemini', 'gpt4o', 'claude', 'perplexity-s', 'perplexity-p',
+]
+
+/**
+ * What a Pulse run may query for this plan. Intersects the plan's entitlement
+ * with the approved budget, so a plan entitlement added later cannot raise
+ * weekly spend silently.
+ */
+export function pulsePlatformsFor(platformAccess: readonly string[]): string[] {
+  return runtimePlatformsFor(platformAccess.filter(key => PULSE_PLATFORM_BUDGET.includes(key)))
+}

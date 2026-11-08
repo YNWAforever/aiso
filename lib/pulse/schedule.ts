@@ -1,5 +1,5 @@
 import type { db } from '@/lib/db'
-import { runtimePlatformsFor } from '@/lib/pulse/platforms'
+import { pulsePlatformsFor } from '@/lib/pulse/platforms'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 import { isFeatureEnabled } from '@/lib/flags'
 
@@ -103,7 +103,7 @@ export async function selectPendingClientPage(sql: Sql, options: {
       cursor = { createdAt: typeof row.created_at==='string'?row.created_at:row.created_at.toISOString(), clientId: row.client_id }
       scanned++
       const entitlement = resolveCommercialEntitlement(row as CommercialAccount)
-      if (runtimePlatformsFor(entitlement.features.platform_access).length && Number(row.prompt_count) > 0) {
+      if (pulsePlatformsFor(entitlement.features.platform_access).length && Number(row.prompt_count) > 0) {
         items.push({ clientId: row.client_id, promptCount: Number(row.prompt_count), cursor: Number(row.scanned_prompts) })
       }
       if (items.length >= options.limit) return { items, nextCursor: cursor,
