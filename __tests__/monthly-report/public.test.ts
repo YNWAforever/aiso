@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({ resolvePublicClientReport: vi.fn() }))
 vi.mock('@/lib/reports/store', () => ({ resolvePublicClientReport: h.resolvePublicClientReport }))
 
 import { signReportShare } from '@/lib/reports/share'
-import { resolvePublishedMonthlyReport } from '@/lib/monthly-report/public'
+import { resolvePublishedMonthlyReport, resolvePublishedMonthlyReportAssets } from '@/lib/monthly-report/public'
 
 const slug = 'm'.repeat(32), shareVersion = 3
 const signature = signReportShare({ slug, shareVersion })
@@ -50,8 +50,25 @@ describe('resolvePublishedMonthlyReport', () => {
     expect(result?.report).toMatchObject({ kind: 'monthly', month: '2026-11', client: { name: 'Bakery' }, executiveSummary: 'A good month.',
       branding: { agencyName: 'Fimmick', primaryColor: '#123ABC', contactLabel: 'Talk to us' },
       delivered: { verifiedLive: [{ title: 'Add FAQ schema', recordedAt: '2026-11-06T01:00:00.000Z' }] } })
+    // The page gets same-origin proxy URLs, never the stored destinations.
+    expect(result?.logoProxyUrl).toBe(`/api/public/monthly-reports/${slug}/logo?v=${shareVersion}&s=${signature}`)
+    expect(result?.contactProxyUrl).toBe(`/api/public/monthly-reports/${slug}/contact?v=${shareVersion}&s=${signature}`)
     const json = JSON.stringify(result)
     for (const leak of ['SENTINEL_', 'agency.example', 'logoUrl', 'contactUrl']) expect(json).not.toContain(leak)
+  })
+
+  it('offers no proxy URL when the owner stored no logo or contact', async () => {
+    h.resolvePublicClientReport.mockResolvedValue(stored({ version: { snapshot: { ...snapshot,
+      branding: { ...snapshot.branding, logoUrl: null, contactLabel: null, contactUrl: null } } } }))
+    expect(await resolve()).toMatchObject({ logoProxyUrl: null, contactProxyUrl: null })
+  })
+
+  it('re-exposes the raw destinations only through the asset reader', async () => {
+    expect(await resolvePublishedMonthlyReportAssets({ slug, version: String(shareVersion), signature }))
+      .toEqual({ logoUrl: 'https://agency.example/logo.png', contactLabel: 'Talk to us', contactUrl: 'https://agency.example/contact' })
+    // The asset reader is the same verification: a bad signature reads nothing.
+    expect(await resolvePublishedMonthlyReportAssets({ slug, version: String(shareVersion), signature: 'x'.repeat(43) })).toBeNull()
+    expect(h.resolvePublicClientReport).toHaveBeenCalledTimes(1)
   })
 
   it.each([

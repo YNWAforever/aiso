@@ -25,7 +25,7 @@ const report = {
 beforeEach(() => {
   vi.clearAllMocks()
   h.scan.mockResolvedValue(null)
-  h.monthly.mockResolvedValue({ report, publishedAt: '2026-12-04T02:00:00.000Z' })
+  h.monthly.mockResolvedValue({ report, publishedAt: '2026-12-04T02:00:00.000Z', logoProxyUrl: null, contactProxyUrl: null })
 })
 
 describe('public report page: monthly reports', () => {
@@ -37,6 +37,19 @@ describe('public report page: monthly reports', () => {
       expect(html).toContain(text)
     }
     expect(html).toContain('border-color:#123ABC')
+  })
+
+  it('renders the agency logo and contact link through the signed proxy URLs only', async () => {
+    const logoProxyUrl = `/api/public/monthly-reports/${slug}/logo?v=3&s=${'b'.repeat(43)}`
+    const contactProxyUrl = `/api/public/monthly-reports/${slug}/contact?v=3&s=${'b'.repeat(43)}`
+    h.monthly.mockResolvedValue({ report: { ...report, branding: { ...report.branding, contactLabel: 'Talk to us' } },
+      publishedAt: '2026-12-04T02:00:00.000Z', logoProxyUrl, contactProxyUrl })
+    const html = renderToStaticMarkup(await PublicReportPage(props()))
+    expect(html).toContain(`src="${logoProxyUrl.replaceAll('&', '&amp;')}"`)
+    expect(html).toContain(`href="${contactProxyUrl.replaceAll('&', '&amp;')}"`)
+    expect(html).toContain('Talk to us')
+    // The raw destinations never reach the page.
+    expect(html).not.toContain('agency.example')
   })
 
   it('keeps the page neutral when neither kind resolves, and never asks the monthly resolver for a scan report', async () => {
