@@ -7,6 +7,7 @@ import { MONITOR_VISIBLE } from '@/lib/dashboard-nav'
 import { RevealObserver } from '@/components/visuals/reveal/RevealObserver'
 import { NextActionCard } from '@/components/dashboard/overview/NextActionCard'
 import { GettingStarted } from '@/components/dashboard/overview/GettingStarted'
+import { MonthlyReportEntry } from '@/components/reports/MonthlyReportEntry'
 import { OverviewStats } from '@/components/dashboard/overview/OverviewStats'
 import { ScoreTrend } from '@/components/dashboard/overview/ScoreTrend'
 import type { IllustrationName } from '@/components/ui/empty-state'
@@ -69,6 +70,12 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
     </header>
     <RevealObserver />
     {workspace.gettingStarted&&<GettingStarted model={workspace.gettingStarted} lang={lang} base={base} />}
+    {workspace.monthlyReport&&<div className="mb-8">
+      <MonthlyReportEntry lang={lang} clientId={workspace.client.id} monthKey={workspace.monthlyReport.month}
+        monthLabel={new Intl.DateTimeFormat(lang, { year: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${workspace.monthlyReport.month}-01T00:00:00Z`))}
+        title={copy.monthlyReport.title} versionLabel={copy.monthlyReport.version.replace('{n}', String(workspace.monthlyReport.versionNumber))}
+        statusLabel={copy.monthlyReport.status[workspace.monthlyReport.status]} openLabel={copy.monthlyReport.open} />
+    </div>}
     {workspace.stats&&<OverviewStats stats={workspace.stats} lang={lang} resultsHref={health?`${base}?step=results&scanId=${encodeURIComponent(health.scanId)}`:null} />}
     {workspace.dailyWork&&<details aria-labelledby="daily-work-heading" className="group mb-8 space-y-3 rounded-2xl border border-dash-border bg-dash-surface p-5 shadow-sm sm:p-6">
       <summary id="daily-work-heading" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg text-lg font-bold text-dash-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{copy.daily.title}<ChevronDown aria-hidden="true" className="size-5 shrink-0 text-dash-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" /></summary>

@@ -163,3 +163,17 @@ it('shows unavailable collection status rather than crashing for an owned scan w
   expect(findResults(page)).toBeUndefined()
   expect(texts(page)).toContain('scanUnknown')
 })
+it('puts this month\'s saved report on the workspace home when the plan includes online reports', async () => {
+  const { hongKongMonthKey } = await import('@/lib/brand-month/period')
+  mocks.auth.mockResolvedValue({ account_id: 'account-a', accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } })
+  const month = hongKongMonthKey(new Date())
+  mocks.sql.mockResolvedValue([{ report_id: 'r1', status: 'draft', public_slug: 'p'.repeat(32), share_version: 1,
+    published_at: null, month: `${month}-01`, version_number: 2, locale: 'en', published_version_number: null, published_locale: null }])
+  await render({ step: 'home' })
+  expect(mocks.project).toHaveBeenCalledWith(expect.anything(), { month, status: 'draft', versionNumber: 2 })
+})
+it('does not read monthly reports for a plan without online reports', async () => {
+  await render({ step: 'home' })
+  expect(mocks.sql).not.toHaveBeenCalled()
+  expect(mocks.project).toHaveBeenCalledWith(expect.anything(), null)
+})

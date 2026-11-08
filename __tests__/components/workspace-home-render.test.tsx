@@ -68,6 +68,28 @@ describe('workspace home presentation', () => {
     expect(html).toContain('Add a concise product explanation')
     expect(html).not.toContain('Published')
   })
+  it('shows this month\'s saved monthly report, with its status, or nothing when there is none', () => {
+    const workspace = homeFixture()
+    workspace.monthlyReport = { month: '2026-11', status: 'published', versionNumber: 3 }
+    for (const lang of ['en','zh-HK'] as const) {
+      const copy = (lang === 'en' ? en : zh).workspaceHome.monthlyReport
+      const html = renderWithIntl(<WorkspaceHome workspace={workspace} lang={lang} />, lang)
+      // React escapes the apostrophe in "This month's report" in static markup.
+      expect(html).toContain(copy.title.replace("'", '&#x27;'))
+      expect(html).toContain(copy.status.published)
+      expect(html).toContain(copy.version.replace('{n}', '3'))
+      expect(html).toContain(copy.open)
+      expect(html).toContain(`href="/${lang}/dashboard/client-a/month/report?m=2026-11"`)
+    }
+    const without = renderWithIntl(<WorkspaceHome workspace={homeFixture()} lang="en" />, 'en')
+    expect(without).not.toContain(en.workspaceHome.monthlyReport.title)
+  })
+  it('shows a revoked report as revoked rather than hiding the entry', () => {
+    const workspace = homeFixture()
+    workspace.monthlyReport = { month: '2026-11', status: 'revoked', versionNumber: 2 }
+    const html = renderWithIntl(<WorkspaceHome workspace={workspace} lang="en" />, 'en')
+    expect(html).toContain(en.workspaceHome.monthlyReport.status.revoked)
+  })
 })
 
 // Optional offline artifacts for Playwright. Vitest's JSX renderer emits real React

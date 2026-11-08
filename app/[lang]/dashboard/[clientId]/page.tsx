@@ -4,6 +4,9 @@ import { loadOwnedPulse } from '@/lib/workspace/load-owned-pulse'
 import { buildPulseView } from '@/lib/view-models/pulse'
 import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
+import type { MonthlyReportHomeEntry } from '@/lib/view-models/workspace-home'
+import { currentMonthReport } from '@/lib/monthly-report/report-entry'
+import { listMonthlyReports } from '@/lib/monthly-report/store'
 import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
@@ -119,7 +122,16 @@ export default async function DashboardPage({
       </div>
     }
     if (!owned) notFound()
-    return <WorkspaceHome workspace={buildWorkspaceHome(owned)} lang={lang} />
+    // This month's deliverable, when one exists. Best-effort: a report read must
+    // never turn the workspace home into an error page.
+    let monthlyReport: MonthlyReportHomeEntry | null = null
+    if (features.client_reports_online) {
+      try {
+        const current = currentMonthReport(await listMonthlyReports(profile.account_id, clientId))
+        monthlyReport = current ? { month: current.month, status: current.status, versionNumber: current.versionNumber } : null
+      } catch { monthlyReport = null }
+    }
+    return <WorkspaceHome workspace={buildWorkspaceHome(owned, monthlyReport)} lang={lang} />
   }
 
   if (step === 'monitor') {
