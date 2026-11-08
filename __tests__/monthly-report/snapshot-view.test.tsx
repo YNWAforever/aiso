@@ -16,20 +16,24 @@ const activity: MonthActivity = { workItemsOpened: 2, workItemsDone: 1, siteEdit
 const opening: MonthSnapshot = { kind: 'opening', asOf: period.start, takenAt: 'x', figures: { version: 1, scan: { state: 'none' }, pulse: { state: 'none' },
   search: { state: 'ok', from: '2026-10-04', through: '2026-10-31', days: 28, clicks: 120, impressions: 4500 } } }
 const build = (over: Partial<Parameters<typeof buildMonthlyReportSnapshot>[0]> = {}) => buildMonthlyReportSnapshot({ locale: 'en', period, monthLabel: 'November 2026',
-  branding, client: { name: 'Bakery', domain: 'bakery.hk' }, activity, snapshots: [opening], openWorkItems: [{ title: 'Add hours to llms.txt' }],
+  branding, client: { name: 'Bakery', domain: 'bakery.hk' }, activity, snapshots: [opening], pulseWeeks: [], openWorkItems: [{ title: 'Add hours to llms.txt' }],
   narrative: null, now: new Date('2026-12-04T00:00:00Z'), ...over })
 const copyFrom = (m: typeof en.monthlyReport): MonthlyReportCopy => ({ delivered: m.delivered, verifiedLive: m.verified_live, selfReported: m.self_reported,
-  none: m.none, visibility: m.visibility, visibilityPending: m.visibility_pending, search: m.search, before: m.before, endOfMonth: m.end_of_month,
+  none: m.none, visibility: m.visibility, visibilityPending: m.visibility_pending,
+  visibilityOpening: m.visibility_opening, visibilityClosing: m.visibility_closing, visibilityChange: m.visibility_change,
+  visibilityVerdict: m.visibility_verdict, visibilityRising: m.visibility_rising, visibilityFalling: m.visibility_falling,
+  visibilityPlatform: m.visibility_platform, visibilityRuleNote: m.visibility_rule_note,
+  search: m.search, before: m.before, endOfMonth: m.end_of_month,
   clicks: m.clicks, impressions: m.impressions, notConnected: m.not_connected, notRecorded: m.not_recorded, nextMonth: m.next_month })
 const text = (html: string) => html.replace(/<[^>]+>/g, '|').replace(/\|+/g, '|')
 
 describe('monthly report snapshot', () => {
-  it('freezes the four sections with their sources, and holds visibility back until the movement rule exists', () => {
+  it('freezes the four sections with their sources, and records no Pulse data as not enough data rather than zero', () => {
     const s = build()
     expect(s).toMatchObject({ snapshotSchemaVersion: 2, kind: 'monthly', month: '2026-11', period: { start: period.start, end: period.end },
       branding: { agencyName: 'Fimmick', attribution: 'Powered by Fimmick AISO' },
       delivered: { verifiedLive: [{ title: 'Add FAQ schema', versionId: 'v6' }], selfReported: [{ title: 'Rewrote About page' }] },
-      visibility: { state: 'not_enough_data', reason: 'movement_rule_pending' },
+      visibility: { state: 'not_enough_data', reason: 'no_pulse_data' },
       search: { opening: { state: 'ok', clicks: 120 }, closing: { state: 'not_recorded' } },
       nextMonth: { openWorkItems: [{ title: 'Add hours to llms.txt' }] }, executiveSummary: 'November 2026: 1 change verified live and 1 self-reported.' })
     expect(parseMonthlyReportSnapshot(JSON.parse(JSON.stringify(s)))).toEqual(s)
@@ -79,6 +83,23 @@ describe('MonthlyReportView', () => {
     expect(t).toContain('|Before the month · Oct 4 – Oct 31|120|4,500|')
     expect(t).toContain('|End of the month|Not recorded|Not recorded|')
     expect(t).toContain('|Add hours to llms.txt|')
+  })
+
+  it('renders the movement rule verdict with the recorded figures, or says not enough data', () => {
+    const pulseSnapshot = (kind: 'opening' | 'closing', sov: number): MonthSnapshot => ({
+      kind, asOf: kind === 'opening' ? period.start : period.end, takenAt: 'x',
+      figures: { version: 1, scan: { state: 'none' }, pulse: { state: 'ok', week: '2026-11-02', platforms: [{ platform: 'gpt-4o', sovScore: sov, totalQueries: 8, brandMentions: 1 }] },
+        search: { state: 'none', from: '2026-11-01', through: '2026-11-30' } },
+    })
+    const weeks = ['2026-11-02', '2026-11-09', '2026-11-16', '2026-11-23'].map(week =>
+      ({ platform: 'gpt-4o', week, sov: week === '2026-11-02' ? 10 : week === '2026-11-09' ? 11 : week === '2026-11-16' ? 12 : 13, answers: 8 }))
+    const s = build({ snapshots: [pulseSnapshot('opening', 10), pulseSnapshot('closing', 14)], pulseWeeks: weeks })
+    expect(s.visibility).toMatchObject({ state: 'recorded', platforms: [{ platform: 'gpt-4o', opening: 10, closing: 14, delta: 4, direction: 'up' }] })
+    const t = text(renderToStaticMarkup(<MonthlyReportView snapshot={s} lang="en" copy={copyFrom(en.monthlyReport)} />))
+    expect(t).toContain('|gpt-4o|10%|14%|+4%|Rising|')
+    expect(t).toContain('at least 5 answers')
+    // No Pulse weeks at all stays honest rather than drawing an empty table.
+    expect(text(renderToStaticMarkup(<MonthlyReportView snapshot={build()} lang="en" copy={copyFrom(en.monthlyReport)} />))).toContain('|Not enough data yet.|')
   })
 
   it('uses the zh-HK honesty vocabulary', () => {

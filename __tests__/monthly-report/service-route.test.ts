@@ -6,7 +6,7 @@ const m = vi.hoisted(() => ({
 }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({ db: () => async () => m.client }))
-vi.mock('@/lib/brand-month/store', () => ({ readBrandMonth: vi.fn(async () => m.month) }))
+vi.mock('@/lib/brand-month/store', () => ({ readBrandMonth: vi.fn(async () => m.month), readMonthPulseWeeks: vi.fn(async () => []) }))
 vi.mock('@/lib/reports/store', () => ({ loadReportBranding: vi.fn(async () => m.branding) }))
 vi.mock('@/lib/monthly-report/store', async () => {
   class MonthlyReportExistsError extends Error {}

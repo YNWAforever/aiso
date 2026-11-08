@@ -131,6 +131,23 @@ Comes first, because Slices B and C have nothing to report without it.
     `resolvePublishedMonthlyReport`, which repeats every scan check (HMAC first, published, tuple, entitlement,
     locale) and copies an allow-list: no raw logo/contact URL, no internal version id.
   - Not yet: the agency logo and contact link on the public monthly page (their proxy routes serve scan reports).
+- **C3 (Q1, the movement rule — built 2026-11-08): the visibility section is real.**
+  - `lib/monthly-report/movement.ts` (pure, rule version 1). A direction is reported only when **three consecutive
+    week-to-week comparisons move the same way**, the weeks are **seven days apart** (a missing week breaks the chain
+    rather than being spanned), and **every week has at least 5 answers**. Sub-threshold moves (< 0.5 percentage
+    points) are flat. The most recent five usable weeks are judged. Anything else is "not enough data yet", never a
+    zero: `no_pulse_data` when the month has no weekly rollups at all, otherwise a per-platform reason
+    (`insufficient_weeks`, `insufficient_answers`, `no_clear_trend`).
+  - The section shows the **recorded** opening and closing share of voice per platform from the 097 snapshots,
+    `closing − opening`, and the rule's verdict. A figure that was never recorded stays `未記錄`, not 0.
+  - Replayed against production on 2026-11-08: the only brand with Pulse data has three weekly rollups for October
+    (the 19 Oct week is missing) and one for November, so the rule returns `insufficient_weeks` for all five
+    platforms in both months. It claims no movement from the data that exists, which is the intended conservative
+    result. The first month with four consecutive weekly rollups is when the section can say anything.
+  - Stored schema-2 versions frozen before this change keep `movement_rule_pending`; the parser accepts that legacy
+    reason and the view renders it as "not enough data yet", so history is never rewritten.
+  - Thresholds are where Q1 is now decided; changing them means bumping `MOVEMENT_RULE_VERSION` so a frozen report
+    still records which rule produced it.
 
 - **Drafted from the Brand Month,** extending the existing `client_reports` versions and share links rather than
   building a second report system.

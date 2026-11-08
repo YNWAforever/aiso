@@ -56,7 +56,12 @@ export default async function PublicReportPage({
       <main className="min-h-dvh w-full overflow-x-clip bg-background px-4 py-6 text-foreground sm:px-6 sm:py-10 print:min-h-0 print:bg-white print:p-0">
         <PublicMonthlyReport report={monthly.report} publishedAt={monthly.publishedAt} title={m.title} publishedLabel={m.published}
           copy={{ delivered: m.delivered, verifiedLive: m.verified_live, selfReported: m.self_reported, none: m.none,
-            visibility: m.visibility, visibilityPending: m.visibility_pending, search: m.search, before: m.before,
+            visibility: m.visibility, visibilityPending: m.visibility_pending,
+            visibilityOpening: m.visibility_opening, visibilityClosing: m.visibility_closing,
+            visibilityChange: m.visibility_change, visibilityVerdict: m.visibility_verdict,
+            visibilityRising: m.visibility_rising, visibilityFalling: m.visibility_falling,
+            visibilityPlatform: m.visibility_platform, visibilityRuleNote: m.visibility_rule_note,
+            search: m.search, before: m.before,
             endOfMonth: m.end_of_month, clicks: m.clicks, impressions: m.impressions, notConnected: m.not_connected,
             notRecorded: m.not_recorded, nextMonth: m.next_month }} />
       </main>
