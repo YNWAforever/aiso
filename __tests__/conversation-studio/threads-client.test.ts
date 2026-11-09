@@ -6,6 +6,7 @@ import {
   fetchStudioThread,
   fetchStudioThreads,
   finalizeStudioTurn,
+  updateStudioThread,
 } from '@/lib/conversation-studio/threads-client'
 
 const clientId = '11111111-1111-4111-8111-111111111111'
@@ -41,14 +42,17 @@ it('maps create, read, append and LIVE finalize payloads', async () => {
   await fetchStudioThread(clientId, threadId)
   await appendStudioTurn(clientId, threadId, { prompt: 'Question', task: null, reply, attached: null })
   await finalizeStudioTurn(clientId, threadId, 0, { error: 'PROVIDER_UNAVAILABLE' })
+  await updateStudioThread(clientId, threadId, { title: 'Renamed', pinned: true })
   expect(calls.map(call => `${call.init?.method ?? 'GET'} ${call.url}`)).toEqual([
     `POST /api/dashboard/clients/${clientId}/studio/threads`,
     `GET /api/dashboard/clients/${clientId}/studio/threads/${threadId}`,
     `POST /api/dashboard/clients/${clientId}/studio/threads/${threadId}/turns`,
     `PATCH /api/dashboard/clients/${clientId}/studio/threads/${threadId}/turns`,
+    `PATCH /api/dashboard/clients/${clientId}/studio/threads/${threadId}`,
   ])
   expect(JSON.parse(String(calls[2].init?.body))).toMatchObject({ prompt: 'Question', reply })
   expect(JSON.parse(String(calls[3].init?.body))).toEqual({ position: 0, live: { error: 'PROVIDER_UNAVAILABLE' } })
+  expect(JSON.parse(String(calls[4].init?.body))).toEqual({ title: 'Renamed', pinned: true })
 })
 
 it('returns the server error without pretending a write succeeded', async () => {

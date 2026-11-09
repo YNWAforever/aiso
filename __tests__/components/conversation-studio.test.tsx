@@ -101,7 +101,7 @@ it.each(['en', 'zh-HK'])('renders insufficient and evidenced replies with honest
 
 it.each(['en', 'zh-HK'])('renders thread scope and brief context without invented dates or documents in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio
-  const thread = { title: 'Source goal', goal: 'Original question', kind: 'research' as const, week: '2026-10-26', saveState: 'persisted' as const }
+  const thread = { title: 'Source goal', goal: 'Original question', kind: 'research' as const, week: '2026-10-26', saveState: 'persisted' as const, visibility: 'private' as const }
   const html = renderWithIntl(<StudioThreadHeader thread={thread} onHome={() => {}} />, lang)
   expect(html).toContain(copy.discussionEyebrow)
   expect(html).toContain(copy.privateLabel)

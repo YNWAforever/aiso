@@ -2,6 +2,7 @@ import type {
   StudioThreadCreateInput,
   StudioThreadDetail,
   StudioThreadRecord,
+  StudioThreadUpdateInput,
   StudioTurnCreateInput,
   StudioTurnLiveInput,
   StudioTurnRecord,
@@ -34,6 +35,15 @@ export function fetchStudioThreads(clientId: string, signal?: AbortSignal) {
 
 export function fetchStudioThread(clientId: string, threadId: string, signal?: AbortSignal) {
   return request<StudioThreadDetail>(`${base(clientId)}/${encodeURIComponent(threadId)}`, { signal })
+}
+
+/** Owner-only lifecycle: rename, pin, archive, share. A teammate's shared thread is read-only. */
+export function updateStudioThread(clientId: string, threadId: string, input: StudioThreadUpdateInput) {
+  return request<{ thread: StudioThreadRecord }>(`${base(clientId)}/${encodeURIComponent(threadId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
 }
 
 export function createStudioThread(clientId: string, input: StudioThreadCreateInput) {
