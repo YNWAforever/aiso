@@ -5,7 +5,7 @@ vi.stubEnv('REPORT_SHARE_SECRET', 'r'.repeat(43))
 
 import { signReportShare } from '@/lib/reports/share'
 import {
-  REVIEW_LINK_TTL_DAYS, appendReviewToken, reviewLinkExpiry, reviewTokenHash,
+  REVIEW_LINK_TTL_DAYS, buildReviewUrl, reviewLinkExpiry, reviewTokenHash,
   signReviewToken, verifyReviewToken,
 } from '@/lib/monthly-report/review-token'
 
@@ -57,12 +57,16 @@ describe('review tokens', () => {
     expect(hash).toHaveLength(64)
   })
 
-  it('builds a review link only from a signed share link, keeping its v and s', () => {
-    const shareUrl = `https://aiso.example/en/r/${'s'.repeat(32)}?v=3&s=${'a'.repeat(43)}`
-    const url = new URL(appendReviewToken(shareUrl, { reportId, versionId, expiresAt: reviewLinkExpiry(now) }))
-    expect(url.searchParams.get('v')).toBe('3')
-    expect(url.searchParams.get('s')).toBe('a'.repeat(43))
+  it('builds a review URL for the report locale and slug, with no share signature needed', () => {
+    const url = new URL(buildReviewUrl('https://aiso.example', {
+      locale: 'zh-HK', publicSlug: 's'.repeat(32), reportId, versionId, expiresAt: reviewLinkExpiry(now),
+    }))
+    expect(url.pathname).toBe(`/zh-HK/r/${'s'.repeat(32)}`)
+    expect(url.searchParams.get('s')).toBeNull()
     expect(verifyReviewToken({ reportId, versionId, token: url.searchParams.get('review')!, now })).toBe(true)
-    expect(() => appendReviewToken(`https://aiso.example/en/r/${'s'.repeat(32)}`, { reportId, versionId })).toThrow(/signed share link/)
+    expect(() => buildReviewUrl('http://aiso.example', { locale: 'en', publicSlug: 's'.repeat(32), reportId, versionId }))
+      .toThrow(/HTTPS/)
+    expect(() => buildReviewUrl('https://aiso.example', { locale: 'en', publicSlug: 'short', reportId, versionId }))
+      .toThrow(/slug/)
   })
 })

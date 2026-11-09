@@ -4,19 +4,22 @@ import { NextIntlClientProvider } from 'next-intl'
 import en from '@/messages/en.json'
 
 vi.mock('server-only', () => ({}))
-const h = vi.hoisted(() => ({ scan: vi.fn(), monthly: vi.fn(), view: vi.fn(), notFound: vi.fn(() => { throw new Error('NEXT_NOT_FOUND') }) }))
+const h = vi.hoisted(() => ({ scan: vi.fn(), monthly: vi.fn(), review: vi.fn(), view: vi.fn(), notFound: vi.fn(() => { throw new Error('NEXT_NOT_FOUND') }) }))
 vi.mock('@/lib/reports/public', () => ({ resolvePublishedClientReport: h.scan }))
-vi.mock('@/lib/monthly-report/public', () => ({ resolvePublishedMonthlyReport: h.monthly }))
+vi.mock('@/lib/monthly-report/public', () => ({ resolvePublishedMonthlyReport: h.monthly, resolveReviewMonthlyReport: h.review }))
 vi.mock('@/lib/reports/store', () => ({ incrementClientReportView: h.view }))
 vi.mock('next/navigation', () => ({ notFound: h.notFound }))
 
 import PublicReportPage from '@/app/[lang]/r/[slug]/page'
 
 const slug = 'm'.repeat(32)
-const props = (lang = 'en') => ({ params: Promise.resolve({ lang, slug }), searchParams: Promise.resolve({ v: '3', s: 'b'.repeat(43) }) })
+const props = (lang = 'en', extra: Record<string, string> = {}) => ({
+  params: Promise.resolve({ lang, slug }),
+  searchParams: Promise.resolve({ v: '3', s: 'b'.repeat(43), ...extra } as { v: string; s: string; review?: string }),
+})
 /** The monthly branch renders a client-side print control, so it needs an intl provider. */
-const render = async (lang = 'en') => renderToStaticMarkup(
-  <NextIntlClientProvider locale={lang} messages={en}>{await PublicReportPage(props(lang))}</NextIntlClientProvider>,
+const render = async (lang = 'en', extra: Record<string, string> = {}) => renderToStaticMarkup(
+  <NextIntlClientProvider locale={lang} messages={en}>{await PublicReportPage(props(lang, extra))}</NextIntlClientProvider>,
 )
 const report = {
   snapshotSchemaVersion: 2, kind: 'monthly', locale: 'en', month: '2026-11', period: { start: 'a', end: 'b' },
@@ -31,7 +34,38 @@ const report = {
 beforeEach(() => {
   vi.clearAllMocks()
   h.scan.mockResolvedValue(null)
+  h.review.mockResolvedValue(null)
   h.monthly.mockResolvedValue({ report, publishedAt: '2026-12-04T02:00:00.000Z', logoProxyUrl: null, contactProxyUrl: null })
+})
+
+describe('public report page: review links (Phase 3, advisory)', () => {
+  const reviewPayload = { report, reportId: 'r1', versionId: 'v2', versionNumber: 2, month: '2026-11',
+    status: 'draft' as const, locale: 'en' as const, publishedAt: null, existing: null, logoProxyUrl: null, contactProxyUrl: null }
+
+  it('shows the decision form for the latest draft and never claims it is published', async () => {
+    h.review.mockResolvedValue(reviewPayload)
+    const html = await render('en', { review: 'token' })
+    expect(h.review).toHaveBeenCalledWith({ slug, review: 'token' })
+    for (const text of ['Client review', 'Approve', 'Request changes', 'Send decision', 'Bakery · Monthly report']) {
+      expect(html).toContain(text)
+    }
+    expect(html).not.toContain(' · Published')
+  })
+
+  it('replaces the form with the recorded decision once one exists', async () => {
+    h.review.mockResolvedValue({ ...reviewPayload, existing: {
+      decision: 'approved', reviewerName: 'Mei', comment: null, decidedAt: '2026-12-04T02:00:00.000Z',
+    } })
+    const html = await render('en', { review: 'token' })
+    expect(html).toContain('Approved by Mei on')
+    expect(html).not.toContain('Send decision')
+  })
+
+  it('falls back to the published share resolution when the review token does not resolve', async () => {
+    const html = await render('en', { review: 'expired-token' })
+    expect(h.monthly).toHaveBeenCalled()
+    expect(html).toContain('Bakery · Monthly report')
+  })
 })
 
 describe('public report page: monthly reports', () => {

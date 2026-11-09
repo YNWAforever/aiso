@@ -22,7 +22,6 @@ import { shareSigningSecret } from '@/lib/security/share-secret'
  */
 
 const NAMESPACE = 'fimmick-report-review:v1'
-const SIGNATURE_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const TOKEN_PATTERN = /^(\d{10})\.([A-Za-z0-9_-]{43})$/
 
@@ -86,16 +85,24 @@ export function reviewTokenHash(token: string): string {
 }
 
 /**
- * A review link is the signed share link plus a `review` parameter: the public
- * page already needs the share signature to resolve the report at all, and
- * deriving the review URL from that link is what keeps `v`/`s` from drifting.
+ * A review link is its own URL: `/{locale}/r/{slug}?review={token}`. It
+ * deliberately does NOT reuse the public share link, because a review must be
+ * possible before the report is published and a share link only resolves a
+ * published version. The token is what authorises the page to show the latest
+ * version, so the URL carries no share signature at all.
  */
-export function appendReviewToken(shareUrl: string, input: ReviewPayload & { readonly expiresAt?: number }): string {
-  const url = new URL(shareUrl)
-  if (!url.searchParams.get('v') || !url.searchParams.get('s')) {
-    throw new Error('A review link must be built from a signed share link')
-  }
-  url.searchParams.set('review', signReviewToken({ ...input, expiresAt: input.expiresAt ?? reviewLinkExpiry() }))
+export function buildReviewUrl(origin: string, input: ReviewPayload & {
+  readonly locale: 'en' | 'zh-HK'
+  readonly publicSlug: string
+  readonly expiresAt?: number
+}): string {
+  const url = new URL(origin)
+  if (url.protocol !== 'https:') throw new Error('A review link must use HTTPS')
+  if (!/^[A-Za-z0-9_-]{32}$/.test(input.publicSlug)) throw new Error('Report slug must be 32 base64url characters')
+  url.pathname = `/${input.locale}/r/${encodeURIComponent(input.publicSlug)}`
+  url.search = ''
+  url.hash = ''
+  url.searchParams.set('review', signReviewToken({ reportId: input.reportId, versionId: input.versionId, expiresAt: input.expiresAt ?? reviewLinkExpiry() }))
   return url.toString()
 }
 

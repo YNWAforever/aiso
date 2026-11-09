@@ -2,8 +2,10 @@ import 'server-only'
 
 import { verifyReportShare } from '@/lib/reports/share'
 import { resolvePublicClientReport } from '@/lib/reports/store'
-import { resolveCommercialEntitlement } from '@/lib/tier'
+import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 import { parseMonthlyReportSnapshot, type MonthlyReportSnapshotV2 } from './snapshot'
+import { loadMonthlyReviewTarget, readMonthlyReviews, type MonthlyReview } from './store'
+import { verifyReviewToken } from './review-token'
 
 /**
  * The public, branded copy of a published monthly report. Built field by
@@ -143,5 +145,78 @@ export async function resolvePublishedMonthlyReportAssets(input: { readonly slug
   const stored = await resolveStoredMonthly(input)
   if (!stored) return null
   const { logoUrl, contactLabel, contactUrl } = stored.parsed.branding
+  return { logoUrl, contactLabel, contactUrl: contactLabel !== null ? contactUrl : null }
+}
+
+/** Public copy of a snapshot, for the review page (which resolves by token, not by publication). */
+export function publicMonthlyReportFromSnapshot(snapshot: MonthlyReportSnapshotV2): PublicMonthlyReport {
+  return copyPublished(snapshot)
+}
+
+/**
+ * Phase 3 (advisory): the LATEST version of a monthly report, resolved by the
+ * review token alone. Reviewers must see a draft before it is published, so this
+ * deliberately does not require a published row or a share signature; the token
+ * is bound to this report's current version, and the account must still be
+ * entitled to online reports.
+ */
+export type ResolvedReviewMonthlyReport = Readonly<{
+  report: PublicMonthlyReport
+  reportId: string
+  versionId: string
+  versionNumber: number
+  month: string
+  status: 'draft' | 'published' | 'revoked'
+  locale: 'en' | 'zh-HK'
+  /** Null while the version is a draft: the page must not say "published". */
+  publishedAt: string | null
+  existing: MonthlyReview | null
+  logoProxyUrl: string | null
+  contactProxyUrl: string | null
+}>
+
+function reviewAssetUrl(asset: 'logo' | 'contact', slug: string, review: string): string {
+  return `/api/public/monthly-reports/${encodeURIComponent(slug)}/${asset}?${new URLSearchParams({ review })}`
+}
+
+async function verifiedReviewTarget(input: { readonly slug: unknown; readonly review: unknown; readonly now?: Date }) {
+  if (typeof input.slug !== 'string' || !/^[A-Za-z0-9_-]{32}$/.test(input.slug)) return null
+  if (typeof input.review !== 'string') return null
+  const target = await loadMonthlyReviewTarget(input.slug)
+  if (!target) return null
+  if (!verifyReviewToken({ reportId: target.reportId, versionId: target.versionId, token: input.review, now: input.now })) return null
+  if (!resolveCommercialEntitlement(target.account as CommercialAccount).features.client_reports_online) return null
+  const parsed = parseMonthlyReportSnapshot(target.snapshot)
+  if (!parsed || parsed.locale !== target.locale) return null
+  return { target, parsed }
+}
+
+export async function resolveReviewMonthlyReport(input: { readonly slug: unknown; readonly review: unknown; readonly now?: Date }): Promise<ResolvedReviewMonthlyReport | null> {
+  const verified = await verifiedReviewTarget(input)
+  if (!verified) return null
+  const { target, parsed } = verified
+  const reviews = await readMonthlyReviews(target.accountId, target.clientId, target.reportId).catch(() => [])
+  const existing = reviews.find(review => review.versionId === target.versionId) ?? null
+  return {
+    report: copyPublished(parsed),
+    reportId: target.reportId,
+    versionId: target.versionId,
+    versionNumber: target.versionNumber,
+    month: target.month,
+    status: target.status,
+    locale: target.locale,
+    publishedAt: target.status === 'published' ? target.publishedAt : null,
+    existing,
+    logoProxyUrl: parsed.branding.logoUrl !== null ? reviewAssetUrl('logo', input.slug as string, input.review as string) : null,
+    contactProxyUrl: parsed.branding.contactLabel !== null && parsed.branding.contactUrl !== null
+      ? reviewAssetUrl('contact', input.slug as string, input.review as string) : null,
+  }
+}
+
+/** Raw branding destinations for the review page's proxy routes. Never returned to a page. */
+export async function resolveReviewMonthlyReportAssets(input: { readonly slug: unknown; readonly review: unknown; readonly now?: Date }): Promise<MonthlyReportAssets | null> {
+  const verified = await verifiedReviewTarget(input)
+  if (!verified) return null
+  const { logoUrl, contactLabel, contactUrl } = verified.parsed.branding
   return { logoUrl, contactLabel, contactUrl: contactLabel !== null ? contactUrl : null }
 }

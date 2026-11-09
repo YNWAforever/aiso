@@ -5,7 +5,7 @@ import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 
 process.env.REPORT_SHARE_SECRET = 'test-report-share-secret-that-is-at-least-32-characters'
-const h = vi.hoisted(() => ({ report: null as unknown, recorded: [] as string[] }))
+const h = vi.hoisted(() => ({ report: null as unknown, recorded: [] as string[], review: { current: null, earlier: null } as unknown }))
 vi.mock('server-only', () => ({}))
 // getTranslations('ns') follows the request (dashboard) locale, here en; getTranslations({ locale, namespace }) follows the argument.
 vi.mock('next-intl/server', () => ({
@@ -17,6 +17,10 @@ vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_
 vi.mock('@/lib/auth', () => ({ requireAuth: async () => ({ account_id: 'acc', accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } }) }))
 vi.mock('@/lib/db', () => ({ db: () => async () => [{ brand_name: 'Bakery', domain: 'bakery.hk' }] }))
 vi.mock('@/lib/monthly-report/store', () => ({ loadMonthlyReport: async () => h.report }))
+vi.mock('@/lib/monthly-report/review', () => ({
+  readReviewState: async () => h.review,
+  monthlyReviewLink: () => `https://aiso.example/en/r/${'s'.repeat(32)}?review=token`,
+}))
 vi.mock('@/lib/brand-month/store', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/brand-month/store')>()
   return { ...actual, readRecordedSnapshotKinds: async () => h.recorded }
@@ -78,5 +82,27 @@ describe('monthly report page', () => {
     expect(html).toContain('This month&#x27;s opening and closing figures have not been recorded yet')
     h.recorded = ['opening', 'closing']
     expect(await render()).not.toContain('Record month figures')
+  })
+
+  it('shows the client review link and a recorded decision without gating publishing', async () => {
+    h.report = { reportId: 'r1', status: 'draft', versionId: 'v2', versionNumber: 2, publicSlug: 's'.repeat(32), shareVersion: 1, snapshot: snapshot('en', 'Reviewable.') }
+    const html = await render()
+    expect(html).toContain('Client review')
+    expect(html).toContain('Copy review link')
+    expect(html).toContain('Sent for review. No decision recorded yet.')
+    // Advisory: the publish control is still rendered.
+    expect(html).toContain('Publish this version')
+
+    h.review = { current: { versionId: 'v2', versionNumber: 2, decision: 'approved', reviewerName: 'Mei', comment: 'Looks good.', decidedAt: '2026-12-05T02:00:00.000Z' }, earlier: null }
+    const decided = await render()
+    expect(decided).toContain('Approved by Mei on')
+    expect(decided).toContain('Client comment')
+    expect(decided).toContain('Looks good.')
+    expect(decided).not.toContain('No decision recorded yet')
+
+    h.review = { current: null, earlier: { versionId: 'v1', versionNumber: 1, decision: 'changes_requested', reviewerName: null, comment: 'Fix section 2', decidedAt: '2026-12-04T02:00:00.000Z' } }
+    const earlier = await render()
+    expect(earlier).toContain('asked for changes on version 1')
+    expect(earlier).toContain('Fix section 2')
   })
 })

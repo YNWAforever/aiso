@@ -10,12 +10,16 @@ import type { PublicMonthlyReport as Report } from '@/lib/monthly-report/public'
  * branding destinations never leave the server.
  */
 export function PublicMonthlyReport({ report, publishedAt, title, publishedLabel, copy, logoProxyUrl, contactProxyUrl }: {
-  report: Report; publishedAt: string; title: string; publishedLabel: string; copy: MonthlyReportCopy
+  report: Report; publishedAt: string | null; title: string; publishedLabel: string; copy: MonthlyReportCopy
   logoProxyUrl: string | null; contactProxyUrl: string | null
 }) {
   const lang = report.locale
   const month = new Intl.DateTimeFormat(lang, { year: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${report.month}-01T00:00:00Z`))
-  const published = new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Hong_Kong' }).format(new Date(publishedAt))
+  // A review link shows the report before it is published; "Published <date>"
+  // would be false there, so the header only carries the month.
+  const published = publishedAt
+    ? new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Hong_Kong' }).format(new Date(publishedAt))
+    : null
   return (
     <article lang={lang} className="mx-auto w-full max-w-3xl space-y-6">
       <header className="space-y-2 border-b-4 pb-4" style={{ borderColor: /^#[0-9A-Fa-f]{6}$/.test(report.branding.primaryColor) ? report.branding.primaryColor : undefined }}>
@@ -26,7 +30,7 @@ export function PublicMonthlyReport({ report, publishedAt, title, publishedLabel
           <p className="text-sm font-medium text-muted-foreground">{report.branding.agencyName}</p>
         </div>
         <h1 className="text-2xl font-bold tracking-tight">{report.client.name} · {title}</h1>
-        <p className="text-sm text-muted-foreground">{month} · {publishedLabel} <time dateTime={publishedAt}>{published}</time></p>
+        <p className="text-sm text-muted-foreground">{month}{published ? <> · {publishedLabel} <time dateTime={publishedAt ?? undefined}>{published}</time></> : null}</p>
         {contactProxyUrl && report.branding.contactLabel && (
           <p><a href={contactProxyUrl} rel="noopener noreferrer" referrerPolicy="no-referrer"
             className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm font-semibold hover:bg-muted">{report.branding.contactLabel}</a></p>

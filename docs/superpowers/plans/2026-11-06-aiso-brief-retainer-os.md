@@ -186,6 +186,14 @@ Comes first, because Slices B and C have nothing to report without it.
     status, version, published date, a server-signed share link and an Open link. Before this, a published month
     report was only reachable from that month's page, so an operator could publish it and lose the entry point.
     The list fails closed to the existing unavailable card (never an empty state that would read as "no report").
+  - **C6 (Phase 3, built 2026-11-09): client sign-off, advisory.** A review link
+    (`/{locale}/r/{slug}?review=…`) is an HMAC capability over report id + version id with a bounded 30-day
+    expiry, signed in its own namespace so a share signature cannot be reused and vice versa. The page shows the
+    report's **latest version** — draft or published, so a draft is reviewable — and the client records
+    `approved` / `changes_requested` (a comment is required for the latter) in `client_report_reviews`
+    (migration 101, insert-only, one decision per version). The dashboard shows the decision per version and
+    **never gates publishing**; a decision on an older version is labelled as such. Raw branding destinations stay
+    behind same-origin proxy routes that accept either the share signature or the review token.
 
 - **Drafted from the Brand Month,** extending the existing `client_reports` versions and share links rather than
   building a second report system.

@@ -1,7 +1,10 @@
-# Design: client sign-off on a monthly report (Phase 3, parked — decision required)
+# Design: client sign-off on a monthly report (Phase 3)
 
-Status: **proposed, not approved.** Nothing here is built. The open decision is in §1; the rest is a
-scope that follows from it.
+Status: **approved as option B (recorded alongside) on 2026-11-09 and implemented the same day.**
+Publishing is not gated by a client decision; a per-brand `require_signoff` gate remains a later,
+small follow-on. Decisions taken from §8: reviewer = any holder of the link (optional name),
+review-link expiry 30 days, and `changes_requested` requires a comment (enforced by the route and a
+database CHECK).
 
 ## 1. The decision that gates this work
 
