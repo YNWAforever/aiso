@@ -112,3 +112,19 @@ C/D, durable quota migration, billing/entitlement logic, onboarding brand_draft,
 Neon migration, Pulse ledger changes, live provider tests. The durable answers
 quota migration named above lands only under the separately briefed Stage 6g.
 Hold Extra High PR-diff until CI is green and AISO supplies a new brief.
+
+## 2026-11-09 update: the cap is now a fixed per-brand rule
+
+The `STUDIO_LIVE_ANSWERS_PER_WEEK` environment override described above no longer
+exists. Per the product decision of 2026-11-09, **one brand (single site) may use at
+most 10 LIVE answers per UTC week**:
+
+- The cap is `STUDIO_LIVE_ANSWERS_PER_BRAND_PER_WEEK = 10` in
+  `lib/conversation-studio/live-quota.ts`, so a deployment cannot raise or lower it.
+- Migration `102_studio_live_quota_per_brand.sql` re-keys the durable counter to
+  `(account_id, client_id, week_start)`; two brands on one account have separate
+  allowances, and a counter row cannot be shared between brands.
+- **Nothing scans a site on a schedule.** Website scans and LIVE answers remain
+  explicit actions; there is no weekly automatic scan to switch off.
+- The old per-account counter rows were preview data that could not be attributed
+  to a brand, so 102 clears them instead of guessing.

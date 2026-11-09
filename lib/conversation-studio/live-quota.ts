@@ -14,17 +14,26 @@ type StudioAnswerCounterDecision = {
 
 export type DurableStudioAnswerCounter = (
   accountId: string,
+  clientId: string,
   count: number,
   week: string,
   cap: number,
 ) => Promise<StudioAnswerCounterDecision>
 
+/**
+ * Product rule (2026-11-09): one brand / single site may use at most 10 LIVE
+ * answers per week. The cap is a constant rather than an environment setting so
+ * it cannot differ between deployments, and it is PER BRAND (102) rather than the
+ * old per-account counter — two brands on one account have separate allowances.
+ * Nothing scans a site on a schedule; LIVE is only used by an explicit Send.
+ */
+export const STUDIO_LIVE_ANSWERS_PER_BRAND_PER_WEEK = 10
+
 export function studioLiveCap(): number {
-  const raw = process.env.STUDIO_LIVE_ANSWERS_PER_WEEK
-  if (!raw || !/^\d+$/.test(raw)) return 0
-  const cap = Number(raw)
-  return Number.isSafeInteger(cap) && cap >= 0 ? cap : 0
+  return STUDIO_LIVE_ANSWERS_PER_BRAND_PER_WEEK
 }
+
+const UUID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i
 
 export function studioWeek(now = new Date()): string {
   const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
@@ -32,12 +41,12 @@ export function studioWeek(now = new Date()): string {
   return monday.toISOString().slice(0, 10)
 }
 
-const consumeFromNeon: DurableStudioAnswerCounter = async (accountId, count, week, cap) => {
+const consumeFromNeon: DurableStudioAnswerCounter = async (accountId, clientId, count, week, cap) => {
   const rows = await db()`
     with consumed as (
-      insert into studio_live_weekly_usage (account_id, week_start, answer_count)
-      values (${accountId}::uuid, ${week}::date, ${count})
-      on conflict (account_id, week_start)
+      insert into studio_live_weekly_usage (account_id, client_id, week_start, answer_count)
+      values (${accountId}::uuid, ${clientId}::uuid, ${week}::date, ${count})
+      on conflict (account_id, client_id, week_start)
       do update set answer_count = studio_live_weekly_usage.answer_count + excluded.answer_count
       where studio_live_weekly_usage.answer_count + excluded.answer_count <= ${cap}
       returning answer_count
@@ -46,7 +55,7 @@ const consumeFromNeon: DurableStudioAnswerCounter = async (accountId, count, wee
       coalesce(
         (select answer_count from consumed),
         (select answer_count from studio_live_weekly_usage
-         where account_id = ${accountId}::uuid and week_start = ${week}::date),
+         where account_id = ${accountId}::uuid and client_id = ${clientId}::uuid and week_start = ${week}::date),
         0
       ) as answer_count
   `
@@ -61,22 +70,24 @@ const consumeFromNeon: DurableStudioAnswerCounter = async (accountId, count, wee
 }
 
 /**
- * Atomically reserves the full answer fan-out before provider dispatch. The
- * account-week row survives process restarts and is shared across instances.
- * Unknown/failed provider attempts remain charged.
+ * Atomically reserves the full answer fan-out for ONE BRAND before provider
+ * dispatch. The brand-week row survives process restarts and is shared across
+ * instances. Unknown/failed provider attempts remain charged.
  */
 export async function reserveStudioAnswers(
   accountId: string,
+  clientId: string,
   count: number,
   week: string,
   consume: DurableStudioAnswerCounter = consumeFromNeon,
 ): Promise<StudioLiveQuota> {
   const cap = studioLiveCap()
-  if (!Number.isSafeInteger(count) || count < 1 || cap === 0 || count > cap
+  if (!UUID.test(accountId) || !UUID.test(clientId)
+    || !Number.isSafeInteger(count) || count < 1 || count > cap
     || !/^\d{4}-\d{2}-\d{2}$/.test(week)) throw new Error('STUDIO_QUOTA_EXCEEDED')
-  const decision = await consume(accountId, count, week, cap)
+  const decision = await consume(accountId, clientId, count, week, cap)
   if (!decision.allowed) throw new Error('STUDIO_QUOTA_EXCEEDED')
-  return { cap, remaining: decision.remaining, scope: 'account' }
+  return { cap, remaining: decision.remaining, scope: 'brand' }
 }
 
 /** Includes local Studio web requests, which are intentionally absent from Pulse. */

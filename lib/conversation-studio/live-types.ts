@@ -32,7 +32,7 @@ export type StudioLiveConfig = { platforms: string[]; cap: number }
 export type StudioLiveQuota = {
   cap: number
   remaining: number
-  scope: 'account' | 'durable'
+  scope: 'brand' | 'durable'
 }
 export type StudioLiveAnswer = {
   platform: string

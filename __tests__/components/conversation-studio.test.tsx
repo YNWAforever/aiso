@@ -207,7 +207,7 @@ it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified
   expect(ui(2, [])).toContain(copy.upgrade)
   expect(ui(2)).toContain(copy.temporaryCap)
   expect(ui(0)).not.toContain(studioCopy.featureShellNote)
-  const reply = { quota: { cap: 2, remaining: 1, scope: 'account' }, answers: [{
+  const reply = { quota: { cap: 10, remaining: 9, scope: 'brand' }, answers: [{
     platform: 'gemini-flash', coverage: 'present', answer: '<script>unsafe</script>', model: 'mock-model',
     startedAt: '2026-10-28T00:00:00Z', durationMs: 123, finishReason: 'length', grounding: 'none',
     searchEvidence: { requested: 'none', execution: 'unknown', basis: 'request-only' }, error: null,

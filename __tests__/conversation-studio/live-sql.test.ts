@@ -1,4 +1,4 @@
-import { PGlite } from '@electric-sql/pglite'
+﻿import { PGlite } from '@electric-sql/pglite'
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({ pg: null as PGlite | null, statements: [] as string[], accountId: '10000000-0000-4000-8000-000000000001' }))
@@ -17,7 +17,7 @@ const protectedTables = ['pulse_metrics', 'ai_citation_log', 'pulse_runs', 'puls
 beforeAll(async () => {
   state.pg = await PGlite.create()
   await state.pg.exec('create table clients(id uuid primary key, account_id uuid, brand_name text, status text);')
-  await state.pg.exec('create table studio_live_weekly_usage(account_id uuid, week_start date, answer_count integer check (answer_count >= 0), primary key (account_id, week_start));')
+  await state.pg.exec('create table studio_live_weekly_usage(account_id uuid, client_id uuid, week_start date, answer_count integer check (answer_count >= 0), primary key (account_id, client_id, week_start));')
   await state.pg.query("insert into clients values($1,$2,'Owned Brand','active'),($3,$4,'FOREIGN SECRET','active')", [brand, state.accountId, foreign, '10000000-0000-4000-8000-000000000002'])
   for (const table of protectedTables) await state.pg.exec(`create table ${table}(id int); insert into ${table} values(42);`)
 })
@@ -27,7 +27,6 @@ afterAll(async () => { await state.pg?.close() })
 it('executes real owned SQL and mocked provider orchestration without any metrics/citation/ledger writes', async () => {
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '1')
-  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', '5')
   vi.stubEnv('FEATURE_PULSE_GROUNDING', '0')
   vi.stubEnv('OPENROUTER_API_KEY', 'mock-only')
   vi.spyOn(console, 'info').mockImplementation(() => {})
@@ -46,7 +45,7 @@ it('executes real owned SQL and mocked provider orchestration without any metric
   expect(state.statements[0]).toMatch(/^select id, brand_name from clients where id = \$1::uuid and account_id = \$2 and status = 'active'$/)
   expect(state.statements[1]).toMatch(/^select id, brand_name from clients where id = \$1::uuid and account_id = \$2 and status = 'active'$/)
   expect(state.statements[2]).toContain('insert into studio_live_weekly_usage')
-  expect((await state.pg!.query('select account_id::text, week_start::text, answer_count from studio_live_weekly_usage')).rows)
-    .toEqual([{ account_id: state.accountId, week_start: expect.any(String), answer_count: 1 }])
+  expect((await state.pg!.query('select account_id::text, client_id::text, week_start::text, answer_count from studio_live_weekly_usage')).rows)
+    .toEqual([{ account_id: state.accountId, client_id: brand, week_start: expect.any(String), answer_count: 1 }])
   for (const table of protectedTables) expect((await state.pg!.query(`select * from ${table}`)).rows).toEqual([{ id: 42 }])
 })

@@ -59,7 +59,7 @@ export async function answerStudio(request: Request, clientId: string): Promise<
     // Reserve the entire fan-out first, so rejection cannot cause partial spend.
     selected.forEach(() => budget.reserve(maxTokens))
     const week = studioWeek()
-    const quota = await reserveStudioAnswers(profile.account_id, selected.length, week)
+    const quota = await reserveStudioAnswers(profile.account_id, clientId, selected.length, week)
     const allowance = await webSearchAllowance(sql, profile.account_id, week)
     const searchable = selected.filter(({ platform }) => groundingFor(platform, false) === 'none').length
     const webSearch = searchable > 0 && reserveStudioSearches(profile.account_id, searchable, allowance, week)
