@@ -15,9 +15,17 @@ Deployment evidence: `wrangler deploy --config cloudflare/aiso-worker/wrangler.j
 `cloudflare/cron-worker`, version `f25fd6fc-3de6-4e1e-8ea2-4967980dec7f`; wrangler reported
 all three `schedule:` lines; the deployed script was read back and contains
 `/api/cron/brand-months`, all three cron keys and `noRetry`; the `CRON_SECRET` secret is bound;
-`npm run worker:schedules` reports **no drift**. The first automatic brand-months firing is
-`17 16 * * *` UTC (00:17 HKT). Rollback target remains the previous version
+`npm run worker:schedules` reports **no drift**. Rollback target remains the previous version
 `09063648-8612-44fe-bd25-70cffc914c85` with two schedules (see below).
+
+**First-fired proof (2026-11-09).** Rather than wait for the 00:17 HKT schedule, the same source
+was deployed for a few minutes with a `*/2 * * * *` trigger mapped to the brand-months route
+(version `9f9c96ae-ae1b-47d2-9314-5efdf2bec9d4`), then the production config was restored and
+redeployed (version `de807397-f0f7-4ba8-9930-3c201d6ea1cb`). The firing answered
+`{due: 3, recorded: 9, notEntitled: 4, failed: 0}`, the Worker log showed
+`status 200` for `/api/cron/brand-months`, a second firing recorded 0 (idempotent), and the
+restored readback reports the three production ticks and no drift. No repository file was changed
+for the temporary deployment.
 
 Verify after a firing:
 

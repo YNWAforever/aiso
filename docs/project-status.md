@@ -54,10 +54,11 @@ monthly deliverables report with publish/share, agency branding, the Q1 movement
 operator-approved AI narrative draft.
 
 The cron side went live on 2026-11-09: the Worker now runs all three ticks — Pulse, alerts and
-the 00:17 HKT brand-months tick — so `brand_month_snapshots` records automatically from the
-next firing. Before that deployment the third tick was configured but never deployed, the
-reason every month figure read "not recorded"; `npm run worker:schedules` exists so that drift
-cannot be mistaken for a code bug again.
+the 00:17 HKT brand-months tick — and the brand-months route was proven end to end that day
+(see “First firing: verified” below). Before that deployment the third tick was configured but
+never deployed, the reason every month figure read "not recorded"; `npm run worker:schedules`
+exists so that drift cannot be mistaken for a code bug again, and
+`npm run report:brand-months-receipt` so a tick that never fires cannot look like a quiet one.
 
 What remains is a data question, not code:
 
@@ -85,25 +86,47 @@ deployable config — the free tier allows three triggers and all three are now 
 `npm run worker:schedules` before relying on this line, and see the
 [cron-worker runbook](runbooks/deploy-cron-worker.md) for the activation and rollback gates.
 
-### Expected receipt of the first brand-months firing
+### First firing: verified 2026-11-09
 
-Derived on 2026-11-09 from the empty snapshot table and `resolveCommercialEntitlement` (the plan
-catalog grants `client_reports_online` to Pro and Enterprise only; a Basic *trial* is Basic
-features, and an expired trial is Free features). All seven active brands are due, so the first
-00:17 HKT firing should answer **`{due: 3, recorded: 6, notEntitled: 4, failed: 0}`**:
+Waiting for 00:17 HKT would have left the only unproven link — Worker schedule → route →
+`CRON_SECRET` → database — untested for another day. The same Worker source was therefore
+deployed for a few minutes with a `*/2 * * * *` trigger mapped to `/api/cron/brand-months`
+(version `9f9c96ae-ae1b-47d2-9314-5efdf2bec9d4`), observed, and then the production config was
+restored and redeployed (version `de807397-f0f7-4ba8-9930-3c201d6ea1cb`). No repository file was
+changed or committed for this; `npm run worker:schedules` reports the three production ticks and
+no drift.
 
-| Brand | Account | Entitled | Rows it should write |
+Observed:
+
+| Firing (UTC) | Status | Detail |
+| --- | --- | --- |
+| `2026-11-09T03:44:49Z` | ok | `{due: 3, recorded: 9, notEntitled: 4, failed: 0}` |
+| `2026-11-09T03:46:49Z` | ok | `{due: 0, recorded: 0, notEntitled: 4}` |
+
+- The Worker's own log records `cron_worker_response … route /api/cron/brand-months, status 200`,
+  which proves the whole chain: a wrong `CRON_SECRET` would have been a 401 and, because the route
+  authenticates before it writes its ledger row, an invisible one.
+- **Nine rows, not the six predicted here earlier.** October's opening (as-of 30 Sep 16:00Z) had
+  also never been recorded, so the first firing fills every snapshot whose as-of instant has
+  passed: three brands × (Oct opening + Oct closing + Nov opening) = 9. Later firings write only
+  what is still missing.
+- The second firing recorded 0, so repeated ticks cannot double-write.
+- `brand_month_snapshots` now holds rows for AISO Dev Brand, Harbour Books and Northwind Coffee;
+  for 2026-11 the month page's `readRecordedSnapshotKinds` returns `["opening"]` for those three
+  and nothing for the other four — the plan-count entitlement list below, confirmed.
+
+| Brand | Account | Entitled | Snapshot rows now present |
 | --- | --- | --- | --- |
-| AISO Dev Brand | Basic, admin override Pro (no expiry) | yes | opening 2026-11, closing 2026-10 |
-| Harbour Books | Pro, active subscription | yes | opening 2026-11, closing 2026-10 |
-| Northwind Coffee | Pro, active subscription | yes | opening 2026-11, closing 2026-10 |
-| Fimmick | Basic trial, ends `2026-11-09T09:51Z` — expired by the firing | no | none |
+| AISO Dev Brand | Basic, admin override Pro (no expiry) | yes | Oct opening, Oct closing, Nov opening |
+| Harbour Books | Pro, active subscription | yes | Oct opening, Oct closing, Nov opening |
+| Northwind Coffee | Pro, active subscription | yes | Oct opening, Oct closing, Nov opening |
+| Fimmick | Basic trial, ends `2026-11-09T09:51Z` | no | none |
 | SUPER DRY | Basic trial, ends `2026-11-15T12:51Z` (Basic features, not Pro) | no | none |
 | AISO Onboarding UAT 2026-10-16 / …B | Basic, expired trials | no | none |
 
-Check it with `npm run report:brand-months-receipt`: it must show a `cron_runs` firing and six
-snapshot rows. If it shows zero, the schedule exists but did not do its work — read the receipt,
-not the absence of errors.
+Check the tick any time with `npm run report:brand-months-receipt`: after a firing it must show a
+`cron_runs` entry and the snapshot rows. If it shows zero, the schedule exists but did not do its
+work — read the receipt, not the absence of errors.
 
 ### Pulse ledger and rollups (same readback)
 

@@ -22,6 +22,12 @@ describe('brand-months receipt summary', () => {
     expect(closing).toMatchObject({ recorded: 0, missingBrands: ['Northwind Coffee', 'Second Brand'] })
   })
 
+  it('matches a full Postgres date month against the expected month key', () => {
+    // The first live run reported "0 of 7 brands" for rows that existed because
+    // the query returned `2026-11-01`; the receipt must not read a healthy tick as broken.
+    const snapshots = [{ client_id: 'c1', month: '2026-11-01', kind: 'opening' }]
+    expect(summarize(brands, snapshots, now)[0]).toMatchObject({ recorded: 1, missingBrands: ['Second Brand'] })
+  })
   it('treats the Hong Kong month boundary as the expectation, not UTC', () => {
     // 2026-10-31 17:00Z is 2026-11-01 01:00 in Hong Kong: the opening is November's.
     const entries = summarize(brands, [], new Date('2026-10-31T17:00:00Z'))
