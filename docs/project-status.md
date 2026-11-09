@@ -85,4 +85,34 @@ deployable config — the free tier allows three triggers and all three are now 
 `npm run worker:schedules` before relying on this line, and see the
 [cron-worker runbook](runbooks/deploy-cron-worker.md) for the activation and rollback gates.
 
+### Expected receipt of the first brand-months firing
+
+Derived on 2026-11-09 from the empty snapshot table and `resolveCommercialEntitlement` (the plan
+catalog grants `client_reports_online` to Pro and Enterprise only; a Basic *trial* is Basic
+features, and an expired trial is Free features). All seven active brands are due, so the first
+00:17 HKT firing should answer **`{due: 3, recorded: 6, notEntitled: 4, failed: 0}`**:
+
+| Brand | Account | Entitled | Rows it should write |
+| --- | --- | --- | --- |
+| AISO Dev Brand | Basic, admin override Pro (no expiry) | yes | opening 2026-11, closing 2026-10 |
+| Harbour Books | Pro, active subscription | yes | opening 2026-11, closing 2026-10 |
+| Northwind Coffee | Pro, active subscription | yes | opening 2026-11, closing 2026-10 |
+| Fimmick | Basic trial, ends `2026-11-09T09:51Z` — expired by the firing | no | none |
+| SUPER DRY | Basic trial, ends `2026-11-15T12:51Z` (Basic features, not Pro) | no | none |
+| AISO Onboarding UAT 2026-10-16 / …B | Basic, expired trials | no | none |
+
+Check it with `npm run report:brand-months-receipt`: it must show a `cron_runs` firing and six
+snapshot rows. If it shows zero, the schedule exists but did not do its work — read the receipt,
+not the absence of errors.
+
+### Pulse ledger and rollups (same readback)
+
+`/api/cron/pulse` has a recorded run every day at 04:17 UTC through 2026-11-08, and aggregate
+`pulse_weekly_summary` rows exist for the weeks of 5 Oct, 12 Oct, 26 Oct and 2 Nov (the 19 Oct
+week is missing, which is why Q1 has no four-week run). One ledger row is anomalous: the
+**2026-11-06** run started and never finished, with no detail and no error
+(`cron_runs.id 80ded813-3802-4a75-9d38-726fa87a7270`). A Vercel timeout can kill the route before
+`finishCronRun` writes, so an unfinished row is weaker evidence than row coverage — treat the
+weekly rollups as the signal that work happened, and the ledger as the signal that it started.
+
 
