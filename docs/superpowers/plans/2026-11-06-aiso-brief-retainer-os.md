@@ -246,10 +246,17 @@ Comes first, because Slices B and C have nothing to report without it.
 
 ## 5. Out of scope for this phase (parked)
 
-- Client sign-off through a review link (it touches the C9d approval model).
+- Client sign-off through a review link (it touches the C9d approval model). **Design drafted
+  2026-11-09** ([client sign-off](../specs/2026-11-09-monthly-report-client-signoff.md)); it needs the product owner's
+  decision on whether an approval *gates* publishing or is *recorded alongside* (recommended: recorded alongside first,
+  with a per-brand gate later). Nothing was built.
 - Self-serve brand signup and the free-scan-to-trial funnel.
 - Per-fix billing views.
 - Causal claims ("our edit caused +X%"). The report shows sequence and evidence, never causation.
+
+**Client-facing completion landed 2026-11-09** (outside the slices but inside the same deliverable): monthly reports
+now appear on the brand's reports page (#199), the shared monthly page has the same Download PDF action as scan
+reports (#200), and the brand workspace home shows this month's report with its status (#201).
 
 ## 6. Proposed order and first step
 
