@@ -1,16 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getProfile = vi.hoisted(() => vi.fn())
 const sql = vi.hoisted(() => vi.fn())
 const queryStudioDfs = vi.hoisted(() => vi.fn())
 const setStudioDfsBrandEnabled = vi.hoisted(() => vi.fn())
 const isFeatureEnabled = vi.hoisted(() => vi.fn())
+const isConversationStudioEnabled = vi.hoisted(() => vi.fn())
 const resolveCommercialEntitlement = vi.hoisted(() => vi.fn())
 
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/auth', () => ({ getProfile }))
 vi.mock('@/lib/db', () => ({ db: () => sql }))
-vi.mock('@/lib/flags', () => ({ isFeatureEnabled }))
+vi.mock('@/lib/flags', () => ({ isFeatureEnabled, isConversationStudioEnabled }))
 vi.mock('@/lib/tier', () => ({ resolveCommercialEntitlement }))
 vi.mock('@/lib/conversation-studio/dfs-query', () => ({ queryStudioDfs, setStudioDfsBrandEnabled }))
 
@@ -41,6 +42,7 @@ beforeEach(() => {
   queryStudioDfs.mockReset().mockResolvedValue({ status: 'ok', locationPending: true, week: { weekStart: '2026-11-02', timeZone: 'Asia/Hong_Kong', remaining: 19, cap: 20 } })
   setStudioDfsBrandEnabled.mockReset().mockResolvedValue(undefined)
   isFeatureEnabled.mockReset().mockReturnValue(true)
+  isConversationStudioEnabled.mockReset().mockReturnValue(true)
   resolveCommercialEntitlement.mockReset().mockReturnValue({ features: { platform_access: ['gemini'] } })
 })
 
@@ -111,6 +113,7 @@ describe('POST studio dataforseo', () => {
 
   it('is 404 when the Studio feature is off', async () => {
     isFeatureEnabled.mockReturnValue(false)
+    isConversationStudioEnabled.mockReturnValue(false)
     expect((await dataRoute()).status).toBe(404)
     expect(getProfile).not.toHaveBeenCalled()
   })
@@ -162,6 +165,7 @@ describe('POST studio dataforseo settings', () => {
     expect((await settingsRoute()).status).toBe(401)
     getProfile.mockResolvedValue(profile)
     isFeatureEnabled.mockReturnValue(false)
+    isConversationStudioEnabled.mockReturnValue(false)
     expect((await settingsRoute()).status).toBe(404)
     expect(setStudioDfsBrandEnabled).not.toHaveBeenCalled()
   })

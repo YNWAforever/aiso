@@ -2,7 +2,7 @@ import 'server-only'
 import { notFound, redirect } from 'next/navigation'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isConversationStudioEnabled, isFeatureEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { listAuthenticatedDrafts } from '@/lib/work-items/service'
 import { loadBinding, loadPanelData } from '@/lib/integrations/search-console/store'
@@ -33,7 +33,7 @@ import { recordStaffAudit } from '@/lib/staff-grants/store'
  */
 export async function requireStudioBrand(lang: string, clientId: string, { allowStaff = false }: { allowStaff?: boolean } = {}) {
   const profile = await requireAuth(lang)
-  if (!isFeatureEnabled('conversation_studio')) redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}?step=home`)
+  if (!isConversationStudioEnabled(clientId)) redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}?step=home`)
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(clientId)) notFound()
   // A failed query propagates as unavailable; only a confirmed absence is 404.
   const brands = await db()`select id, brand_name from clients where id = ${clientId} and account_id = ${profile.account_id}`

@@ -1,6 +1,6 @@
-import { getProfile } from '@/lib/auth'
+﻿import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isConversationStudioEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { readLimitedJson } from '@/lib/approvals/request'
 import { queryStudioFirecrawl } from '@/lib/conversation-studio/firecrawl-query'
@@ -19,8 +19,8 @@ const respond = (body: unknown, status = 200) =>
  * view never call Firecrawl.
  */
 export async function POST(request: Request, context: Ctx): Promise<Response> {
-  if (!isFeatureEnabled('conversation_studio')) return respond({ error: 'Not found' }, 404)
   const { clientId } = await context.params
+  if (!isConversationStudioEnabled(clientId)) return respond({ error: 'Not found' }, 404)
   const profile = await getProfile()
   if (!profile) return respond({ error: 'Unauthorized' }, 401)
   if (!resolveCommercialEntitlement(profile.accounts).features.platform_access.length) {

@@ -1,8 +1,8 @@
-import { notFound, redirect } from 'next/navigation'
+﻿import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isConversationStudioEnabled, isFeatureEnabled } from '@/lib/flags'
 import { requireStudioBrand } from '@/lib/conversation-studio/secondary'
 import { ConversationStudio } from '@/components/dashboard/ConversationStudio'
 import { loadStudioEvidence } from '@/lib/conversation-studio/evidence'
@@ -23,7 +23,7 @@ export default async function StudioPage({ params }: {
 }) {
   const { lang, clientId } = await params
   const profile = await requireAuth(lang)
-  if (!isFeatureEnabled('conversation_studio')) redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}?step=home`)
+  if (!isConversationStudioEnabled(clientId)) redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}?step=home`)
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(clientId)) notFound()
 
   let brands

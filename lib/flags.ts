@@ -10,3 +10,37 @@ export function isFeatureEnabled(flag: FeatureFlag): boolean {
   if (flag === 'conversation_studio_live' && !isFeatureEnabled('conversation_studio')) return false
   return process.env[`FEATURE_${flag.toUpperCase()}`] === '1'
 }
+
+const STUDIO_ROLLOUT_CLIENT = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i
+
+/**
+ * Optional per-brand allowlist for the Conversation Studio preview
+ * (`STUDIO_ROLLOUT_CLIENT_IDS`, comma separated client UUIDs). Empty means the
+ * feature flag alone decides, which is the previous behaviour. When set, only
+ * the listed brands get Studio as their default home and may call the Studio
+ * pages/APIs; every other brand keeps WorkspaceHome exactly as before. The
+ * allowlist exists because the Phase A design required a pilot brand rather than
+ * a global default-home switch.
+ */
+export function conversationStudioRolloutClients(): string[] {
+  const raw = process.env.STUDIO_ROLLOUT_CLIENT_IDS
+  if (!raw) return []
+  return [...new Set(raw.split(',').map(value => value.trim().toLowerCase()).filter(value => STUDIO_ROLLOUT_CLIENT.test(value)))].slice(0, 50)
+}
+
+/** Feature flag AND, when an allowlist is configured, this brand being on it. */
+export function isConversationStudioEnabled(clientId: string | null | undefined): boolean {
+  if (!isFeatureEnabled('conversation_studio')) return false
+  const rollout = conversationStudioRolloutClients()
+  if (rollout.length === 0) return true
+  return typeof clientId === 'string' && rollout.includes(clientId.toLowerCase())
+}
+
+/**
+ * Whether the sidebar should advertise Studio to everyone. While an allowlist is
+ * active it does not: the pilot brand reaches Studio through its own default-home
+ * redirect, and other brands must not be shown a door that redirects back.
+ */
+export function conversationStudioNavEnabled(): boolean {
+  return isFeatureEnabled('conversation_studio') && conversationStudioRolloutClients().length === 0
+}
