@@ -24,12 +24,14 @@ export function summarize(brands, snapshots, now) {
     { month: current, kind: 'opening', reason: 'this month opened' },
     { month: previous, kind: 'closing', reason: 'last month ended, three days ago' },
   ]
-  const present = new Set(snapshots.map(row => `${row.month}|${row.kind}|${row.client_id}`))
+  // `month` arrives as a date (`2026-11-01`) from Postgres; normalise so a full
+  // date and the expected month key compare correctly.
+  const present = new Set(snapshots.map(row => `${String(row.month).slice(0, 7)}|${row.kind}|${row.client_id}`))
   return expected.map(({ month, kind, reason }) => ({
     month, kind, reason,
     brands: brands.map(brand => brand.brand_name),
     missingBrands: brands.filter(brand => !present.has(`${month}|${kind}|${brand.client_id}`)).map(brand => brand.brand_name),
-    recorded: snapshots.filter(row => row.month === month && row.kind === kind).length,
+    recorded: snapshots.filter(row => String(row.month).slice(0, 7) === month && row.kind === kind).length,
   }))
 }
 
@@ -37,7 +39,7 @@ async function main() {
   const json = process.argv.includes('--json')
   const sql = neon(process.env.DATABASE_URL)
   const brands = (await sql`select id::text as client_id, brand_name from clients where status = 'active' order by brand_name`)
-  const snapshots = (await sql`select client_id::text as client_id, month::text as month, kind from brand_month_snapshots order by month desc, kind`)
+  const snapshots = (await sql`select client_id::text as client_id, left(month::text, 7) as month, kind from brand_month_snapshots order by month desc, kind`)
   const runs = (await sql`select route, status, started_at, finished_at, detail, error from cron_runs where route = ${ROUTE} order by started_at desc limit 5`)
   const output = { route: ROUTE, runs, expected: summarize(brands, snapshots, new Date()), snapshotRows: snapshots.length }
 
