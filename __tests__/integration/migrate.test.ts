@@ -67,7 +67,8 @@ describe('migration runner against a real branch', () => {
     // deliberate default-deny. 083's Firecrawl brand switch, 084's per-member
     // Google Drive connection and 085's insert-only export ledger follow the
     // same posture, as do 087's staff grants and insert-only staff audit. Pinning the exact set fails both ways: a table
-    // losing the posture, and a new table quietly enabling RLS without review.
+    // losing the posture, and a new table quietly enabling RLS without review. 101's client review decisions are
+    // insert-only and app-role-only, reviewed the same way on 2026-11-09.
     const rows = await sql`
       select c.relname as table_name
       from pg_class c
@@ -79,6 +80,7 @@ describe('migration runner against a real branch', () => {
       'account_report_branding',
       'authenticated_scan_monthly_usage',
       'brand_month_snapshots',
+      'client_report_reviews',
       'client_report_versions',
       'client_reports',
       'google_drive_connections',
