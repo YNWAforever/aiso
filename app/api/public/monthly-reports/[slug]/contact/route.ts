@@ -4,14 +4,17 @@ import {
   publicReportHeaders,
 } from '@/lib/reports/public'
 import { incrementClientReportCtaClick } from '@/lib/reports/store'
-import { resolvePublishedMonthlyReportAssets } from '@/lib/monthly-report/public'
+import { resolvePublishedMonthlyReportAssets, resolveReviewMonthlyReportAssets } from '@/lib/monthly-report/public'
 
 /** The monthly report's contact CTA: verified link, then a counted redirect to the stored destination. */
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const query = new URL(request.url).searchParams
   const version = query.get('v')
-  const assets = await resolvePublishedMonthlyReportAssets({ slug, version, signature: query.get('s') })
+  const review = query.get('review')
+  const assets = review
+    ? await resolveReviewMonthlyReportAssets({ slug, review })
+    : await resolvePublishedMonthlyReportAssets({ slug, version, signature: query.get('s') })
   if (!assets?.contactUrl) return neutralPublicReportNotFound()
 
   // The stored destination is re-normalised before redirecting: it was validated

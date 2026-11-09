@@ -3,13 +3,20 @@ import {
   neutralPublicReportNotFound,
   publicReportHeaders,
 } from '@/lib/reports/public'
-import { resolvePublishedMonthlyReportAssets } from '@/lib/monthly-report/public'
+import { resolvePublishedMonthlyReportAssets, resolveReviewMonthlyReportAssets } from '@/lib/monthly-report/public'
 
-/** The monthly report's agency logo, re-verified through the link's own signature. */
+/**
+ * The monthly report's agency logo, re-verified through the link's own
+ * signature — the share signature, or the review token for an unpublished
+ * report a client is reviewing.
+ */
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const query = new URL(request.url).searchParams
-  const assets = await resolvePublishedMonthlyReportAssets({ slug, version: query.get('v'), signature: query.get('s') })
+  const review = query.get('review')
+  const assets = review
+    ? await resolveReviewMonthlyReportAssets({ slug, review })
+    : await resolvePublishedMonthlyReportAssets({ slug, version: query.get('v'), signature: query.get('s') })
   if (!assets?.logoUrl) return neutralPublicReportNotFound()
 
   try {

@@ -5,6 +5,7 @@ import { MonthlyReportView } from '@/components/monthly-report/MonthlyReportView
 import { RecordSnapshotsButton } from '@/components/brand-month/RecordSnapshotsButton'
 import { MonthlyReportEditor } from '@/components/monthly-report/MonthlyReportEditor'
 import { MonthlyReportPublish } from '@/components/monthly-report/MonthlyReportPublish'
+import { MonthlyReviewStatus } from '@/components/monthly-report/MonthlyReviewStatus'
 import { requireAuth } from '@/lib/auth'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { db } from '@/lib/db'
@@ -12,6 +13,7 @@ import { dueSnapshots, hongKongMonthKey, isViewableMonth, periodOf } from '@/lib
 import { readRecordedSnapshotKinds } from '@/lib/brand-month/store'
 import { loadMonthlyReport } from '@/lib/monthly-report/store'
 import { monthLabel, monthlyShareUrl } from '@/lib/monthly-report/service'
+import { monthlyReviewLink, readReviewState } from '@/lib/monthly-report/review'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,6 +47,37 @@ export default async function MonthlyReportPage({ params, searchParams }: {
   // The report renders in its own language, whatever the dashboard's: a zh-HK report reads the same from /en and /zh-HK.
   const reportLang = report?.snapshot.locale ?? locale
   const r = await getTranslations({ locale: reportLang, namespace: 'monthlyReport' })
+  // Phase 3 (advisory): the review link and the client's recorded decision. It is
+  // shown next to the publish controls, never as a gate on them.
+  let reviewBlock: {
+    reviewUrl: string
+    statusLine: string
+    comment: string | null
+    copy: { title: string; intro: string; copyLink: string; commentHeading: string }
+  } | null = null
+  if (report && canDraft) {
+    const rv = await getTranslations({ locale: reportLang, namespace: 'monthlyReview' })
+    const state = await readReviewState({
+      accountId: profile.account_id, clientId, reportId: report.reportId, latestVersionId: report.versionId,
+    })
+    const date = (value: string) => new Intl.DateTimeFormat(reportLang, { dateStyle: 'medium', timeZone: 'Asia/Hong_Kong' }).format(new Date(value))
+    const decided = (line: typeof state.current) => {
+      if (!line) return null
+      const values = { date: date(line.decidedAt), n: line.versionNumber, name: line.reviewerName ?? '' }
+      if (line.decision === 'approved') return rv(line.reviewerName ? 'recorded_by_approved' : 'recorded_approved', values)
+      return rv(line.reviewerName ? 'recorded_by_changes' : 'recorded_changes', values)
+    }
+    const earlier = state.earlier
+      ? rv(state.earlier.decision === 'approved' ? 'earlier_approved' : 'earlier_changes',
+        { n: state.earlier.versionNumber, date: date(state.earlier.decidedAt) })
+      : rv('no_decision')
+    reviewBlock = {
+      reviewUrl: monthlyReviewLink({ locale: report.snapshot.locale, publicSlug: report.publicSlug, reportId: report.reportId, versionId: report.versionId }),
+      statusLine: decided(state.current) ?? earlier,
+      comment: state.current?.comment ?? state.earlier?.comment ?? null,
+      copy: { title: rv('title'), intro: rv('dashboard_intro'), copyLink: rv('copy_link'), commentHeading: rv('comment_heading') },
+    }
+  }
   return (
     <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8 sm:px-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -73,6 +106,8 @@ export default async function MonthlyReportPage({ params, searchParams }: {
         latestIsPublished={report.status === 'published' && report.publishedVersionId === report.versionId} shareUrl={monthlyShareUrl(report)}
         copy={{ shared: t('shared'), notShared: t('not_shared'), shareLink: t('share_link'), publish: t('publish_latest'), revoke: t('revoke'),
           failed: t('publish_failed'), stale: t('stale') }} /> : null}
+      {reviewBlock ? <MonthlyReviewStatus copy={reviewBlock.copy} reviewUrl={reviewBlock.reviewUrl}
+        statusLine={reviewBlock.statusLine} comment={reviewBlock.comment} /> : null}
       {/* Keyed by the saved version, so a save (including the first, server-written default) remounts it with the stored text. */}
       {canDraft ? <MonthlyReportEditor key={report?.versionId ?? 'new'} clientId={clientId} month={key} locale={report?.snapshot.locale ?? locale} narrative={report?.snapshot.executiveSummary ?? null} hasDraft={Boolean(report)}
         copy={{ language: t('language'), narrative: t('narrative'), save: t('save'), failed: t('failed'), brandingRequired: t('branding_required'), invalidNarrative: t('invalid_narrative'),

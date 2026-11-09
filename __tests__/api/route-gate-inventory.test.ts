@@ -50,6 +50,11 @@ const GATE_TOKENS = [
   // link carries an HMAC verified with timingSafeEqual in lib/reports/share.ts.
   'resolvePublishedClientReport',
   'verifyReportShare',
+  // Phase 3 review link: an HMAC capability over report + version ids with a bounded
+  // expiry, verified with timingSafeEqual before any lookup; the write then uses the
+  // report's own account/client from the same statement. Public because the link is
+  // the credential, exactly like a share link.
+  'verifyReviewToken',
   'authorize(',            // service-local gate helpers
   'authenticate(',
 ]

@@ -484,9 +484,13 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   Lesson: after a migration merges, confirm the **production build log** says the gate passed, not only `--verify`.
 - **`097` (Retainer OS Slice B, `brand_month_snapshots`) recorded 2026-11-06** (schema gate on #172's production build).
   Insert-only per-brand Hong Kong month snapshots, figures as of the boundary (`lib/brand-month/`).
-- **`098` (Retainer OS Slice C1, monthly client reports) is file-only until Willy applies it.** Adds
+- **`098` (Retainer OS Slice C1, monthly client reports) recorded** (verified `--verify`, 2026-11-09). Adds
   `client_reports.kind`/`report_month` and schema-2 versions; every scan-report read filters `kind = 'scan'`.
-  Apply and `--verify` before its PR merges, then confirm the production build's schema gate passed.
+- **`100` (prompt provenance, `prompt_bank.source`) recorded 2026-11-09** under a named approval; backfilled
+  `profile` only where `onboarding_seed_key` already recorded it.
+- **`101` (Phase 3 client reviews, `client_report_reviews`) recorded 2026-11-09** under a named approval.
+  Advisory sign-off only: one insert-only decision per report version, composite tenant FKs, RLS with app
+  SELECT/INSERT. It does not gate publishing; a per-brand gate may read it later.
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,

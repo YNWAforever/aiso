@@ -159,3 +159,125 @@ export async function revokeMonthlyReport(input: { accountId: string; clientId: 
     p_report_id => ${input.reportId}::uuid, p_account_id => ${input.accountId}::uuid, p_client_id => ${input.clientId}::uuid) as result`
   return publication(row?.result, 'revoked')
 }
+
+/**
+ * Phase 3 review flows. The public review page and submission route have no
+ * session, so the report is resolved through its unguessable public slug and the
+ * caller must then present a review token signed for the report's LATEST version.
+ * This is the only deliberately account-blind reader added for Slice C after
+ * loadDueMonthBrands; it is declared in __tests__/security/tenancy-inventory.test.ts
+ * and every write derived from it carries the account/client read here.
+ */
+export type MonthlyReviewTarget = {
+  reportId: string
+  versionId: string
+  accountId: string
+  clientId: string
+  month: string
+  status: 'draft' | 'published' | 'revoked'
+  publicSlug: string
+  shareVersion: number
+  versionNumber: number
+  locale: 'en' | 'zh-HK'
+  snapshot: unknown
+  publishedAt: string | null
+  account: Record<string, unknown>
+}
+
+export async function loadMonthlyReviewTarget(slug: string): Promise<MonthlyReviewTarget | null> {
+  const [row] = await db()`
+    select r.id as report_id, v.id as version_id, r.account_id, r.client_id,
+           r.report_month::text as month, r.status, r.public_slug, r.share_version,
+           v.version_number, v.locale, v.snapshot, r.published_at,
+           a.plan, a.status as account_status, a.stripe_subscription_id, a.trial_ends_at,
+           a.override_plan, a.override_expires_at
+    from client_reports r
+    join client_report_versions v on v.id = r.latest_version_id and v.report_id = r.id and v.account_id = r.account_id
+    join accounts a on a.id = r.account_id
+    where r.kind = 'monthly' and r.public_slug = ${slug}
+    limit 1`
+  if (!row) return null
+  return {
+    reportId: String(row.report_id),
+    versionId: String(row.version_id),
+    accountId: String(row.account_id),
+    clientId: String(row.client_id),
+    month: String(row.month).slice(0, 7),
+    status: row.status as MonthlyReviewTarget['status'],
+    publicSlug: String(row.public_slug),
+    shareVersion: Number(row.share_version),
+    versionNumber: Number(row.version_number),
+    locale: row.locale === 'zh-HK' ? 'zh-HK' : 'en',
+    snapshot: row.snapshot,
+    publishedAt: row.published_at ? iso(row.published_at) : null,
+    account: {
+      plan: row.plan, status: row.account_status, stripe_subscription_id: row.stripe_subscription_id,
+      trial_ends_at: row.trial_ends_at, override_plan: row.override_plan, override_expires_at: row.override_expires_at,
+    },
+  }
+}
+
+export type MonthlyReview = {
+  versionId: string
+  versionNumber: number
+  decision: 'approved' | 'changes_requested'
+  reviewerName: string | null
+  comment: string | null
+  decidedAt: string
+}
+
+/** Decisions for one report, newest first. Account-filtered. */
+export async function readMonthlyReviews(accountId: string, clientId: string, reportId: string): Promise<MonthlyReview[]> {
+  const rows = await db()`
+    select r.version_id, r.decision, r.reviewer_name, r.comment, r.decided_at, v.version_number
+    from client_report_reviews r
+    join client_report_versions v on v.id = r.version_id and v.report_id = r.report_id
+    where r.account_id = ${accountId}::uuid and r.client_id = ${clientId}::uuid and r.report_id = ${reportId}::uuid
+    order by r.decided_at desc, r.id desc
+    limit 10`
+  return rows.map(row => ({
+    versionId: String(row.version_id),
+    versionNumber: Number(row.version_number),
+    decision: row.decision as MonthlyReview['decision'],
+    reviewerName: row.reviewer_name === null ? null : String(row.reviewer_name),
+    comment: row.comment === null ? null : String(row.comment),
+    decidedAt: iso(row.decided_at),
+  }))
+}
+
+/**
+ * Records one decision for one version, exactly once. The account/client come
+ * from the report row inside the same statement — never from the caller — and the
+ * unique key is what makes a replay a no-op rather than an overwrite.
+ */
+export type RecordReviewResult =
+  | { state: 'recorded'; decidedAt: string }
+  | { state: 'already' }
+  | { state: 'not_found' }
+
+export async function recordMonthlyReviewDecision(input: {
+  slug: string
+  versionId: string
+  decision: 'approved' | 'changes_requested'
+  reviewerName: string | null
+  comment: string | null
+  tokenHash: string
+}): Promise<RecordReviewResult> {
+  const [row] = await db()`
+    insert into client_report_reviews
+      (account_id, client_id, report_id, version_id, decision, reviewer_name, comment, token_hash)
+    select r.account_id, r.client_id, r.id, v.id,
+           ${input.decision}::text, ${input.reviewerName}::text, ${input.comment}::text, ${input.tokenHash}::text
+    from client_reports r
+    join client_report_versions v on v.id = r.latest_version_id and v.report_id = r.id and v.account_id = r.account_id
+    where r.kind = 'monthly' and r.public_slug = ${input.slug} and v.id = ${input.versionId}::uuid
+    on conflict (report_id, version_id) do nothing
+    returning decided_at`
+  if (row) return { state: 'recorded', decidedAt: iso(row.decided_at) }
+  const [existing] = await db()`
+    select 1 as present from client_report_reviews r
+    join client_reports c on c.id = r.report_id and c.account_id = r.account_id
+    where c.public_slug = ${input.slug} and r.version_id = ${input.versionId}::uuid
+    limit 1`
+  return existing ? { state: 'already' } : { state: 'not_found' }
+}
