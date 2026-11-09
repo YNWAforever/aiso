@@ -76,10 +76,10 @@ export function StudioThreads({ clientId }: { clientId: string }) {
               </button>
               {thread.mine
                 ? <div role="group" aria-label={t('threadActions.label')} className="flex flex-wrap items-center gap-1">
-                  <button type="button" className="as-button px-2 text-sm" aria-pressed={thread.pinned} onClick={() => void act(thread.id, { pinned: !thread.pinned })}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
-                  <button type="button" className="as-button px-2 text-sm" aria-pressed={thread.visibility === 'shared'} onClick={() => void act(thread.id, { visibility: thread.visibility === 'shared' ? 'private' : 'shared' })}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
-                  <button type="button" className="as-button px-2 text-sm" onClick={() => startRename(thread)}>{t('threadActions.rename')}</button>
-                  <button type="button" className="as-button px-2 text-sm" onClick={() => void act(thread.id, { archived: true })}>{t('threadActions.archive')}</button>
+                  <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm" aria-pressed={thread.pinned} onClick={() => void act(thread.id, { pinned: !thread.pinned })}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
+                  <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm" aria-pressed={thread.visibility === 'shared'} onClick={() => void act(thread.id, { visibility: thread.visibility === 'shared' ? 'private' : 'shared' })}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
+                  <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm" onClick={() => startRename(thread)}>{t('threadActions.rename')}</button>
+                  <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm" onClick={() => void act(thread.id, { archived: true })}>{t('threadActions.archive')}</button>
                 </div>
                 : <span className="as-badge" title={t('sharedReadOnlyBody')}>{t('threadActions.label')}</span>}
             </div>
@@ -87,8 +87,8 @@ export function StudioThreads({ clientId }: { clientId: string }) {
               <label className="min-w-0 flex-1 space-y-1 text-sm"><span className="as-muted as-small block font-semibold">{t('threadActions.rename')}</span>
                 <input className="as-search block w-full min-w-0" value={renameDraft} maxLength={200} onChange={event => setRenameDraft(event.target.value)} autoFocus />
               </label>
-              <button type="submit" className="as-button as-primary min-h-11 px-3 text-sm" disabled={!renameDraft.trim()}>{t('threadActions.save')}</button>
-              <button type="button" className="as-button min-h-11 px-3 text-sm" onClick={() => setRenamingId(null)}>{t('threadActions.cancel')}</button>
+              <button type="submit" className="as-button as-primary inline-flex min-h-11 min-w-11 items-center justify-center px-3 text-sm" disabled={!renameDraft.trim()}>{t('threadActions.save')}</button>
+              <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-3 text-sm" onClick={() => setRenamingId(null)}>{t('threadActions.cancel')}</button>
             </form>}
           </li>
         })}</ul>
