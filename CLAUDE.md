@@ -494,6 +494,10 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - **`102` (Studio LIVE weekly counter per brand) recorded 2026-11-09** under a named approval. Re-keys
   `studio_live_weekly_usage` to `(account_id, client_id, week_start)`; the cap is the code constant
   `STUDIO_LIVE_ANSWERS_PER_BRAND_PER_WEEK = 10` (no env override), and no job scans a site on a schedule.
+- **`103` (Studio thread lifecycle) recorded 2026-11-10** under a named approval. Adds `visibility`
+  (`private`|`shared`), `pinned_at` and `archived_at` to `studio_threads`; existing threads stay private,
+  unshared and unarchived. Shared threads are read-only to other brand members and owner-only to change;
+  staff threads can never be shared.
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,

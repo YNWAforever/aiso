@@ -3,6 +3,7 @@ import type { StudioLiveReply } from './live-types'
 import type { StudioReply } from './types'
 
 export type StudioThreadKind = 'research' | 'brief'
+export type StudioThreadVisibility = 'private' | 'shared'
 
 /** Metadata projection used by the sidebar, home continue list and /studio/threads. */
 export type StudioThreadRecord = {
@@ -17,6 +18,11 @@ export type StudioThreadRecord = {
   turnCount: number
   /** The skill (home task) of the first turn, if any. Derived on read; no column. */
   skill: StudioHomeTemplate | null
+  visibility: StudioThreadVisibility
+  pinned: boolean
+  archived: boolean
+  /** False for a teammate's shared thread: readable, never writable by this viewer. */
+  mine: boolean
 }
 
 export type StudioTurnRecord = {
@@ -51,5 +57,13 @@ export type StudioTurnCreateInput = {
 }
 
 export type StudioTurnLiveInput = { reply: StudioLiveReply } | { error: string }
+
+/** PATCH a thread you own. At least one key. Visibility is refused for staff threads. */
+export type StudioThreadUpdateInput = {
+  title?: string
+  pinned?: boolean
+  archived?: boolean
+  visibility?: StudioThreadVisibility
+}
 
 export type StudioThreadsError = 'UNAUTHENTICATED' | 'NOT_FOUND' | 'INVALID_STUDIO_THREAD' | 'STUDIO_THREAD_FULL' | 'STUDIO_THREADS_UNAVAILABLE'

@@ -9,6 +9,7 @@ import type { StudioReply } from './types'
 import type {
   StudioThreadCreateInput,
   StudioThreadRecord,
+  StudioThreadUpdateInput,
   StudioTurnCreateInput,
   StudioTurnLiveInput,
   StudioTurnRecord,
@@ -152,7 +153,33 @@ function parseFinalizeLive(raw: unknown): { position: number; live: StudioTurnLi
   return live ? { position: position as number, live } : null
 }
 
-function threadRecord(row: Record<string, unknown>): StudioThreadRecord {
+function parseUpdateThread(raw: unknown): StudioThreadUpdateInput | null {
+  if (!isObject(raw)) return null
+  const allowed = ['title', 'pinned', 'archived', 'visibility']
+  const keys = Object.keys(raw)
+  if (keys.length === 0 || keys.some(key => !allowed.includes(key))) return null
+  const input: StudioThreadUpdateInput = {}
+  if (raw.title !== undefined) {
+    const title = text(raw.title, 200)
+    if (!title) return null
+    input.title = title
+  }
+  if (raw.pinned !== undefined) {
+    if (typeof raw.pinned !== 'boolean') return null
+    input.pinned = raw.pinned
+  }
+  if (raw.archived !== undefined) {
+    if (typeof raw.archived !== 'boolean') return null
+    input.archived = raw.archived
+  }
+  if (raw.visibility !== undefined) {
+    if (raw.visibility !== 'private' && raw.visibility !== 'shared') return null
+    input.visibility = raw.visibility
+  }
+  return Object.keys(input).length > 0 ? input : null
+}
+
+function threadRecord(row: Record<string, unknown>, viewerProfileId: string): StudioThreadRecord {
   return {
     id: String(row.id),
     title: String(row.title),
@@ -164,6 +191,10 @@ function threadRecord(row: Record<string, unknown>): StudioThreadRecord {
     updatedAt: String(row.updated_at),
     turnCount: Number(row.turn_count ?? 0),
     skill: (STUDIO_HOME_TEMPLATES as readonly unknown[]).includes(row.first_task) ? row.first_task as StudioHomeTemplate : null,
+    visibility: row.visibility === 'shared' ? 'shared' : 'private',
+    pinned: row.pinned_at !== null && row.pinned_at !== undefined,
+    archived: row.archived_at !== null && row.archived_at !== undefined,
+    mine: String(row.profile_id) === viewerProfileId,
   }
 }
 
@@ -186,6 +217,7 @@ export async function listStudioThreads(_request: Request, clientId: string): Pr
     if (access instanceof Response) return access
     const rows = await access.sql`
       select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
+        t.profile_id, t.visibility, t.pinned_at, t.archived_at,
         (select count(*)::int from studio_thread_turns u
           where u.thread_id = t.id and u.account_id = t.account_id
             and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count,
@@ -196,12 +228,15 @@ export async function listStudioThreads(_request: Request, clientId: string): Pr
       from studio_threads t
       where t.account_id = ${access.accountId}::uuid
         and t.client_id = ${access.clientId}::uuid
-        and t.profile_id = ${access.profileId}::uuid
-      order by t.updated_at desc, t.id desc
+        and (t.profile_id = ${access.profileId}::uuid
+          or (${access.staffGrantId}::uuid is null and t.visibility = 'shared'))
+        and t.archived_at is null
+      order by (t.profile_id = ${access.profileId}::uuid and t.pinned_at is not null) desc,
+        t.updated_at desc, t.id desc
       limit ${STUDIO_THREAD_LIST_LIMIT + 1}
     `
     const truncated = rows.length > STUDIO_THREAD_LIST_LIMIT
-    return respond({ threads: rows.slice(0, STUDIO_THREAD_LIST_LIMIT).map(row => threadRecord(row as Record<string, unknown>)), truncated })
+    return respond({ threads: rows.slice(0, STUDIO_THREAD_LIST_LIMIT).map(row => threadRecord(row as Record<string, unknown>, access.profileId)), truncated })
   } catch (error) {
     console.error('[studio] list threads failed:', error)
     return unavailable()
@@ -227,7 +262,8 @@ export async function createStudioThread(request: Request, clientId: string): Pr
           where account_id = ${access.accountId}::uuid
             and client_id = ${access.clientId}::uuid
             and profile_id = ${access.profileId}::uuid) < ${STUDIO_THREAD_CAP}
-        returning id, title, goal, week, kind, source_title, created_at, updated_at, 0 as turn_count, null as first_task
+        returning id, title, goal, week, kind, source_title, created_at, updated_at, 0 as turn_count, null as first_task,
+          profile_id, visibility, pinned_at, archived_at
       ), audited as (
         insert into studio_staff_audit (account_id, client_id, actor_profile_id, action)
         select ${access.accountId}::uuid, ${access.clientId}::uuid, ${access.profileId}::uuid, 'thread'
@@ -237,7 +273,7 @@ export async function createStudioThread(request: Request, clientId: string): Pr
       select inserted.* from inserted
     `
     if (!rows[0]) return respond({ error: 'STUDIO_THREAD_FULL' }, 409)
-    return respond({ thread: threadRecord(rows[0] as Record<string, unknown>) }, 201)
+    return respond({ thread: threadRecord(rows[0] as Record<string, unknown>, access.profileId) }, 201)
   } catch (error) {
     console.error('[studio] create thread failed:', error)
     return unavailable()
@@ -251,6 +287,7 @@ export async function getStudioThread(_request: Request, clientId: string, threa
     if (!isUuid(threadId)) return notFound()
     const rows = await access.sql`
       select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
+        t.profile_id, t.visibility, t.pinned_at, t.archived_at,
         (select count(*)::int from studio_thread_turns u
           where u.thread_id = t.id and u.account_id = t.account_id
             and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count,
@@ -262,26 +299,97 @@ export async function getStudioThread(_request: Request, clientId: string, threa
       where t.id = ${threadId}::uuid
         and t.account_id = ${access.accountId}::uuid
         and t.client_id = ${access.clientId}::uuid
-        and t.profile_id = ${access.profileId}::uuid
+        and (t.profile_id = ${access.profileId}::uuid
+          or (${access.staffGrantId}::uuid is null and t.visibility = 'shared'))
       limit 1
     `
     if (!rows[0]) return notFound()
+    // A shared thread's turns belong to its creator; read them by that principal,
+    // never by the viewer's, so a viewer cannot even form a query for their own rows here.
+    const ownerProfileId = String((rows[0] as Record<string, unknown>).profile_id)
     const turns = await access.sql`
       select id, position, prompt, task, reply, attached, live, created_at
       from studio_thread_turns
       where thread_id = ${threadId}::uuid
         and account_id = ${access.accountId}::uuid
         and client_id = ${access.clientId}::uuid
-        and profile_id = ${access.profileId}::uuid
+        and profile_id = ${ownerProfileId}::uuid
       order by position asc
       limit ${STUDIO_TURN_CAP}
     `
     return respond({
-      thread: threadRecord(rows[0] as Record<string, unknown>),
+      thread: threadRecord(rows[0] as Record<string, unknown>, access.profileId),
       turns: turns.map(row => turnRecord(row as Record<string, unknown>)),
     })
   } catch (error) {
     console.error('[studio] read thread failed:', error)
+    return unavailable()
+  }
+}
+
+/** The stored row of a thread this principal owns, through the list projection. */
+async function readOwnThreadRow(access: Authorized, threadId: string): Promise<Record<string, unknown> | null> {
+  const rows = await access.sql`
+    select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
+      t.profile_id, t.visibility, t.pinned_at, t.archived_at,
+      (select count(*)::int from studio_thread_turns u
+        where u.thread_id = t.id and u.account_id = t.account_id
+          and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count,
+      (select f.task from studio_thread_turns f
+        where f.thread_id = t.id and f.account_id = t.account_id
+          and f.client_id = t.client_id and f.profile_id = t.profile_id
+        order by f.position limit 1) as first_task
+    from studio_threads t
+    where t.id = ${threadId}::uuid
+      and t.account_id = ${access.accountId}::uuid
+      and t.client_id = ${access.clientId}::uuid
+      and t.profile_id = ${access.profileId}::uuid
+    limit 1`
+  return (rows[0] as Record<string, unknown> | undefined) ?? null
+}
+
+/**
+ * A thread's lifecycle, owner only: rename, pin/unpin, archive/restore, and
+ * share/unshare with the rest of the brand (read-only for them). One statement
+ * scoped by (account, client, profile) means zero rows is the same 404 for
+ * "absent", "not yours" and "a teammate's shared thread".
+ */
+export async function updateStudioThread(request: Request, clientId: string, threadId: string): Promise<Response> {
+  try {
+    const access = await authorize(clientId)
+    if (access instanceof Response) return access
+    if (!isUuid(threadId)) return notFound()
+    let raw: unknown
+    try { raw = await readLimitedJson(request, STUDIO_THREAD_BODY_LIMIT) } catch { return invalid() }
+    const input = parseUpdateThread(raw)
+    if (!input) return invalid()
+    // A staff thread is audit-bound to its grant; sharing it would expose a client
+    // thread outside that grant. Every other lifecycle change is still allowed.
+    if (access.staffGrantId && input.visibility !== undefined) return invalid()
+    const rows = await access.sql`
+      update studio_threads set
+        title = coalesce(${input.title ?? null}::text, title),
+        visibility = coalesce(${input.visibility ?? null}::text, visibility),
+        pinned_at = case
+          when ${input.pinned === undefined ? null : input.pinned}::boolean is null then pinned_at
+          when ${input.pinned === true}::boolean then clock_timestamp()
+          else null end,
+        archived_at = case
+          when ${input.archived === undefined ? null : input.archived}::boolean is null then archived_at
+          when ${input.archived === true}::boolean then clock_timestamp()
+          else null end,
+        updated_at = clock_timestamp()
+      where id = ${threadId}::uuid
+        and account_id = ${access.accountId}::uuid
+        and client_id = ${access.clientId}::uuid
+        and profile_id = ${access.profileId}::uuid
+      returning id
+    `
+    if (!rows[0]) return notFound()
+    const thread = await readOwnThreadRow(access, threadId)
+    return thread ? respond({ thread: threadRecord(thread, access.profileId) }) : notFound()
+  } catch (error) {
+    console.error('[studio] update thread failed:', error)
     return unavailable()
   }
 }

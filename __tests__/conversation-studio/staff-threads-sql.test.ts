@@ -1,10 +1,10 @@
-import { PGlite } from '@electric-sql/pglite'
+﻿import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * Studio R3 A2b: saved staff threads, through the real thread routes and
- * migrations 081 → 087 → 088 on real Postgres (PGlite). A staff principal is a
+ * migrations 081 ??087 ??088 on real Postgres (PGlite). A staff principal is a
  * platform admin of another account holding a LIVE grant from the brand's
  * account; anything less reads exactly like a missing brand.
  */
@@ -61,7 +61,7 @@ beforeAll(async () => {
   await q('insert into accounts values ($1), ($2)', [client, fimmick])
   await q('insert into profiles values ($1,$2), ($3,$4), ($5,$4), ($6,$4)', [member, client, admin, fimmick, otherAdmin, plain])
   await q('insert into clients(id, account_id) values ($1, $2)', [brand, client])
-  for (const file of ['081_studio_private_threads', '087_studio_staff_grants', '088_studio_staff_threads']) {
+  for (const file of ['081_studio_private_threads', '087_studio_staff_grants', '088_studio_staff_threads', '103_studio_thread_lifecycle']) {
     await state.pg.exec(readFileSync(`supabase/migrations/${file}.sql`, 'utf8'))
   }
 })
@@ -92,7 +92,7 @@ describe('staff threads (A2b)', () => {
     expect(((await (await list()).json()) as { threads: unknown[] }).threads).toHaveLength(1)
   })
 
-  it('keeps staff threads private from the client’s members, and members’ threads private from staff', async () => {
+  it('keeps staff threads private from the client? members, and members??threads private from staff', async () => {
     as(admin, fimmick, true); await create()
     as(member, client); await create()
     expect(await q('select count(*)::int as n from studio_staff_audit')).toEqual([{ n: 1 }]) // a member save is not a staff event
