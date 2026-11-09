@@ -11,7 +11,23 @@
     "newThread": "Start a new discussion",
     "threadsEmpty": "This brand has no saved discussions yet. Start with a work goal above.",
     "privateLabel": "Private to you · Saved in this brand workspace",
-    "privacyBody": "Discussions are saved to this brand workspace and visible only to you, not teammates, and survive refresh. Composer drafts are not saved. Sharing is not available yet.",
+    "sharedLabel": "Shared with this brand · Read-only for teammates",
+    "pinnedLabel": "Pinned",
+    "sharedReadOnlyBody": "This discussion is shared with the brand. Only its creator can add turns, rename, share or archive it.",
+    "privacyBody": "Discussions are private to you by default and saved to this brand workspace. You can share one read-only with the rest of the brand; only its creator can rename, pin, share, archive or add turns. Composer drafts are not saved.",
+    "threadActions": {
+      "label": "Discussion actions",
+      "rename": "Rename",
+      "save": "Save name",
+      "cancel": "Cancel",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "share": "Share with brand",
+      "unshare": "Make private",
+      "archive": "Archive",
+      "failed": "That change was not saved. The discussion is unchanged.",
+      "archivedNote": "Archived discussions stay readable by their creator but leave every list."
+    },
     "templatesTitle": "Skills",
     "conversationLabel": "Brand evidence conversation",
     "emptyTitle": "What would you like to work on?",
@@ -445,7 +461,7 @@
     "views": {
       "threads": {
         "title": "Every task has its own context",
-        "description": "Discussions are saved to this brand workspace, visible only to you and survive refresh. Composer drafts are not saved.",
+        "description": "Discussions are private to you by default, saved to this brand workspace, and survive refresh. You can share one read-only with the brand. Composer drafts are not saved.",
         "empty": "Start with a work goal, or choose a template to begin a new discussion."
       },
       "documents": {

@@ -7,10 +7,11 @@ import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
-import { appendStudioTurn, createStudioThread, fetchStudioThread, fetchStudioThreads, finalizeStudioTurn } from '@/lib/conversation-studio/threads-client'
+import { appendStudioTurn, createStudioThread, fetchStudioThread, fetchStudioThreads, finalizeStudioTurn, updateStudioThread } from '@/lib/conversation-studio/threads-client'
 import type {
   StudioThreadCreateInput,
   StudioThreadRecord,
+  StudioThreadUpdateInput,
   StudioTurnCreateInput,
   StudioTurnLiveInput,
   StudioTurnRecord,
@@ -46,6 +47,12 @@ export type StudioThread = {
   updatedAt?: string
   /** Skill the thread started from (first turn's task). Absent while unknown. */
   skill?: StudioHomeTemplate | null
+  /** Saved visibility; a shared thread is read-only to everyone but its creator. */
+  visibility: 'private' | 'shared'
+  pinned: boolean
+  archived: boolean
+  /** False for a teammate's shared thread. */
+  mine: boolean
 }
 
 function fromRecord(record: StudioThreadRecord): StudioThread {
@@ -63,6 +70,10 @@ function fromRecord(record: StudioThreadRecord): StudioThread {
     turnsLoaded: false,
     updatedAt: record.updatedAt,
     skill: record.skill ?? null,
+    visibility: record.visibility,
+    pinned: record.pinned,
+    archived: record.archived,
+    mine: record.mine,
   }
 }
 
@@ -130,7 +141,7 @@ function useSessionState(clientId?: string) {
     }
     const turns = result.data.turns.map(record => turnFromRecord(record, allocateId()))
     setThreads(previous => previous.map(item => item.id === id
-      ? { ...item, title: result.data.thread.title, goal: result.data.thread.goal, week: result.data.thread.week, sourceTitle: result.data.thread.sourceTitle ?? undefined, updatedAt: result.data.thread.updatedAt, skill: result.data.thread.skill ?? item.skill ?? null, turns, turnsLoaded: true, turnsError: false }
+      ? { ...item, title: result.data.thread.title, goal: result.data.thread.goal, week: result.data.thread.week, sourceTitle: result.data.thread.sourceTitle ?? undefined, updatedAt: result.data.thread.updatedAt, skill: result.data.thread.skill ?? item.skill ?? null, visibility: result.data.thread.visibility, pinned: result.data.thread.pinned, archived: result.data.thread.archived, mine: result.data.thread.mine, turns, turnsLoaded: true, turnsError: false }
       : item))
   }
 
@@ -207,10 +218,22 @@ function useSessionState(clientId?: string) {
     return true
   }
 
+  /** Owner-only lifecycle; a teammate's shared thread is read-only server-side too. */
+  async function updateThread(id: string, patch: StudioThreadUpdateInput): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!clientId) return { ok: false, error: 'STUDIO_THREADS_UNAVAILABLE' }
+    const result = await updateStudioThread(clientId, id, patch)
+    if (!result.ok) return { ok: false, error: result.error }
+    const record = result.data.thread
+    setThreads(previous => previous.map(thread => thread.id === id
+      ? { ...thread, title: record.title, visibility: record.visibility, pinned: record.pinned, archived: record.archived, mine: record.mine, updatedAt: record.updatedAt }
+      : thread))
+    return { ok: true }
+  }
+
   // Keep mutable refs private to their owning hook. Consumers use actions.
   return { threads, setThreads, activeId: navigation.activeId, navigationVersion: navigation.version,
     setActiveId: (activeId: string | null) => { setNavigation(previous => ({ activeId, version: previous.version + 1 })); setFeedback(null) },
-    selectThread, saveThread, saveTurn, saveLive, hydrated, readFailed,
+    selectThread, saveThread, saveTurn, saveLive, updateThread, hydrated, readFailed,
     feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, busy,
     allocateId, allocateThreadId,
     isInFlight: () => inFlight.current,

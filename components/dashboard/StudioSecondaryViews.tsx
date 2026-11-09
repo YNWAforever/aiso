@@ -25,11 +25,26 @@ export function StudioThreads({ clientId }: { clientId: string }) {
   const router = useRouter()
   const session = useStudioSession()
   const [query, setQuery] = useState('')
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = useState('')
+  const [actionFailed, setActionFailed] = useState(false)
   const base = `/${lang}/dashboard/${clientId}/studio`
   // Threads exist only after the client-side read, so "now" is never rendered on the server.
   const now = new Date()
   const skillLabel = (skill: StudioThread['skill']) => skill ? t(`templates.${skill}.label`) : null
   const visible = session.threads.filter(thread => matchesThread(thread, query, skillLabel(thread.skill)))
+  async function act(id: string, patch: { title?: string; pinned?: boolean; archived?: boolean; visibility?: 'private' | 'shared' }) {
+    setActionFailed(false)
+    const result = await session.updateThread(id, patch)
+    if (!result.ok) setActionFailed(true)
+    return result.ok
+  }
+  function startRename(thread: StudioThread) { setRenamingId(thread.id); setRenameDraft(thread.title); setActionFailed(false) }
+  async function saveRename(id: string) {
+    const title = renameDraft.trim()
+    if (!title) return
+    if (await act(id, { title })) setRenamingId(null)
+  }
   return <main className="as-page space-y-6"><ViewHeading view="threads" />
     <p className="as-note">{t('privacyBody')}</p>
     <div className="flex flex-wrap items-end gap-3">
@@ -39,6 +54,7 @@ export function StudioThreads({ clientId }: { clientId: string }) {
         <input id="studio-thread-search" type="search" value={query} onChange={event => setQuery(event.target.value)} className="as-search block w-full min-w-0" />
       </div>}
     </div>
+    {actionFailed && <p role="alert" className="as-note">{t('threadActions.failed')}</p>}
     {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : !session.threads.length
       ? <div className="as-empty space-y-2"><MessageSquare aria-hidden="true" className="as-blue mx-auto" /><h2>{t('recentThreadsEmpty')}</h2><p className="as-muted">{t('views.threads.empty')}</p></div>
       : !visible.length ? <p className="as-muted" role="status">{t('threadSearch.noMatch', { query: query.trim() })}</p>
@@ -47,14 +63,34 @@ export function StudioThreads({ clientId }: { clientId: string }) {
         <ul className="as-record-list">{group.threads.map(thread => {
           const skill = skillLabel(thread.skill)
           const when = relativeTime(thread.updatedAt, now, lang)
-          return <li key={thread.id}><button className="as-thread flex w-full items-center gap-3 text-left" onClick={() => { session.selectThread(thread.id); router.push(base) }}>
-            <MessageSquare className="size-5 shrink-0 as-blue" aria-hidden="true" />
-            <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span>{thread.saveState === 'failed' && <span className="as-muted as-small block">{t('saveFailed')}</span>}</span>
-            {/* A skill-started thread is titled with the skill; repeating it as a tag adds nothing. */}
-            {skill && skill !== thread.title && <span className="as-badge">{skill}</span>}
-            {when && <span className="as-muted as-small shrink-0">{when}</span>}
-            <span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span><ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
-          </button></li>
+          return <li key={thread.id}>
+            <div className="flex flex-wrap items-start gap-2">
+              <button className="as-thread flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => { session.selectThread(thread.id); router.push(base) }}>
+                <MessageSquare className="size-5 shrink-0 as-blue" aria-hidden="true" />
+                <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span>{thread.saveState === 'failed' && <span className="as-muted as-small block">{t('saveFailed')}</span>}</span>
+                {/* A skill-started thread is titled with the skill; repeating it as a tag adds nothing. */}
+                {skill && skill !== thread.title && <span className="as-badge">{skill}</span>}
+                {thread.pinned && <span className="as-badge">{t('pinnedLabel')}</span>}
+                {when && <span className="as-muted as-small shrink-0">{when}</span>}
+                <span className="as-badge">{t(thread.saveState !== 'persisted' ? 'temporaryLabel' : thread.visibility === 'shared' ? 'sharedLabel' : 'privateLabel')}</span><ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
+              </button>
+              {thread.mine
+                ? <div role="group" aria-label={t('threadActions.label')} className="flex flex-wrap items-center gap-1">
+                  <button type="button" className="as-button px-2 text-sm" aria-pressed={thread.pinned} onClick={() => void act(thread.id, { pinned: !thread.pinned })}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
+                  <button type="button" className="as-button px-2 text-sm" aria-pressed={thread.visibility === 'shared'} onClick={() => void act(thread.id, { visibility: thread.visibility === 'shared' ? 'private' : 'shared' })}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
+                  <button type="button" className="as-button px-2 text-sm" onClick={() => startRename(thread)}>{t('threadActions.rename')}</button>
+                  <button type="button" className="as-button px-2 text-sm" onClick={() => void act(thread.id, { archived: true })}>{t('threadActions.archive')}</button>
+                </div>
+                : <span className="as-badge" title={t('sharedReadOnlyBody')}>{t('threadActions.label')}</span>}
+            </div>
+            {renamingId === thread.id && <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); void saveRename(thread.id) }}>
+              <label className="min-w-0 flex-1 space-y-1 text-sm"><span className="as-muted as-small block font-semibold">{t('threadActions.rename')}</span>
+                <input className="as-search block w-full min-w-0" value={renameDraft} maxLength={200} onChange={event => setRenameDraft(event.target.value)} autoFocus />
+              </label>
+              <button type="submit" className="as-button as-primary min-h-11 px-3 text-sm" disabled={!renameDraft.trim()}>{t('threadActions.save')}</button>
+              <button type="button" className="as-button min-h-11 px-3 text-sm" onClick={() => setRenamingId(null)}>{t('threadActions.cancel')}</button>
+            </form>}
+          </li>
         })}</ul>
       </section>)}
   </main>

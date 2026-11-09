@@ -35,7 +35,7 @@ function boundedTitle(value: string): string {
   return wordEnd > 0 ? clipped.slice(0, wordEnd) : clipped
 }
 
-export function StudioThreadHeader({ thread, attachment, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState'>; attachment?: StudioAttachCandidate | null; onHome: () => void }) {
+export function StudioThreadHeader({ thread, attachment, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState' | 'visibility'>; attachment?: StudioAttachCandidate | null; onHome: () => void }) {
   const t = useTranslations('conversationStudio')
   return <header className="space-y-3">
     <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
@@ -100,7 +100,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
       t('honesty.searchDemandPending')].join(' ')
     const seed = composeBriefDraft({ goal: source.goal, prompt: turn.prompt, summary }, context => t('briefContextPrompt', context))
     // The thread is saved; the editable composer draft stays client-only.
-    setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: seed, template: 'brief', saveState: 'unsaved', turnsLoaded: true, skill: 'brief' }, ...previous])
+    setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: seed, template: 'brief', saveState: 'unsaved', turnsLoaded: true, skill: 'brief', visibility: 'private', pinned: false, archived: false, mine: true }, ...previous])
     const saving = saveThread(id, { kind: 'brief', title, goal: source.goal, week: source.week, sourceTitle: source.title })
     focusBriefStart.current = true
     openThread(id)
@@ -132,7 +132,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
     } else {
-      setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true, skill: task }, ...previous])
+      setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true, skill: task, visibility: 'private', pinned: false, archived: false, mine: true }, ...previous])
       void saveThread(id, { kind, title, goal: prompt, week: evidence.week, sourceTitle: null })
       openThread(id)
       setNewDraft('')
@@ -332,7 +332,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           {readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : threads.length === 0 ? <p className="as-muted">{t('threadsEmpty')}</p> : <ul className="as-continue-list">
             {threads.map(thread => <li key={thread.id}>
               <button type="button" onClick={() => openThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">
-                <span className="min-w-0"><span className="block truncate">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span><span className="as-muted as-small">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></span>
+                <span className="min-w-0"><span className="block truncate">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span><span className="as-muted as-small">{t(thread.saveState !== 'persisted' ? 'temporaryLabel' : thread.visibility === 'shared' ? 'sharedLabel' : 'privateLabel')}</span></span>
                 <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
               </button>
             </li>)}
@@ -360,7 +360,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               <p>{t(`templates.${task}.limit`)}</p>
             </div>}
             <div className="min-w-0 space-y-4">
-              <StudioReplyView clientId={clientId} readOnly={staffView} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={() => branchBrief(current, current.turns[index])} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
+              <StudioReplyView clientId={clientId} readOnly={staffView || !current.mine} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={() => branchBrief(current, current.turns[index])} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
               {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />}
               <StudioGscSnapshotView gsc={gsc} />
               <StudioDfsSnapshotView dfs={dfs} />
@@ -374,12 +374,12 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </div>
         {inspection && inspectedTurn && <StudioEvidenceInspector reply={inspectedTurn.reply} evidence={evidenceForHomeTask(evidence, inspectedTurn.task)} liveReply={inspectedTurn.live?.reply} liveEnabled={Boolean(live)} gsc={inspectedTurn.gsc} dfs={inspectedTurn.dfs} firecrawl={inspectedTurn.firecrawl} reads={inspector} sourceStatus={sourceStatus} prompt={inspectedTurn.prompt} target={inspection.target} trigger={inspection.trigger} onClose={() => setInspection(null)} />}
         </div>
-        {composerForm}
+        {current.mine ? composerForm : <p className="as-note">{t('sharedReadOnlyBody')}</p>}
         {scopeNote}
       </div>}
       <div className="as-toast" role="status" aria-live="polite" aria-atomic="true">{feedback && feedback.threadId === activeId && <span key={feedback.id}>{t(feedback.key)}</span>}</div>
       <footer className="as-divider space-y-2 pt-4">
-        <p className="as-small flex items-center gap-2 font-semibold"><Lock className="size-4 shrink-0" aria-hidden="true" />{t('privateLabel')}</p>
+        <p className="as-small flex items-center gap-2 font-semibold"><Lock className="size-4 shrink-0" aria-hidden="true" />{t(current && !current.mine ? 'sharedLabel' : 'privateLabel')}</p>
         <p className="as-muted as-small">{t('privacyBody')}</p>
       </footer>
     </main>
