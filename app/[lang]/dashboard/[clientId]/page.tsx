@@ -11,7 +11,7 @@ import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isConversationStudioEnabled } from '@/lib/flags'
 import { STUDIO_DEFAULT_HOME } from '@/lib/dashboard-nav'
 import { db } from '@/lib/db'
 import { redactSecrets } from '@/lib/security/redact-secrets'
@@ -105,7 +105,7 @@ export default async function DashboardPage({
   const reportT = await getTranslations('reports')
   const portfolioT = await getTranslations('portfolio')
   const profile  = await requireAuth(lang)
-  if (STUDIO_DEFAULT_HOME && isFeatureEnabled('conversation_studio') && (rawStep === undefined || rawStep === '' || rawStep === 'home')) {
+  if (STUDIO_DEFAULT_HOME && isConversationStudioEnabled(clientId) && (rawStep === undefined || rawStep === '' || rawStep === 'home')) {
     redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}/studio`)
   }
   const entitlement = resolveCommercialEntitlement(profile.accounts)

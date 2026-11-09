@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({ profile: null as null | Record<string, unknown>, rows: [] as Record<string, unknown>[][], queries: [] as string[], fail: false }))
 vi.mock('server-only', () => ({}))
@@ -7,7 +7,7 @@ vi.mock('next/navigation', () => ({
   redirect: (to: string) => { throw new Error(`REDIRECT:${to}`) },
 }))
 vi.mock('@/lib/auth', () => ({ requireAuth: async () => m.profile }))
-vi.mock('@/lib/flags', () => ({ isFeatureEnabled: () => true }))
+vi.mock('@/lib/flags', () => ({ isFeatureEnabled: () => true, isConversationStudioEnabled: () => true }))
 vi.mock('@/lib/db', () => ({
   db: () => async (strings: TemplateStringsArray) => { if (m.fail) throw new Error('db down'); m.queries.push(strings.join('?')); return m.rows.shift() ?? [] },
 }))
@@ -28,14 +28,14 @@ describe('requireStudioBrand', () => {
     expect(m.queries).toHaveLength(1)
   })
 
-  it('gives a non-admin the same 404 for another account’s brand as for a missing one, without looking it up', async () => {
+  it('gives a non-admin the same 404 for another account? brand as for a missing one, without looking it up', async () => {
     m.profile = { id: 'p', account_id: own, is_admin: false }
     m.rows = [[]]
     await expect(requireStudioBrand('en', brand, { allowStaff: true })).rejects.toThrow('NOT_FOUND')
     expect(m.queries).toHaveLength(1) // never reads across accounts
   })
 
-  it('lets a platform admin open another account’s brand only under that account’s live grant, scoped to it', async () => {
+  it('lets a platform admin open another account? brand only under that account? live grant, scoped to it', async () => {
     m.profile = { id: 'admin', account_id: own, is_admin: true }
     m.rows = [[], [{ id: brand, brand_name: 'Client', account_id: other }]]
     await expect(requireStudioBrand('en', brand, { allowStaff: true })).resolves.toMatchObject({ staff: true, accountId: other, brand: { name: 'Client' } })
@@ -57,7 +57,7 @@ describe('requireStudioBrand', () => {
     await expect(requireStudioBrand('en', brand, { allowStaff: true })).rejects.toThrow('NOT_FOUND')
   })
 
-  it('records each open in the client account’s audit, plus one structured log line', async () => {
+  it('records each open in the client account? audit, plus one structured log line', async () => {
     const spy = vi.spyOn(console, 'info').mockImplementation(() => {})
     await auditStudioStaffOpen({ actorId: 'admin', accountId: other, clientId: brand })
     expect(JSON.parse(String(spy.mock.calls[0]![0]))).toMatchObject({ event: 'studio_staff_open', actor: 'admin', account: other, client: brand })

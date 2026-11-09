@@ -10,7 +10,7 @@ import { TopBar } from '@/components/dashboard/shell/TopBar'
 import { listOwnedBrands, type OwnedBrand } from '@/lib/workspace/list-owned-brands'
 import { getTrialStatus } from '@/lib/trial'
 import { resolveCommercialEntitlement } from '@/lib/tier'
-import { isFeatureEnabled } from '@/lib/flags'
+import { conversationStudioNavEnabled } from '@/lib/flags'
 import { DashboardChrome } from '@/components/dashboard/shell/DashboardChrome'
 
 export default async function DashboardLayout({
@@ -24,7 +24,9 @@ export default async function DashboardLayout({
   const profile = await requireAuth(lang, (await headers()).get(AUTH_RETURN_TO_HEADER) ?? undefined)
   const trial = getTrialStatus(profile.accounts)
   const entitlement = resolveCommercialEntitlement(profile.accounts)
-  const conversationStudio = isFeatureEnabled('conversation_studio')
+  // A rollout allowlist narrows the pilot to specific brands; while it is active
+  // the sidebar must not advertise a door that redirects other brands back home.
+  const conversationStudio = conversationStudioNavEnabled()
 
   // The brand is deliberately NOT resolved here. This layout sits at
   // `dashboard/`, so it cannot see the `[clientId]` segment's params — a Next

@@ -19,6 +19,15 @@ steps (`scan`, `results`, `improve`, `monitor`, `roi`), ownership checks and the
 behavior are unchanged. Studio keeps its existing honest shell when LIVE is off
 (`as-note` / `featureShellNote`); no copy changed.
 
+**2026-11-09 — per-brand rollout allowlist.** Production already had
+`FEATURE_CONVERSATION_STUDIO=1` (set 8 days earlier), which made Studio the default brand
+home for *every* brand. Phase A required a pilot brand, so `STUDIO_ROLLOUT_CLIENT_IDS`
+(comma-separated client UUIDs) now narrows it: when the list is non-empty, only those brands
+redirect into Studio and may call the Studio pages/APIs, every other brand keeps
+WorkspaceHome and the sidebar hides the Studio entry. Empty/unset restores the previous
+global behaviour. The pilot brand is AISO Dev Brand
+(`ad73afa0-15ad-4790-8a7b-000f7efbec25`); LIVE remains off.
+
 ## Alias decision: `?step=overview`
 
 Redirecting `home` alone would make WorkspaceHome unreachable, because Overview and Studio's

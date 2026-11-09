@@ -1,7 +1,7 @@
 import 'server-only'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isConversationStudioEnabled } from '@/lib/flags'
 import { readLimitedJson } from '@/lib/approvals/request'
 import { STUDIO_HOME_TEMPLATES, type StudioHomeTemplate } from './home'
 import { STUDIO_PROMPT_LIMIT, type StudioLiveReply } from './live-types'
@@ -47,7 +47,7 @@ type Authorized = {
  * 088's composite FK binds each one to a grant naming this profile.
  */
 async function authorize(clientId: string): Promise<Authorized | Response> {
-  if (!isFeatureEnabled('conversation_studio')) return notFound()
+  if (!isConversationStudioEnabled(clientId)) return notFound()
   const profile = await getProfile()
   if (!profile) return respond({ error: 'UNAUTHENTICATED' }, 401)
   if (!UUID.test(clientId)) return notFound()

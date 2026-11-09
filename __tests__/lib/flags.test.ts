@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { isFeatureEnabled } from '@/lib/flags'
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { conversationStudioNavEnabled, conversationStudioRolloutClients, isConversationStudioEnabled, isFeatureEnabled } from '@/lib/flags'
 
 describe('conversation_studio flag', () => {
   afterEach(() => vi.unstubAllEnvs())
@@ -50,5 +50,37 @@ describe('search_console flag', () => {
     expect(isFeatureEnabled('search_console')).toBe(false)
     process.env.FEATURE_SEARCH_CONSOLE = '1'
     expect(isFeatureEnabled('search_console')).toBe(true)
+  })
+})
+
+describe('conversation studio per-brand rollout allowlist', () => {
+  const brand = 'ad73afa0-15ad-4790-8a7b-000f7efbec25'
+  const other = '00000000-0000-4000-8000-000000000101'
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('is brand-agnostic while no allowlist is configured (previous behaviour)', () => {
+    vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+    expect(conversationStudioRolloutClients()).toEqual([])
+    expect(isConversationStudioEnabled(brand)).toBe(true)
+    expect(isConversationStudioEnabled(other)).toBe(true)
+    expect(isConversationStudioEnabled(null)).toBe(true)
+    expect(conversationStudioNavEnabled()).toBe(true)
+  })
+
+  it('narrows the pilot to listed brands and hides the global nav entry', () => {
+    vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+    vi.stubEnv('STUDIO_ROLLOUT_CLIENT_IDS', ` ${brand} , not-a-uuid, ${brand} `)
+    expect(conversationStudioRolloutClients()).toEqual([brand])
+    expect(isConversationStudioEnabled(brand)).toBe(true)
+    expect(isConversationStudioEnabled(other)).toBe(false)
+    expect(isConversationStudioEnabled(undefined)).toBe(false)
+    expect(conversationStudioNavEnabled()).toBe(false)
+  })
+
+  it('stays off for every brand when the feature flag is off, whatever the allowlist says', () => {
+    vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '0')
+    vi.stubEnv('STUDIO_ROLLOUT_CLIENT_IDS', brand)
+    expect(isConversationStudioEnabled(brand)).toBe(false)
+    expect(conversationStudioNavEnabled()).toBe(false)
   })
 })
