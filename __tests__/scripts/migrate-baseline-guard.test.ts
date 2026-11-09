@@ -163,6 +163,8 @@ function allRelations() {
     'site_edit_live_checks',
     // 097: Retainer OS Slice B insert-only month snapshots; authored only.
     'brand_month_snapshots',
+    // 101: Phase 3 advisory client review decisions; applied 2026-11-09 under a named approval.
+    'client_report_reviews',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
@@ -194,9 +196,10 @@ describe('unappliedBaselineClaims', () => {
   it('says nothing about a migration excluded via --except', () => {
     // Pending migrations legitimately have no tables yet; excepting them is the
     // correct action, so they must not be reported.
-    // 098 builds on 027's client_report tables (its partial index names one), so excepting
-    // 027 means excepting 098 too.
-    const files = listMigrationFiles().filter(f => f !== '027_client_report_snapshots.sql' && f !== '098_monthly_client_reports.sql')
+    // 098 builds on 027's client_report tables (its partial index names one), and 101
+    // names its index `client_report_reviews_scope_idx`, so excepting 027 means excepting both.
+    const files = listMigrationFiles().filter(f => f !== '027_client_report_snapshots.sql'
+      && f !== '098_monthly_client_reports.sql' && f !== '101_client_report_reviews.sql')
     const without027 = new Set([...allRelations()].filter(t => !t.startsWith('client_report')))
 
     expect(unappliedBaselineClaims(entries(files), without027)).toEqual([])
