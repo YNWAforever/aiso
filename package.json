@@ -26,7 +26,8 @@
     "e2e:auth:capture": "node --env-file-if-exists=.env.local scripts/e2e/capture-auth-state.mjs",
     "e2e:authenticated": "node --env-file-if-exists=.env.local scripts/e2e/run-authenticated.mjs",
     "worker:schedules": "node scripts/worker-schedules.mjs",
-    "report:movement-replay": "node --env-file=.env.local scripts/replay-movement-rule.mjs"
+    "report:movement-replay": "node --env-file=.env.local scripts/replay-movement-rule.mjs",
+    "report:brand-months-receipt": "node --env-file=.env.local scripts/brand-months-receipt.mjs"
   },
   "dependencies": {
     "@neondatabase/auth": "0.5.0-beta",

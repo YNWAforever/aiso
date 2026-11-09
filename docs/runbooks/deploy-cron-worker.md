@@ -22,14 +22,16 @@ all three `schedule:` lines; the deployed script was read back and contains
 Verify after a firing:
 
 ```bash
-npm run worker:schedules          # expected: three deployed, no drift
-npm run migrate -- --verify       # not needed for this; the cron writes rows, not schema
+npm run worker:schedules              # expected: three deployed, no drift
+npm run report:brand-months-receipt   # expected: firing recorded, snapshots written
 ```
 
-and check that `brand_month_snapshots` gained an opening row for the current Hong Kong month
-(plus last month's closing, due three days after it ended) and that `cron_runs` recorded
-`/api/cron/brand-months`. A brand needs `client_reports_online` (Pro/Enterprise) to be included;
-brands without it are counted in `notEntitled` and skipped.
+`report:brand-months-receipt` reads `cron_runs` for `/api/cron/brand-months` and
+`brand_month_snapshots`, names any brand missing this month's opening or last month's closing
+row, and says so explicitly when no firing has ever done anything. It is the difference
+between "the schedule exists" and "the schedule worked". A brand needs
+`client_reports_online` (Pro/Enterprise) to be included; brands without it are counted in
+`notEntitled` and skipped.
 
 ## Historical readback: the third tick was missing until 2026-11-09
 
