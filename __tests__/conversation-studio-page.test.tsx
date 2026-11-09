@@ -97,13 +97,11 @@ it('does not turn GSC lookup errors or disabled access into an unbound claim', a
   expect(mocks.panel).not.toHaveBeenCalled()
 })
 
-it('passes only plan-granted platforms and the fail-closed cap when LIVE is on', async () => {
+it('passes only plan-granted platforms and the fixed per-brand weekly cap when LIVE is on', async () => {
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '1')
-  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', undefined)
   mocks.auth.mockResolvedValue({ account_id: 'account-a', accounts: { override_plan: 'basic' } })
-  expect((await render()).props.live).toEqual({ platforms: ['gemini-flash'], cap: 0 })
-  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', '3')
-  expect((await render()).props.live).toEqual({ platforms: ['gemini-flash'], cap: 3 })
+  // The cap is a business rule in code (10 per brand per week), not an env knob.
+  expect((await render()).props.live).toEqual({ platforms: ['gemini-flash'], cap: 10 })
 })
 it('stops at authentication before any brand read', async () => {
   mocks.auth.mockRejectedValueOnce(new Error('AUTH_REDIRECT'))

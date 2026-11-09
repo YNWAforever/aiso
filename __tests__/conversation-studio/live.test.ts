@@ -6,6 +6,8 @@ vi.mock('@/lib/auth', () => ({ getProfile: mocks.profile }))
 vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
 
 const clientId = '11111111-1111-4111-8111-111111111111'
+const accountA = '10000000-0000-4000-8000-000000000001'
+const accountB = '10000000-0000-4000-8000-000000000002'
 const prompt = 'PRIVATE QUESTION: What does this brand do?'
 const reply = 'PRIVATE MODEL REPLY'
 let outbound: ReturnType<typeof vi.fn>
@@ -22,8 +24,8 @@ const attachRow = {
 
 function answerQuota(strings: TemplateStringsArray, values: unknown[]) {
   if (!strings.join('').includes('studio_live_weekly_usage')) return undefined
-  const [accountId, week, count, cap] = values as [string, string, number, number]
-  const key = `${accountId}:${week}`
+  const [accountId, brandId, week, count, cap] = values as [string, string, string, number, number]
+  const key = `${accountId}:${brandId}:${week}`
   const current = mocks.answerUsage.get(key) ?? 0
   if (current + count > cap) return [{ allowed: false, answer_count: current }]
   const next = current + count
@@ -67,12 +69,11 @@ beforeEach(() => {
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '1')
   vi.stubEnv('FEATURE_PULSE_GROUNDING', '0')
-  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', '10')
   vi.stubEnv('AISO_LLM_TASK_CALLS', '3')
   vi.stubEnv('AISO_LLM_TASK_TOKENS', '12000')
   vi.stubEnv('AISO_LLM_MAX_OUTPUT_TOKENS', '4000')
   vi.stubEnv('OPENROUTER_API_KEY', 'mock-only')
-  mocks.profile.mockResolvedValue({ account_id: 'account-a', accounts: { override_plan: 'pro' } })
+  mocks.profile.mockResolvedValue({ account_id: accountA, accounts: { override_plan: 'pro' } })
   mocks.answerUsage.clear()
   mocks.sql.mockImplementation(defaultSql)
   outbound = vi.fn(async () => completion())
@@ -107,7 +108,7 @@ it('rejects bad UUID and foreign ownership before entitlement or calls', async (
   expect(outbound).not.toHaveBeenCalled()
 })
 it('returns UPGRADE_REQUIRED only after owned-brand lookup', async () => {
-  mocks.profile.mockResolvedValue({ account_id: 'account-a', accounts: { plan: 'free' } })
+  mocks.profile.mockResolvedValue({ account_id: accountA, accounts: { plan: 'free' } })
   const response = await send()
   expect(response.status).toBe(403)
   expect(await response.json()).toEqual({ error: 'UPGRADE_REQUIRED' })
@@ -131,15 +132,20 @@ it('bounds actual bytes and rejects malformed JSON at stable 400', async () => {
   expect(outbound).not.toHaveBeenCalled()
 })
 it('accepts only Basic plan Gemini, without altering entitlement logic', async () => {
-  mocks.profile.mockResolvedValue({ account_id: 'account-a', accounts: { override_plan: 'basic' } })
+  mocks.profile.mockResolvedValue({ account_id: accountA, accounts: { override_plan: 'basic' } })
   expect((await send(body(['gpt-4o']))).status).toBe(400)
   expect(outbound).not.toHaveBeenCalled()
   expect((await send()).status).toBe(200)
   expect(outbound).toHaveBeenCalledTimes(1)
 })
-it.each([undefined, '0', '-1', '1.5', 'bad', 'Infinity', '9007199254740992', ' 2 '])('fails closed for cap %s', async cap => {
-  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', cap)
-  expect((await send()).status).toBe(429)
+it('fails closed when the brand-week LIVE allowance is already spent', async () => {
+  // The cap is a fixed business rule (10 per brand per week), not an env knob:
+  // the only way to be refused is for this brand's counter to be at the cap.
+  const week = (await import('@/lib/conversation-studio/live-quota')).studioWeek()
+  mocks.answerUsage.set(`${accountA}:${clientId}:${week}`, 10)
+  const response = await send()
+  expect(response.status).toBe(429)
+  expect(await response.json()).toEqual({ error: 'STUDIO_QUOTA_EXCEEDED' })
   expect(outbound).not.toHaveBeenCalled()
 })
 it('reserves the entire fan-out budget before sending anything', async () => {
@@ -163,7 +169,7 @@ it('reserves token budget before the provider and clamps each completion', async
 it('sends one localized question, preserves safe citations and logs only studio metadata', async () => {
   const response = await send()
   expect(response.status).toBe(200)
-  expect(await response.json()).toMatchObject({ quota: { cap: 10, remaining: 9, scope: 'account' }, answers: [{
+  expect(await response.json()).toMatchObject({ quota: { cap: 10, remaining: 9, scope: 'brand' }, answers: [{
     platform: 'gemini-flash', coverage: 'present', answer: reply, finishReason: 'stop', grounding: 'none',
     searchEvidence: { requested: 'none', execution: 'unknown' }, citations: [{ url: 'https://source.example/article', title: 'Source' }],
   }] })
@@ -201,7 +207,7 @@ it('attaches only the explicitly selected usable source as fenced data', async (
   expect(text).toMatch(/s\.agent_use_allowed = true/)
   expect(text).toMatch(/s\.revoked_at is null/)
   expect(text).toMatch(/v\.approved_at is not null/)
-  expect(sourceCall.slice(1)).toEqual(['account-a', clientId, attachedSourceId])
+  expect(sourceCall.slice(1)).toEqual([accountA, clientId, attachedSourceId])
 })
 it.each(['foreign', 'unapproved', 'revoked', 'not-agent-usable'])('rejects a %s source before any provider call', async () => {
   mocks.sql.mockImplementation(attachSql(null))
@@ -210,8 +216,9 @@ it.each(['foreign', 'unapproved', 'revoked', 'not-agent-usable'])('rejects a %s 
   expect(await response.json()).toEqual({ error: 'STUDIO_ATTACH_UNAVAILABLE' })
   expect(outbound).not.toHaveBeenCalled()
 })
-it('still stops LIVE at quota zero when a source is attached', async () => {
-  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', '0')
+it('still stops LIVE when the brand-week allowance is spent, even with a source attached', async () => {
+  const week = (await import('@/lib/conversation-studio/live-quota')).studioWeek()
+  mocks.answerUsage.set(`${accountA}:${clientId}:${week}`, 10)
   mocks.sql.mockImplementation(attachSql(attachRow))
   const response = await send({ ...body(), attachedSourceId })
   expect(response.status).toBe(429)
@@ -241,12 +248,13 @@ it('keeps partial and total failures explicit and charges attempted calls withou
   expect(failed.quota.remaining).toBe(7)
   expect(JSON.stringify([info.mock.calls, warn.mock.calls, error.mock.calls])).not.toContain(prompt)
 })
-it('serializes concurrent reservations across brands in one account and keeps other accounts separate', async () => {
-  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', '1')
-  const results = await Promise.all([send(), send(body(), '22222222-2222-4222-8222-222222222222')])
-  expect(results.map(r => r.status).sort()).toEqual([200, 429])
+it('meters LIVE per brand in one account and keeps another account separate', async () => {
+  const week = (await import('@/lib/conversation-studio/live-quota')).studioWeek()
+  mocks.answerUsage.set(`${accountA}:${clientId}:${week}`, 10)
+  expect((await send()).status).toBe(429)
+  expect((await send(body(), '22222222-2222-4222-8222-222222222222')).status).toBe(200)
   expect(outbound).toHaveBeenCalledTimes(1)
-  mocks.profile.mockResolvedValue({ account_id: 'account-b', accounts: { override_plan: 'pro' } })
+  mocks.profile.mockResolvedValue({ account_id: accountB, accounts: { override_plan: 'pro' } })
   expect((await send()).status).toBe(200)
 })
 it('only enables web search within the existing allowance and its local Studio reservation', async () => {
@@ -301,16 +309,15 @@ it('aborts stalled provider calls at the shared timeout with no retry', async ()
   expect(outbound).toHaveBeenCalledTimes(1)
 })
 
-it('uses the existing UTC Monday boundary for the durable account-week', async () => {
+it('uses the existing UTC Monday boundary for the durable brand-week', async () => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-28T12:00:00Z'))
-  vi.stubEnv('STUDIO_LIVE_ANSWERS_PER_WEEK', '1')
   const { reserveStudioAnswers, studioWeek } = await import('@/lib/conversation-studio/live-quota')
   expect(studioWeek()).toBe('2026-10-26')
-  expect((await reserveStudioAnswers('account-a', 1, studioWeek())).remaining).toBe(0)
+  expect((await reserveStudioAnswers(accountA, clientId, 10, studioWeek())).remaining).toBe(0)
   vi.setSystemTime(new Date('2026-11-01T23:59:59Z'))
-  await expect(reserveStudioAnswers('account-a', 1, studioWeek())).rejects.toThrow('STUDIO_QUOTA_EXCEEDED')
+  await expect(reserveStudioAnswers(accountA, clientId, 1, studioWeek())).rejects.toThrow('STUDIO_QUOTA_EXCEEDED')
   vi.setSystemTime(new Date('2026-11-02T00:00:00Z'))
   expect(studioWeek()).toBe('2026-11-02')
-  expect((await reserveStudioAnswers('account-a', 1, studioWeek())).remaining).toBe(0)
+  expect((await reserveStudioAnswers(accountA, clientId, 1, studioWeek())).remaining).toBe(9)
 })
