@@ -1,4 +1,4 @@
-import { PGlite } from '@electric-sql/pglite'
+﻿import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 
@@ -33,6 +33,7 @@ beforeAll(async () => {
   await state.pg.query('insert into profiles(id, account_id) values($1,$2),($3,$2)', [profileA, accountA, profileA2])
   await state.pg.query(`insert into clients(id, account_id, brand_name, status) values($1,$2,'Brand A','active'),($3,$2,'Old','archived')`, [clientA, accountA, clientArchived])
   await state.pg.exec(readFileSync('supabase/migrations/081_studio_private_threads.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/103_studio_thread_lifecycle.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/085_studio_drive_exports.sql', 'utf8'))
   for (const [thread, client] of [[threadA, clientA], [threadArchived, clientArchived]]) {
     await state.pg.query(
@@ -51,7 +52,7 @@ afterAll(async () => { await state.pg?.close() })
 
 const service = () => import('@/lib/conversation-studio/drive-export')
 
-it('reads only the member’s own saved turn on an active brand', async () => {
+it('reads only the member? own saved turn on an active brand', async () => {
   // The real loadTurn statement; the run stops at "not connected" before any Google work.
   const { exportTurnToGoogleDoc } = await service()
   const run = (overrides: Partial<{ accountId: string; profileId: string; clientId: string; threadId: string; position: number }>) =>

@@ -1,4 +1,4 @@
-import { PGlite } from '@electric-sql/pglite'
+﻿import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 
@@ -21,7 +21,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import { GET as listThreads, POST as createThread } from '@/app/api/dashboard/clients/[clientId]/studio/threads/route'
-import { GET as getThread } from '@/app/api/dashboard/clients/[clientId]/studio/threads/[threadId]/route'
+import { GET as getThread, PATCH as updateThread } from '@/app/api/dashboard/clients/[clientId]/studio/threads/[threadId]/route'
 import { PATCH as finalizeTurn, POST as appendTurn } from '@/app/api/dashboard/clients/[clientId]/studio/threads/[threadId]/turns/route'
 
 const accountA = '10000000-0000-4000-8000-000000000001'
@@ -73,6 +73,7 @@ beforeAll(async () => {
   await state.pg.query('insert into profiles(id, account_id) values($1,$2),($3,$2),($4,$5)', [profileA, accountA, profileA2, profileB, accountB])
   await state.pg.query('insert into clients(id, account_id) values($1,$2),($3,$2),($4,$5)', [brandA, accountA, brandA2, brandB, accountB])
   await state.pg.exec(readFileSync('supabase/migrations/081_studio_private_threads.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/103_studio_thread_lifecycle.sql', 'utf8'))
   // Member flows must be unchanged once 087/088 add staff principals.
   await state.pg.exec(readFileSync('supabase/migrations/087_studio_staff_grants.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/088_studio_staff_threads.sql', 'utf8'))
@@ -223,4 +224,61 @@ it('tags each thread with the skill of its first turn, derived on read through t
   expect(detail.thread.skill).toBe('competitors')
   const fresh = await create()
   expect((fresh.data.thread as { skill?: unknown }).skill).toBeNull()
+})
+
+async function update(clientId: string, threadId: string, body: unknown) {
+  return updateThread(request(`/api/studio/threads/${threadId}`, 'PATCH', body), { params: Promise.resolve({ clientId, threadId }) })
+}
+
+it('lets the owner rename, pin and share a thread; a teammate reads it but cannot change it', async () => {
+  const { data } = await create()
+  await append(brandA, data.thread.id, { ...turnBody, task: 'pulse' })
+
+  const renamed = await update(brandA, data.thread.id, { title: 'Renamed thread', pinned: true })
+  expect(renamed.status).toBe(200)
+  expect((await renamed.json()).thread).toMatchObject({ title: 'Renamed thread', pinned: true, mine: true, visibility: 'private' })
+
+  const shared = await update(brandA, data.thread.id, { visibility: 'shared' })
+  expect((await shared.json()).thread.visibility).toBe('shared')
+
+  asA2()
+  const listed = await (await listThreads(request('/api/studio'), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: Array<{ id: string; mine: boolean; visibility: string }> }
+  expect(listed.threads).toEqual([expect.objectContaining({ id: data.thread.id, mine: false, visibility: 'shared' })])
+  const detail = await getThread(request('/api/studio'), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
+  expect(detail.status).toBe(200)
+  expect((await detail.json()).turns).toHaveLength(1)
+
+  // Read-only for a teammate: no rename, no archive, no turns.
+  expect((await update(brandA, data.thread.id, { title: 'Mine now' })).status).toBe(404)
+  expect((await append(brandA, data.thread.id)).status).toBe(404)
+  // Sharing does not cross the brand boundary.
+  asB()
+  expect((await getThread(request('/api/studio'), { params: Promise.resolve({ clientId: brandB, threadId: data.thread.id }) })).status).toBe(404)
+})
+
+it('hides an archived thread from every list while its owner can still open it, and restores it', async () => {
+  const { data } = await create()
+  await update(brandA, data.thread.id, { visibility: 'shared', archived: true })
+
+  const ownList = await (await listThreads(request('/api/studio'), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: unknown[] }
+  expect(ownList.threads).toEqual([])
+  asA2()
+  const sharedList = await (await listThreads(request('/api/studio'), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: unknown[] }
+  expect(sharedList.threads).toEqual([])
+
+  asA()
+  const archived = await getThread(request('/api/studio'), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
+  expect((await archived.json()).thread).toMatchObject({ archived: true, mine: true })
+  await update(brandA, data.thread.id, { archived: false })
+  const restored = await (await listThreads(request('/api/studio'), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: Array<{ archived: boolean }> }
+  expect(restored.threads).toEqual([expect.objectContaining({ archived: false })])
+})
+
+it('validates a thread update body and refuses empty patches', async () => {
+  const { data } = await create()
+  for (const body of [{}, { title: '' }, { title: 'x'.repeat(201) }, { pinned: 'yes' }, { archived: 1 }, { visibility: 'public' }, { title: 'ok', extra: true }]) {
+    expect((await update(brandA, data.thread.id, body)).status).toBe(400)
+  }
+  expect((await update(brandA, 'not-a-uuid', { pinned: true })).status).toBe(404)
+  expect((await update(brandA, missing, { pinned: true })).status).toBe(404)
 })
