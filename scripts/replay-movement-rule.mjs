@@ -19,9 +19,71 @@ import {
   MOVEMENT_MIN_ANSWERS_PER_WEEK, MOVEMENT_MIN_WEEKS, MOVEMENT_WEEK_WINDOW,
   buildVisibility, decideMovement,
 } from '../lib/monthly-report/movement.ts'
+import { PLAN_CATALOG, PLAN_IDS } from '../lib/plans/catalog.ts'
+import { pulsePlatformsFor } from '../lib/pulse/platforms.ts'
 
 const DAY_MS = 86_400_000
 const weekIndex = week => Math.floor(Date.parse(`${week}T00:00:00Z`) / DAY_MS)
+
+const PAID_PLANS = new Set(['basic', 'pro', 'enterprise'])
+const KNOWN_PLANS = new Set(PLAN_IDS)
+
+function timestampMs(raw) {
+  if (raw instanceof Date) return raw.getTime()
+  if (typeof raw === 'string') return new Date(raw).getTime()
+  return Number.NaN
+}
+
+/**
+ * The account's effective plan and source, mirroring lib/tier.ts's branch order.
+ *
+ * This is a copy, not an import: plain Node's type-stripping loader cannot
+ * resolve the app's `@/` alias, and lib/tier.ts's catalog import is aliased. The
+ * parity cases in __tests__/scripts/movement-replay.test.ts compare every branch
+ * against resolveCommercialEntitlement, so a change there fails that test rather
+ * than letting this copy drift silently.
+ */
+export function resolveFeedEntitlement(account, now = new Date()) {
+  if (!account) return { plan: 'free', source: 'free' }
+
+  const overridePlan = typeof account.override_plan === 'string' && KNOWN_PLANS.has(account.override_plan)
+    ? account.override_plan
+    : null
+  if (overridePlan) {
+    const raw = account.override_expires_at
+    // A null expiry means permanent; a malformed one voids the override.
+    if (raw === null || raw === undefined) return { plan: overridePlan, source: 'override' }
+    const expiry = timestampMs(raw)
+    if (Number.isFinite(expiry) && expiry > now.getTime()) return { plan: overridePlan, source: 'override' }
+  }
+
+  if (account.status === 'past_due') return { plan: 'free', source: 'past_due' }
+  if (account.status === 'cancelled') return { plan: 'free', source: 'cancelled' }
+
+  const plan = typeof account.plan === 'string' && PAID_PLANS.has(account.plan) ? account.plan : null
+  if (!plan) return { plan: 'free', source: 'free' }
+
+  const trialExpiry = timestampMs(account.trial_ends_at)
+  const trialIsLive = Number.isFinite(trialExpiry) && trialExpiry > now.getTime()
+  const hasSubscription = typeof account.stripe_subscription_id === 'string' && account.stripe_subscription_id.length > 0
+
+  if (account.status === 'active' && hasSubscription) return { plan, source: 'paid' }
+  if (trialIsLive || (account.status === 'trialing' && hasSubscription)) return { plan, source: 'trial' }
+  return { plan: 'free', source: Number.isFinite(trialExpiry) ? 'expired-trial' : 'free' }
+}
+
+/**
+ * What the Pulse feed can still deliver for one account: the platforms a weekly
+ * run could query today, and when a comp or trial stops. `platforms: 0` means no
+ * new weeks can arrive for that brand — the replay's "not enough weeks" line is
+ * then a data-dead-end, not just early.
+ */
+export function feedForAccount(account, now = new Date()) {
+  const { plan, source } = resolveFeedEntitlement(account, now)
+  const platforms = pulsePlatformsFor(PLAN_CATALOG[plan].features.platform_access).length
+  const raw = source === 'override' ? account?.override_expires_at : source === 'trial' ? account?.trial_ends_at : null
+  return { plan, source, platforms, endsAt: raw === null || raw === undefined ? null : new Date(raw).toISOString() }
+}
 
 /** Group weekly rows into brand → month (the week's calendar month) → platform → readings. */
 export function groupRows(rows) {
@@ -91,12 +153,25 @@ async function main() {
     snapshotRows.push({ client_id: String(row.client_id), month: String(row.month), kind: row.kind, platforms })
   }
   const entries = groupRows(weeks).map(entry => replayMonth(entry, snapshotRows.filter(s => s.client_id === entry.clientId)))
+  // The feed's side of the same question: a month with too few weeks may still
+  // be growing, or it may be all the weeks that will ever exist. This reads the
+  // accounts behind the brands above, not every brand in the database.
+  const accounts = await sql`
+    select c.id, c.brand_name, a.plan, a.status, a.stripe_subscription_id,
+           a.trial_ends_at::text as trial_ends_at,
+           a.override_plan, a.override_expires_at::text as override_expires_at
+    from clients c join accounts a on a.id = c.account_id`
+  const accountsById = new Map(accounts.map(row => [String(row.id), row]))
+  const feed = [...new Map(entries.map(entry => [entry.clientId, accountsById.get(entry.clientId)])).entries()]
+    .map(([clientId, account]) => ({ clientId, brand: account?.brand_name ?? clientId, ...feedForAccount(account) }))
+    .sort((left, right) => left.brand.localeCompare(right.brand))
   const summary = {
     ruleVersion: (await import('../lib/monthly-report/movement.ts')).MOVEMENT_RULE_VERSION,
     thresholds: { minWeeks: MOVEMENT_MIN_WEEKS, minAnswersPerWeek: MOVEMENT_MIN_ANSWERS_PER_WEEK, weekWindow: MOVEMENT_WEEK_WINDOW },
     brandMonths: entries.length,
     readyForQ1: entries.filter(entry => entry.readyForQ1).length,
     verdicts: entries.reduce((total, entry) => total + entry.platforms.filter(p => p.direction !== null).length, 0),
+    feed,
   }
   if (json) { console.log(JSON.stringify({ summary, entries }, null, 1)); return }
   console.log(`movement rule v${summary.ruleVersion} · thresholds ${JSON.stringify(summary.thresholds)}`)
@@ -109,6 +184,19 @@ async function main() {
     }
     console.log(`  report visibility: ${entry.visibility.state === 'recorded'
       ? `${entry.visibility.platforms.length} platform row(s)` : entry.visibility.reason}`)
+  }
+  if (feed.length) {
+    console.log('\nPulse data feed for the brands above (can these weeks still grow?):')
+    for (const brand of feed) {
+      const ends = brand.endsAt ? ` until ${brand.endsAt.slice(0, 10)}` : ''
+      console.log(`  ${brand.brand}: ${brand.plan} via ${brand.source}${ends}, ${brand.platforms} Pulse platform(s)`)
+    }
+    const starved = feed.filter(brand => brand.platforms === 0)
+    if (starved.length) {
+      console.log(`\nWARNING: ${starved.map(brand => brand.brand).join(', ')} cannot collect new Pulse weeks`
+        + ` (${starved.map(brand => `${brand.plan} via ${brand.source}`).join('; ')}): no platform is granted,`
+        + ' so the weeks above are all this pipeline will record unless the account is entitled again.')
+    }
   }
   if (!summary.readyForQ1) {
     console.log('\nQ1 cannot be judged from this data yet: no platform has four consecutive weekly readings inside one month.')
