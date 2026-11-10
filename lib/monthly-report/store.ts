@@ -33,6 +33,8 @@ export type MonthlyReportListItem = {
   publicSlug: string
   shareVersion: number
   locale: 'en' | 'zh-HK'
+  /** The latest version's id, so the list can publish exactly the version it shows. */
+  versionId: string
   versionNumber: number
   publishedVersionNumber: number | null
   publishedLocale: 'en' | 'zh-HK' | null
@@ -42,7 +44,7 @@ export type MonthlyReportListItem = {
 export async function listMonthlyReports(accountId: string, clientId: string): Promise<MonthlyReportListItem[]> {
   const rows = await db()`
     select r.id as report_id, r.status, r.public_slug, r.share_version, r.published_at,
-           r.report_month::text as month, v.version_number,
+           r.report_month::text as month, v.id as version_id, v.version_number,
            v.snapshot->>'locale' as locale,
            p.version_number as published_version_number, p.locale as published_locale
     from client_reports r
@@ -57,6 +59,7 @@ export async function listMonthlyReports(accountId: string, clientId: string): P
     publicSlug: String(row.public_slug),
     shareVersion: Number(row.share_version),
     locale: row.locale === 'zh-HK' ? 'zh-HK' : 'en',
+    versionId: String(row.version_id),
     versionNumber: Number(row.version_number),
     publishedVersionNumber: row.published_version_number === null ? null : Number(row.published_version_number),
     publishedLocale: row.published_locale === 'zh-HK' ? 'zh-HK' : row.published_locale === 'en' ? 'en' : null,

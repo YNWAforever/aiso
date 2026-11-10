@@ -11,7 +11,7 @@ vi.mock('next-intl/server', () => ({
     ? createTranslator({ locale: 'en', messages: en, namespace: arg as never })
     : createTranslator({ locale: arg.locale, messages: arg.locale === 'zh-HK' ? zh : en, namespace: arg.namespace as never }),
 }))
-vi.mock('next/navigation', () => ({ notFound: h.notFound }))
+vi.mock('next/navigation', () => ({ notFound: h.notFound, useRouter: () => ({ refresh: vi.fn() }) }))
 vi.mock('@/lib/auth', () => ({ requireAuth: async () => ({ id: 'u1', account_id: 'acc', accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } }) }))
 vi.mock('@/lib/reports/store', () => ({ loadOwnedReportClient: h.client }))
 vi.mock('@/lib/reports/service', () => ({ listAuthenticatedClientReports: h.reports }))
@@ -30,7 +30,7 @@ const render = async ({ kind, locale = 'en' }: { kind?: string; locale?: 'en' | 
 }
 const monthlyRow = {
   reportId: 'r1', month: '2026-11', status: 'published' as const, publicSlug: 's'.repeat(32), shareVersion: 3,
-  locale: 'en' as const, versionNumber: 2, publishedVersionNumber: 2, publishedLocale: 'en' as const,
+  locale: 'en' as const, versionId: 'v1', versionNumber: 2, publishedVersionNumber: 2, publishedLocale: 'en' as const,
   publishedAt: '2026-12-04T02:00:00.000Z',
 }
 
@@ -84,6 +84,32 @@ describe('reports page monthly tab', () => {
     expect(html).toContain('2026年11月')
     expect(html).toContain('第 2 版')
     expect(html).toContain('開啟報告')
+  })
+
+  it('offers publish on a viewable draft and withdraw on a live share from the list', async () => {
+    h.monthly.mockResolvedValue([
+      { ...monthlyRow, reportId: 'r-draft', status: 'draft', versionId: 'v-draft',
+        versionNumber: 1, publishedVersionNumber: null, publishedAt: null },
+      monthlyRow,
+    ])
+    const html = await render({ kind: 'monthly' })
+    expect(html).toContain('Publish latest')
+    expect(html).toContain('Stop sharing')
+    // Publishing uses the latest version shown, so the list must carry its id.
+    expect(html).toContain('Version 1')
+    expect(html).toContain('Version 2')
+  })
+
+  it('keeps stop sharing for an old month but does not offer publish outside the lookback', async () => {
+    h.monthly.mockResolvedValue([
+      { ...monthlyRow, reportId: 'r-old-draft', month: '2025-01', versionId: 'v-old-draft',
+        status: 'draft', versionNumber: 1, publishedVersionNumber: null, publishedAt: null },
+      { ...monthlyRow, reportId: 'r-old-live', month: '2025-02', versionId: 'v-old-live',
+        status: 'published', versionNumber: 1, publishedVersionNumber: 1 },
+    ])
+    const html = await render({ kind: 'monthly' })
+    expect(html).not.toContain('Publish latest')
+    expect(html).toContain('Stop sharing')
   })
 
   it('fails closed to the unavailable card when the month list cannot be read, never an empty list', async () => {

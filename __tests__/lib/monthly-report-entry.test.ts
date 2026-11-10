@@ -4,7 +4,7 @@ import type { MonthlyReportListItem } from '@/lib/monthly-report/store'
 
 const row = (month: string, status: MonthlyReportListItem['status'] = 'draft'): MonthlyReportListItem => ({
   reportId: `r-${month}`, month, status, publicSlug: 'p'.repeat(32), shareVersion: 1,
-  locale: 'en', versionNumber: 1, publishedVersionNumber: null, publishedLocale: null, publishedAt: null,
+  locale: 'en', versionId: `v-${month}`, versionNumber: 1, publishedVersionNumber: null, publishedLocale: null, publishedAt: null,
 })
 
 describe('currentMonthReport', () => {
