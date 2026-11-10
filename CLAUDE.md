@@ -498,6 +498,10 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   (`private`|`shared`), `pinned_at` and `archived_at` to `studio_threads`; existing threads stay private,
   unshared and unarchived. Shared threads are read-only to other brand members and owner-only to change;
   staff threads can never be shared.
+- **`104` (Studio branch lineage) recorded 2026-11-10** under a named approval. Adds
+  `branched_from_thread_id`/`branched_from_turn_id` to `studio_threads` with brand-scoped identity keys and
+  FKs (paired `ON DELETE SET NULL`, so the both-or-neither CHECK survives the origin-turn cascade), a
+  no-self-branch CHECK, and a partial index. The 19 existing threads stay branchless.
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,

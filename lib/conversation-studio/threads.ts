@@ -7,6 +7,7 @@ import { STUDIO_HOME_TEMPLATES, type StudioHomeTemplate } from './home'
 import { STUDIO_PROMPT_LIMIT, type StudioLiveReply } from './live-types'
 import type { StudioReply } from './types'
 import type {
+  StudioThreadBranchOf,
   StudioThreadCreateInput,
   StudioThreadRecord,
   StudioThreadUpdateInput,
@@ -122,7 +123,7 @@ function readLive(value: unknown): StudioTurnLiveInput | null {
 
 function parseCreateThread(raw: unknown): StudioThreadCreateInput | null {
   if (!isObject(raw)) return null
-  const allowed = ['kind', 'title', 'goal', 'week', 'sourceTitle']
+  const allowed = ['kind', 'title', 'goal', 'week', 'sourceTitle', 'branchOf']
   if (Object.keys(raw).some(key => !allowed.includes(key))) return null
   const kind = raw.kind === 'research' || raw.kind === 'brief' ? raw.kind : null
   const title = text(raw.title, 200)
@@ -130,7 +131,13 @@ function parseCreateThread(raw: unknown): StudioThreadCreateInput | null {
   const week = optionalText(raw.week, 40)
   const sourceTitle = optionalText(raw.sourceTitle, 200)
   if (!kind || !title || !goal || week === undefined || sourceTitle === undefined) return null
-  return { kind, title, goal, week, sourceTitle }
+  let branchOf: StudioThreadBranchOf | undefined
+  if (raw.branchOf !== undefined) {
+    if (!isObject(raw.branchOf) || Object.keys(raw.branchOf).some(key => !['threadId', 'turnId'].includes(key))) return null
+    if (!isUuid(raw.branchOf.threadId) || !isUuid(raw.branchOf.turnId)) return null
+    branchOf = { threadId: raw.branchOf.threadId, turnId: raw.branchOf.turnId }
+  }
+  return { kind, title, goal, week, sourceTitle, ...(branchOf ? { branchOf } : {}) }
 }
 
 function parseCreateTurn(raw: unknown): StudioTurnCreateInput | null {
@@ -195,6 +202,9 @@ function threadRecord(row: Record<string, unknown>, viewerProfileId: string): St
     pinned: row.pinned_at !== null && row.pinned_at !== undefined,
     archived: row.archived_at !== null && row.archived_at !== undefined,
     mine: String(row.profile_id) === viewerProfileId,
+    branchOf: row.branched_from_thread_id !== null && row.branched_from_thread_id !== undefined
+      ? { threadId: String(row.branched_from_thread_id), turnId: String(row.branched_from_turn_id) }
+      : null,
   }
 }
 
@@ -218,6 +228,7 @@ export async function listStudioThreads(_request: Request, clientId: string): Pr
     const rows = await access.sql`
       select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
         t.profile_id, t.visibility, t.pinned_at, t.archived_at,
+        t.branched_from_thread_id, t.branched_from_turn_id,
         (select count(*)::int from studio_thread_turns u
           where u.thread_id = t.id and u.account_id = t.account_id
             and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count,
@@ -251,19 +262,47 @@ export async function createStudioThread(request: Request, clientId: string): Pr
     try { raw = await readLimitedJson(request, STUDIO_THREAD_BODY_LIMIT) } catch { return invalid() }
     const input = parseCreateThread(raw)
     if (!input) return invalid()
+    // Branch lineage: the origin must be visible to this principal (own thread, or
+    // a teammate's shared thread in the same brand) and the turn must belong to it.
+    // Zero rows is the same 404 as a thread that does not exist.
+    const branchOf = input.branchOf ?? null
+    if (branchOf) {
+      const origins = await access.sql`
+        select t.id, t.profile_id from studio_threads t
+        where t.id = ${branchOf.threadId}::uuid
+          and t.account_id = ${access.accountId}::uuid
+          and t.client_id = ${access.clientId}::uuid
+          and (t.profile_id = ${access.profileId}::uuid
+            or (${access.staffGrantId}::uuid is null and t.visibility = 'shared'))
+        limit 1
+      `
+      if (!origins[0]) return notFound()
+      const originTurns = await access.sql`
+        select id from studio_thread_turns
+        where id = ${branchOf.turnId}::uuid
+          and thread_id = ${branchOf.threadId}::uuid
+          and account_id = ${access.accountId}::uuid
+          and client_id = ${access.clientId}::uuid
+          and profile_id = ${String((origins[0] as Record<string, unknown>).profile_id)}::uuid
+        limit 1
+      `
+      if (!originTurns[0]) return notFound()
+    }
     // One statement: the thread, and for a staff principal its 'thread' audit
     // row in the client account (087), so a staff save is never unrecorded.
     const rows = await access.sql`
       with inserted as (
-        insert into studio_threads (account_id, client_id, profile_id, staff_grant_id, kind, title, goal, week, source_title)
+        insert into studio_threads (account_id, client_id, profile_id, staff_grant_id, kind, title, goal, week, source_title,
+          branched_from_thread_id, branched_from_turn_id)
         select ${access.accountId}::uuid, ${access.clientId}::uuid, ${access.profileId}::uuid, ${access.staffGrantId}::uuid,
-          ${input.kind}, ${input.title}, ${input.goal}, ${input.week}, ${input.sourceTitle ?? null}
+          ${input.kind}, ${input.title}, ${input.goal}, ${input.week}, ${input.sourceTitle ?? null},
+          ${branchOf?.threadId ?? null}::uuid, ${branchOf?.turnId ?? null}::uuid
         where (select count(*) from studio_threads
           where account_id = ${access.accountId}::uuid
             and client_id = ${access.clientId}::uuid
             and profile_id = ${access.profileId}::uuid) < ${STUDIO_THREAD_CAP}
         returning id, title, goal, week, kind, source_title, created_at, updated_at, 0 as turn_count, null as first_task,
-          profile_id, visibility, pinned_at, archived_at
+          profile_id, visibility, pinned_at, archived_at, branched_from_thread_id, branched_from_turn_id
       ), audited as (
         insert into studio_staff_audit (account_id, client_id, actor_profile_id, action)
         select ${access.accountId}::uuid, ${access.clientId}::uuid, ${access.profileId}::uuid, 'thread'
@@ -288,6 +327,7 @@ export async function getStudioThread(_request: Request, clientId: string, threa
     const rows = await access.sql`
       select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
         t.profile_id, t.visibility, t.pinned_at, t.archived_at,
+        t.branched_from_thread_id, t.branched_from_turn_id,
         (select count(*)::int from studio_thread_turns u
           where u.thread_id = t.id and u.account_id = t.account_id
             and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count,
@@ -332,6 +372,7 @@ async function readOwnThreadRow(access: Authorized, threadId: string): Promise<R
   const rows = await access.sql`
     select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
       t.profile_id, t.visibility, t.pinned_at, t.archived_at,
+      t.branched_from_thread_id, t.branched_from_turn_id,
       (select count(*)::int from studio_thread_turns u
         where u.thread_id = t.id and u.account_id = t.account_id
           and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count,

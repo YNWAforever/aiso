@@ -35,12 +35,16 @@ function boundedTitle(value: string): string {
   return wordEnd > 0 ? clipped.slice(0, wordEnd) : clipped
 }
 
-export function StudioThreadHeader({ thread, attachment, onHome }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState' | 'visibility'>; attachment?: StudioAttachCandidate | null; onHome: () => void }) {
+export function StudioThreadHeader({ thread, attachment, onHome, originTitle, onOpenOrigin }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState' | 'visibility' | 'branchOf'>; attachment?: StudioAttachCandidate | null; onHome: () => void; originTitle?: string | null; onOpenOrigin?: () => void }) {
   const t = useTranslations('conversationStudio')
   return <header className="space-y-3">
     <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
     <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></div>
     <h1 className="[overflow-wrap:anywhere]">{thread.title}</h1>
+    {thread.branchOf && (originTitle && onOpenOrigin
+      ? <button type="button" onClick={onOpenOrigin} className="as-button inline-flex min-h-11 items-center gap-2 px-3 text-sm">{t('branchedFrom', { title: originTitle })}</button>
+      : <span className="as-badge">{t('branchedFromUnknown')}</span>)}
+    {thread.branchOf && <p className="as-muted as-small [overflow-wrap:anywhere]">{thread.goal}</p>}
     <div className="flex flex-wrap gap-2" aria-label={t('threadScope')}>
       <span className="as-badge">{t('localeBadge')}</span>
       {thread.week && <span className="as-badge">{t('savedWeek', { week: thread.week })}</span>}
@@ -72,6 +76,9 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const previousNavigation = useRef(navigationVersion)
   const focusBriefStart = useRef(false)
   const current = threads.find(thread => thread.id === activeId)
+  // A branch's origin may no longer be in this list (archived, or another member's
+  // private thread that was unshared); then the origin is shown without a link.
+  const branchOrigin = current?.branchOf ? threads.find(thread => thread.id === current.branchOf!.threadId) ?? null : null
   const inspectedTurn = inspection?.navigationVersion === navigationVersion ? current?.turns.find(turn => turn.id === inspection.turnId) : undefined
   const draft = current?.draft ?? newDraft
   const home = !current
@@ -92,19 +99,28 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   function openHome() { setInspection(null); setActiveId(null) }
   function openThread(id: string) { setInspection(null); selectThread(id) }
 
-  function branchBrief(source: StudioThread, turn: StudioTurn) {
+  function branchThread(source: StudioThread, turn: StudioTurn) {
+    // Lineage needs a saved origin turn; a brand-new unsaved turn has no server id yet.
+    if (source.saveState !== 'persisted' || turn.saveState !== 'saved' || !turn.serverId) {
+      setFeedback({ id: turn.id, threadId: source.id, key: 'branchUnavailable' })
+      return
+    }
     const id = allocateThreadId()
-    const title = boundedTitle(t('briefThreadTitle', { title: source.title }))
+    const title = boundedTitle(t('branchTitle', { title: source.title }))
     const summary = [t(turn.reply.status === 'evidenced' ? 'evidence.savedSummary' : 'evidence.insufficient'),
       t(turn.reply.template === 'competitors' ? 'evidence.comparisonLimit' : turn.reply.template ? 'evidence.summaryScope' : 'evidence.questionLimit'),
       t('honesty.searchDemandPending')].join(' ')
-    const seed = composeBriefDraft({ goal: source.goal, prompt: turn.prompt, summary }, context => t('briefContextPrompt', context))
-    // The thread is saved; the editable composer draft stays client-only.
-    setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind: 'brief', sourceTitle: source.title, turns: [], draft: seed, template: 'brief', saveState: 'unsaved', turnsLoaded: true, skill: 'brief', visibility: 'private', pinned: false, archived: false, mine: true }, ...previous])
-    const saving = saveThread(id, { kind: 'brief', title, goal: source.goal, week: source.week, sourceTitle: source.title })
+    const seed = composeBriefDraft({ goal: source.goal, prompt: turn.prompt, summary }, context => t('branchContextPrompt', context))
+    const branchOf = { threadId: source.id, turnId: turn.serverId }
+    const kind = source.kind
+    const sourceTitle = kind === 'brief' ? source.title : undefined
+    // The new thread keeps the origin's skill (when the turn has one) and records
+    // where it came from; no turn is copied.
+    setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind, sourceTitle, turns: [], draft: seed, template: turn.task ?? null, saveState: 'unsaved', turnsLoaded: true, skill: turn.task ?? null, visibility: 'private', pinned: false, archived: false, mine: true, branchOf }, ...previous])
+    const saving = saveThread(id, { kind, title, goal: source.goal, week: source.week, sourceTitle, branchOf })
     focusBriefStart.current = true
     openThread(id)
-    void saving.then(saved => { if (saved) setFeedback({ id: turn.id, threadId: saved, key: 'briefOpened' }) })
+    void saving.then(saved => { if (saved) setFeedback({ id: turn.id, threadId: saved, key: 'branchOpened' }) })
   }
 
   function updateDraft(value: string, template: StudioHomeTemplate | null = null) {
@@ -132,7 +148,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
     } else {
-      setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true, skill: task, visibility: 'private', pinned: false, archived: false, mine: true }, ...previous])
+      setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true, skill: task, visibility: 'private', pinned: false, archived: false, mine: true, branchOf: null }, ...previous])
       void saveThread(id, { kind, title, goal: prompt, week: evidence.week, sourceTitle: null })
       openThread(id)
       setNewDraft('')
@@ -340,7 +356,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </section>
         {scopeNote}
       </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
-        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} />
+        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} />
         {current.saveState === 'failed' && <p role="alert" className="as-note">{t('saveFailed')}</p>}
         <h2 className="sr-only">{t('conversationLabel')}</h2>
         <div className="as-discussion-grid">
@@ -360,7 +376,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               <p>{t(`templates.${task}.limit`)}</p>
             </div>}
             <div className="min-w-0 space-y-4">
-              <StudioReplyView clientId={clientId} readOnly={staffView || !current.mine} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={() => branchBrief(current, current.turns[index])} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
+              <StudioReplyView clientId={clientId} readOnly={staffView || !current.mine} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={turnSaveState === 'saved' ? () => branchThread(current, current.turns[index]) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
               {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />}
               <StudioGscSnapshotView gsc={gsc} />
               <StudioDfsSnapshotView dfs={dfs} />

@@ -74,6 +74,7 @@ beforeAll(async () => {
   await state.pg.query('insert into clients(id, account_id) values($1,$2),($3,$2),($4,$5)', [brandA, accountA, brandA2, brandB, accountB])
   await state.pg.exec(readFileSync('supabase/migrations/081_studio_private_threads.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/103_studio_thread_lifecycle.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/104_studio_thread_branch.sql', 'utf8'))
   // Member flows must be unchanged once 087/088 add staff principals.
   await state.pg.exec(readFileSync('supabase/migrations/087_studio_staff_grants.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/088_studio_staff_threads.sql', 'utf8'))
@@ -281,4 +282,77 @@ it('validates a thread update body and refuses empty patches', async () => {
   }
   expect((await update(brandA, 'not-a-uuid', { pinned: true })).status).toBe(404)
   expect((await update(brandA, missing, { pinned: true })).status).toBe(404)
+})
+async function createWith(body: unknown, clientId = brandA) {
+  const response = await createThread(request(`/api/studio/${clientId}/threads`, 'POST', body), { params: Promise.resolve({ clientId }) })
+  return { response, data: await response.json() as { thread: { id: string; branchOf: { threadId: string; turnId: string } | null } } }
+}
+
+async function savedTurn(clientId: string, threadId: string): Promise<string> {
+  const response = await append(clientId, threadId)
+  const body = await response.json() as { turn: { id: string } }
+  return body.turn.id
+}
+
+it('records branch lineage from an owned message and exposes it on read and list', async () => {
+  const origin = await create()
+  const turnId = await savedTurn(brandA, origin.data.thread.id)
+  const branchTitle = 'Branch of Synthetic goal'
+  const created = await createWith({ ...threadBody, title: branchTitle, branchOf: { threadId: origin.data.thread.id, turnId } })
+  expect(created.response.status).toBe(201)
+  expect(created.data.thread.branchOf).toEqual({ threadId: origin.data.thread.id, turnId })
+
+  const detail = await getThread(request('/api/studio'), { params: Promise.resolve({ clientId: brandA, threadId: created.data.thread.id }) })
+  expect((await detail.json()).thread.branchOf).toEqual({ threadId: origin.data.thread.id, turnId })
+  const listed = await (await listThreads(request('/api/studio'), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: Array<{ id: string; branchOf: unknown }> }
+  expect(listed.threads.find(thread => thread.id === created.data.thread.id)?.branchOf).toEqual({ threadId: origin.data.thread.id, turnId })
+  // Fresh threads and the origin report no lineage.
+  expect(listed.threads.find(thread => thread.id === origin.data.thread.id)?.branchOf).toBeNull()
+
+  const rows = await state.pg!.query('select branched_from_thread_id::text, branched_from_turn_id::text from studio_threads where id = $1', [created.data.thread.id])
+  expect(rows.rows[0]).toEqual({ branched_from_thread_id: origin.data.thread.id, branched_from_turn_id: turnId })
+})
+
+it('refuses a branch whose origin is not visible or whose turn is not in that thread', async () => {
+  const origin = await create()
+  const turnId = await savedTurn(brandA, origin.data.thread.id)
+  const other = await create()
+  const otherTurnId = await savedTurn(brandA, other.data.thread.id)
+  const branchBody = { ...threadBody, branchOf: { threadId: origin.data.thread.id, turnId } }
+
+  // A turn that belongs to a different thread is not a valid origin turn.
+  expect((await createWith({ ...branchBody, branchOf: { threadId: origin.data.thread.id, turnId: otherTurnId } })).response.status).toBe(404)
+  // Unknown ids are the same 404.
+  expect((await createWith({ ...branchBody, branchOf: { threadId: missing, turnId: missing } })).response.status).toBe(404)
+  // Malformed lineage is a 400, never a silently ignored field.
+  expect((await createWith({ ...branchBody, branchOf: { threadId: 'not-a-uuid', turnId } })).response.status).toBe(400)
+  expect((await createWith({ ...branchBody, branchOf: { threadId: origin.data.thread.id } })).response.status).toBe(400)
+
+  asB()
+  expect((await createWith({ ...branchBody, branchOf: { threadId: origin.data.thread.id, turnId } }, brandB)).response.status).toBe(404)
+})
+
+it('lets a teammate branch a shared thread but never an unshared one', async () => {
+  const origin = await create()
+  const turnId = await savedTurn(brandA, origin.data.thread.id)
+  const branchBody = { ...threadBody, branchOf: { threadId: origin.data.thread.id, turnId } }
+
+  asA2()
+  expect((await createWith(branchBody)).response.status).toBe(404)
+
+  asA()
+  expect((await update(brandA, origin.data.thread.id, { visibility: 'shared' })).status).toBe(200)
+  asA2()
+  const shared = await createWith(branchBody)
+  expect(shared.response.status).toBe(201)
+  const own = await (await listThreads(request('/api/studio'), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: Array<{ id: string; mine: boolean; branchOf: unknown }> }
+  expect(own.threads.find(thread => thread.id === shared.data.thread.id)?.mine).toBe(true)
+  // The branch still belongs to the viewer; the origin stays read-only to them.
+  expect((await update(brandA, origin.data.thread.id, { title: 'Mine now' })).status).toBe(404)
+})
+
+it('enforces the lineage pair at the database boundary', async () => {
+  const origin = await create()
+  await expect(state.pg!.query('update studio_threads set branched_from_turn_id = $1::uuid where id = $2', [missing, origin.data.thread.id]))
+    .rejects.toThrow(/branch_pair_check/)
 })

@@ -101,7 +101,7 @@ it.each(['en', 'zh-HK'])('renders insufficient and evidenced replies with honest
 
 it.each(['en', 'zh-HK'])('renders thread scope and brief context without invented dates or documents in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio
-  const thread = { title: 'Source goal', goal: 'Original question', kind: 'research' as const, week: '2026-10-26', saveState: 'persisted' as const, visibility: 'private' as const }
+  const thread = { title: 'Source goal', goal: 'Original question', kind: 'research' as const, week: '2026-10-26', saveState: 'persisted' as const, visibility: 'private' as const, branchOf: null }
   const html = renderWithIntl(<StudioThreadHeader thread={thread} onHome={() => {}} />, lang)
   expect(html).toContain(copy.discussionEyebrow)
   expect(html).toContain(copy.privateLabel)
@@ -119,6 +119,18 @@ it.each(['en', 'zh-HK'])('renders thread scope and brief context without invente
   expect(brief).toContain('Source discussion')
   expect(brief).toContain(copy.briefTemporary)
   expect(brief).not.toContain('2026-10-26')
+})
+
+it.each(['en', 'zh-HK'])('shows branch lineage with its origin link, or without a link when the origin is not visible in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const thread = { title: 'Branch of Source goal', goal: 'Original question', kind: 'research' as const, week: '2026-10-26', saveState: 'persisted' as const, visibility: 'private' as const, branchOf: { threadId: 'thread-origin', turnId: 'turn-origin' } }
+  const linked = renderWithIntl(<StudioThreadHeader thread={thread} onHome={() => {}} originTitle="Source goal" onOpenOrigin={() => {}} />, lang)
+  expect(linked).toContain(copy.branchedFrom.replace('{title}', 'Source goal'))
+  const unlinked = renderWithIntl(<StudioThreadHeader thread={thread} onHome={() => {}} originTitle={null} />, lang)
+  expect(unlinked).toContain(copy.branchedFromUnknown)
+  const fresh = renderWithIntl(<StudioThreadHeader thread={{ ...thread, branchOf: null }} onHome={() => {}} originTitle="Source goal" onOpenOrigin={() => {}} />, lang)
+  expect(fresh).not.toContain(copy.branchedFrom.replace('{title}', 'Source goal'))
+  expect(fresh).not.toContain(copy.branchedFromUnknown)
 })
 
 it.each(['en', 'zh-HK'])('keeps result destinations in the supplied brand and omits them without brand context in %s', lang => {

@@ -53,6 +53,8 @@ export type StudioThread = {
   archived: boolean
   /** False for a teammate's shared thread. */
   mine: boolean
+  /** The message this thread branched from, or null when it started fresh. */
+  branchOf: { threadId: string; turnId: string } | null
 }
 
 function fromRecord(record: StudioThreadRecord): StudioThread {
@@ -74,6 +76,7 @@ function fromRecord(record: StudioThreadRecord): StudioThread {
     pinned: record.pinned,
     archived: record.archived,
     mine: record.mine,
+    branchOf: record.branchOf ?? null,
   }
 }
 
@@ -96,7 +99,7 @@ function useSessionState(clientId?: string) {
   const threadsRef = useRef(threads)
   useEffect(() => { threadsRef.current = threads }, [threads])
   const [navigation, setNavigation] = useState<{ activeId: string | null; version: number }>({ activeId: null, version: 0 })
-  const [feedback, setFeedback] = useState<{ id: number; threadId: string; key: 'briefOpened' | 'followUpSent' } | null>(null)
+  const [feedback, setFeedback] = useState<{ id: number; threadId: string; key: 'briefOpened' | 'branchOpened' | 'branchUnavailable' | 'followUpSent' } | null>(null)
   const [newDraft, setNewDraft] = useState('')
   const [newTemplate, setNewTemplate] = useState<StudioHomeTemplate | null>(null)
   const [busy, setBusy] = useState(false)
@@ -141,7 +144,7 @@ function useSessionState(clientId?: string) {
     }
     const turns = result.data.turns.map(record => turnFromRecord(record, allocateId()))
     setThreads(previous => previous.map(item => item.id === id
-      ? { ...item, title: result.data.thread.title, goal: result.data.thread.goal, week: result.data.thread.week, sourceTitle: result.data.thread.sourceTitle ?? undefined, updatedAt: result.data.thread.updatedAt, skill: result.data.thread.skill ?? item.skill ?? null, visibility: result.data.thread.visibility, pinned: result.data.thread.pinned, archived: result.data.thread.archived, mine: result.data.thread.mine, turns, turnsLoaded: true, turnsError: false }
+      ? { ...item, title: result.data.thread.title, goal: result.data.thread.goal, week: result.data.thread.week, sourceTitle: result.data.thread.sourceTitle ?? undefined, updatedAt: result.data.thread.updatedAt, skill: result.data.thread.skill ?? item.skill ?? null, visibility: result.data.thread.visibility, pinned: result.data.thread.pinned, archived: result.data.thread.archived, mine: result.data.thread.mine, branchOf: result.data.thread.branchOf ?? item.branchOf ?? null, turns, turnsLoaded: true, turnsError: false }
       : item))
   }
 
@@ -161,7 +164,7 @@ function useSessionState(clientId?: string) {
       const record = result.data.thread
       loadedThreads.current.add(record.id)
       setThreads(previous => previous.map(thread => thread.id === localId
-        ? { ...thread, id: record.id, saveState: 'persisted', updatedAt: record.updatedAt }
+        ? { ...thread, id: record.id, saveState: 'persisted', updatedAt: record.updatedAt, branchOf: record.branchOf ?? thread.branchOf ?? null }
         : thread))
       setReadFailed(false)
       setNavigation(previous => previous.activeId === localId ? { ...previous, activeId: record.id } : previous)

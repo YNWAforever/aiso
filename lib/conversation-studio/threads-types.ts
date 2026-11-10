@@ -5,6 +5,9 @@ import type { StudioReply } from './types'
 export type StudioThreadKind = 'research' | 'brief'
 export type StudioThreadVisibility = 'private' | 'shared'
 
+/** The message a thread was branched from. Both ids are stored together. */
+export type StudioThreadBranchOf = { threadId: string; turnId: string }
+
 /** Metadata projection used by the sidebar, home continue list and /studio/threads. */
 export type StudioThreadRecord = {
   id: string
@@ -23,6 +26,8 @@ export type StudioThreadRecord = {
   archived: boolean
   /** False for a teammate's shared thread: readable, never writable by this viewer. */
   mine: boolean
+  /** Where this thread branched from, or null when it started fresh. */
+  branchOf: StudioThreadBranchOf | null
 }
 
 export type StudioTurnRecord = {
@@ -47,6 +52,8 @@ export type StudioThreadCreateInput = {
   goal: string
   week: string | null
   sourceTitle?: string | null
+  /** Branch lineage. The origin must be visible to the creator (own or shared). */
+  branchOf?: StudioThreadBranchOf
 }
 
 export type StudioTurnCreateInput = {
