@@ -33,7 +33,7 @@ const notFound = () => respond({ error: 'NOT_FOUND' }, 404)
 const invalid = () => respond({ error: 'INVALID_STUDIO_THREAD' }, 400)
 const unavailable = () => respond({ error: 'STUDIO_THREADS_UNAVAILABLE' }, 503)
 
-type Authorized = {
+export type StudioBrandAccess = {
   profileId: string
   accountId: string
   clientId: string
@@ -51,7 +51,7 @@ type Authorized = {
  * that does not exist (404). Staff threads are written with their grant id, so
  * 088's composite FK binds each one to a grant naming this profile.
  */
-async function authorize(clientId: string): Promise<Authorized | Response> {
+export async function authorizeStudioBrand(clientId: string): Promise<StudioBrandAccess | Response> {
   if (!isConversationStudioEnabled(clientId)) return notFound()
   const profile = await getProfile()
   if (!profile) return respond({ error: 'UNAUTHENTICATED' }, 401)
@@ -248,7 +248,7 @@ function turnRecord(row: Record<string, unknown>): StudioTurnRecord {
 
 export async function listStudioThreads(_request: Request, clientId: string): Promise<Response> {
   try {
-    const access = await authorize(clientId)
+    const access = await authorizeStudioBrand(clientId)
     if (access instanceof Response) return access
     const rows = await access.sql`
       select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
@@ -281,7 +281,7 @@ export async function listStudioThreads(_request: Request, clientId: string): Pr
 
 export async function createStudioThread(request: Request, clientId: string): Promise<Response> {
   try {
-    const access = await authorize(clientId)
+    const access = await authorizeStudioBrand(clientId)
     if (access instanceof Response) return access
     let raw: unknown
     try { raw = await readLimitedJson(request, STUDIO_THREAD_BODY_LIMIT) } catch { return invalid() }
@@ -346,7 +346,7 @@ export async function createStudioThread(request: Request, clientId: string): Pr
 
 export async function getStudioThread(_request: Request, clientId: string, threadId: string): Promise<Response> {
   try {
-    const access = await authorize(clientId)
+    const access = await authorizeStudioBrand(clientId)
     if (access instanceof Response) return access
     if (!isUuid(threadId)) return notFound()
     const rows = await access.sql`
@@ -393,7 +393,7 @@ export async function getStudioThread(_request: Request, clientId: string, threa
 }
 
 /** The stored row of a thread this principal owns, through the list projection. */
-async function readOwnThreadRow(access: Authorized, threadId: string): Promise<Record<string, unknown> | null> {
+async function readOwnThreadRow(access: StudioBrandAccess, threadId: string): Promise<Record<string, unknown> | null> {
   const rows = await access.sql`
     select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
       t.profile_id, t.visibility, t.pinned_at, t.archived_at,
@@ -422,7 +422,7 @@ async function readOwnThreadRow(access: Authorized, threadId: string): Promise<R
  */
 export async function updateStudioThread(request: Request, clientId: string, threadId: string): Promise<Response> {
   try {
-    const access = await authorize(clientId)
+    const access = await authorizeStudioBrand(clientId)
     if (access instanceof Response) return access
     if (!isUuid(threadId)) return notFound()
     let raw: unknown
@@ -465,7 +465,7 @@ export async function updateStudioThread(request: Request, clientId: string, thr
  * query is scoped by (account, client, profile), so a key from another thread or
  * principal reads as absent rather than as someone else's turn.
  */
-async function readTurnByRequest(access: Authorized, threadId: string, requestId: string): Promise<Record<string, unknown> | null> {
+async function readTurnByRequest(access: StudioBrandAccess, threadId: string, requestId: string): Promise<Record<string, unknown> | null> {
   const rows = await access.sql`
     select id, position, prompt, task, reply, attached, live, receipts, created_at
     from studio_thread_turns
@@ -481,7 +481,7 @@ async function readTurnByRequest(access: Authorized, threadId: string, requestId
 
 export async function appendStudioTurn(request: Request, clientId: string, threadId: string): Promise<Response> {
   try {
-    const access = await authorize(clientId)
+    const access = await authorizeStudioBrand(clientId)
     if (access instanceof Response) return access
     if (!isUuid(threadId)) return notFound()
     let raw: unknown
@@ -568,7 +568,7 @@ export async function appendStudioTurn(request: Request, clientId: string, threa
 
 export async function finalizeStudioTurn(request: Request, clientId: string, threadId: string): Promise<Response> {
   try {
-    const access = await authorize(clientId)
+    const access = await authorizeStudioBrand(clientId)
     if (access instanceof Response) return access
     if (!isUuid(threadId)) return notFound()
     let raw: unknown

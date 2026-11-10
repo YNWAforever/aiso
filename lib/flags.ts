@@ -4,7 +4,7 @@
  * from client components — flags gate server-rendered behavior only, per
  * ADR-011's dark-launch requirement.
  */
-export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility' | 'enterprise_os' | 'conversation_studio' | 'conversation_studio_live'
+export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility' | 'enterprise_os' | 'conversation_studio' | 'conversation_studio_live' | 'conversation_studio_mcp'
 
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
   if (flag === 'conversation_studio_live' && !isFeatureEnabled('conversation_studio')) return false
@@ -34,6 +34,14 @@ export function isConversationStudioEnabled(clientId: string | null | undefined)
   const rollout = conversationStudioRolloutClients()
   if (rollout.length === 0) return true
   return typeof clientId === 'string' && rollout.includes(clientId.toLowerCase())
+}
+
+/**
+ * Phase M2's internal-only MCP surface: its own flag *and* the same Studio
+ * rollout, so it can never be served for a brand the Studio itself is not on.
+ */
+export function isStudioMcpEnabled(clientId: string | null | undefined): boolean {
+  return isFeatureEnabled('conversation_studio_mcp') && isConversationStudioEnabled(clientId)
 }
 
 /**

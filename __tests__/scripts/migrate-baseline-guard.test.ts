@@ -165,6 +165,9 @@ function allRelations() {
     'brand_month_snapshots',
     // 101: Phase 3 advisory client review decisions; applied 2026-11-09 under a named approval.
     'client_report_reviews',
+    // 105: Studio turn receipts and idempotency key (columns only, no table);
+    // 106: internal MCP call audit; applied 2026-11-10 under a named approval.
+    'studio_mcp_calls',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

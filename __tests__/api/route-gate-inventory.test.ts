@@ -39,6 +39,7 @@ const GATE_TOKENS = [
   'requireApiAdmin',
   'localTrustGuard',
   'assertLocalTrustAccess',
+  'verifyStudioMcpToken',  // M2 internal MCP: signed short-lived bearer; permissions re-read per call in authorizeStudioMcp
   'CRON_SECRET',           // cron shared secret, either header shape
   'cronSecret',
   'constructEvent',        // Stripe signature verification
