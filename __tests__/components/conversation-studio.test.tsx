@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { build } from 'vite'
 import { ConversationStudio, StudioThreadHeader } from '@/components/dashboard/ConversationStudio'
 import { StudioAttachedSource } from '@/components/dashboard/StudioAttachedSource'
+import { StudioTurnTrace } from '@/components/dashboard/StudioTurnTrace'
 import { renderWithIntl } from '@/__tests__/helpers/intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
@@ -132,6 +133,24 @@ it.each(['en', 'zh-HK'])('shows branch lineage with its origin link, or without 
   const fresh = renderWithIntl(<StudioThreadHeader thread={{ ...thread, branchOf: null }} onHome={() => {}} originTitle="Source goal" onOpenOrigin={() => {}} />, lang)
   expect(fresh).not.toContain(copy.branchedFrom.replace('{title}', 'Source goal'))
   expect(fresh).not.toContain(copy.branchedFromUnknown)
+})
+
+it.each(['en', 'zh-HK'])('shows the server-composed receipts in the evidence trace in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio.receipts
+  const receipts = [
+    { kind: 'pulse-week' as const, id: '2026-10-26', records: 12, truncated: false, digest: 'a'.repeat(64) },
+    { kind: 'pulse-observations' as const, id: null, records: 3, truncated: true, digest: 'b'.repeat(64) },
+    { kind: 'compose' as const, id: null, records: 3, truncated: false, digest: 'cdef0123'.padEnd(64, '0') },
+  ]
+  const html = renderWithIntl(<StudioTurnTrace receipts={receipts} />, lang)
+  expect(html).toContain(copy.title)
+  expect(html).toContain(copy.pulseWeek.replace('{id}', '2026-10-26'))
+  expect(html).toContain(copy.observations)
+  expect(html).toContain(copy.count.replace('{count}', '3'))
+  expect(html).toContain(copy.truncated)
+  expect(html).toContain(copy.digest.replace('{digest}', 'cdef0123'))
+  // A turn saved before B1 has no receipts and shows no receipt claim.
+  expect(renderWithIntl(<StudioTurnTrace />, lang)).not.toContain(copy.title)
 })
 
 it.each(['en', 'zh-HK'])('shows the attached source version, or that the saved path did not read it, in %s', lang => {

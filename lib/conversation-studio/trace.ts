@@ -24,7 +24,7 @@ function status(read: NonNullable<Read>): TraceStatus {
 }
 
 export function traceSteps(turn: TraceTurn): TraceStep[] {
-  // Saved evidence is composed locally for every turn, so it always ran.
+  // Saved evidence is composed for every turn (server-side once saved), so it always ran.
   const steps: TraceStep[] = [{ key: 'saved', status: 'done' }]
   if (turn.attached) steps.push({ key: 'attached', status: 'done' })
   for (const key of ['gsc', 'dfs', 'firecrawl', 'live'] as const) {

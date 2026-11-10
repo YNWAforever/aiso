@@ -513,6 +513,17 @@
       "pending": "Running",
       "unavailable": "Unavailable"
     },
+    "receipts": {
+      "title": "What this answer read",
+      "pulseWeek": "Pulse week {id}",
+      "observations": "Selected observations",
+      "scan": "Scan evidence",
+      "opportunities": "Opportunities",
+      "composeLabel": "Stored answer",
+      "count": "({count})",
+      "truncated": "bounded",
+      "digest": "Answer digest {digest}"
+    },
     "threadSearch": {
       "label": "Search discussions",
       "noMatch": "No discussion matches “{query}”."

@@ -513,6 +513,17 @@
       "pending": "進行中",
       "unavailable": "暫時無法使用"
     },
+    "receipts": {
+      "title": "此回答讀取了甚麼",
+      "pulseWeek": "Pulse 週次 {id}",
+      "observations": "已選取觀察",
+      "scan": "掃描證據",
+      "opportunities": "機會",
+      "composeLabel": "已儲存回答",
+      "count": "（{count}）",
+      "truncated": "已截斷",
+      "digest": "回答摘要 {digest}"
+    },
     "threadSearch": {
       "label": "搜尋討論",
       "noMatch": "沒有討論符合「{query}」。"

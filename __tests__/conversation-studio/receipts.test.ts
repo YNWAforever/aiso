@@ -42,6 +42,15 @@ describe('buildStudioReceipts', () => {
     expect(withSaved.find(item => item.kind === 'opportunities')).toMatchObject({ id: '2026-10-26', records: savedStudioOpportunities.suggestions.length })
   })
 
+  it('records a bounded read when the reply budget left observations out', () => {
+    const trimmed = receiptsOf({ trimmed: { observations: 2, scan: false } })
+    const observations = trimmed.find(item => item.kind === 'pulse-observations')!
+    expect(observations).toMatchObject({ records: reply.observations.length, truncated: true })
+    expect(trimmed.at(-1)).toMatchObject({ kind: 'compose', truncated: true })
+    const scanTrimmed = receiptsOf({ trimmed: { observations: 0, scan: true } })
+    expect(scanTrimmed.at(-1)).toMatchObject({ kind: 'compose', truncated: true })
+  })
+
   it('never exceeds the stored receipt limit', () => {
     expect(receiptsOf({ opportunities: savedStudioOpportunities }).length).toBeLessThanOrEqual(STUDIO_RECEIPTS_LIMIT)
     expect(STUDIO_RECEIPTS_LIMIT).toBeGreaterThanOrEqual(5)

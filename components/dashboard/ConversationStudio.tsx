@@ -364,7 +364,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
           {!current.turnsLoaded && !current.turnsError && <p className="as-muted as-small">{t('loadingThreads')}</p>}
           {current.turnsError && <p className="as-note">{t('readUnavailable')}</p>}
-          {current.turns.map(({ id, prompt, reply, task, live: liveTurn, gsc, dfs, firecrawl, attached, saveState: turnSaveState, position }, index) => <div key={id} className="space-y-5">
+          {current.turns.map(({ id, prompt, reply, task, live: liveTurn, gsc, dfs, firecrawl, attached, receipts, saveState: turnSaveState, position }, index) => <div key={id} className="space-y-5">
             <div className="as-question p-4">
               <p className="as-muted as-small mb-2 font-semibold">{t('youLabel')}</p>
               <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{prompt}</p>
@@ -372,7 +372,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             </div>
             <div className="as-answer space-y-3">
             <p className="as-answer-label"><Sparkles className="size-4" aria-hidden="true" />{t('answerLabel')}</p>
-            <StudioTurnTrace attached={attached} gsc={gsc} dfs={dfs} firecrawl={firecrawl} live={liveTurn} />
+            <StudioTurnTrace attached={attached} gsc={gsc} dfs={dfs} firecrawl={firecrawl} live={liveTurn} receipts={receipts} />
             <StudioAttachedSource attached={attached} liveAttachment={liveTurn?.reply?.attachment ?? null} documents={inspector.documents} />
             {task && <div className="as-note space-y-1">
               <p>{t(`templates.${task}.limit`)}</p>
