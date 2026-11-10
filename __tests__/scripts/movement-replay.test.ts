@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { groupRows, longestConsecutiveRun, replayMonth } from '@/scripts/replay-movement-rule.mjs'
+import { feedForAccount, groupRows, longestConsecutiveRun, replayMonth, resolveFeedEntitlement } from '@/scripts/replay-movement-rule.mjs'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 /**
  * The Q1 replay's pure half: grouping stored weeks into brand-months, measuring
@@ -63,5 +64,55 @@ describe('replayMonth', () => {
     ])
     expect(result.visibility.state === 'recorded' ? result.visibility.platforms[0] : null)
       .toMatchObject({ platform: 'gpt-4o', opening: 10, closing: 14, delta: 4 })
+  })
+})
+
+/**
+ * The feed side of the replay. On 2026-11-10 the only brand with a five-platform
+ * prompt bank lost its Pro comp; the replay then said "not enough weeks", which
+ * reads as "wait" when it actually meant "no more weeks will ever arrive". The
+ * copy of the resolver in the script exists because plain Node cannot resolve
+ * the `@/` alias, so these parity cases are what keeps it aligned with
+ * lib/tier.ts — the real gate the app uses.
+ */
+describe('resolveFeedEntitlement', () => {
+  const now = new Date('2026-11-11T00:00:00Z')
+  const expiredTrial = { plan: 'basic', status: 'active', trial_ends_at: '2026-09-18T02:30:37Z' }
+  const accounts = [
+    null,
+    expiredTrial,
+    { plan: 'basic', status: 'active', trial_ends_at: '2026-11-16T10:23:51Z' },
+    { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' },
+    { plan: 'pro', status: 'active', stripe_subscription_id: null, trial_ends_at: '2026-11-16T10:23:51Z' },
+    { plan: 'pro', status: 'trialing', stripe_subscription_id: 'sub_1' },
+    { plan: 'pro', status: 'past_due', stripe_subscription_id: 'sub_1' },
+    { plan: 'pro', status: 'cancelled', stripe_subscription_id: 'sub_1' },
+    { ...expiredTrial, override_plan: 'pro', override_expires_at: '2026-12-05T00:00:00Z' },
+    { ...expiredTrial, override_plan: 'pro', override_expires_at: '2026-11-10T00:00:00Z' },
+    { ...expiredTrial, override_plan: 'pro', override_expires_at: null },
+    { ...expiredTrial, override_plan: 'not-a-plan', override_expires_at: '2026-12-05T00:00:00Z' },
+    { plan: 'unknown', status: 'active', trial_ends_at: '2026-11-16T10:23:51Z' },
+  ]
+
+  it('matches the app resolver for every account branch', () => {
+    for (const account of accounts) {
+      const expected = resolveCommercialEntitlement(account, now)
+      expect(resolveFeedEntitlement(account, now)).toEqual({ plan: expected.plan, source: expected.source })
+    }
+  })
+
+  it('reports the platforms a live comp can still collect, and when it lapses', () => {
+    expect(feedForAccount({ ...expiredTrial, override_plan: 'pro', override_expires_at: '2026-12-05T00:00:00Z' }, now))
+      .toEqual({ plan: 'pro', source: 'override', platforms: 5, endsAt: '2026-12-05T00:00:00.000Z' })
+  })
+
+  it('reports zero platforms once the trial has expired, so the warning can fire', () => {
+    expect(feedForAccount(expiredTrial, now))
+      .toEqual({ plan: 'free', source: 'expired-trial', platforms: 0, endsAt: null })
+  })
+
+  it('reports the single gemini platform a basic trial grants', () => {
+    expect(feedForAccount({ plan: 'basic', status: 'active', trial_ends_at: '2026-11-16T10:23:51Z' }, now))
+      .toMatchObject({ plan: 'basic', source: 'trial', platforms: 1, endsAt: '2026-11-16T10:23:51.000Z' })
   })
 })
