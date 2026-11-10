@@ -27,6 +27,15 @@ redeployed (version `de807397-f0f7-4ba8-9930-3c201d6ea1cb`). The firing answered
 restored readback reports the three production ticks and no drift. No repository file was changed
 for the temporary deployment.
 
+**Scheduled firing proof (2026-11-10).** The production schedule fired on its own at
+`2026-11-09T16:17:09Z` — 00:17 HKT on 10 November, the configured minute — and is the tick's
+third `cron_runs` entry, answering `{due: 0, recorded: 0, notEntitled: 5}`. Nothing was due
+because the 2026-11-09 backfill had already written all nine rows, so the zero is the idempotent
+result the run needs, not an empty one. Together with the first firing this covers the whole
+chain on the real schedule: Worker tick → `/api/cron/brand-months` → `CRON_SECRET` →
+`cron_runs` → `brand_month_snapshots`. Details and the recorded figures are in
+[project-status.md](../project-status.md#scheduled-firing-verified-2026-11-10-0017-hkt).
+
 Verify after a firing:
 
 ```bash
