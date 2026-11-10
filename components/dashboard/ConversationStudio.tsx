@@ -14,6 +14,7 @@ import { StudioDfsSnapshotView } from '@/components/dashboard/StudioDfsSnapshot'
 import { StudioFirecrawlSnapshotView } from '@/components/dashboard/StudioFirecrawlSnapshot'
 import { StudioSaveToDocs } from '@/components/dashboard/StudioSaveToDocs'
 import { StudioTurnTrace } from '@/components/dashboard/StudioTurnTrace'
+import { StudioAttachedSource } from '@/components/dashboard/StudioAttachedSource'
 import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
@@ -44,6 +45,7 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
     {thread.branchOf && (originTitle && onOpenOrigin
       ? <button type="button" onClick={onOpenOrigin} className="as-button inline-flex min-h-11 items-center gap-2 px-3 text-sm">{t('branchedFrom', { title: originTitle })}</button>
       : <span className="as-badge">{t('branchedFromUnknown')}</span>)}
+    {thread.branchOf && <p className="as-muted as-small [overflow-wrap:anywhere]">{thread.goal}</p>}
     <div className="flex flex-wrap gap-2" aria-label={t('threadScope')}>
       <span className="as-badge">{t('localeBadge')}</span>
       {thread.week && <span className="as-badge">{t('savedWeek', { week: thread.week })}</span>}
@@ -371,6 +373,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             <div className="as-answer space-y-3">
             <p className="as-answer-label"><Sparkles className="size-4" aria-hidden="true" />{t('answerLabel')}</p>
             <StudioTurnTrace attached={attached} gsc={gsc} dfs={dfs} firecrawl={firecrawl} live={liveTurn} />
+            <StudioAttachedSource attached={attached} liveAttachment={liveTurn?.reply?.attachment ?? null} documents={inspector.documents} />
             {task && <div className="as-note space-y-1">
               <p>{t(`templates.${task}.limit`)}</p>
             </div>}
