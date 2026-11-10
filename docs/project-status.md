@@ -72,6 +72,19 @@ What remains is a data question, not code:
   qualify is **November 2026**: the weeks starting 2, 9, 16 and 23 Nov all sit inside the
   month, so the replay becomes meaningful once the 23 Nov week's rollup lands (around
   30 Nov–1 Dec 2026). October cannot qualify — 19 Oct is missing.
+- **The feed is a comp, and it lapsed once already (2026-11-10).** AISO Dev Brand is the only
+  brand with a five-platform prompt bank, and it runs on a one-month `pro` override rather
+  than a subscription (`override_reason` records it as GEO parity testing requested by the
+  account owner on 2026-10-11, set directly because this database has no platform
+  administrator). That override expired at `2026-11-10T00:00Z`, which drops the account to
+  `basic` with a trial that ended 2026-09-18 — `resolveCommercialEntitlement` then returns
+  `free`, so that day's 04:17Z Pulse tick selected SUPER DRY instead of AISO, and later
+  brand-months ticks would skip AISO's snapshot rows. It was renewed by direct SQL on
+  2026-11-11 (expires `2026-12-05T00:00Z`; the row's reason records the renewal and approval).
+  The next scheduled Pulse tick should resume AISO's 9 Nov week — it needs two more chunks —
+  then weeks 16 and 23. If the override lapses before the replay, both the November weeks and
+  AISO's 1/3-Dec snapshot rows disappear again; check the account's entitlement before
+  treating a "not enough weeks" replay as merely too early.
 
 ## Scheduler readback
 
