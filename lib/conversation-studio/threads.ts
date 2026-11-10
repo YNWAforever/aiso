@@ -5,6 +5,8 @@ import { isConversationStudioEnabled } from '@/lib/flags'
 import { readLimitedJson } from '@/lib/approvals/request'
 import { STUDIO_HOME_TEMPLATES, type StudioHomeTemplate } from './home'
 import { STUDIO_PROMPT_LIMIT, type StudioLiveReply } from './live-types'
+import { composeStudioTurn } from './compose-server'
+import { parseStudioReceipts, type StudioReceipt } from './receipts'
 import type { StudioReply } from './types'
 import type {
   StudioThreadBranchOf,
@@ -12,6 +14,7 @@ import type {
   StudioThreadRecord,
   StudioThreadUpdateInput,
   StudioTurnCreateInput,
+  StudioTurnLanguage,
   StudioTurnLiveInput,
   StudioTurnRecord,
 } from './threads-types'
@@ -142,13 +145,34 @@ function parseCreateThread(raw: unknown): StudioThreadCreateInput | null {
 
 function parseCreateTurn(raw: unknown): StudioTurnCreateInput | null {
   if (!isObject(raw)) return null
-  const allowed = ['prompt', 'task', 'reply', 'attached']
+  const allowed = ['prompt', 'task', 'reply', 'attached', 'requestId', 'language']
   if (Object.keys(raw).some(key => !allowed.includes(key))) return null
   const prompt = text(raw.prompt, STUDIO_PROMPT_LIMIT)
   const task = raw.task === null || raw.task === undefined ? null : isTask(raw.task) ? raw.task : undefined
-  if (!prompt || task === undefined || !isReply(raw.reply)) return null
+  if (!prompt || task === undefined) return null
+  let requestId: string | undefined
+  if (raw.requestId !== undefined) {
+    if (!isUuid(raw.requestId)) return null
+    requestId = raw.requestId
+  }
+  let language: StudioTurnLanguage | undefined
+  if (raw.language !== undefined) {
+    if (raw.language !== 'en' && raw.language !== 'zh-HK') return null
+    language = raw.language
+  }
+  // A server-composed append (requestId) is the B1 shape; the request id makes the
+  // server compose the stored reply, so a supplied `reply` is ignored, not trusted.
+  // A supplied reply without a request id is the legacy shape and must still be valid.
+  if (requestId === undefined) {
+    if (!isReply(raw.reply)) return null
+  }
   if (raw.attached !== undefined && raw.attached !== null && !isAttached(raw.attached)) return null
-  return { prompt, task, reply: raw.reply, attached: (raw.attached ?? null) as StudioTurnCreateInput['attached'] }
+  return {
+    prompt, task,
+    ...(requestId === undefined ? { reply: raw.reply as StudioReply } : { requestId }),
+    ...(language ? { language } : {}),
+    attached: (raw.attached ?? null) as StudioTurnCreateInput['attached'],
+  }
 }
 
 function parseFinalizeLive(raw: unknown): { position: number; live: StudioTurnLiveInput } | null {
@@ -217,6 +241,7 @@ function turnRecord(row: Record<string, unknown>): StudioTurnRecord {
     reply: row.reply as StudioReply,
     attached: (row.attached ?? null) as StudioTurnRecord['attached'],
     live: (row.live ?? null) as StudioTurnRecord['live'],
+    receipts: parseStudioReceipts(row.receipts),
     createdAt: String(row.created_at),
   }
 }
@@ -348,7 +373,7 @@ export async function getStudioThread(_request: Request, clientId: string, threa
     // never by the viewer's, so a viewer cannot even form a query for their own rows here.
     const ownerProfileId = String((rows[0] as Record<string, unknown>).profile_id)
     const turns = await access.sql`
-      select id, position, prompt, task, reply, attached, live, created_at
+      select id, position, prompt, task, reply, attached, live, receipts, created_at
       from studio_thread_turns
       where thread_id = ${threadId}::uuid
         and account_id = ${access.accountId}::uuid
@@ -435,6 +460,25 @@ export async function updateStudioThread(request: Request, clientId: string, thr
   }
 }
 
+/**
+ * The stored turn for one idempotency key, if this thread already has it. Every
+ * query is scoped by (account, client, profile), so a key from another thread or
+ * principal reads as absent rather than as someone else's turn.
+ */
+async function readTurnByRequest(access: Authorized, threadId: string, requestId: string): Promise<Record<string, unknown> | null> {
+  const rows = await access.sql`
+    select id, position, prompt, task, reply, attached, live, receipts, created_at
+    from studio_thread_turns
+    where thread_id = ${threadId}::uuid
+      and request_id = ${requestId}::uuid
+      and account_id = ${access.accountId}::uuid
+      and client_id = ${access.clientId}::uuid
+      and profile_id = ${access.profileId}::uuid
+    limit 1
+  `
+  return (rows[0] as Record<string, unknown> | undefined) ?? null
+}
+
 export async function appendStudioTurn(request: Request, clientId: string, threadId: string): Promise<Response> {
   try {
     const access = await authorize(clientId)
@@ -455,6 +499,31 @@ export async function appendStudioTurn(request: Request, clientId: string, threa
       limit 1
     `
     if (!owned[0]) return notFound()
+    // A retried append (same client request id) returns the stored turn, not a
+    // duplicate position. This is checked before composing so a retry costs no read.
+    if (input.requestId) {
+      const existing = await readTurnByRequest(access, threadId, input.requestId)
+      if (existing) return respond({ turn: turnRecord(existing) })
+    }
+    let reply: StudioReply
+    let receipts: StudioReceipt[] | null
+    if (input.requestId) {
+      // B1: the server composes the stored reply from the brand's own records and
+      // records what it read. The client's optimistic reply is never trusted here.
+      const composed = await composeStudioTurn({
+        accountId: access.accountId,
+        clientId: access.clientId,
+        language: input.language ?? 'en',
+        prompt: input.prompt,
+        task: input.task,
+      })
+      if (!composed) return unavailable()
+      reply = composed.reply
+      receipts = composed.receipts
+    } else {
+      reply = input.reply as StudioReply
+      receipts = null
+    }
     const rows = await access.sql`
       with touched as (
         update studio_threads set updated_at = clock_timestamp()
@@ -471,16 +540,25 @@ export async function appendStudioTurn(request: Request, clientId: string, threa
           and client_id = ${access.clientId}::uuid
           and profile_id = ${access.profileId}::uuid
       ), inserted as (
-        insert into studio_thread_turns (thread_id, account_id, client_id, profile_id, position, prompt, task, reply, attached)
+        insert into studio_thread_turns (thread_id, account_id, client_id, profile_id, position, prompt, task, reply, attached, receipts, request_id)
         select touched.id, ${access.accountId}::uuid, ${access.clientId}::uuid, ${access.profileId}::uuid,
-          next.position, ${input.prompt}, ${input.task}, ${JSON.stringify(input.reply)}::jsonb, ${input.attached ? JSON.stringify(input.attached) : null}::jsonb
+          next.position, ${input.prompt}, ${input.task}, ${JSON.stringify(reply)}::jsonb, ${input.attached ? JSON.stringify(input.attached) : null}::jsonb,
+          ${receipts ? JSON.stringify(receipts) : null}::jsonb, ${input.requestId ?? null}::uuid
         from touched, next
         where next.count < ${STUDIO_TURN_CAP}
-        returning id, position, prompt, task, reply, attached, live, created_at
+        on conflict (thread_id, request_id) where request_id is not null do nothing
+        returning id, position, prompt, task, reply, attached, live, receipts, created_at
       )
       select * from inserted
     `
-    if (!rows[0]) return respond({ error: 'STUDIO_THREAD_FULL' }, 409)
+    if (!rows[0]) {
+      // Either the thread is full, or a concurrent retry won the unique key.
+      if (input.requestId) {
+        const existing = await readTurnByRequest(access, threadId, input.requestId)
+        if (existing) return respond({ turn: turnRecord(existing) })
+      }
+      return respond({ error: 'STUDIO_THREAD_FULL' }, 409)
+    }
     return respond({ turn: turnRecord(rows[0] as Record<string, unknown>) }, 201)
   } catch (error) {
     console.error('[studio] append turn failed:', error)
@@ -506,7 +584,7 @@ export async function finalizeStudioTurn(request: Request, clientId: string, thr
         and account_id = ${access.accountId}::uuid
         and client_id = ${access.clientId}::uuid
         and profile_id = ${access.profileId}::uuid
-      returning id, position, prompt, task, reply, attached, live, created_at
+      returning id, position, prompt, task, reply, attached, live, receipts, created_at
     `
     if (!rows[0]) return notFound()
     await access.sql`

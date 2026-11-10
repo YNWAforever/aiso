@@ -1,9 +1,13 @@
 import type { StudioHomeTemplate } from './home'
 import type { StudioLiveReply } from './live-types'
+import type { StudioReceipt } from './receipts'
 import type { StudioReply } from './types'
 
 export type StudioThreadKind = 'research' | 'brief'
 export type StudioThreadVisibility = 'private' | 'shared'
+
+/** Composition locale for opportunity copy; anything else reads as en. */
+export type StudioTurnLanguage = 'en' | 'zh-HK'
 
 /** The message a thread was branched from. Both ids are stored together. */
 export type StudioThreadBranchOf = { threadId: string; turnId: string }
@@ -38,6 +42,8 @@ export type StudioTurnRecord = {
   reply: StudioReply
   attached: { label: string; versionNumber: number } | null
   live: { reply: StudioLiveReply } | { error: string } | null
+  /** Server-composed receipts. Null means the turn predates server composition. */
+  receipts: StudioReceipt[] | null
   createdAt: string
 }
 
@@ -59,8 +65,15 @@ export type StudioThreadCreateInput = {
 export type StudioTurnCreateInput = {
   prompt: string
   task: StudioHomeTemplate | null
-  reply: StudioReply
+  /**
+   * Legacy client-composed reply. The B1 client omits it and sends `requestId`
+   * instead, so the server composes the stored reply and its receipts itself.
+   */
+  reply?: StudioReply
   attached?: { label: string; versionNumber: number } | null
+  /** Client idempotency key. With it, the server composes and deduplicates the append. */
+  requestId?: string
+  language?: StudioTurnLanguage
 }
 
 export type StudioTurnLiveInput = { reply: StudioLiveReply } | { error: string }

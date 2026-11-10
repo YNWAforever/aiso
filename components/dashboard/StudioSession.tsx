@@ -7,6 +7,7 @@ import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
+import type { StudioReceipt } from '@/lib/conversation-studio/receipts'
 import { appendStudioTurn, createStudioThread, fetchStudioThread, fetchStudioThreads, finalizeStudioTurn, updateStudioThread } from '@/lib/conversation-studio/threads-client'
 import type {
   StudioThreadCreateInput,
@@ -27,6 +28,10 @@ export type StudioTurn = {
   gsc?: StudioGscRead
   dfs?: StudioDfsRead
   firecrawl?: StudioFirecrawlRead
+  /** Client idempotency key; the server composes and deduplicates this append. */
+  requestId?: string
+  /** Server-composed provenance for this turn, once saved. */
+  receipts?: StudioReceipt[] | null
   serverId?: string
   position?: number
   saveState?: 'saved' | 'failed'
@@ -88,6 +93,7 @@ function turnFromRecord(record: StudioTurnRecord, id: number): StudioTurn {
     task: record.task,
     attached: record.attached ?? undefined,
     live: record.live ?? undefined,
+    receipts: record.receipts,
     serverId: record.id,
     position: record.position,
     saveState: 'saved',
@@ -192,7 +198,7 @@ function useSessionState(clientId?: string) {
     setThreads(previous => previous.map(thread => {
       if (!thread.turns.some(turn => turn.id === turnId)) return thread
       const turns = thread.turns.map(turn => turn.id === turnId
-        ? { ...turn, serverId: record.id, position: record.position, saveState: 'saved' as const }
+        ? { ...turn, reply: record.reply, receipts: record.receipts, serverId: record.id, position: record.position, saveState: 'saved' as const }
         : turn)
       return {
         ...thread,

@@ -502,6 +502,11 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `branched_from_thread_id`/`branched_from_turn_id` to `studio_threads` with brand-scoped identity keys and
   FKs (paired `ON DELETE SET NULL`, so the both-or-neither CHECK survives the origin-turn cascade), a
   no-self-branch CHECK, and a partial index. The 19 existing threads stay branchless.
+- **`105` (Studio turn receipts + idempotency) recorded 2026-11-10** under a named approval. Adds
+  `receipts jsonb` (bounded array of typed composition receipts) and `request_id uuid` with a unique
+  `(thread_id, request_id)` index to `studio_thread_turns`. A B1 append sends a request id: the server
+  composes the stored reply from the brand's own records, records what it read, and a retry returns the
+  stored turn instead of duplicating it. Pre-B1 turns keep a null `receipts` value and no request id.
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,

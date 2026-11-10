@@ -1,4 +1,4 @@
-﻿import { PGlite } from '@electric-sql/pglite'
+import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 
@@ -7,6 +7,8 @@ const state = vi.hoisted(() => ({
   profile: null as null | { id: string; account_id: string },
   fail: false,
   statements: [] as Array<{ text: string; values: unknown[] }>,
+  compose: null as null | { reply: unknown; receipts: unknown[] },
+  composeCalls: [] as Array<Record<string, unknown>>,
 }))
 
 vi.mock('server-only', () => ({}))
@@ -17,6 +19,12 @@ vi.mock('@/lib/db', () => ({
     const text = strings.reduce((out, part, index) => out + (index ? `$${index}` : '') + part, '')
     state.statements.push({ text, values })
     return (await state.pg!.query(text, values)).rows
+  },
+}))
+vi.mock('@/lib/conversation-studio/compose-server', () => ({
+  composeStudioTurn: async (input: Record<string, unknown>) => {
+    state.composeCalls.push(input)
+    return state.compose
   },
 }))
 
@@ -75,6 +83,7 @@ beforeAll(async () => {
   await state.pg.exec(readFileSync('supabase/migrations/081_studio_private_threads.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/103_studio_thread_lifecycle.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/104_studio_thread_branch.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/105_studio_turn_receipts.sql', 'utf8'))
   // Member flows must be unchanged once 087/088 add staff principals.
   await state.pg.exec(readFileSync('supabase/migrations/087_studio_staff_grants.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/088_studio_staff_threads.sql', 'utf8'))
@@ -83,6 +92,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   state.fail = false
   state.statements = []
+  state.compose = null
+  state.composeCalls = []
   asA()
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
   await state.pg!.exec('delete from studio_thread_turns; delete from studio_threads;')
@@ -355,4 +366,67 @@ it('enforces the lineage pair at the database boundary', async () => {
   const origin = await create()
   await expect(state.pg!.query('update studio_threads set branched_from_turn_id = $1::uuid where id = $2', [missing, origin.data.thread.id]))
     .rejects.toThrow(/branch_pair_check/)
+})
+
+const composedReply = { ...reply, status: 'evidenced', template: 'brief' }
+const receipt = { kind: 'compose', id: null, records: 0, truncated: false, digest: 'a'.repeat(64) }
+const requestId = '40000000-0000-4000-8000-000000000001'
+
+it('composes a B1 append on the server, stores the receipts and returns them on read', async () => {
+  state.compose = { reply: composedReply, receipts: [receipt] }
+  const { data } = await create()
+  const response = await append(brandA, data.thread.id, { prompt: 'Synthetic question', task: 'brief', requestId, language: 'zh-HK' })
+  expect(response.status).toBe(201)
+  const body = await response.json() as { turn: { id: string; reply: unknown; receipts: unknown[] } }
+  expect(body.turn.reply).toEqual(composedReply)
+  expect(body.turn.receipts).toEqual([receipt])
+  expect(state.composeCalls).toEqual([{
+    accountId: accountA, clientId: brandA, language: 'zh-HK', prompt: 'Synthetic question', task: 'brief',
+  }])
+  const detail = await (await getThread(request('/api/studio'), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })).json() as { turns: Array<{ receipts: unknown[] }> }
+  expect(detail.turns[0]!.receipts).toEqual([receipt])
+  const stored = await state.pg!.query('select request_id::text, receipts from studio_thread_turns where id = $1', [body.turn.id])
+  expect(stored.rows[0]).toEqual({ request_id: requestId, receipts: [receipt] })
+})
+
+it('deduplicates one append per (thread, request id) and never composes a retry twice', async () => {
+  state.compose = { reply: composedReply, receipts: [receipt] }
+  const { data } = await create()
+  const body = { prompt: 'Synthetic question', task: null, requestId }
+  const first = await append(brandA, data.thread.id, body)
+  const retried = await append(brandA, data.thread.id, body)
+  expect(first.status).toBe(201)
+  expect(retried.status).toBe(200)
+  const firstTurn = (await first.json() as { turn: { id: string } }).turn
+  const retriedTurn = (await retried.json() as { turn: { id: string } }).turn
+  expect(retriedTurn.id).toBe(firstTurn.id)
+  expect(state.composeCalls).toHaveLength(1)
+  expect((await state.pg!.query('select count(*)::int as n from studio_thread_turns')).rows).toEqual([{ n: 1 }])
+  // A second explicit send is a different request id, so it is a second turn.
+  const next = await append(brandA, data.thread.id, { ...body, requestId: '40000000-0000-4000-8000-000000000002' })
+  expect(next.status).toBe(201)
+  expect((await state.pg!.query('select count(*)::int as n from studio_thread_turns')).rows).toEqual([{ n: 2 }])
+})
+
+it('fails closed when the server cannot compose, and keeps the legacy client-composed append honest', async () => {
+  state.compose = null
+  const { data } = await create()
+  const failed = await append(brandA, data.thread.id, { prompt: 'Synthetic question', task: null, requestId })
+  expect(failed.status).toBe(503)
+  expect(await failed.json()).toEqual({ error: 'STUDIO_THREADS_UNAVAILABLE' })
+  expect((await state.pg!.query('select count(*)::int as n from studio_thread_turns')).rows).toEqual([{ n: 0 }])
+
+  // No request id: the legacy path stores the supplied reply and no receipts.
+  const legacy = await append(brandA, data.thread.id)
+  expect(legacy.status).toBe(201)
+  expect((await legacy.json() as { turn: { receipts: unknown } }).turn.receipts).toBeNull()
+  // The failed compose attempt is the only compose call; the legacy append never composes.
+  expect(state.composeCalls).toHaveLength(1)
+})
+
+it('rejects a malformed request id instead of silently appending', async () => {
+  const { data } = await create()
+  for (const bad of ['not-a-uuid', 42, null]) {
+    expect((await append(brandA, data.thread.id, { prompt: 'Question', task: null, requestId: bad })).status).toBe(400)
+  }
 })

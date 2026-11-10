@@ -12,7 +12,7 @@ function searchTerms(prompt: string): string[] {
   }))]
 }
 
-const pendingOpportunities: StudioOpportunities = {
+export const STUDIO_PENDING_OPPORTUNITIES: StudioOpportunities = {
   state: 'pending',
   suggestions: [],
   partial: true,
@@ -25,7 +25,7 @@ export function composeSavedReply(
   prompt: string,
   template: StudioTemplate | null,
   data: StudioEvidence,
-  opportunities: StudioOpportunities = pendingOpportunities,
+  opportunities: StudioOpportunities = STUDIO_PENDING_OPPORTUNITIES,
 ): StudioReply {
   if (template === 'opportunity') {
     const suggestions = opportunities.suggestions
