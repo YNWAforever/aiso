@@ -36,6 +36,14 @@ chain on the real schedule: Worker tick → `/api/cron/brand-months` → `CRON_S
 `cron_runs` → `brand_month_snapshots`. Details and the recorded figures are in
 [project-status.md](../project-status.md#scheduled-firing-verified-2026-11-10-0017-hkt).
 
+**Re-read 2026-11-10: no drift.** After the first scheduled firing, `npm run worker:schedules`
+reports configured and deployed schedules identical (`17 16 * * *`, `17 4 * * *`, `47 7 * * 1`,
+all modified `2026-11-09T03:47:13.720735Z`) and “no drift: the deployed schedules match the
+config”. The readback needs a live Cloudflare credential: earlier on 2026-11-10 the local
+`wrangler` OAuth login had expired, and `npx wrangler whoami` refreshed it. On a fresh machine,
+authenticate first or set `CLOUDFLARE_API_TOKEN`, or the script exits with the login-expired
+message rather than a bare 401.
+
 Verify after a firing:
 
 ```bash

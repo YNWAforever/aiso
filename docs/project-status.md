@@ -66,7 +66,10 @@ What remains is a data question, not code:
   consecutive weekly comparisons move the same way with at least five answers behind each
   week. Production has four weekly Pulse rollups for one brand with the 19 Oct week missing, so
   no month yet has four consecutive weeks; the rule correctly claims no movement. Replay the
-  first month that does and record whether the thresholds hold.
+  first month that does and record whether the thresholds hold. The first month that can
+  qualify is **November 2026**: the weeks starting 2, 9, 16 and 23 Nov all sit inside the
+  month, so the replay becomes meaningful once the 23 Nov week's rollup lands (around
+  30 Nov–1 Dec 2026). October cannot qualify — 19 Oct is missing.
 
 ## Scheduler readback
 
@@ -85,6 +88,16 @@ bound. The `0 9 * * *` trigger (trial emails + Search Console) remains unschedul
 deployable config — the free tier allows three triggers and all three are now spent. Re-run
 `npm run worker:schedules` before relying on this line, and see the
 [cron-worker runbook](runbooks/deploy-cron-worker.md) for the activation and rollback gates.
+
+**Re-read 2026-11-10: no drift.** `npm run worker:schedules` reports Worker `aiso-cron-worker`
+with configured and deployed schedules identical — `17 16 * * *`, `17 4 * * *`, `47 7 * * 1` —
+all three modified `2026-11-09T03:47:13.720735Z` (the restore deployment), then
+“no drift: the deployed schedules match the config”. That is the readback the plan asked for,
+taken after the first scheduled firing rather than relying on the 2026-11-09 reading. Note the
+readback needs a live Cloudflare credential: earlier on 2026-11-10 the local `wrangler` OAuth
+login had expired (the script now explains that instead of a bare 401), and
+`npx wrangler whoami` refreshed it — on a fresh machine, authenticate first or set
+`CLOUDFLARE_API_TOKEN`.
 
 ### First firing: verified 2026-11-09
 
