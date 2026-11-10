@@ -3,6 +3,7 @@ import { loadStudioEvidence } from './evidence'
 import { loadStudioOpportunities } from './opportunities'
 import { buildStudioReceipts, type StudioReceipt } from './receipts'
 import { composeSavedReply, STUDIO_PENDING_OPPORTUNITIES } from './reply'
+import { applyStudioReplyBudget } from './reply-budget'
 import { HOME_TASKS, type StudioHomeTemplate } from './home'
 import type { StudioOpportunities, StudioReply } from './types'
 
@@ -46,6 +47,15 @@ export async function composeStudioTurn(input: {
   // The client composes with the task's capability, not its home label: `improve`
   // is a home task whose capability is a different StudioTemplate. Match that.
   const template = input.task ? HOME_TASKS[input.task].capability : null
-  const reply = composeSavedReply(input.prompt, template, evidence, opportunities ?? STUDIO_PENDING_OPPORTUNITIES)
-  return { reply, receipts: buildStudioReceipts({ evidence, reply, opportunities }) }
+  const composed = composeSavedReply(input.prompt, template, evidence, opportunities ?? STUDIO_PENDING_OPPORTUNITIES)
+  // The reply is one bounded document; trim it deterministically and record the
+  // trim on the receipts rather than letting a large week fail the append.
+  const budgeted = applyStudioReplyBudget(composed)
+  return {
+    reply: budgeted.reply,
+    receipts: buildStudioReceipts({
+      evidence, reply: budgeted.reply, opportunities,
+      trimmed: { observations: budgeted.trimmedObservations, scan: budgeted.trimmedScan },
+    }),
+  }
 }

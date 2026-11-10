@@ -36,8 +36,12 @@ export function buildStudioReceipts(input: {
   evidence: StudioEvidence
   reply: StudioReply
   opportunities: StudioOpportunities | null
+  /** What applyStudioReplyBudget left out, so a bounded read is recorded as such. */
+  trimmed?: { observations: number; scan: boolean }
 }): StudioReceipt[] {
   const { evidence, reply, opportunities } = input
+  const trimmedObservations = input.trimmed?.observations ?? 0
+  const trimmedScan = input.trimmed?.scan ?? false
   const receipts: StudioReceipt[] = []
   if (evidence.week) {
     receipts.push({
@@ -48,12 +52,12 @@ export function buildStudioReceipts(input: {
       digest: digest({ week: evidence.week, totalRecorded: evidence.totalRecorded }),
     })
   }
-  if (reply.observations.length) {
+  if (reply.observations.length || trimmedObservations > 0) {
     receipts.push({
       kind: 'pulse-observations',
       id: null,
       records: reply.observations.length,
-      truncated: evidence.truncated,
+      truncated: evidence.truncated || trimmedObservations > 0,
       digest: digest(reply.observations.map(item => ({ id: item.id, week: item.scanWeek, result: item.result }))),
     })
   }
@@ -62,7 +66,7 @@ export function buildStudioReceipts(input: {
       kind: 'scan',
       id: reply.scan.id,
       records: reply.scan.evidence.checks.length,
-      truncated: false,
+      truncated: trimmedScan,
       digest: digest(reply.scan),
     })
   }
@@ -79,7 +83,7 @@ export function buildStudioReceipts(input: {
     kind: 'compose',
     id: null,
     records: reply.observations.length,
-    truncated: evidence.truncated,
+    truncated: evidence.truncated || trimmedObservations > 0 || trimmedScan,
     digest: digest(reply),
   })
   return receipts.slice(0, STUDIO_RECEIPTS_LIMIT)
