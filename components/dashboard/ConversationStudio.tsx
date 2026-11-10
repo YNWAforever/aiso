@@ -145,7 +145,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     const wantsDfs = Boolean(clientId && !staffView)
     // One explicit public URL per turn; a turn without one never calls Firecrawl.
     const scrapeUrl = clientId && !staffView ? extractTurnUrl(prompt) : null
-    const turn: StudioTurn = { id: allocateId(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(attachment ? { attached: { label: attachment.label, versionNumber: attachment.versionNumber } } : {}), ...(askLive ? { live: { pending: true } } : {}), ...(wantsGsc ? { gsc: { pending: true } } : {}), ...(wantsDfs ? { dfs: { pending: true } } : {}), ...(scrapeUrl ? { firecrawl: { pending: true } } : {}) }
+    const turn: StudioTurn = { id: allocateId(), requestId: crypto.randomUUID(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(attachment ? { attached: { label: attachment.label, versionNumber: attachment.versionNumber } } : {}), ...(askLive ? { live: { pending: true } } : {}), ...(wantsGsc ? { gsc: { pending: true } } : {}), ...(wantsDfs ? { dfs: { pending: true } } : {}), ...(scrapeUrl ? { firecrawl: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
     } else {
@@ -213,7 +213,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         }
       })()
     }
-    const persist = saveTurn(id, turn.id, { prompt, task, reply: turn.reply, attached: turn.attached ?? null })
+    const persist = saveTurn(id, turn.id, { prompt, task, reply: turn.reply, requestId: turn.requestId, language: language === 'zh-HK' ? 'zh-HK' : 'en', attached: turn.attached ?? null })
       .then(result => {
         if (result.ok) setFeedback({ id: turn.id, threadId: result.threadId, key: 'followUpSent' })
         return result

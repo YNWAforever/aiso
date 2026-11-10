@@ -1,4 +1,4 @@
-﻿import { PGlite } from '@electric-sql/pglite'
+import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 
@@ -35,6 +35,7 @@ beforeAll(async () => {
   await state.pg.exec(readFileSync('supabase/migrations/081_studio_private_threads.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/103_studio_thread_lifecycle.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/104_studio_thread_branch.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/105_studio_turn_receipts.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/085_studio_drive_exports.sql', 'utf8'))
   for (const [thread, client] of [[threadA, clientA], [threadArchived, clientArchived]]) {
     await state.pg.query(
