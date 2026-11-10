@@ -186,7 +186,9 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   is never deployed (its origin is NXDOMAIN) and is only kept in step. Until 2026-10-09 the
   deployable config had `"crons": []` while the test pinned the legacy one, so nothing was
   scheduled. Deployed schedules are now all three configured ticks (verified 2026-11-09,
-  `npm run worker:schedules`): `17 4 * * *` Pulse (+ saved-raw repair), `47 7 * * 1` alerts, and
+  `npm run worker:schedules`; the brand-months tick then fired on its own at `2026-11-09T16:17Z`
+  — 00:17 HKT on 10 Nov — recording `{recorded: 0}` because the 9 backfilled rows were already
+  there, evidence in `docs/project-status.md`): `17 4 * * *` Pulse (+ saved-raw repair), `47 7 * * 1` alerts, and
   `17 16 * * *` brand-months (00:17 HKT; it was configured by #180 but only deployed on
   2026-11-09, which is why `brand_month_snapshots` stayed empty until then). The `0 9 * * *`
   trigger (trial emails — real customer email — plus Search Console) remains **unscheduled in

@@ -128,13 +128,52 @@ Check the tick any time with `npm run report:brand-months-receipt`: after a firi
 `cron_runs` entry and the snapshot rows. If it shows zero, the schedule exists but did not do its
 work — read the receipt, not the absence of errors.
 
+### Scheduled firing: verified 2026-11-10 (00:17 HKT)
+
+The 2026-11-09 proof used a temporary `*/2` trigger. The production schedule has since fired on
+its own: `npm run report:brand-months-receipt` on 2026-11-10 reports the tick's third `cron_runs`
+entry at `2026-11-09T16:17:09.088Z` — 00:17:09 HKT on 10 November, the configured minute —
+answering `{due: 0, failed: 0, recorded: 0, notEntitled: 5}`.
+
+`recorded: 0` is the expected idempotent result, not a failure: the 2026-11-09 backfill already
+wrote every snapshot whose as-of instant had passed (9 rows), so the scheduled tick found nothing
+left to write. It also confirms the entitlement list stays current — Fimmick's trial ended
+`2026-11-09T09:51Z`, so `notEntitled` moved from 4 to 5. The next genuinely new rows are written
+by the 1 Dec 00:17 HKT tick (December opening + November closing).
+
+The recorded figures are real, not placeholders. For the 2026-11 opening and 2026-10 closing
+snapshots (as-of `2026-10-31T16:00:00Z` = 1 Nov 00:00 HKT):
+
+- **AISO Dev Brand** — `scan.score 14.17` (scan `dea51489`, recorded 2026-10-14),
+  `pulse.week 2026-10-12` with five platform rows (perplexity-sonar 12.5, perplexity-sonar-pro
+  12.5, the other three 0, on 8 answers each), `search.state not_connected`.
+- **Northwind Coffee** — `scan.score 72` (recorded 2026-09-02), `search.state not_connected`.
+- **Harbour Books** — every figure `state: none`, i.e. an honest 未記錄 rather than a fabricated
+  row.
+
+Pulse's week selection is deliberate: `computeFigures` picks the latest rollup whose
+`scan_week + 7` has passed the boundary, so the 26 Oct week (which spans into November) is
+excluded from an as-of-1-Nov snapshot and the 12 Oct week is the latest complete one in the
+month. The month page's `readBrandMonth` reads exactly these rows
+(`readRecordedSnapshotKinds` → `["opening"]` for November), so the page now shows recorded
+figures where they exist and 未記錄 where none was recorded — the failure mode this phase
+existed to fix.
+
+Q1 replay on the same day (`npm run report:movement-replay`): 2 brand-months, **0 with four
+consecutive weeks**, 0 platform verdicts. AISO Dev Brand's October platforms each have 3 weeks,
+longest run 2 (the 19 Oct week is missing), and November has 1 week so far. The rule correctly
+reports `insufficient_weeks`; the replay stays a decision tool that must say nothing until the
+data arrives, not a test that "passes" on absence.
+
 ### Pulse ledger and rollups (same readback)
 
-`/api/cron/pulse` has a recorded run every day at 04:17 UTC through 2026-11-08, and aggregate
+`/api/cron/pulse` has a recorded run every day at 04:17 UTC through **2026-11-10**, and aggregate
 `pulse_weekly_summary` rows exist for the weeks of 5 Oct, 12 Oct, 26 Oct and 2 Nov (the 19 Oct
-week is missing, which is why Q1 has no four-week run). One ledger row is anomalous: the
-**2026-11-06** run started and never finished, with no detail and no error
-(`cron_runs.id 80ded813-3802-4a75-9d38-726fa87a7270`). A Vercel timeout can kill the route before
+week is missing, which is why Q1 has no four-week run; the 9 Nov week is still being collected
+across the week and has no rollup yet — that is expected, not a gap). Two ledger rows are
+anomalous: **2026-11-06** and **2026-11-09** started and never finished, with no detail and no
+error. Normal runs finish in 45–55 s of the 60 s `maxDuration`, so an unfinished row is most
+likely a function killed near that ceiling; a Vercel timeout can kill the route before
 `finishCronRun` writes, so an unfinished row is weaker evidence than row coverage — treat the
 weekly rollups as the signal that work happened, and the ledger as the signal that it started.
 
