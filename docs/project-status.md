@@ -51,7 +51,9 @@ demand-seeded Pulse with the 10-active-question budget and a stored `prompt_bank
 (demand vs profile), the Brand Month record with its month page and cross-brand queue, and the
 monthly deliverables report with publish/share, agency branding, the Q1 movement rule
 (`lib/monthly-report/movement.ts`), a recorded open/close figures section, and an
-operator-approved AI narrative draft.
+operator-approved AI narrative draft. The brand's Reports page lists monthly reports beside
+scan reports, and each monthly row can publish its latest version or stop sharing without
+opening the month; the report page keeps the editor, preview and review link.
 
 The cron side went live on 2026-11-09: the Worker now runs all three ticks — Pulse, alerts and
 the 00:17 HKT brand-months tick — and the brand-months route was proven end to end that day

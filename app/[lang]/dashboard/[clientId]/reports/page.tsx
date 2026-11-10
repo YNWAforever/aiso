@@ -12,6 +12,7 @@ import { loadOwnedReportClient } from '@/lib/reports/store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { listMonthlyReports, type MonthlyReportListItem } from '@/lib/monthly-report/store'
 import { monthlyShareUrl } from '@/lib/monthly-report/service'
+import { isViewableMonth } from '@/lib/brand-month/period'
 
 function isNullableNonNegativeInteger(value: unknown): value is number | null {
   return value === null
@@ -99,12 +100,15 @@ export default async function ClientReportsPage({
   }
 
   let reports: ReportsListItem[] = []
-  let monthly: (MonthlyReportListItem & { signedUrl: string | null })[] = []
+  let monthly: (MonthlyReportListItem & { signedUrl: string | null; canPublish: boolean })[] = []
   let unavailable = false
   try {
     if (kind === 'monthly') {
+      const now = new Date()
       monthly = (await listMonthlyReports(profile.account_id, clientId))
-        .map(row => ({ ...row, signedUrl: monthlyShareUrl(row) }))
+        // Publishing is held to the month view's lookback (the publish route's own
+        // gate), so the list only offers it where that route would accept it.
+        .map(row => ({ ...row, signedUrl: monthlyShareUrl(row), canPublish: isViewableMonth(row.month, now) }))
     } else {
       const result = await listAuthenticatedClientReports(clientId)
       const parsedReports = result.reports.map(toReportsListItem)
