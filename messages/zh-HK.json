@@ -231,7 +231,17 @@
       "manageSources": "前往核准來源",
       "unavailable": "暫時無法載入可選文件。",
       "version": "第 {version} 版",
-      "savedNote": "即時回答未開啟，這份文件只保留在此討論，不會傳送給模型。"
+      "savedNote": "即時回答未開啟，這份文件只保留在此討論，不會傳送給模型。",
+      "attachedSource": {
+        "title": "已選用來源",
+        "liveRead": "這次即時回答讀取了第 {version} 版。",
+        "savedNotRead": "已儲存證據的回答不會讀取已選用來源；此選用只作記錄用途。",
+        "recordedVersion": "記錄版本：第 {version} 版。",
+        "entries": "使用了 {included}/{total} 條。",
+        "truncated": "選用內容已被截斷。",
+        "newerVersion": "已有較新的核准版本（第 {version} 版）。請另開新討論以使用新版本。",
+        "unknownVersion": "未記錄版本"
+      }
     },
     "localeBadge": "香港 · 繁中",
     "followUpLabel": "繼續這個討論",

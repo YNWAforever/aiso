@@ -231,7 +231,17 @@
       "manageSources": "Open sources",
       "unavailable": "Document choices could not be loaded.",
       "version": "v{version}",
-      "savedNote": "LIVE is off, so this document stays in this discussion and is not sent to a model."
+      "savedNote": "LIVE is off, so this document stays in this discussion and is not sent to a model.",
+      "attachedSource": {
+        "title": "Attached source",
+        "liveRead": "This LIVE answer read version {version}.",
+        "savedNotRead": "A saved-evidence answer does not read the attached source; the attachment is recorded for context only.",
+        "recordedVersion": "Recorded version: {version}.",
+        "entries": "{included} of {total} entries used.",
+        "truncated": "The attachment was truncated.",
+        "newerVersion": "A newer approved version (v{version}) is available. Start a new discussion to use it.",
+        "unknownVersion": "an unrecorded version"
+      }
     },
     "localeBadge": "Hong Kong · Traditional Chinese",
     "followUpLabel": "Continue this discussion",

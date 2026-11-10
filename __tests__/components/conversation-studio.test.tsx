@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { build } from 'vite'
 import { ConversationStudio, StudioThreadHeader } from '@/components/dashboard/ConversationStudio'
+import { StudioAttachedSource } from '@/components/dashboard/StudioAttachedSource'
 import { renderWithIntl } from '@/__tests__/helpers/intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
@@ -131,6 +132,28 @@ it.each(['en', 'zh-HK'])('shows branch lineage with its origin link, or without 
   const fresh = renderWithIntl(<StudioThreadHeader thread={{ ...thread, branchOf: null }} onHome={() => {}} originTitle="Source goal" onOpenOrigin={() => {}} />, lang)
   expect(fresh).not.toContain(copy.branchedFrom.replace('{title}', 'Source goal'))
   expect(fresh).not.toContain(copy.branchedFromUnknown)
+})
+
+it.each(['en', 'zh-HK'])('shows the attached source version, or that the saved path did not read it, in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio.attach.attachedSource
+  const documents = { truncated: false, items: [{ id: 'source-1', label: 'Brand FAQ', versionId: 'version-3', versionNumber: 3, approvedAt: '2026-11-01T00:00:00Z', importedAt: '2026-10-01T00:00:00Z' }] }
+  const recorded = renderWithIntl(<StudioAttachedSource attached={{ label: 'Brand FAQ', versionNumber: 3 }} documents={documents} />, lang)
+  expect(recorded).toContain(copy.title)
+  expect(recorded).toContain(copy.savedNotRead)
+  expect(recorded).toContain(copy.recordedVersion.replace('{version}', '3'))
+  expect(recorded).not.toContain(copy.newerVersion.replace('{version}', '3'))
+
+  const live = renderWithIntl(<StudioAttachedSource
+    attached={{ label: 'Brand FAQ', versionNumber: 2 }}
+    liveAttachment={{ sourceId: 'source-1', label: 'Brand FAQ', versionId: 'version-2', versionNumber: 2, contentHash: 'abcdef0123456789', entriesIncluded: 4, entriesTotal: 6, truncated: true, characters: 900 }}
+    documents={documents} />, lang)
+  expect(live).toContain(copy.liveRead.replace('{version}', '2'))
+  expect(live).toContain(copy.entries.replace('{included}', '4').replace('{total}', '6'))
+  expect(live).toContain(copy.truncated)
+  expect(live).toContain(copy.newerVersion.replace('{version}', '3'))
+  expect(live).toContain('abcdef01')
+
+  expect(renderWithIntl(<StudioAttachedSource attached={null} documents={documents} />, lang)).not.toContain(copy.title)
 })
 
 it.each(['en', 'zh-HK'])('keeps result destinations in the supplied brand and omits them without brand context in %s', lang => {
