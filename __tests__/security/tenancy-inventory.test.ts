@@ -89,6 +89,7 @@ const TENANT_TABLES: Record<string, string> = {
   studio_live_weekly_usage: 'account_id (080)',
   studio_threads: 'account_id + client_id + profile_id (081)',
   studio_thread_turns: 'account_id + client_id + profile_id (081)',
+  studio_mcp_calls: 'account_id + client_id (106), profile id frozen without FK',
   local_trust_profiles: 'account_id (021)',
   local_trust_snapshots: 'account_id (021)',
   local_trust_actions: 'account_id (021)',

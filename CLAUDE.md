@@ -507,6 +507,14 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `(thread_id, request_id)` index to `studio_thread_turns`. A B1 append sends a request id: the server
   composes the stored reply from the brand's own records, records what it read, and a retry returns the
   stored turn instead of duplicating it. Pre-B1 turns keep a null `receipts` value and no request id.
+- **`106` (Studio MCP call audit) recorded 2026-11-10** under a named approval. Adds insert-only
+  `studio_mcp_calls` (account/brand composite FK, frozen profile uuid, closed `allowed|denied|failed`
+  vocabulary, bounded detail/rpc id) for the internal-only read-only MCP transport
+  (`POST /api/mcp/studio`, Phase M2). A member mints a one-hour signed bearer token from their own
+  session; the transport re-reads membership, brand access and plan on every call and writes the call
+  to the audit table before returning data. Gated by `FEATURE_CONVERSATION_STUDIO_MCP=1` **and** the
+  Studio rollout allowlist; `STUDIO_MCP_TOKEN_SECRET` (≥32 chars) must be set or the mint route 503s.
+  Runbook: `docs/runbooks/studio-mcp-internal.md`.
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,
@@ -747,6 +755,12 @@ Plan and rationale: `docs/ux/` (audit, target IA, visual system). Live gallery a
 - `PUBLIC_SCAN_RATE_LIMIT_SECRET` / `REPORT_SHARE_SECRET` — both ≥32 chars. The first has no
   production fallback, so unset it takes **every anonymous scan to 503**; the second signs
   report share links *and* the scan-claim cookie.
+- `STUDIO_MCP_TOKEN_SECRET` — ≥32 chars, signs the one-hour bearer token a member mints for the
+  internal-only Studio MCP (`POST /api/dashboard/clients/[clientId]/studio/mcp-token`). Unset or
+  short, the mint route returns 503 `STUDIO_MCP_UNCONFIGURED`; rotating it invalidates every token
+  already issued. The flag `FEATURE_CONVERSATION_STUDIO_MCP=1` plus the Studio rollout allowlist
+  gates `/api/mcp/studio` (read-only, audited in `studio_mcp_calls`, migration `106`); runbook
+  `docs/runbooks/studio-mcp-internal.md`. Nothing here is customer-facing.
 - **`.env.example` is the authoritative list** — it documents every variable and what breaks
   without it.
 - Optional, with fallbacks: `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`
