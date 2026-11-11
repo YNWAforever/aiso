@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse, after } from 'next/server'
 import { authorizeAiTool, consumeAiToolAllowance } from '@/lib/fix/guard'
 import { buildGroundedFixPack, type GroundedFixPack } from '@/lib/fix/grounded-pack'
+import { enqueueFixPackUsage, reportFixPackUsage } from '@/lib/billing/usage'
 import { db } from '@/lib/db'
 import { fetchPublicUrl } from '@/lib/security/public-url'
 import type { Scan } from '@/lib/types'
@@ -79,15 +80,44 @@ export async function POST(req: NextRequest) {
 
   // The response is a review draft, not a storage receipt. Cache failure remains
   // best-effort; no model provider is charged by this grounded draft path.
+  let inserted: { id?: string } | undefined
   try {
-    await db()`
+    const rows = await db()`
       insert into fix_packs (scan_id, llms_txt, robots_patch, faq_schema)
       select id, ${pack.llms_txt}, ${pack.robots_patch}, ${pack.faq_schema}
       from scans where id = ${scanId}
         and (account_id is null or account_id = ${access.accountId}) limit 1
+      returning id
     `
+    inserted = rows[0] as { id?: string } | undefined
   } catch (error) {
     console.error('[fix] cache write failed:', error)
+  }
+
+  // Per-fix billing (model B): only a newly stored pack for an account that the
+  // admin opened for metered billing is billable. The ledger write is
+  // synchronous and the Stripe meter event runs after the response. Neither may
+  // fail the fix-pack response; failures stay visible as pending/failed rows for
+  // the admin retry.
+  const billableScan = scan as Scan & { client_id?: string | null }
+  if (inserted?.id && billableScan.account_id && billableScan.client_id) {
+    const ref = {
+      fixPackId: inserted.id,
+      accountId: billableScan.account_id,
+      clientId: billableScan.client_id,
+    }
+    try {
+      const usageId = await enqueueFixPackUsage(ref)
+      if (usageId) {
+        try {
+          after(async () => { await reportFixPackUsage(usageId) })
+        } catch (error) {
+          console.error('[fix] billing report not scheduled:', error instanceof Error ? error.message : 'unknown error')
+        }
+      }
+    } catch (error) {
+      console.error('[fix] billing ledger write failed:', error instanceof Error ? error.message : 'unknown error')
+    }
   }
   return NextResponse.json(pack)
 }
