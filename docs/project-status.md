@@ -208,3 +208,63 @@ likely a function killed near that ceiling; a Vercel timeout can kill the route 
 weekly rollups as the signal that work happened, and the ledger as the signal that it started.
 
 
+
+## Phase 4 per-fix billing: built and deployed (2026-11-11)
+
+Design: `docs/superpowers/specs/2026-11-11-per-fix-billing-design.md` (merged #224).
+Schema 107 is applied and recorded (`--verify`; production builds log
+`schema gate: all 105 shipped migrations are recorded.`). Shipped in five PRs:
+
+- **#226** ¡X migration 107 + the meter writer: `fix_billing_events` is insert-only,
+  `unique(fix_pack_id)` prevents double billing, `fixbilling:<uuid>` is minted at
+  insert. Enqueue happens only for `account_billing.mode = 'metered'` and never fails
+  the fix-pack response; reporting runs in `after()` and a failure leaves the row
+  `pending`/`failed`, never charged.
+- **#228** ¡X admin open/switch: an existing plan subscription gets the metered price as a
+  second item; a subscription-less account needs an explicit `createSubscription:true`
+  (a real `send_invoice` plan + metered subscription), linked through the lease and
+  `apply_stripe_account_event`; a failed link cancels the new subscription. Unset
+  `STRIPE_PRICE_FIX_METERED`/`STRIPE_FIX_METER_EVENT_NAME` fail closed with
+  `503 METERED_NOT_CONFIGURED`.
+- **#229** ¡X admin one-off invoices: Stripe `send_invoice` invoice + line item +
+  finalize + send, mirrored into `billing_invoices`; a Stripe failure voids what it
+  created and writes nothing; a mirror-only failure returns 503 **with** the Stripe
+  invoice id and hosted URL and the repair path re-reads that invoice instead of issuing a
+  second one. Webhook `invoice.finalized/paid/payment_failed/voided` with no
+  subscription updates the mirror only.
+- **#230** ¡X client view: `/{lang}/dashboard/billing` + `GET /api/billing`
+  (session-scoped, `getProfile` + `resolveCommercialEntitlement`); reported and
+  pending/failed meter counts are returned and rendered separately with the honest note
+  that pending/failed is not billed.
+- **#231** ¡X admin console `PerFixBillingPanel` + `GET /api/admin/billing/per-fix`
+  (mode, this Hong Kong month's split counts, failed events with retry) and the operator
+  runbook `docs/runbooks/per-fix-billing.md`.
+
+Production verification after each merge: deployment Ready, schema gate recorded, and
+`GET /api/billing` unauthenticated returns 401 while `/en/dashboard/billing` 307s to
+login; `GET /api/admin/billing/per-fix` unauthenticated returns 401 and
+`/admin/billing` 307s to the login page. Metering stays fail-closed until the owner
+creates the Stripe meter/product/price and sets the two env vars.
+
+## Scheduler: four triggers live, first `0 9` firing fired but delivered no email
+
+The four scheduled triggers were deployed on 2026-11-11 (version
+`5cd7efcb-c0e3-46cd-9a94-935de065e2c6`; rollback
+`f25fd6fc-3de6-4e1e-8ea2-4967980dec7f`). `npm run worker:schedules` read them back
+with no drift at deploy time.
+
+First `0 9 * * *` firing: `2026-11-11T09:01:01Z` (17:01 HKT). The Worker called the
+route and the ledger row exists, so the trigger is live, but the run is an error:
+`{ sent: 0, failed: 17 }` ¡X all 17 due trial emails were rejected by Resend within
+447 ms (six trial accounts with real gmail/hkwtia/fimmick addresses, so this is a
+provider-configuration failure, not recipient data). The ledger recorded only the counts,
+which is undiagnosable: #232 adds `errorCodes` (`cause.name`, bounded, deduplicated,
+capped at 5, never the message because Resend embeds the recipient address) to the failure
+detail. The retry mask never advanced, so the same 17 sends retry at the next `0 9`
+firing; that run's `cron_runs.detail` will name the cause. Search Console wrote no ledger
+row by design: `FEATURE_SEARCH_CONSOLE` is unset in production, so the route returns
+`{skipped:'flag_off'}` before `startCronRun`.
+
+Wrangler's OAuth login expired at `2026-11-11T09:07:31Z`, so `npm run worker:schedules`
+cannot re-read the deployed schedules until `npx wrangler login` runs again. This does
+not affect the deployed triggers; the `0 9` firing above is the evidence they run.
