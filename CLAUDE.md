@@ -518,6 +518,15 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   to the audit table before returning data. Gated by `FEATURE_CONVERSATION_STUDIO_MCP=1` **and** the
   Studio rollout allowlist; `STUDIO_MCP_TOKEN_SECRET` (≥32 chars) must be set or the mint route 503s.
   Runbook: `docs/runbooks/studio-mcp-internal.md`.
+- **`107` (Phase 4 per-fix billing schema) recorded 2026-11-11** under a named approval, before
+  #225 merged. Adds `account_billing` (admin billing-control row per account: Stripe customer,
+  metered subscription item, `included|metered` mode), `fix_billing_events` (insert-only ledger,
+  one row per billable generated fix pack, `unique(fix_pack_id)` as the double-billing guard and a
+  `fixbilling:<uuid>` Stripe meter-event identifier minted at insert), and `billing_invoices`
+  (mirror of admin-issued one-off invoices). Composite tenant FK to `clients(id, account_id)`;
+  RLS enabled with app SELECT/INSERT/UPDATE and no policies; no DELETE grants. Design:
+  `docs/superpowers/specs/2026-11-11-per-fix-billing-design.md`. Nothing reads the tables yet —
+  the metering, admin and client slices follow.
 - **Merged is not applied.** Migrations ship file-only and are applied by hand, so a merge can put
   code on production that reads schema the database does not have. On 2026-11-03 that happened
   three times: #143 (and then #145) read `evidence_work_items.edit_spec` before `086` existed,
