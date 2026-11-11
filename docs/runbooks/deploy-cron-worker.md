@@ -1,16 +1,26 @@
 # Runbook: activate the dedicated AISO cron Worker
 
-## 2026-11-11: trial-drip tick approved, deployment pending
+## 2026-11-11: trial-drip tick deployed — four schedules live
 
-Both Worker configs now list a fourth schedule, `0 9 * * *` →
+Both Worker configs listed a fourth schedule, `0 9 * * *` →
 `/api/cron/trial-emails` and `/api/cron/search-console` (the four-email trial drip in
-`lib/trial-emails.ts` plus the Search Console sync). **Committing it activates nothing.**
-Deploying it is a separate named step and needs the Cloudflare Workers paid plan — the free
-tier caps a Worker at three triggers, which the three existing schedules already use. Until
-that deploy, `npm run worker:schedules` reports the repo's four triggers as drift against the
-deployed three; that drift is the deployment gate, not a bug.
+`lib/trial-emails.ts` plus the Search Console sync). It was **deployed on 2026-11-11** after
+Willy upgraded the Cloudflare Workers plan (the free tier caps a Worker at three triggers,
+which the three existing schedules already used).
 
-## Deployed 2026-11-09: all three ticks live
+Deployment evidence: `npm run deploy` from `cloudflare/cron-worker`
+(`wrangler deploy --config ../aiso-worker/wrangler.jsonc`), version
+`5cd7efcb-c0e3-46cd-9a94-935de065e2c6`; wrangler reported all four `schedule:` lines
+(`17 4 * * *`, `47 7 * * 1`, `0 9 * * *`, `17 16 * * *`); `npm run worker:schedules` reads
+back all four deployed schedules and **no drift** (the `0 9 * * *` entry modified
+`2026-11-11T02:03:54Z`). Next firing: `2026-11-11T09:00Z` (17:00 HKT). Rollback is
+`wrangler rollback --version f25fd6fc-3de6-4e1e-8ea2-4967980dec7f` (the 2026-11-09
+three-schedule version) or the older `09063648-8612-44fe-bd25-70cffc914c85` (two schedules).
+Rollback does not cancel an in-flight request or undo rows already written.
+
+The historical sections below predate this deploy and describe the three-schedule period.
+
+## Deployed 2026-11-09: three ticks live (superseded 2026-11-11)
 
 The missing brand-months tick was deployed on 2026-11-09 together with the current source, so
 the deployed Worker and the repository config agree for the first time since #180:
@@ -19,7 +29,7 @@ the deployed Worker and the repository config agree for the first time since #18
 | --- | --- | --- |
 | `17 4 * * *` | `/api/cron/pulse` and `?mode=repair` | yes |
 | `47 7 * * 1` | `/api/cron/evaluate-alerts` | yes |
-| `0 9 * * *` | `/api/cron/trial-emails` + `/api/cron/search-console` | no — approved 2026-11-11, needs paid plan |
+| `0 9 * * *` | `/api/cron/trial-emails` + `/api/cron/search-console` | **yes (2026-11-11)** |
 | `17 16 * * *` | `/api/cron/brand-months` (00:17 HKT) | **yes (2026-11-09)** |
 
 Deployment evidence: `wrangler deploy --config cloudflare/aiso-worker/wrangler.jsonc` from

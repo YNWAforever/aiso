@@ -4,7 +4,8 @@ export interface Env {
 }
 
 // Scheduled keys match both wrangler configs. `0 9 * * *` runs the trial drip
-// and Search Console daily (approved 2026-11-11); it sends real customer email.
+// and Search Console daily (approved and deployed 2026-11-11); it sends real
+// customer email.
 // `17 16 * * *` is 16:17 UTC, which is 00:17 in Hong Kong and Singapore
 // (UTC+8), and calls brand-months only.
 export const ROUTES: Record<string, readonly string[]> = {
