@@ -90,10 +90,10 @@ function parseWranglerJsonc(raw: string): { triggers?: { crons?: string[] } } {
   return JSON.parse(withoutComments)
 }
 
-const SCHEDULED_CRONS = ['17 4 * * *', '47 7 * * 1', '17 16 * * *'] as const
+const SCHEDULED_CRONS = ['17 4 * * *', '47 7 * * 1', '0 9 * * *', '17 16 * * *'] as const
 
 describe('ROUTES stays in sync with wrangler.jsonc', () => {
-  it('schedules the live baseline plus one brand-months tick and leaves 09:00 unscheduled', () => {
+  it('schedules the approved daily, weekly, trial-drip and brand-months ticks', () => {
     const template = parseWranglerJsonc(readFileSync(join(import.meta.dirname, '..', 'wrangler.jsonc'), 'utf8'))
     const deployed = parseWranglerJsonc(readFileSync(join(import.meta.dirname, '..', '..', 'aiso-worker', 'wrangler.jsonc'), 'utf8'))
 
@@ -107,9 +107,7 @@ describe('ROUTES stays in sync with wrangler.jsonc', () => {
     expect(ROUTES['47 7 * * 1']).toEqual(['/api/cron/evaluate-alerts'])
     expect(ROUTES['17 16 * * *']).toEqual(['/api/cron/brand-months'])
     expect(ROUTES['0 9 * * *']).toEqual(['/api/cron/trial-emails', '/api/cron/search-console'])
-    expect(template.triggers?.crons).not.toContain('0 9 * * *')
-    expect(deployed.triggers?.crons).not.toContain('0 9 * * *')
-    expect(Object.keys(ROUTES).sort()).toEqual([...SCHEDULED_CRONS, '0 9 * * *'].sort())
+    expect(Object.keys(ROUTES).sort()).toEqual([...SCHEDULED_CRONS].sort())
   })
 })
 

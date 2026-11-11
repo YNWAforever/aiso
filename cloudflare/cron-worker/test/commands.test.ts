@@ -1,6 +1,6 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 
@@ -24,13 +24,13 @@ console.log(JSON.stringify({command: args[0], file, name: config.name, origin: c
 `, { mode: 0o700 })
       const result = spawnSync(scripts[command], {
         shell: true, cwd: root, encoding: 'utf8', timeout: 5000,
-        env: { PATH: `${join(dir, 'bin')}:${process.env.PATH}` },
+        env: { PATH: `${join(dir, 'bin')}${delimiter}${process.env.PATH}` },
       })
       expect(result.status, result.stderr).toBe(0)
       expect(JSON.parse(result.stdout)).toEqual({
         command, file: resolve(root, '../aiso-worker/wrangler.jsonc'),
         name: 'aiso-cron-worker', origin: 'https://aiso-kappa.vercel.app',
-        crons: ['17 4 * * *', '47 7 * * 1', '17 16 * * *'],
+        crons: ['17 4 * * *', '47 7 * * 1', '0 9 * * *', '17 16 * * *'],
       })
     } finally { rmSync(dir, { recursive: true, force: true }) }
   })

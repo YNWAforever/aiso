@@ -3,9 +3,10 @@ export interface Env {
   APP_BASE_URL: string
 }
 
-// Scheduled keys match both wrangler configs. `0 9 * * *` stays mapped and
-// unscheduled. `17 16 * * *` is 16:17 UTC, which is 00:17 in Hong Kong and
-// Singapore (UTC+8), and calls brand-months only.
+// Scheduled keys match both wrangler configs. `0 9 * * *` runs the trial drip
+// and Search Console daily (approved 2026-11-11); it sends real customer email.
+// `17 16 * * *` is 16:17 UTC, which is 00:17 in Hong Kong and Singapore
+// (UTC+8), and calls brand-months only.
 export const ROUTES: Record<string, readonly string[]> = {
   // Daily verified-live baseline: pulse plus saved-raw repair. The driver only
   // picks clients whose week is not yet rolled up, so Tuesday–Sunday firings
