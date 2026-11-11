@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { PlanId } from '@/lib/plans/catalog'
 import { AccountRow, type AdminAccount } from '@/components/admin/AccountRow'
+import { PerFixBillingPanel } from '@/components/admin/PerFixBillingPanel'
 
 // Deliberately setState-free: it only fetches and returns data, so eslint's
 // react-hooks/set-state-in-effect rule has nothing to flag when the mount
@@ -108,6 +109,9 @@ export default function AdminPage() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="mt-10">
+        <PerFixBillingPanel />
       </div>
     </div>
   )
