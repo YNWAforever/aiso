@@ -32,10 +32,23 @@ const LIFECYCLE_EVENTS = new Set([
   'invoice.payment_failed',
 ])
 
+function planForPrice(priceId: string): Plan | null {
+  return getPlanFromStripePrice(priceId, STRIPE_PRICES)
+}
+
 function getPurchasedPlan(subscription: CanonicalSubscription): Plan | null {
   const items = subscription.items?.data
-  if (!Array.isArray(items) || items.length !== 1) return null
-  return getPlanFromStripePrice(items[0]?.price?.id ?? '', STRIPE_PRICES)
+  if (!Array.isArray(items) || items.length === 0) return null
+
+  // Per-fix billing (migration 107) adds a metered item beside the plan item on
+  // an admin-opened account. That item is deliberately ignored here: the plan
+  // still comes from the one plan-priced item. 0 or 2+ plan-priced items stay a
+  // refusal rather than a guess — a subscription the webhook cannot attribute
+  // must not be allowed to rewrite entitlements.
+  const plans = items
+    .map(item => planForPrice(item?.price?.id ?? ''))
+    .filter((plan): plan is Plan => plan !== null)
+  return plans.length === 1 ? plans[0]! : null
 }
 
 function getAccountState(

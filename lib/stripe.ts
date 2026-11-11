@@ -36,4 +36,17 @@ export function fixPackMeterConfig(): { priceId: string; eventName: string } {
   }
 }
 
+export const DEFAULT_INVOICE_DAYS_UNTIL_DUE = 14
+
+/**
+ * Due date for admin-issued one-off invoices. Bounded rather than free-form:
+ * an out-of-range value would otherwise be rejected by Stripe at send time,
+ * after the customer/customer lookup already happened.
+ */
+export function invoiceDaysUntilDue(): number {
+  const parsed = Number.parseInt(process.env.STRIPE_INVOICE_DAYS_UNTIL_DUE ?? '', 10)
+  if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 90) return parsed
+  return DEFAULT_INVOICE_DAYS_UNTIL_DUE
+}
+
 export const APP_URL = appOrigin()

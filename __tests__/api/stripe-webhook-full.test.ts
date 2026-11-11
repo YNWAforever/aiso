@@ -155,6 +155,29 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
     expect(applyRpcArgs()).toMatchObject({ p_plan: 'enterprise', p_status: 'active' })
   })
 
+  it('ignores the metered item and resolves the one plan-priced item', async () => {
+    // Migration 107: an admin-opened metered account carries the metered price
+    // beside its plan price. Plan resolution must still attribute the plan
+    // rather than treating the second item as an unsupported subscription.
+    mocks.retrieveSubscription.mockResolvedValue({
+      ...subscription({ price: 'price_pro_test' }),
+      items: { data: [
+        { price: { id: 'price_pro_test' } },
+        { price: { id: 'price_fix_metered_test' } },
+      ] },
+    })
+
+    const response = await postWebhook(lifecycleEvent('customer.subscription.updated', {
+      id: 'sub_xyz',
+    }))
+
+    expect(response.status).toBe(200)
+    expect(applyRpcArgs()).toEqual(expect.objectContaining({
+      p_plan: 'pro',
+      p_status: 'active',
+    }))
+  })
+
   it('maps a deleted canonical subscription to Basic/cancelled', async () => {
     mocks.retrieveSubscription.mockResolvedValue(subscription({ status: 'canceled' }))
 
