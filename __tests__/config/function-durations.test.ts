@@ -87,13 +87,14 @@ describe('Cloudflare cron-worker schedule', () => {
     // finish weeks a failed hop left incomplete — they cost no LLM calls
     // otherwise. Weekly, one broken hop lost the rest of the week.
     //
-    // Source lists the verified live Pulse and alerts ticks plus one isolated
-    // 00:17 UTC+8 brand-months tick. Deploying that list is a separate HOLD.
-    // '0 9 * * *' stays routed to trial emails and Search Console and is not
-    // scheduled: the trial drip sends real customer email.
+    // Source lists the verified live Pulse and alerts ticks, the 09:00 trial
+    // drip + Search Console tick (approved 2026-11-11, real customer email) and
+    // one isolated 00:17 UTC+8 brand-months tick. Deploying that list is a
+    // separate, named step; committing it activates nothing.
     expect(workerConfig.triggers?.crons).toEqual([
       '17 4 * * *',
       '47 7 * * 1',
+      '0 9 * * *',
       '17 16 * * *',
     ])
 
@@ -109,13 +110,13 @@ describe('Cloudflare cron-worker schedule', () => {
     }
   })
 
-  it('keeps the live two-route daily baseline, leaves 09:00 unscheduled, and limits 00:17 UTC+8 to brand-months', () => {
+  it('keeps the live daily baseline, schedules 09:00, and limits 00:17 UTC+8 to brand-months', () => {
     const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
     expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
     expect(worker).toMatch(/'17 4 \* \* \*':\s*\[\s*'\/api\/cron\/pulse',\s*'\/api\/cron\/pulse\?mode=repair'\s*\]/)
     expect(worker).toMatch(/'17 16 \* \* \*':\s*\[\s*'\/api\/cron\/brand-months'\s*\]/)
-    expect(workerConfig.triggers?.crons ?? []).not.toContain('0 9 * * *')
-    expect(legacyWorkerConfig.triggers?.crons ?? []).not.toContain('0 9 * * *')
+    expect(workerConfig.triggers?.crons ?? []).toContain('0 9 * * *')
+    expect(legacyWorkerConfig.triggers?.crons ?? []).toContain('0 9 * * *')
     expect(worker).not.toMatch(/'17 4 \* \* \*':\s*\[[^\]]*\/api\/cron\/search-console/)
     expect(worker).not.toMatch(/'17 4 \* \* \*':\s*\[[^\]]*\/api\/cron\/outcomes/)
   })
@@ -154,7 +155,10 @@ describe('Cloudflare cron-worker schedule', () => {
     expect(alerts.minutes).toBeGreaterThan(pulse.minutes)
   })
 
-  it('stays within the Cloudflare free tier of 3 triggers per Worker', () => {
-    expect(workerConfig.triggers?.crons?.length ?? 0).toBeLessThanOrEqual(3)
+  it('stays within the Cloudflare Workers paid-tier ceiling of 5 triggers per Worker', () => {
+    // The fourth (trial-drip) tick needs the paid plan: the free tier caps a
+    // Worker at three. Four of the five paid slots are used, so a fifth
+    // schedule is still possible without another tier change.
+    expect(workerConfig.triggers?.crons?.length ?? 0).toBeLessThanOrEqual(5)
   })
 })
