@@ -378,10 +378,12 @@ async function ensureMeteredItem(args: {
     }
 
     try {
+      // Metered prices must not carry a quantity: Stripe rejects
+      // `quantity` for them ("You cannot set the quantity for metered
+      // plans"), and the unit is the meter event, not a seat count.
       const created = await stripe.subscriptionItems.create({
         subscription: subscription.id,
         price: meteredPriceId,
-        quantity: 1,
       })
       return { status: 'ok', subscriptionId: subscription.id, meteredItemId: created.id }
     } catch (error) {
