@@ -192,10 +192,13 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   there, evidence in `docs/project-status.md`): `17 4 * * *` Pulse (+ saved-raw repair), `47 7 * * 1` alerts, and
   `17 16 * * *` brand-months (00:17 HKT; it was configured by #180 but only deployed on
   2026-11-09, which is why `brand_month_snapshots` stayed empty until then). The `0 9 * * *`
-  trigger (trial emails — real customer email — plus Search Console) was **approved and added
-  to both Worker configs on 2026-11-11**; its deployment needs the Cloudflare Workers paid plan
-  (the free tier allows only three triggers) and is a separate named step, so until that deploy
-  the repo's four triggers are ahead of the deployed three. Each route is called with the exact
+  trigger (trial emails — real customer email — plus Search Console) was **deployed on
+  2026-11-11** after Willy upgraded the Cloudflare Workers plan (the free tier allows only three
+  triggers): version `5cd7efcb-c0e3-46cd-9a94-935de065e2c6`, wrangler printed all four schedules,
+  and `npm run worker:schedules` re-read them with **no drift** (the `0 9` entry modified
+  `2026-11-11T02:03:54Z`; next firing `2026-11-11T09:00Z` — 17:00 HKT). All four configured
+  triggers are now live; rollback is `wrangler rollback --version f25fd6fc-3de6-4e1e-8ea2-4967980dec7f`
+  (the 2026-11-09 three-schedule version). Each route is called with the exact
   `Authorization: Bearer $CRON_SECRET` header Vercel Cron
   used to send. Follow `docs/runbooks/deploy-cron-worker.md` for the deploy, readback and
   rollback gates. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
