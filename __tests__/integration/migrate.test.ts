@@ -69,6 +69,9 @@ describe('migration runner against a real branch', () => {
     // same posture, as do 087's staff grants and insert-only staff audit. Pinning the exact set fails both ways: a table
     // losing the posture, and a new table quietly enabling RLS without review. 101's client review decisions are
     // insert-only and app-role-only, reviewed the same way on 2026-11-09.
+    // 107's three per-fix billing tables are the same posture: admin-only
+    // billing control, insert-only usage ledger and the invoice mirror, all
+    // server-side with no client policies.
     const rows = await sql`
       select c.relname as table_name
       from pg_class c
@@ -77,12 +80,15 @@ describe('migration runner against a real branch', () => {
       order by c.relname
     `
     expect(rows.map((r) => r.table_name)).toEqual([
+      'account_billing',
       'account_report_branding',
       'authenticated_scan_monthly_usage',
+      'billing_invoices',
       'brand_month_snapshots',
       'client_report_reviews',
       'client_report_versions',
       'client_reports',
+      'fix_billing_events',
       'google_drive_connections',
       'public_scan_rate_limits',
       'site_edit_job_events',
