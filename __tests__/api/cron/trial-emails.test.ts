@@ -130,13 +130,13 @@ describe('GET /api/cron/trial-emails', () => {
     const updateMasks = mockSql.mock.calls
       .filter(([strings]) => (strings as TemplateStringsArray).join('?').includes('UPDATE accounts'))
       .map(([, mask]) => mask)
-    // EMAIL_DAY1=1, DAY5=2, DAY7=4, DAY10=8 — each send ORs in its own bit
+    // EMAIL_DAY1=1, DAY5=2, DAY7=4, DAY10=8 ??each send ORs in its own bit
     // on top of the running mask, so the sequence is 1, 3, 7, 15, not four
     // separate single-bit writes.
     expect(updateMasks).toEqual([1, 3, 7, 15])
   })
 
-  it('continues past one failed send, and still sends the rest — exactly one short', async () => {
+  it('continues past one failed send, and still sends the rest ??exactly one short', async () => {
     // Both accounts are fresh (day 10, mask 0), so 4 emails are due each: 8
     // attempts total. Only the very first attempt (account-1's day-1 email)
     // is made to fail.
@@ -152,7 +152,7 @@ describe('GET /api/cron/trial-emails', () => {
     expect(h.sendTrialEmail).toHaveBeenCalledTimes(8)
     expect(res.status).toBe(502)
     expect(await res.json()).toEqual({ sent: 7, failed: 1 })
-    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 7, failed: 1 })
+    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 7, failed: 1, errorCodes: ['error'] })
     expect(consoleError).toHaveBeenCalledWith(
       expect.stringContaining('account-1'),
       expect.any(Error),
@@ -161,7 +161,7 @@ describe('GET /api/cron/trial-emails', () => {
     consoleError.mockRestore()
   })
 
-  it('all attempts fail — returns 502 with failed count', async () => {
+  it('all attempts fail ??returns 502 with failed count', async () => {
     rows = [accountRow({ id: 'account-1' }), accountRow({ id: 'account-2' })]
     h.sendTrialEmail.mockRejectedValue(new Error('Resend permanently down'))
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -171,7 +171,7 @@ describe('GET /api/cron/trial-emails', () => {
 
     expect(res.status).toBe(502)
     expect(await res.json()).toEqual({ sent: 0, failed: 8 })
-    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 0, failed: 8 })
+    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 0, failed: 8, errorCodes: ['error'] })
     expect(h.sendTrialEmail).toHaveBeenCalledTimes(8)
 
     consoleError.mockRestore()
@@ -190,10 +190,26 @@ describe('GET /api/cron/trial-emails', () => {
       expect(res.status).toBe(502)
       expect(await res.json()).toEqual({ sent: 0, failed: 1 })
       expect(h.sendTrialEmail).toHaveBeenCalledTimes(1)
-      expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 0, failed: 1 })
+      expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 0, failed: 1, errorCodes: ['error'] })
     } finally { consoleError.mockRestore() }
   })
 
+  it('records a bounded provider error name, never a recipient, in the run ledger', async () => {
+    rows = [accountRow()]
+    h.sendTrialEmail.mockRejectedValue(
+      Object.assign(new Error('Rejected: owner@example.com'), { cause: { name: 'validation_error' } }),
+    )
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { GET } = await importRoute()
+
+    await GET(request('test-cron-secret-0123'))
+
+    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', {
+      sent: 0, failed: 4, errorCodes: ['validation_error'],
+    })
+    expect(JSON.stringify((h.finishCronRun.mock.calls[0] as unknown[])[2])).not.toContain('owner@example.com')
+    consoleError.mockRestore()
+  })
   it('happy path (no failures) returns status 200', async () => {
     const { GET } = await importRoute()
 
@@ -213,7 +229,7 @@ describe('GET /api/cron/trial-emails', () => {
     const text = (selectCall[0] as TemplateStringsArray).join('?')
     expect(text).toMatch(/select distinct on \(a\.id\)/i)
 
-    // Only the SELECT list matters here — p.id legitimately appears later, in
+    // Only the SELECT list matters here ??p.id legitimately appears later, in
     // ORDER BY, to break ties deterministically. A regex over the whole query
     // would false-positive on that, so isolate the clause between SELECT and
     // FROM before checking it for a bare p.id.
