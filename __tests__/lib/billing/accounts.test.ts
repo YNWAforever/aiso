@@ -122,7 +122,6 @@ describe('openAccountBilling', () => {
     expect(stripeMock.subscriptionItemsCreate).toHaveBeenCalledWith({
       subscription: 'sub_1',
       price: 'price_metered',
-      quantity: 1,
     })
     expect(queries.some(query => /insert into account_billing/i.test(query))).toBe(true)
     expect(lastQueryParams()).toEqual([ACCOUNT_ID, 'cus_1', 'sub_1', 'si_meter', 'metered', ADMIN_ID])
