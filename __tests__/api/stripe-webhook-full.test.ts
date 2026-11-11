@@ -20,6 +20,10 @@ vi.mock('@/lib/stripe', () => ({
     pro: 'price_pro_test',
     enterprise: 'price_enterprise_test',
   },
+  // Imported transitively through @/lib/billing/invoices; never called by the
+  // lifecycle path this suite exercises.
+  fixPackMeterConfig: () => ({ priceId: '', eventName: '' }),
+  invoiceDaysUntilDue: () => 14,
 }))
 
 // Reconstructs `p_foo => value` named-argument bindings from a tagged-template
@@ -176,6 +180,48 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
       p_plan: 'pro',
       p_status: 'active',
     }))
+  })
+
+  it('mirrors a one-off invoice status event without touching account entitlements', async () => {
+    const response = await postWebhook({
+      id: 'evt_invoice_paid',
+      created: 100,
+      type: 'invoice.paid',
+      data: {
+        object: {
+          id: 'in_123',
+          status: 'paid',
+          subscription: null,
+          hosted_invoice_url: 'https://invoice.stripe.com/in_123',
+        },
+      },
+    })
+
+    expect(response.status).toBe(200)
+    expect(mocks.retrieveSubscription).not.toHaveBeenCalled()
+    const update = mocks.sql.mock.calls.find(call =>
+      (call[0] as TemplateStringsArray).join('?').includes('update billing_invoices'),
+    )
+    expect(update).toBeTruthy()
+    expect(update!.slice(1)).toEqual([
+      'paid', 'https://invoice.stripe.com/in_123', 'in_123',
+    ])
+  })
+
+  it('treats a one-off invoice.payment_failed as a mirror update, not a subscription event', async () => {
+    const response = await postWebhook({
+      id: 'evt_invoice_off_pf',
+      created: 100,
+      type: 'invoice.payment_failed',
+      data: { object: { id: 'in_456', subscription: null } },
+    })
+
+    expect(response.status).toBe(200)
+    expect(mocks.retrieveSubscription).not.toHaveBeenCalled()
+    const update = mocks.sql.mock.calls.find(call =>
+      (call[0] as TemplateStringsArray).join('?').includes('update billing_invoices'),
+    )
+    expect(update!.slice(1)).toEqual(['open', null, 'in_456'])
   })
 
   it('maps a deleted canonical subscription to Basic/cancelled', async () => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { stripe, STRIPE_PRICES } from '@/lib/stripe'
 import { db } from '@/lib/db'
+import { updateOneOffInvoiceStatus, type InvoiceStatus } from '@/lib/billing/invoices'
 import {
   getPlanFromStripePrice,
   type CheckoutPlanId as Plan,
@@ -31,6 +32,56 @@ const LIFECYCLE_EVENTS = new Set([
   'customer.subscription.deleted',
   'invoice.payment_failed',
 ])
+
+/**
+ * Statuses for admin-issued one-off invoices (model C). These have no
+ * subscription, so they never reach apply_stripe_account_event: the mirror in
+ * billing_invoices is updated instead. Subscription invoices keep the existing
+ * lifecycle path unchanged — the presence of `object.subscription` decides.
+ */
+const ONE_OFF_INVOICE_EVENTS = new Set([
+  'invoice.finalized',
+  'invoice.paid',
+  'invoice.payment_failed',
+  'invoice.voided',
+])
+
+const ONE_OFF_INVOICE_STATUS: Record<string, InvoiceStatus> = {
+  'invoice.finalized': 'open',
+  'invoice.paid': 'paid',
+  'invoice.payment_failed': 'open',
+  'invoice.voided': 'void',
+}
+
+async function handleOneOffInvoiceEvent(event: {
+  type: string
+  data: { object: unknown }
+}): Promise<Response | null> {
+  if (!ONE_OFF_INVOICE_EVENTS.has(event.type)) return null
+
+  const object = event.data.object as Record<string, unknown>
+  if (stripeId(object.subscription)) return null // subscription invoice: existing path below
+
+  const stripeInvoiceId = stripeId(object.id)
+  if (!stripeInvoiceId) return invalidEvent('Invalid invoice id')
+
+  const status = ONE_OFF_INVOICE_STATUS[event.type]!
+  const hostedInvoiceUrl =
+    typeof object.hosted_invoice_url === 'string' ? object.hosted_invoice_url : null
+
+  try {
+    // false means no mirrored row for this id — a Stripe invoice this app did
+    // not issue is not ours to mirror, and that is still a delivered event.
+    await updateOneOffInvoiceStatus({ stripeInvoiceId, status, hostedInvoiceUrl })
+  } catch (error) {
+    // Surface a 5xx so Stripe retries: the invoice exists and its status is the
+    // point of this event.
+    console.error('[stripe/webhook] one-off invoice status update failed', error)
+    return NextResponse.json({ error: 'Failed to update invoice status' }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true })
+}
 
 function planForPrice(priceId: string): Plan | null {
   return getPlanFromStripePrice(priceId, STRIPE_PRICES)
@@ -148,6 +199,12 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
+
+  // One-off invoices (model C) have no subscription and update their own mirror.
+  // Handled before the lifecycle branch so a one-off invoice.payment_failed is
+  // not mistaken for a subscription event.
+  const oneOffResponse = await handleOneOffInvoiceEvent(event)
+  if (oneOffResponse) return oneOffResponse
 
   if (!LIFECYCLE_EVENTS.has(event.type)) {
     return NextResponse.json({ ok: true })

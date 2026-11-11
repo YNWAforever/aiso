@@ -64,6 +64,15 @@ function uniqueIndexes(): string[][] {
     for (const match of sql.matchAll(/^\s*([a-z_][a-z0-9_]*)\s+[^,(]*?\bprimary\s+key\b/gim)) {
       out.push([match[1]])
     }
+    // A column-level UNIQUE is the same shape: 107 writes
+    // `stripe_invoice_id text unique`, and lib/billing/invoices.ts upserts with
+    // `on conflict (stripe_invoice_id)`. Before this line the guard only knew
+    // CREATE UNIQUE INDEX and table-level UNIQUE (...), so a real arbiter read
+    // as missing. Column-level spelling only: a table-level `unique (` line is
+    // already covered above and is excluded here by the `[^,(]` gap.
+    for (const match of sql.matchAll(/^\s*([a-z_][a-z0-9_]*)\s+[^,(]*?\bunique\b/gim)) {
+      out.push([match[1]])
+    }
   }
 
   return out
