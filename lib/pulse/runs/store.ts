@@ -44,7 +44,7 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
         (${input.intent?.kind??'initial'}='repair' and r.id=${input.intent?.sourceRunId??null}::uuid)
         or (${input.intent?.kind??'initial'}<>'repair' and r.purpose=${purpose} and ((${purpose}='canonical' and r.scan_week=${input.scanWeek}::date) or (${purpose}='retest' and r.intent_key=${input.intent?.intentKey??null}))))
     ), commercial as (
-      select case when a.override_plan in ('free','basic','pro','enterprise') and (a.override_expires_at is null or a.override_expires_at>now()) then a.override_plan
+      select case when a.override_plan in ('free','basic','pro','enterprise','partner') and (a.override_expires_at is null or a.override_expires_at>now()) then a.override_plan
         when a.status in ('past_due','cancelled') then 'free'
         when a.plan in ('basic','pro','enterprise') and ((a.status='active' and length(a.stripe_subscription_id)>0) or a.trial_ends_at>now() or (a.status='trialing' and length(a.stripe_subscription_id)>0)) then a.plan else 'free' end as plan
       from accounts a where a.id=${scope.accountId}
@@ -52,7 +52,7 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
       select case when not ${!!input.dispatch} then null
        when exists(select 1 from prior_intent where request_hash<>${input.dispatch?.requestHash??null}) then 'PULSE_INTENT_CONFLICT'
        when exists(select 1 from prior_intent) then null
-       when not exists(select 1 from commercial where plan in ('basic','pro','enterprise') and (plan<>'basic' or ${input.manifest.every(v=>v.platform==='gemini-flash')})) then 'PULSE_ENTITLEMENT_CHANGED'
+       when not exists(select 1 from commercial where plan in ('basic','pro','enterprise','partner') and (plan<>'basic' or ${input.manifest.every(v=>v.platform==='gemini-flash')})) then 'PULSE_ENTITLEMENT_CHANGED'
        when ${input.intent?.kind??'initial'}='repair' and not exists(select 1 from candidate) then 'PULSE_RUN_NOT_FOUND'
        when ${input.intent?.sourceRunId??null}::uuid is not null and not exists(select 1 from pulse_runs source where source.id=${input.intent?.sourceRunId??null}::uuid and source.account_id=${scope.accountId} and source.client_id=${scope.clientId}::uuid) then 'PULSE_RUN_NOT_FOUND'
        when not exists(select 1 from candidate) and not exists(select 1 from snapshot where jsonb_array_length(manifest->'items')>0) then 'PULSE_NOT_CONFIGURED'

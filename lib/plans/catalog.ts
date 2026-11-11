@@ -1,4 +1,4 @@
-export const PLAN_IDS = ['free', 'basic', 'pro', 'enterprise'] as const
+export const PLAN_IDS = ['free', 'basic', 'pro', 'enterprise', 'partner'] as const
 export const CHECKOUT_PLAN_IDS = ['basic', 'pro', 'enterprise'] as const
 
 export type PlanId = (typeof PLAN_IDS)[number]
@@ -190,6 +190,43 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       platform_access: ['gemini', 'gpt4o', 'claude', 'perplexity-s', 'perplexity-p'],
       agent_recs: true, agent_progress: true, agent_competitors: true,
       alerts: true, csv_export: true, max_brands: 10, history_weeks: 999,
+      edit_prompts: true, local_trust_roi: true,
+      local_trust_competitors: true, local_trust_export: true, client_reports_online: true,
+      search_console: true,
+      site_edit: true,
+      outcome_integrations: true,
+      closed_loop_visibility: true,
+      white_label_portals: true,
+      scheduled_reports: true,
+      public_api: true,
+      webhooks: true,
+      enterprise_workflows: true,
+      multi_market_benchmarks: true,
+      custom_adapters: true,
+    },
+  },
+  /**
+   * Companion/partner comp: every Enterprise capability at no charge, with a
+   * 20-brand ceiling. `checkout: false` keeps it off the public pricing page —
+   * it is granted as an admin override (`override_plan = 'partner'`), never
+   * bought, so there is no Stripe price for it.
+   */
+  partner: {
+    id: 'partner', checkout: false, monthlyPriceUsd: 0,
+    maxBrands: 20, historyWeeks: null, monthlyScanLimit: null,
+    monitoringCadence: 'weekly', competitorMode: 'full', reportBranding: 'fimmick',
+    exportFormats: ['csv'], supportLevel: 'priority',
+    release: {
+      monitoring: 'planned', competitorSummary: 'available', clientReports: 'available',
+      promptBank: 'available', sovAlerts: 'available',
+      whiteLabelPdf: 'planned', publicApi: 'custom', customPlatforms: 'custom',
+      dedicatedSuccess: 'custom',
+    },
+    features: {
+      plan: 'partner',
+      platform_access: ['gemini', 'gpt4o', 'claude', 'perplexity-s', 'perplexity-p'],
+      agent_recs: true, agent_progress: true, agent_competitors: true,
+      alerts: true, csv_export: true, max_brands: 20, history_weeks: 999,
       edit_prompts: true, local_trust_roi: true,
       local_trust_competitors: true, local_trust_export: true, client_reports_online: true,
       search_console: true,

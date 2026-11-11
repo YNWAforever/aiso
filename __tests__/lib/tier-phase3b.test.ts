@@ -49,6 +49,7 @@ test('maxBrandsForPlan returns correct limits', () => {
   expect(maxBrandsForPlan('basic')).toBe(1)
   expect(maxBrandsForPlan('pro')).toBe(3)
   expect(maxBrandsForPlan('enterprise')).toBe(10)
+  expect(maxBrandsForPlan('partner')).toBe(20)
 })
 
 test('maps persisted brand success and commercial quota errors through the shared onboarding adapter', async () => {

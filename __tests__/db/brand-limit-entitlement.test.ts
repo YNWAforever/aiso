@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
 import { PLAN_IDS, PLAN_CATALOG } from '@/lib/plans/catalog'
 
-// 028 supersedes 026's definition of check_brand_limit(); assertions target the
-// current definition.
-const migrationPath = 'supabase/migrations/028_account_plan_overrides.sql'
+// 028 superseded 026, and 108 supersedes 028 (partner comp + admin unlimited);
+// assertions target the current definition.
+const migrationPath = 'supabase/migrations/108_partner_plan_and_admin_unlimited.sql'
 
 function migrationSql() {
   return existsSync(migrationPath) ? readFileSync(migrationPath, 'utf8') : ''
@@ -83,7 +83,20 @@ describe('effective brand-limit migration', () => {
     }
   })
 
+  it('lets a platform administrator account exceed every brand ceiling', () => {
+    const sql = migrationSql()
+    // Checked after the account-existence guard and before every entitlement rule.
+    const adminAt = sql.search(/profiles\.is_admin/i)
+    const malformedAt = sql.search(/account plan or status is malformed/i)
+    expect(adminAt).toBeGreaterThan(-1)
+    expect(adminAt).toBeLessThan(malformedAt)
+    expect(sql).toMatch(/profiles\.deactivated_at\s+is\s+null/i)
+    expect(sql).toMatch(/if\s+found\s+then\s+return\s+new;\s+end\s+if;/i)
+  })
+
   it('documents migration 028 as a release prerequisite', () => {
-    expect(readFileSync('docs/runbooks/public-scan-prerequisites.md', 'utf8')).toContain(migrationPath)
+    expect(readFileSync('docs/runbooks/public-scan-prerequisites.md', 'utf8')).toContain(
+      'supabase/migrations/028_account_plan_overrides.sql',
+    )
   })
 })
