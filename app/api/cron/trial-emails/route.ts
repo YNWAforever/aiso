@@ -26,6 +26,24 @@ function cronSecret(): string | null {
   return secret
 }
 
+/**
+ * A bounded, de-identified provider error name for the run ledger.
+ *
+ * The run used to record only {sent, failed}, which is true but undiagnosable:
+ * the first production `0 9` firing failed all 17 sends and the ledger could not
+ * say why. The failure message may embed the recipient address, so only a
+ * closed-vocabulary `name` survives (Resend uses e.g. `validation_error`,
+ * `rate_limit_exceeded`); anything unrecognisable becomes `unknown`.
+ */
+function providerErrorCode(err: unknown): string {
+  const cause = err instanceof Error ? err.cause : undefined
+  const candidate =
+    cause && typeof cause === 'object' && 'name' in cause && typeof (cause as { name?: unknown }).name === 'string'
+      ? (cause as { name: string }).name
+      : err instanceof Error ? err.name : 'unknown'
+  return /^[a-z][a-z0-9_]{2,40}$/i.test(candidate) ? candidate.toLowerCase() : 'unknown'
+}
+
 export async function GET(req: Request) {
   const secret = cronSecret()
   if (!secret) {
@@ -60,6 +78,7 @@ export async function GET(req: Request) {
     const appUrl = appOrigin()
     let sent = 0
     let failed = 0
+    const errorCodes = new Set<string>()
 
     for (const row of rows) {
       if (!row.email) continue
@@ -82,11 +101,17 @@ export async function GET(req: Request) {
         } catch (err) {
           console.error(`[cron/trial-emails] failed to send to account ${row.id}:`, err)
           failed++
+          errorCodes.add(providerErrorCode(err))
         }
       }
     }
 
-    await finishCronRun(runId, failed > 0 ? 'error' : 'ok', { sent, failed })
+    // The detail is a diagnosis aid, never a recipient list: only the bounded
+    // provider error names, deduplicated and capped.
+    const detail = failed > 0
+      ? { sent, failed, errorCodes: [...errorCodes].slice(0, 5) }
+      : { sent, failed }
+    await finishCronRun(runId, failed > 0 ? 'error' : 'ok', detail)
     return Response.json({ sent, failed }, { status: failed > 0 ? 502 : 200 })
   } catch (err) {
     await finishCronRun(runId, 'error', undefined, err instanceof Error ? err.message : String(err))
