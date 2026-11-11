@@ -168,6 +168,9 @@ function allRelations() {
     // 105: Studio turn receipts and idempotency key (columns only, no table);
     // 106: internal MCP call audit; applied 2026-11-10 under a named approval.
     'studio_mcp_calls',
+    // 107: Phase 4 per-fix billing (account control, usage ledger, invoice
+    // mirror); applied 2026-11-11 under a named approval.
+    'account_billing', 'fix_billing_events', 'billing_invoices',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

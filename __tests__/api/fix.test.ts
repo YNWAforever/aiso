@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Fix-pack routes: pure helpers + the auth/ownership gate.
  * All four /api/fix/* routes call OpenRouter, so an anonymous caller must be
  * rejected before any LLM spend happens.
@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-// Tagged-template SQL mock — db() returns the template function itself.
+// Tagged-template SQL mock ??db() returns the template function itself.
 // Queries are queued in call order: ownership check, cache read, scan read,
 // cache write.
 const queries: string[] = []
@@ -31,7 +31,7 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/security/public-url', () => ({ fetchPublicUrl: vi.fn() }))
 
 // These routes now spend a per-account daily allowance before any model call
-// (lib/fix/guard.ts). The counter is out of scope here — always allowed — and
+// (lib/fix/guard.ts). The counter is out of scope here ??always allowed ??and
 // is exercised in content-tools-gate.test.ts.
 vi.mock('@/lib/security/durable-rate-limit', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/security/durable-rate-limit')>()),
@@ -48,6 +48,20 @@ import { parseFixPack } from '@/app/api/fix/route'
 import { getProfile } from '@/lib/auth'
 import { callOpenRouter } from '@/lib/openrouter'
 import { fetchPublicUrl } from '@/lib/security/public-url'
+
+// Billing wiring: the route may enqueue a ledger row and schedule the Stripe
+// meter event after the response; both are mocked here so the fix-pack path is
+// tested without Stripe and without a request scope for `after()`.
+const billingMocks = vi.hoisted(() => ({
+  enqueueFixPackUsage: vi.fn(),
+  reportFixPackUsage: vi.fn(),
+}))
+vi.mock('@/lib/billing/usage', () => billingMocks)
+const afterMock = vi.hoisted(() => vi.fn((fn: () => unknown) => { void fn() }))
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: afterMock,
+}))
 
 const GROUNDED_PACK = {
   llms_txt: '# example.com\n\n> Review draft. Source quotes are not independently verified.\n\n## Observed source\n- Origin: https://example.com\n- Page title (source quote): "Example"\n\n## Evidence limits\n- Site sections and business policies were not verified.\n- No supported FAQ pairs were found. The FAQ draft is empty and must not be published as a completed FAQ.',
@@ -81,6 +95,10 @@ beforeEach(() => {
   vi.clearAllMocks()
   queries.length = 0
   nextResults = []
+  billingMocks.enqueueFixPackUsage.mockReset()
+  billingMocks.enqueueFixPackUsage.mockResolvedValue(null)
+  billingMocks.reportFixPackUsage.mockReset()
+  afterMock.mockClear()
   vi.mocked(fetchPublicUrl).mockResolvedValue(new Response('<title>Example</title>'))
   vi.mocked(callOpenRouter).mockResolvedValue(
     '{"llms_txt":"# About","robots_patch":"Allow: /","faq_schema":"{}"}'
@@ -225,6 +243,46 @@ describe('POST /api/fix', () => {
     expect(callOpenRouter).not.toHaveBeenCalled()
     expect(queries).toHaveLength(4)
     expect(queries[3]).toMatch(/insert into fix_packs/i)
+    // No account/client on the scan row: a free or anonymous scan is never billed.
+    expect(billingMocks.enqueueFixPackUsage).not.toHaveBeenCalled()
+  })
+
+  it('records one billable fix pack and schedules its meter event only for an owned metered scan', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    billingMocks.enqueueFixPackUsage.mockResolvedValue('ev-1')
+    const METERED_SCAN = { ...SCAN_ROW, account_id: 'acc-1', client_id: 'client-1' }
+    nextResults = [
+      [{ id: 'scan-1' }], // ownership check
+      [], // cache miss
+      [METERED_SCAN], // owned scan with brand + account
+      [{ id: 'fp-1' }], // cache write returning id
+    ]
+    const { POST } = await import('@/app/api/fix/route')
+
+    const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
+
+    expect(res.status).toBe(200)
+    expect(billingMocks.enqueueFixPackUsage).toHaveBeenCalledWith({
+      fixPackId: 'fp-1', accountId: 'acc-1', clientId: 'client-1',
+    })
+    expect(afterMock).toHaveBeenCalledTimes(1)
+    expect(billingMocks.reportFixPackUsage).toHaveBeenCalledWith('ev-1')
+  })
+
+  it('still returns the fix pack when the billing ledger write fails', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    billingMocks.enqueueFixPackUsage.mockRejectedValue(new Error('connection terminated'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const METERED_SCAN = { ...SCAN_ROW, account_id: 'acc-1', client_id: 'client-1' }
+    nextResults = [[{ id: 'scan-1' }], [], [METERED_SCAN], [{ id: 'fp-1' }]]
+    const { POST } = await import('@/app/api/fix/route')
+
+    const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(GROUNDED_PACK)
+    expect(billingMocks.reportFixPackUsage).not.toHaveBeenCalled()
+    consoleError.mockRestore()
   })
 
   it('returns 400 for a missing scanId without touching the DB', async () => {
@@ -284,7 +342,7 @@ describe('POST /api/fix', () => {
   })
 })
 
-// Restored from the Supabase-to-Neon fence (2026-08-23) — was
+// Restored from the Supabase-to-Neon fence (2026-08-23) ??was
 // featureUnavailable('content-tools'); see __tests__/api/fenced-routes.test.ts
 // for the still-fenced routes and lib/unavailable.ts for the fence mechanism.
 describe('POST /api/fix/cluster-map', () => {

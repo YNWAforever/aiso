@@ -25,4 +25,15 @@ export const STRIPE_PRICES: StripePriceMap = {
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE!,
 }
 
+// Per-fix billing is opt-in per account and fails closed: an unset price or
+// meter event name must never fall back to a charge, it must leave the usage
+// row failed for the admin to see (docs/superpowers/specs/
+// 2026-11-11-per-fix-billing-design.md).
+export function fixPackMeterConfig(): { priceId: string; eventName: string } {
+  return {
+    priceId: process.env.STRIPE_PRICE_FIX_METERED ?? '',
+    eventName: process.env.STRIPE_FIX_METER_EVENT_NAME ?? '',
+  }
+}
+
 export const APP_URL = appOrigin()
