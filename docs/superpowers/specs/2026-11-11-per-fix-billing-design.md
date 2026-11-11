@@ -190,7 +190,8 @@ one, and otherwise inserts via `insert … select … limit 1`. Changes:
 5. Anonymous scans (`scans.account_id is null`) and unpaid/cached packs are never metered.
 
 Retry: `POST /api/admin/billing/usage/:id/retry` re-sends the same identifier, allowed only within
-24 h of `created_at` and only while `state='failed'`, bounded by `attempts`; the admin UI shows
+24 h of `created_at` and only while `state` is `pending` or `failed` (a stuck pending row is
+recoverable without a manual database edit), bounded by `attempts`; the admin UI shows
 pending/failed counts per brand.
 
 ### One-off invoice (model C)
