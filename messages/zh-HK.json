@@ -5005,5 +5005,37 @@
     "not_shared": "未分享",
     "publish_failed": "未能發佈，請再試。",
     "stale": "已有較新的草稿，請重新載入並先檢視。"
+  },
+  "billing": {
+    "title": "帳務",
+    "subtitle": "此帳戶的修正包用量與一次性帳單。",
+    "settings_body": "修正包計費模式、本月可計費修正包與一次性帳單。",
+    "settings_link": "開啟帳務",
+    "loading": "正在載入帳務…",
+    "load_failed": "暫時未能載入帳務資料。",
+    "plan_label": "方案",
+    "mode_label": "修正包計費",
+    "mode_metered": "每個新產生的修正包逐個計費",
+    "mode_included": "已包含在現有方案",
+    "mode_not_opened": "此帳戶尚未開啟帳務",
+    "month_title": "本月（香港時間 {month}）",
+    "reported_label": "已上報計費",
+    "not_reported_label": "未入帳",
+    "not_reported_hint": "尚未上報的修正包不會計入帳單；Stripe 確認收到計量事件前，不會產生任何收費。",
+    "invoices_title": "一次性帳單",
+    "invoice_description": "說明",
+    "invoice_amount": "金額",
+    "invoice_status": "狀態",
+    "invoice_link": "帳單",
+    "invoice_view": "查看帳單",
+    "invoice_unavailable": "未提供",
+    "no_invoices": "暫時未有一次性帳單。",
+    "portal": "開啟 Stripe 帳務中心",
+    "status_draft": "草稿",
+    "status_open": "待付款",
+    "status_paid": "已付款",
+    "status_void": "已作廢",
+    "status_uncollectible": "無法收回",
+    "status_unknown": "未知"
   }
 }
