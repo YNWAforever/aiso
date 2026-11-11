@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   static:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +55,7 @@ jobs:
             artifacts/static-summary.json
 
   unit-contract:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -93,7 +93,7 @@ jobs:
             coverage/
 
   integration:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # 45 (raised from 30 on 2026-11-04). This is the network/external-process-bound
     # job in the gate: two Neon branch creates, every migration replayed twice (the
     # main suite and the exact-target suites), sequential real-Postgres round-trips
@@ -196,7 +196,7 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -290,7 +290,7 @@ jobs:
             test-results/
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -340,7 +340,7 @@ jobs:
             artifacts/build-summary.json
 
   cloudflare-worker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -373,7 +373,7 @@ jobs:
   pr-gate:
     if: ${{ always() }}
     needs: [static, unit-contract, integration, e2e-accessibility, build, cloudflare-worker]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
