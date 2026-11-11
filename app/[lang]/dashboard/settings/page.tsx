@@ -26,6 +26,7 @@ export default async function SettingsPage({
   const search = await searchParams
   const profile = await requireAuth(lang)
   const reportT = await getTranslations('reportBranding')
+  const billingT = await getTranslations('billing')
   const entitlement = resolveCommercialEntitlement(profile.accounts)
   const plan = entitlement.plan
   const reportBranding = entitlement.features.client_reports_online
@@ -71,6 +72,20 @@ export default async function SettingsPage({
 
   return (
     <SettingsView lang={lang} plan={plan} status={status} hasStripe={hasStripe}>
+        <section id="billing" className="scroll-mt-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-foreground">{billingT('title')}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{billingT('settings_body')}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <Link
+              href={`/${lang}/dashboard/billing`}
+              className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {billingT('settings_link')}
+            </Link>
+          </div>
+        </section>
         <MembersPanel
           self={profile.id}
           limit={MAX_ACCOUNT_MEMBERS}

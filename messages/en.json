@@ -5005,5 +5005,37 @@
     "not_shared": "Not shared",
     "publish_failed": "Not published. Try again.",
     "stale": "A newer draft exists. Reload and review it first."
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Fix-pack usage and one-off invoices for this account.",
+    "settings_body": "Fix-pack billing mode, this month's billable fix packs and one-off invoices.",
+    "settings_link": "Open billing",
+    "loading": "Loading billing…",
+    "load_failed": "Could not load billing right now.",
+    "plan_label": "Plan",
+    "mode_label": "Fix-pack billing",
+    "mode_metered": "Billed per generated fix pack",
+    "mode_included": "Included in your plan",
+    "mode_not_opened": "Billing has not been opened for this account yet",
+    "month_title": "This Hong Kong month ({month})",
+    "reported_label": "Reported to billing",
+    "not_reported_label": "Not yet billed",
+    "not_reported_hint": "Fix packs waiting to be reported are not billed. Nothing is charged until Stripe accepts the meter event.",
+    "invoices_title": "One-off invoices",
+    "invoice_description": "Description",
+    "invoice_amount": "Amount",
+    "invoice_status": "Status",
+    "invoice_link": "Invoice",
+    "invoice_view": "View invoice",
+    "invoice_unavailable": "Not available",
+    "no_invoices": "No one-off invoices yet.",
+    "portal": "Open Stripe billing portal",
+    "status_draft": "Draft",
+    "status_open": "Open",
+    "status_paid": "Paid",
+    "status_void": "Void",
+    "status_uncollectible": "Uncollectible",
+    "status_unknown": "Unknown"
   }
 }
