@@ -1877,7 +1877,13 @@
     "impact_medium": "中",
     "impact_low": "低",
     "methodology": "方法及覆蓋範圍",
-    "empty_action": "打開最新掃描"
+    "empty_action": "打開最新掃描",
+    "chooser_title": "你想分享邊種報告？",
+    "chooser_body": "兩種都由呢個品牌已保存嘅紀錄生成。你未批准之前唔會發送。",
+    "chooser_scan": "掃描報告",
+    "chooser_scan_body": "一頁成績：分數、發現同建議。",
+    "chooser_monthly": "月度報告",
+    "chooser_monthly_body": "月度記錄同變化，準備好就發佈。"
   },
   "reportPage": {
     "meta_title": "客戶報告 — Fimmick AISO",
@@ -5139,6 +5145,10 @@
     "scan": "掃描",
     "results": "檢查結果",
     "suggestions": "優化建議",
-    "todos": "待辦"
+    "todos": "待辦",
+    "reports": "報告",
+    "shareableReports": "可分享報告",
+    "monthlyReport": "月度報告",
+    "allBrands": "全部品牌"
   }
 }

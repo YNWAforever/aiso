@@ -1877,7 +1877,13 @@
     "impact_medium": "Medium",
     "impact_low": "Low",
     "methodology": "Methodology and coverage",
-    "empty_action": "Open latest scan"
+    "empty_action": "Open latest scan",
+    "chooser_title": "Which report do you want to share?",
+    "chooser_body": "Both start from records already saved for this brand. Nothing is sent until you approve it.",
+    "chooser_scan": "Scan report",
+    "chooser_scan_body": "A one-page result: scores, findings and fixes.",
+    "chooser_monthly": "Monthly report",
+    "chooser_monthly_body": "The month record and what changed, ready to publish."
   },
   "reportPage": {
     "meta_title": "Client report — Fimmick AISO",
@@ -5139,6 +5145,10 @@
     "scan": "Scan",
     "results": "Check results",
     "suggestions": "Suggestions",
-    "todos": "To-dos"
+    "todos": "To-dos",
+    "reports": "Reports",
+    "shareableReports": "Shareable reports",
+    "monthlyReport": "Monthly report",
+    "allBrands": "All brands"
   }
 }

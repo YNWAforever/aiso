@@ -447,3 +447,30 @@ also the rollout step until the flag is removed.
   approval before they can write; a real-brand authenticated preview run with the flag on;
   slices 5–7 (What AI says / Improve / Reports tabs, account/settings split, funnel and
   copy pass).
+
+## SME copilot: slices 2 polish, 5 and 6 (PRs #244–#246)
+
+- **#244 (merged `6265af5a`)** — polish. `/studio/overview` redirects members to the brand
+  Today under the flag (the staff R3 view keeps the page; flag-off keeps the old behaviour),
+  and an empty Chat history shows three example asks that prefill and focus the composer.
+- **#245 (merged `8462a18a`)** — tab chrome for the two consolidated destinations, rendered
+  once in `DashboardChrome` behind the flag. **What AI says**: 能見度 `?step=monitor`,
+  AI 回答記錄 `/observations`, 引用來源 `/citations`, 競爭對手 `/competitors`, 監測問題
+  `/prompts`. **Improve**: 掃描 `?step=scan`, 檢查結果 `?step=results`, 優化建議
+  `?step=improve`, 待辦 `/tasks`. Every tab is an existing URL — no page moved, no
+  redirect added — and Today/Chat/Reports/account pages render no bar.
+- **#246 (this PR)** — Reports consolidation. The Reports destination gains the same tab
+  set: 可分享報告 `/reports`, 月度報告 `/month` (with `/month/report` inside it), 全部品牌
+  `/dashboard/this-month`. The two builders are prefaced by one chooser
+  ("你想分享邊種報告？" → 掃描報告 / 月度報告) and the old scan-only Create CTA is hidden
+  under the flag, so there is one entry point instead of two. Publish/share/review and the
+  one-A4-page print behaviour are untouched; the legacy UI is byte-for-byte unchanged.
+- Production: #244 deploy `aiso-ojvnmghij` and #245 deploy `aiso-2k3pag3zn` both Ready;
+  both build logs read `schema gate: all 107 shipped migrations are recorded.` and `/en`
+  answers 200. No migration in these slices.
+- Verification: full unit suite **8,498 passed / 15 skipped** (663 files), `lint` clean
+  (0 errors, 0 warnings), `typecheck` clean, `node scripts/text-audit.mjs` clean (the
+  product-name rule caught a bare "AISO" in the new chooser copy, which was rewritten).
+- Still owed: slice 4 (action skills — needs a named approval before any write), slice 7
+  (account/settings split, `/entities` first-run, vocabulary pass), a real-brand
+  authenticated preview run of the flag-on UI, and the axe fixture for each tab.
