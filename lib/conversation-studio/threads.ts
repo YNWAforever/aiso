@@ -392,6 +392,55 @@ export async function getStudioThread(_request: Request, clientId: string, threa
   }
 }
 
+/** A prior-turn projection for LIVE answers: the prompt plus its stored live reply, if any. */
+export type StudioLiveHistoryTurn = {
+  position: number
+  prompt: string
+  live: StudioTurnLiveInput | null
+}
+
+/**
+ * The most recent turns before `beforePosition` of a thread this principal owns.
+ * LIVE answers are composed only for the viewer's OWN thread (a shared thread is
+ * readable but never writable by its viewer), so ownership is the full
+ * (account, brand, profile) triple. A miss means "no such thread for this
+ * principal" and reads as null; the caller 404s and never guesses a thread.
+ */
+export async function readOwnStudioHistory(
+  access: StudioBrandAccess,
+  threadId: string,
+  beforePosition: number,
+  limit = 10,
+): Promise<StudioLiveHistoryTurn[] | null> {
+  if (!isUuid(threadId)) return null
+  const threads = await access.sql`
+    select t.id
+    from studio_threads t
+    where t.id = ${threadId}::uuid
+      and t.account_id = ${access.accountId}::uuid
+      and t.client_id = ${access.clientId}::uuid
+      and t.profile_id = ${access.profileId}::uuid
+    limit 1
+  `
+  if (!threads[0]) return null
+  const rows = await access.sql`
+    select position, prompt, live
+    from studio_thread_turns
+    where thread_id = ${threadId}::uuid
+      and account_id = ${access.accountId}::uuid
+      and client_id = ${access.clientId}::uuid
+      and profile_id = ${access.profileId}::uuid
+      and position < ${beforePosition}
+    order by position desc
+    limit ${limit}
+  `
+  return (rows as Record<string, unknown>[]).reverse().map(row => ({
+    position: Number(row.position),
+    prompt: String(row.prompt),
+    live: readLive(row.live ?? null),
+  }))
+}
+
 /** The stored row of a thread this principal owns, through the list projection. */
 async function readOwnThreadRow(access: StudioBrandAccess, threadId: string): Promise<Record<string, unknown> | null> {
   const rows = await access.sql`
