@@ -1,6 +1,9 @@
 # Target information architecture — SME copilot
 
 Status: approved 2026-11-12 (design spec: `docs/ux/sme-copilot-redesign.md`).
+Delivery status: slice 0 (PR #238) and slice 1 (PR #239) merged on 2026-11-12; the
+production flag is still unset, so the legacy IA remains what users see until a named
+approval. Slices 2–7 follow this document.
 This file is the source of truth for navigation, destinations and route mapping.
 [lib/dashboard-nav.ts](../../lib/dashboard-nav.ts) is the implementation of this file;
 the sidebar, ⌘K palette and breadcrumbs all read it.
