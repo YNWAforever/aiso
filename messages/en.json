@@ -606,7 +606,8 @@
       "readsSearchDemand": "search demand",
       "readsPublicPage": "one public page",
       "readsNothing": "nothing new"
-    }
+    },
+    "chatMoreTitle": "More in Chat"
   },
   "seo": {
     "home": {

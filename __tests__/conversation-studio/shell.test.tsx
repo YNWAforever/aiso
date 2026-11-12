@@ -17,6 +17,13 @@ it.each(['/en/dashboard', '/en/dashboard/11111111-1111-4111-8111-111111111111?st
   expect(html).toContain('global-sidebar')
   expect(html).toContain('global-topbar')
 })
+it.each(['/en/dashboard/11111111-1111-4111-8111-111111111111/studio', '/en/dashboard/11111111-1111-4111-8111-111111111111/studio/threads'])('keeps Studio inside the one dashboard shell under the SME copilot flag: %s', pathname => {
+  route.pathname = pathname
+  const html = renderWithIntl(<DashboardChrome conversationStudio smeCopilot sidebar={<div>global-sidebar</div>} topbar={<div>global-topbar</div>}><div>studio-content</div></DashboardChrome>)
+  expect(html).toContain('studio-content')
+  expect(html).toContain('global-sidebar')
+  expect(html).toContain('global-topbar')
+})
 it('uses the dashboard nav destinations and keeps hidden Monitor and admin gated', () => {
   const items = buildStudioTools({ lang: 'en', clientId: '11111111-1111-4111-8111-111111111111', features: {}, admin: false })
   expect(items.find(i => i.key === 'overview')?.href).toBe('/en/dashboard/11111111-1111-4111-8111-111111111111?step=home')
