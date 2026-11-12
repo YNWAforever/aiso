@@ -1698,7 +1698,23 @@
       "brandLimitBody": "Your plan includes {limit} brands. Upgrade to add more.",
       "brandLimitShort": "Upgrade your plan to add another brand."
     },
-    "local_trust_competitor_gap_points": "{value} pts"
+    "local_trust_competitor_gap_points": "{value} pts",
+    "nav_today": "Today",
+    "nav_today_desc": "One action and one question",
+    "nav_chat": "Chat",
+    "nav_chat_desc": "Ask in plain language",
+    "nav_what_ai_says": "What AI says",
+    "nav_what_ai_says_desc": "Visibility, answers, sources",
+    "nav_ai_visibility": "AI visibility",
+    "nav_shared_reports": "Shareable reports",
+    "nav_monthly_reports": "Monthly report",
+    "nav_all_brands": "All brands",
+    "nav_account_desc": "Brand, facts and plan",
+    "nav_brand_profile": "Brand profile",
+    "nav_verified_facts": "Verified facts",
+    "nav_pages": "Pages",
+    "nav_billing": "Billing",
+    "nav_account_menu": "Account menu"
   },
   "reports": {
     "scan_domain_mismatch": "This scan is for a different domain from the brand’s current website. Choose a completed scan for the current domain, or run a new scan.",
@@ -2223,7 +2239,11 @@
     "monthlyReport": {
       "title": "This month's report",
       "version": "Version {n}",
-      "status": { "draft": "Draft", "published": "Published", "revoked": "Revoked" },
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "revoked": "Revoked"
+      },
       "open": "Open report"
     },
     "siteHealth": "Site health",
@@ -5006,7 +5026,7 @@
     "not_shared": "Not shared",
     "publish_failed": "Not published. Try again.",
     "stale": "A newer draft exists. Reload and review it first."
-  },
+  },
   "billing": {
     "title": "Billing",
     "subtitle": "Fix-pack usage and one-off invoices for this account.",
@@ -5038,5 +5058,44 @@
     "status_void": "Void",
     "status_uncollectible": "Uncollectible",
     "status_unknown": "Unknown"
+  },
+  "today": {
+    "eyebrow": "Today",
+    "title": "Today",
+    "summary": "One thing to do, one way to ask. Everything else is under details.",
+    "actionCaption": "Your next action",
+    "actionNone": "The latest saved scan has nothing to action.",
+    "fixSentence": "Fix first: {check}",
+    "fixDetail": "Worth up to {n} points",
+    "askLabel": "Or just ask AI",
+    "askPlaceholder": "e.g. Why don’t I show up in AI search?",
+    "askCta": "Ask",
+    "askHint": "Opens Chat with this question.",
+    "skills": {
+      "visibility": "See where I stand",
+      "improve": "Improve a page",
+      "report": "Prepare the report"
+    },
+    "metrics": {
+      "visibility": "AI mention rate",
+      "score": "AEO score",
+      "report": "This month’s report",
+      "empty": "Not recorded",
+      "unavailable": "Could not read",
+      "locked": "Not in plan",
+      "draft": "Draft",
+      "published": "Published",
+      "revoked": "Revoked",
+      "open": "Open"
+    },
+    "setup": "Setup: {n} steps left",
+    "details": "Details: score trend, checks and history",
+    "detailsIntro": "The full workspace: priorities, site health, visibility, history and tools.",
+    "monthlyTitle": "This month’s report",
+    "monthlyVersion": "Version {n}",
+    "noScan": "No saved scan yet.",
+    "loadError": "Could not open this brand",
+    "loadErrorBody": "The brand records could not be read. Try again from your portfolio.",
+    "oneBrandEyebrow": "Your brand"
   }
 }

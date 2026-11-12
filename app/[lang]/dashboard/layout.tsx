@@ -10,7 +10,7 @@ import { TopBar } from '@/components/dashboard/shell/TopBar'
 import { listOwnedBrands, type OwnedBrand } from '@/lib/workspace/list-owned-brands'
 import { getTrialStatus } from '@/lib/trial'
 import { resolveCommercialEntitlement } from '@/lib/tier'
-import { conversationStudioNavEnabled } from '@/lib/flags'
+import { conversationStudioNavEnabled, isSmeCopilotUiEnabled } from '@/lib/flags'
 import { DashboardChrome } from '@/components/dashboard/shell/DashboardChrome'
 
 export default async function DashboardLayout({
@@ -27,6 +27,10 @@ export default async function DashboardLayout({
   // A rollout allowlist narrows the pilot to specific brands; while it is active
   // the sidebar must not advertise a door that redirects other brands back home.
   const conversationStudio = conversationStudioNavEnabled()
+  // The approved SME copilot IA (2026-11-12): five destinations and an account
+  // menu. Evaluated on the server and passed down; client components never read
+  // FEATURE_* env vars.
+  const smeCopilot = isSmeCopilotUiEnabled()
 
   // The brand is deliberately NOT resolved here. This layout sits at
   // `dashboard/`, so it cannot see the `[clientId]` segment's params — a Next
@@ -65,8 +69,9 @@ export default async function DashboardLayout({
       banner={entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}
-      sidebar={<DashboardSidebar profile={profile} entitlement={entitlement} conversationStudio={conversationStudio} />}
-      topbar={<TopBar lang={lang} brands={brands} unreadCount={unreadCount} features={entitlement.features} conversationStudio={conversationStudio} />}>
+      sidebar={<DashboardSidebar profile={profile} entitlement={entitlement} conversationStudio={conversationStudio} smeCopilot={smeCopilot} />}
+      topbar={<TopBar lang={lang} brands={brands} unreadCount={unreadCount} features={entitlement.features} conversationStudio={conversationStudio} smeCopilot={smeCopilot}
+        profile={{ displayName: profile.display_name ?? null, email: profile.email ?? null, isAdmin: profile.is_admin === true, plan: entitlement.plan }} />}>
         {children}
       </DashboardChrome>
     </ToastProvider>

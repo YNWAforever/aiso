@@ -19,7 +19,7 @@ import { emptyStudioEvidence } from '@/__tests__/helpers/studio-evidence'
 import { emptyStudioOpportunities, savedStudioOpportunities } from '@/__tests__/helpers/studio-opportunities'
 
 const clientId = '11111111-1111-4111-8111-111111111111'
-const render = (id = clientId) => Page({ params: Promise.resolve({ lang: 'en', clientId: id }) })
+const render = (id = clientId) => Page({ params: Promise.resolve({ lang: 'en', clientId: id }), searchParams: Promise.resolve({}) })
 beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')

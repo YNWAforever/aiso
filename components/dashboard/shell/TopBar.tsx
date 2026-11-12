@@ -1,10 +1,10 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, ChevronDown, ChevronRight, CircleHelp, Search } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, CircleHelp, LogOut, Search, Wrench } from 'lucide-react'
 import type { CommandItem } from '@/components/ui/command-palette'
 import { NotificationBell } from '@/components/dashboard/NotificationBell'
 import { MenuButton } from '@/components/dashboard/shell/MenuButton'
@@ -15,6 +15,13 @@ const CommandPalette = dynamic(() => import('@/components/ui/command-palette').t
 
 export interface ShellBrand { id: string; name: string; domain: string | null }
 
+export interface ShellProfile {
+  displayName: string | null
+  email: string | null
+  isAdmin: boolean
+  plan: string
+}
+
 interface Props {
   lang: string
   /** The account's active brands; null when the list could not be read. */
@@ -22,14 +29,18 @@ interface Props {
   unreadCount: number | null
   features: NavFeatures
   conversationStudio?: boolean
+  /** Approved SME copilot IA: account pages live behind the avatar menu. */
+  smeCopilot?: boolean
+  profile?: ShellProfile
 }
 
 /**
  * The dashboard's top bar: brand switcher and breadcrumbs on the left; search
- * (⌘K), notifications and help on the right. Everything is derived from the
- * route and lib/dashboard-nav.ts, so it always agrees with the sidebar.
+ * (?), notifications, help and (SME IA) the account menu on the right.
+ * Everything is derived from the route and lib/dashboard-nav.ts, so it always
+ * agrees with the sidebar.
  */
-export function TopBar({ lang, brands, unreadCount, features, conversationStudio = false }: Props) {
+export function TopBar({ lang, brands, unreadCount, features, conversationStudio = false, smeCopilot = false, profile }: Props) {
   const t = useTranslations('dashboard')
   const shell = useTranslations('dashboard.shell')
   const ui = useTranslations('ui')
@@ -38,7 +49,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
   const searchParams = useSearchParams()
   const clientId = params?.clientId ?? null
   const [paletteOpen, setPaletteOpen] = useState(false)
-  // Until the palette has loaded, ⌘K / Ctrl+K is caught here; afterwards the
+  // Until the palette has loaded, ? / Ctrl+K is caught here; afterwards the
   // palette's own listener owns the shortcut, so it is never toggled twice.
   const [paletteLoaded, setPaletteLoaded] = useState(false)
   useEffect(() => {
@@ -55,36 +66,44 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
   }, [paletteLoaded])
   const scanId = params?.scanId ?? searchParams?.get('scanId')
   const scanQuery = scanId ? `?scanId=${encodeURIComponent(scanId)}` : ''
-  const nav = buildDashboardNav({ lang, clientId, features, scanId, conversationStudio })
-  const here = locateDashboard(pathname, clientId ? (searchParams?.get('step') ?? 'home') : null)
+  const nav = buildDashboardNav({ lang, clientId, features, scanId, conversationStudio, smeCopilot })
+  // Account pages are hidden from the sidebar but must still resolve in the
+  // palette and the breadcrumb trail.
+  const allSections = buildDashboardNav({ lang, clientId, features, scanId, conversationStudio, smeCopilot, includeHidden: true })
+  const accountSection = smeCopilot ? allSections.find(section => section.key === 'account') ?? null : null
+  const here = locateDashboard(pathname, clientId ? (searchParams?.get('step') ?? 'home') : null, smeCopilot)
   const brand = clientId ? brands?.find(b => b.id === clientId) ?? null : null
   const root = `/${lang}/dashboard`
+  const homeHref = useCallback((id: string) => brandHomeHref({ lang, clientId: id, conversationStudio, smeCopilot }), [lang, conversationStudio, smeCopilot])
+  const signOutHref = `/${lang}/auth/logout?next=${encodeURIComponent(`${pathname}${searchParams?.size ? `?${searchParams}` : ''}`)}`
 
-  // Brands › Brand › Section › Page. The last crumb is the current page.
+  // Brands ??Brand ??Section ??Page. The last crumb is the current page.
   const crumbs: { label: string; href: string }[] = [{ label: shell('brands'), href: root }]
-  if (clientId) crumbs.push({ label: brand?.name ?? shell('brands'), href: brandHomeHref({ lang, clientId, conversationStudio }) })
-  // Resolve against every section, so a hidden one's pages (Monitor's question
-  // bank, observations, …) still get a trail; the hidden section itself gets no
-  // crumb, because a link to it would advertise it.
-  const section = buildDashboardNav({ lang, clientId, features, scanId, conversationStudio, includeHidden: true }).find(s => s.key === here.section)
+  if (clientId) crumbs.push({ label: brand?.name ?? shell('brands'), href: homeHref(clientId) })
+  // Resolve against every section, so a hidden one's pages (legacy Monitor's
+  // question bank, the SME account pages) still get a trail; the hidden section
+  // itself gets no crumb, because a link to it would advertise it.
+  const section = allSections.find(s => s.key === here.section)
   const sectionHidden = !!section && !nav.some(s => s.key === section.key)
-  if (section && !(section.key === 'overview' && !here.item)) {
-    if (!sectionHidden) crumbs.push({ label: t(section.labelKey), href: section.href })
+  const sectionVisible = !!section && (!sectionHidden || (smeCopilot && section.key === 'account'))
+  if (section && !(section.key === 'overview' && !here.item) && !(section.key === 'today' && !here.item)) {
+    if (sectionVisible) crumbs.push({ label: t(section.labelKey), href: section.href })
     const item = section.items.find(i => i.key === here.item)
     if (item && item.href !== section.href) crumbs.push({ label: t(item.labelKey), href: item.href })
     if (here.item === 'roi') crumbs.push({ label: t('local_visibility'), href: `${root}/${clientId}?step=roi` })
   }
-  if (!clientId && here.section === 'overview') crumbs.splice(1)
+  if (!clientId && (here.section === 'overview' || here.section === 'today')) crumbs.splice(1)
 
   const commands = useMemo<CommandItem[]>(() => [
     ...nav.flatMap(s => [
       { id: `section-${s.key}`, label: t(s.labelKey), group: shell('group_go'), href: s.href },
-      ...s.items.filter(i => i.href !== s.href).map(i => ({ id: `item-${s.key}-${i.key}`, label: `${t(s.labelKey)} › ${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
+      ...s.items.filter(i => i.href !== s.href).map(i => ({ id: `item-${s.key}-${i.key}`, label: `${t(s.labelKey)} ??${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
     ]),
-    ...(brands ?? []).map(b => ({ id: `brand-${b.id}`, label: b.name, keywords: b.domain ? [b.domain] : [], group: shell('group_brands'), href: brandHomeHref({ lang, clientId: b.id, conversationStudio }) })),
+    ...(accountSection?.items ?? []).map(i => ({ id: `account-${i.key}`, label: `${t('nav_account')} ??${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
+    ...(brands ?? []).map(b => ({ id: `brand-${b.id}`, label: b.name, keywords: b.domain ? [b.domain] : [], group: shell('group_brands'), href: homeHref(b.id) })),
     { id: 'action-scan', label: shell('action_scan'), group: shell('group_actions'), href: clientId ? `${root}/${clientId}?step=scan${scanId ? `&scanId=${encodeURIComponent(scanId)}` : ''}` : `/${lang}#scan` },
     ...(clientId ? [{ id: 'action-report', label: shell('action_report'), group: shell('group_actions'), href: `${root}/${clientId}/reports/new${scanQuery}` }] : []),
-  ], [nav, brands, clientId, conversationStudio, lang, root, shell, t, scanId, scanQuery])
+  ], [nav, accountSection, brands, clientId, homeHref, lang, root, shell, t, scanId, scanQuery])
 
   return (
     <header className="print:hidden flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2 sm:px-6">
@@ -101,7 +120,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
                 {(brands ?? []).map(b => (
                   <li key={b.id}>
                     <Link
-                      href={brandHomeHref({ lang, clientId: b.id, conversationStudio })}
+                      href={homeHref(b.id)}
                       onClick={close}
                       aria-current={b.id === clientId ? 'true' : undefined}
                       className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-foreground hover:bg-secondary"
@@ -143,13 +162,46 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
         <button
           type="button"
           onClick={() => { setPaletteLoaded(true); setPaletteOpen(true) }}
-          className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-border px-2.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-2.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <Search aria-hidden="true" className="size-4" />
           <span className="sr-only sm:not-sr-only">{shell('search')}</span>
-          <kbd aria-hidden="true" className="hidden rounded border border-border px-1 text-[11px] font-medium sm:inline">⌘K</kbd>
+          <kbd aria-hidden="true" className="hidden rounded border border-border px-1 text-[11px] font-medium sm:inline">?</kbd>
         </button>
         <NotificationBell key={unreadCount ?? 'unknown'} initialCount={unreadCount} lang={lang} />
+        {smeCopilot && profile && <MenuButton
+          label={t('nav_account_menu')}
+          align="end"
+          button={<span className="inline-flex size-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary-accessible" aria-hidden="true">
+            {(profile.displayName || profile.email || 'U')[0]?.toUpperCase()}
+          </span>}
+        >
+          {close => (
+            <div className="flex min-w-56 flex-col">
+              <div className="px-2 pb-2 pt-1">
+                <p className="truncate text-sm font-semibold text-foreground">{profile.displayName || profile.email || 'User'}</p>
+                <p className="text-xs text-muted-foreground">{t(`plan_label`)}: {profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)}</p>
+              </div>
+              <ul className="border-t border-border pt-1">
+                {(accountSection?.items ?? []).map(item => (
+                  <li key={item.key}>
+                    <Link href={item.href} onClick={close} className="flex min-h-11 items-center rounded-lg px-2 text-sm text-foreground hover:bg-secondary">{t(item.labelKey)}</Link>
+                  </li>
+                ))}
+                {profile.isAdmin && <li>
+                  <Link href={`/admin?lang=${lang}`} onClick={close} className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-foreground hover:bg-secondary">
+                    <Wrench aria-hidden="true" className="size-4" />{t('admin')}
+                  </Link>
+                </li>}
+              </ul>
+              <div className="mt-1 border-t border-border pt-1">
+                <Link href={signOutHref} onClick={close} className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-foreground hover:bg-secondary">
+                  <LogOut aria-hidden="true" className="size-4" />{t('sign_out')}
+                </Link>
+              </div>
+            </div>
+          )}
+        </MenuButton>}
         <MenuButton label={shell('help')} align="end" button={<CircleHelp aria-hidden="true" className="size-5" />}>
           {close => (
             <ul className="flex flex-col">

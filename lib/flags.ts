@@ -1,10 +1,10 @@
 /**
  * Server-side feature flags. Every flag defaults off; a flag turns on only
  * when its FEATURE_<NAME> environment variable is exactly '1'. Never read
- * from client components — flags gate server-rendered behavior only, per
+ * from client components ??flags gate server-rendered behavior only, per
  * ADR-011's dark-launch requirement.
  */
-export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility' | 'enterprise_os' | 'conversation_studio' | 'conversation_studio_live' | 'conversation_studio_mcp'
+export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility' | 'enterprise_os' | 'conversation_studio' | 'conversation_studio_live' | 'conversation_studio_mcp' | 'sme_copilot_ui'
 
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
   if (flag === 'conversation_studio_live' && !isFeatureEnabled('conversation_studio')) return false
@@ -51,4 +51,13 @@ export function isStudioMcpEnabled(clientId: string | null | undefined): boolean
  */
 export function conversationStudioNavEnabled(): boolean {
   return isFeatureEnabled('conversation_studio') && conversationStudioRolloutClients().length === 0
+}
+
+/**
+ * The approved SME copilot IA (2026-11-12): five sidebar destinations, a brand
+ * Today home and the account menu. Server-only like every flag; pages pass the
+ * result down, client components never read FEATURE_* env vars themselves.
+ */
+export function isSmeCopilotUiEnabled(): boolean {
+  return isFeatureEnabled('sme_copilot_ui')
 }

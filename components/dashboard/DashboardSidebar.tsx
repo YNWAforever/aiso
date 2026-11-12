@@ -1,10 +1,10 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { useState } from 'react'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { LogOut, Wrench, Brain, Settings, Lock, LayoutDashboard, MessageSquare, ScanSearch, Radio, FileText, Settings2, type LucideIcon } from 'lucide-react'
+import { LogOut, Wrench, Brain, Settings, Lock, LayoutDashboard, MessageSquare, ScanSearch, Radio, FileText, Settings2, Home, type LucideIcon } from 'lucide-react'
 import type { CommercialEntitlement } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 import { buildDashboardNav, locateDashboard, type SectionKey } from '@/lib/dashboard-nav'
@@ -13,6 +13,7 @@ import { Wordmark } from '@/components/brand/Wordmark'
 
 const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
   overview: LayoutDashboard, studio: MessageSquare, scan: ScanSearch, monitor: Radio, reports: FileText, settings: Settings2,
+  today: Home, chat: MessageSquare, what_ai_says: Radio, improve: ScanSearch, account: Settings2,
 }
 
 type Props = {
@@ -30,16 +31,20 @@ type Props = {
   brandId?: string
   /** Evaluated on the server; never read feature env vars in this component. */
   conversationStudio?: boolean
+  /** Approved SME copilot IA: five destinations, account pages in the avatar menu. */
+  smeCopilot?: boolean
 }
 
 /**
- * Five sections (lib/dashboard-nav.ts): Overview, Scan & Fix, Monitor (hidden
- * until Pulse is scheduled), Reports and Settings. The current section opens
- * to show its pages. A missing brand sends brand-only sections to the brand
- * list; a plan limit shows a lock but never blocks the link, because the page
- * itself carries the upgrade path.
+ * Five sections (lib/dashboard-nav.ts). In the legacy IA: Overview, Scan & Fix,
+ * Monitor (hidden until Pulse is scheduled), Reports and Settings. In the SME
+ * copilot IA: Today, Chat, What AI says, Improve and Reports — account pages
+ * move to the top bar's avatar menu. The current section opens to show its
+ * pages. A missing brand sends brand-only sections to the brand list; a plan
+ * limit shows a lock but never blocks the link, because the page itself
+ * carries the upgrade path.
  */
-export function DashboardSidebar({ profile, entitlement, brandId, conversationStudio = false }: Props) {
+export function DashboardSidebar({ profile, entitlement, brandId, conversationStudio = false, smeCopilot = false }: Props) {
   const t = useTranslations('dashboard')
   const [navigationOpen, setNavigationOpen] = useState(false)
   const params = useParams<{ lang: string; clientId?: string; scanId?: string }>()
@@ -52,8 +57,8 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
   const clientId = params?.clientId ?? brandId
   const { plan, features } = entitlement
   const scanId = params?.scanId ?? searchParams?.get('scanId')
-  const nav = buildDashboardNav({ lang, clientId, features, scanId, conversationStudio })
-  const here = locateDashboard(pathname ?? '', clientId ? (searchParams?.get('step') ?? 'home') : null)
+  const nav = buildDashboardNav({ lang, clientId, features, scanId, conversationStudio, smeCopilot })
+  const here = locateDashboard(pathname ?? '', clientId ? (searchParams?.get('step') ?? 'home') : null, smeCopilot)
 
   return (
     <aside className="print:hidden w-full md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-border bg-card flex flex-col md:min-h-full">
@@ -108,7 +113,7 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
                             aria-current={active ? 'page' : undefined}
                             onClick={() => setNavigationOpen(false)}
                             className={cn(
-                              'flex min-h-9 items-center gap-2 rounded-lg px-2 text-[13px] font-medium transition-colors duration-150',
+                              'flex min-h-11 items-center gap-2 rounded-lg px-2 text-[13px] font-medium transition-colors duration-150',
                               active ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
                             )}
                           >
@@ -130,7 +135,7 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
           <ThemeToggle />
         </div>
 
-        <div className="px-3 pb-3">
+        {!smeCopilot && <div className="px-3 pb-3">
           <div className="rounded-xl border border-border bg-neutral-2 p-3">
             <div className="mb-1.5 flex items-center justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plan_label')}</p>
@@ -143,9 +148,9 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
               <Settings className="size-3" aria-hidden="true" /> {t('manage_plan')}
             </Link>
           </div>
-        </div>
+        </div>}
 
-        <div className="border-t border-border px-3 pb-4 pt-2">
+        {!smeCopilot && <div className="border-t border-border px-3 pb-4 pt-2">
           <div className="flex items-center gap-2 px-2">
             <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
               <span className="text-[10px] font-bold text-primary-accessible">
@@ -165,7 +170,7 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
               <LogOut size={13} aria-hidden="true" />
             </Link>
           </div>
-        </div>
+        </div>}
       </div>
     </aside>
   )
