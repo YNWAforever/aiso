@@ -355,3 +355,45 @@ production was redeployed as `aiso-367j6s5ld` (commit `58b2d53e`, Ready, schema 
 real `RESEND_API_KEY` supplied by the Resend account owner. Until then the trial drip
 remains `{sent: 0, failed: 17}` — and the retry mask never advances, so the same 17
 sends are still due.
+
+﻿## SME copilot redesign: spec approved, slice 1 shipped behind a dark-launch flag
+
+Owner approved the SME copilot redesign on 2026-11-12: five brand destinations
+(Today / Chat / What AI says / Improve / Reports) plus an avatar account menu, full
+redesign delivered slice by slice, spec first. PR #238 merged (`e45a00b1`) the approved
+spec plus the missing source-of-truth docs `docs/ux/target-ia.md` and
+`docs/ux/visual-system.md`; `lib/dashboard-nav.ts` and
+`__tests__/config/design-tokens.test.ts` had referenced files that never existed.
+
+PR #239 merged (`8dfa9c9e`) slice 1 behind `FEATURE_SME_COPILOT_UI`, which is **unset in
+production**: the legacy UI is unchanged until a named approval turns it on.
+
+- `lib/dashboard-nav.ts` now builds either the legacy IA or the approved five-destination
+  IA; `locateDashboard` learned the account segments (`this-month`, `billing`,
+  `visibility`, `outcomes`, `enterprise`, `studio/*`). The sidebar, ⌘K palette and
+  breadcrumbs still read one model, and every old URL/tab route still resolves.
+- New brand home `components/dashboard/today/BrandToday.tsx` +
+  `lib/view-models/today.ts`: one recommended action from the existing
+  `ownerPriorities`/`nextStep` projection (no new scoring), an ask composer that carries
+  the question to `/studio?ask=` and only prefills the draft (saves, quota and receipts
+  keep their existing path), at most three numbers, the month entry, one setup
+  disclosure and one details disclosure for trend/priorities/health/monitoring/tools.
+- An account with exactly one brand renders that brand's Today; two or more keep the
+  portfolio. Studio keeps its own shell until slice 2.
+- Dead ends fixed: the first-run questions step now opens the visible What AI says tab
+  instead of the hidden, Pro-gated `/prompts`; brand switches and brand cards land on
+  Today; sidebar sub-items meet the 44 px target.
+- Verification: `npm run lint` clean, `npm run typecheck` clean, `npm run test:unit`
+  **8,459 passed / 15 skipped** (656 files); new tests cover the SME nav mapping (12),
+  the Today projection (9), the Today landing render (3) and the flag (2). The PR gate
+  was green (static, unit-contract, integration, e2e-accessibility ×4, build,
+  cloudflare-worker, aggregate `pr-gate`).
+- Production deployment `aiso-mk6zredbt` (commit `8dfa9c9e`) is Ready; its build log records
+  `schema gate: all 106 shipped migrations are recorded.` Production smoke after the
+  merge: `/en` returns 200 and `/en/dashboard` still 307s to login, exactly as before
+  (the flag is unset, so this build serves the legacy UI). Because the flag is unset,
+  every route serves the pre-redesign UI.
+- Next slices: Chat copilot landing and single shell, skill registry +
+  `studio_threads.skill`, MCP rate limit/"connect your assistant", What AI says /
+  Improve / Reports tab chrome, shared lock/empty/error primitives, and dashboard a11y
+  fixtures (the current a11y matrix cannot reach dashboard routes).
