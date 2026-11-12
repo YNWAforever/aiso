@@ -620,7 +620,11 @@
       "copied": "已複製",
       "failed": "未能產生 token，請再試。",
       "unconfigured": "呢個部署仲未設定助理連接。"
-    }
+    },
+    "examplesTitle": "試下問",
+    "exampleOne": "客人揀同類品牌之前會問咩問題？",
+    "exampleTwo": "我應該先改善邊幾頁？",
+    "exampleThree": "今個星期 AI 答案有咩變化？"
   },
   "seo": {
     "home": {

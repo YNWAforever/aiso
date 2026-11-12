@@ -74,6 +74,8 @@ it.each(['en', 'zh-HK'])('keeps the legacy task-prefill landing when the SME fla
   const html = renderWithIntl(<ConversationStudio brandName="Example Brand" evidence={emptyStudioEvidence} />, lang)
   expect(html.match(/class="as-filter"/g)).toHaveLength(5)
   expect(html.match(/aria-pressed="(?:true|false)"/g)).toHaveLength(5)
+  // Example asks belong to the copilot landing only.
+  expect(html).not.toContain(en.conversationStudio.examplesTitle)
 })
 it.each(['en', 'zh-HK'])('keeps Choose documents enabled when attach candidates are unavailable in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio
