@@ -5123,5 +5123,18 @@
     "loadError": "未能開啟此品牌",
     "loadErrorBody": "未能讀取品牌記錄，請由品牌組合再試。",
     "oneBrandEyebrow": "你嘅品牌"
+  },
+  "smeTabs": {
+    "whatAiSays": "AI 這樣說",
+    "improve": "改善",
+    "visibility": "能見度",
+    "answers": "AI 回答記錄",
+    "citations": "引用來源",
+    "competitors": "競爭對手",
+    "questions": "監測問題",
+    "scan": "掃描",
+    "results": "檢查結果",
+    "suggestions": "優化建議",
+    "todos": "待辦"
   }
 }
