@@ -19,6 +19,7 @@ import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
 import { extractTurnUrl } from '@/lib/conversation-studio/firecrawl-url'
+import { buildExecutionPreview } from '@/lib/conversation-studio/execution-preview'
 import { STUDIO_PROMPT_LIMIT, type StudioAttachCandidate, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
 import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type StudioThread, type StudioTurn } from '@/components/dashboard/StudioSession'
@@ -26,6 +27,10 @@ import Link from 'next/link'
 import './conversation-studio.css'
 
 const templateIcons = { opportunity: Search, improve: FilePenLine, brief: NotebookPen, competitors: ScanSearch, pulse: Activity, report: FileText }
+// SME copilot landing keeps four outcomes visible and nests the rest, so the
+// home screen stays under the ~8-control budget the audit measured.
+const COPILOT_PRIMARY: StudioHomeTemplate[] = ['pulse', 'improve', 'opportunity', 'report']
+const COPILOT_SECONDARY: StudioHomeTemplate[] = ['brief', 'competitors']
 const THREAD_TITLE_LIMIT = 200
 
 /** Server caps thread titles at 200 characters; keep the full prompt in `goal`. */
@@ -60,12 +65,14 @@ type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; o
   /** R3 A1 staff view: saved evidence only. No provider, Google or LIVE call, no attach, nothing saved. */
   staffView?: boolean
   /** A question carried in from the Today composer; prefills the home draft only. */
-  initialDraft?: string }
+  initialDraft?: string
+  /** Approved SME copilot IA: question-first landing and one-tap skills. */
+  smeCopilot?: boolean }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
   return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft}><StudioConversation {...props} /></StudioSessionProvider>
 }
-function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false }: Props & { embedded?: boolean }) {
+function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
@@ -131,15 +138,18 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     else setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, draft: value, template } : thread))
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const prompt = draft.trim()
+  /**
+   * The one write path for a new turn. The composer calls it with the typed
+   * draft; a one-tap skill calls it with that skill's saved prompt and
+   * `allowLive:false` so a card never spends LIVE quota without an explicit Send.
+   */
+  async function submitTurn(prompt: string, taskHint: StudioHomeTemplate | null, options: { allowLive?: boolean } = {}) {
     if (!prompt || isInFlight()) return
-    const askLive = Boolean(live && !staffView && live.cap > 0 && !liveExhausted && platforms.length && clientId)
+    const askLive = Boolean(options.allowLive !== false && live && !staffView && live.cap > 0 && !liveExhausted && platforms.length && clientId)
     if (prompt.length > STUDIO_PROMPT_LIMIT) return
     setFeedback(null)
     const id = current?.id ?? allocateThreadId()
-    const task = current ? current.template : newTemplate
+    const task = taskHint
     const title = boundedTitle(task ? t(`templates.${task}.label`) : prompt)
     const kind = task === 'brief' ? 'brief' : 'research'
     // A staff view reads no provider or Google data: those routes bill and scope to the viewer's own account.
@@ -248,6 +258,38 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     }
   }
 
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const prompt = draft.trim()
+    if (!prompt) return
+    void submitTurn(prompt, current ? current.template : newTemplate)
+  }
+
+  /**
+   * One-tap skill: sends the skill's own saved prompt immediately, composed from
+   * saved records only. LIVE spend still requires the user's explicit Send.
+   */
+  function submitSkill(key: StudioHomeTemplate) {
+    if (isInFlight()) return
+    void submitTurn(t(`templates.${key}.prompt`), key, { allowLive: false })
+  }
+
+  const preview = buildExecutionPreview({ clientId, staffView, sourceStatus, prompt: draft, live: Boolean(live), platforms, liveExhausted })
+  const previewReads = [preview.savesTurn && t('execution.readsSaved'), preview.readsSearchDemand && t('execution.readsSearchDemand'), preview.readsPublicPage && t('execution.readsPublicPage')].filter(Boolean).join(' · ')
+  const executionPreview = t('execution.preview', { reads: previewReads || t('execution.readsNothing'), live: preview.liveAnswers })
+
+  /** One-tap skill card: the tap sends, so it never needs a second Send. */
+  function skillButton(key: StudioHomeTemplate) {
+    const Icon = templateIcons[key]
+    return <button key={key} type="button" aria-labelledby={`studio-template-${key}`} aria-describedby={`studio-template-${key}-description`} onClick={() => submitSkill(key)} className="as-template space-y-2 text-left">
+      <span className="flex items-start gap-2 font-semibold"><Icon className="as-blue mt-0.5 size-4 shrink-0" aria-hidden="true" /><span id={`studio-template-${key}`}>{t(`templates.${key}.label`)}</span></span>
+      <span id={`studio-template-${key}-description`} className="block space-y-2 as-muted">
+        <span className="block">{t(`templates.${key}.description`)}</span>
+        <span className="as-small block">{t('oneTapHint')}</span>
+      </span>
+    </button>
+  }
+
   const composerForm = <form onSubmit={submit} className="as-composer space-y-3">
     <label htmlFor="studio-composer" className="as-muted as-small block font-semibold">{t(home ? 'composerLabel' : 'followUpLabel')}</label>
     <textarea ref={composer} id="studio-composer" value={draft} maxLength={STUDIO_PROMPT_LIMIT} onChange={event => updateDraft(event.target.value)} rows={4} placeholder={t(home ? 'composerPlaceholder' : 'followUpPlaceholder')} aria-describedby="studio-composer-help" className="block w-full min-w-0 resize-y" />
@@ -262,7 +304,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           <span className="as-badge">{t('attach.badge')} · {attachment.label}</span>
           <button type="button" onClick={() => setAttachment(null)} className="as-button px-2 text-sm">{t('attach.clear')}</button>
         </>}
-        <span className="as-badge">{t('localeBadge')}</span>
+        {!smeCopilot && <span className="as-badge">{t('localeBadge')}</span>}
         {live && <details className="as-platform-picker">
           <summary>{t('live.selector', { count: platforms.length })}</summary>
           <fieldset className="space-y-2" disabled={busy || live.cap === 0 || liveExhausted}>
@@ -290,8 +332,12 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           </li>)}</ul>}
     </div>}
     {!live && attachment && <p className="as-muted as-small">{t('attach.savedNote')}</p>}
-    {!live && <p className="as-note">{t('featureShellNote')}</p>}
-    {live && <p className="as-muted as-small">{t(liveExhausted ? 'live.exhausted' : !live.platforms.length ? 'live.upgrade' : live.cap === 0 ? 'live.disabled' : 'live.usesQuota', { count: platforms.length, cap: live.cap })}</p>}
+    {smeCopilot
+      ? <p className="as-muted as-small">{executionPreview}</p>
+      : <>
+        {!live && <p className="as-note">{t('featureShellNote')}</p>}
+        {live && <p className="as-muted as-small">{t(liveExhausted ? 'live.exhausted' : !live.platforms.length ? 'live.upgrade' : live.cap === 0 ? 'live.disabled' : 'live.usesQuota', { count: platforms.length, cap: live.cap })}</p>}
+      </>}
     <p id="studio-composer-help" className="as-muted as-small">{t(live ? 'live.composerHelp' : 'composerHelp')}</p>
     {live && !home && (current?.turns.length ?? 0) > 0 && <p className="as-muted as-small">{t('live.continuityNote')}</p>}
   </form>
@@ -315,9 +361,9 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
       </div>}
       {home ? <div id="studio-home" className="as-home space-y-6">
         <header className="space-y-3">
-          <p className="as-eyebrow">{t('heroEyebrow')}</p>
-          <h1>{t('heroTitle')}</h1>
-          <p className="as-muted">{t('description')}</p>
+          <p className="as-eyebrow">{t(smeCopilot ? 'copilotEyebrow' : 'heroEyebrow')}</p>
+          <h1>{t(smeCopilot ? 'copilotTitle' : 'heroTitle')}</h1>
+          <p className="as-muted">{t(smeCopilot ? 'copilotDescription' : 'description')}</p>
         </header>
         {composerForm}
         <div className="as-source-bar" aria-label={t('savedDataLabel')}>
@@ -331,22 +377,30 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             <h2 id="studio-templates-title">{t('templatesTitle')}</h2>
             <p className="as-muted as-small">{t('templatesDescription')}</p>
           </div>
-          <div className="as-filters" role="group" aria-label={t('templatesTitle')}>
-            {STUDIO_FILTERS.map(key => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)} className="as-filter">{t(`filters.${key}`)}</button>)}
-          </div>
-          <div className="as-template-grid">
-            {STUDIO_HOME_TEMPLATES.filter(key => filter === 'all' || HOME_TASKS[key].category === filter).map(key => {
-              const Icon = templateIcons[key]
-              return <button key={key} type="button" aria-labelledby={`studio-template-${key}`} aria-describedby={`studio-template-${key}-description`} onClick={() => { updateDraft(t(`templates.${key}.prompt`), key); composer.current?.focus() }} className="as-template space-y-2 text-left">
-                <span className="flex items-start gap-2 font-semibold"><Icon className="as-blue mt-0.5 size-4 shrink-0" aria-hidden="true" /><span id={`studio-template-${key}`}>{t(`templates.${key}.label`)}</span></span>
-                <span id={`studio-template-${key}-description`} className="block space-y-2 as-muted">
-                  <span className="block">{t(`templates.${key}.description`)}</span>
-                  <span className="as-small block">{t(`templates.${key}.output`)}</span>
-                  <span className="as-small block">{t(`templates.${key}.limit`)}</span>
-                </span>
-              </button>
-            })}
-          </div>
+          {smeCopilot ? <div className="space-y-3">
+            <div className="as-template-grid">{COPILOT_PRIMARY.map(skillButton)}</div>
+            <details className="as-note as-disclosure">
+              <summary>{t('moreSkills')}</summary>
+              <div className="as-template-grid mt-3">{COPILOT_SECONDARY.map(skillButton)}</div>
+            </details>
+          </div> : <>
+            <div className="as-filters" role="group" aria-label={t('templatesTitle')}>
+              {STUDIO_FILTERS.map(key => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)} className="as-filter">{t(`filters.${key}`)}</button>)}
+            </div>
+            <div className="as-template-grid">
+              {STUDIO_HOME_TEMPLATES.filter(key => filter === 'all' || HOME_TASKS[key].category === filter).map(key => {
+                const Icon = templateIcons[key]
+                return <button key={key} type="button" aria-labelledby={`studio-template-${key}`} aria-describedby={`studio-template-${key}-description`} onClick={() => { updateDraft(t(`templates.${key}.prompt`), key); composer.current?.focus() }} className="as-template space-y-2 text-left">
+                  <span className="flex items-start gap-2 font-semibold"><Icon className="as-blue mt-0.5 size-4 shrink-0" aria-hidden="true" /><span id={`studio-template-${key}`}>{t(`templates.${key}.label`)}</span></span>
+                  <span id={`studio-template-${key}-description`} className="block space-y-2 as-muted">
+                    <span className="block">{t(`templates.${key}.description`)}</span>
+                    <span className="as-small block">{t(`templates.${key}.output`)}</span>
+                    <span className="as-small block">{t(`templates.${key}.limit`)}</span>
+                  </span>
+                </button>
+              })}
+            </div>
+          </>}
         </section>
         <section aria-labelledby="studio-continue-title" className="space-y-3">
           <div className="as-section-heading"><h2 id="studio-continue-title">{t('continueTitle')}</h2>{embedded && basePath && <Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link>}</div>

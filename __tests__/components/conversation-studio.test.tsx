@@ -42,6 +42,31 @@ it.each(['en', 'zh-HK'])('starts on home with six tasks, five filters and no con
   expect(html).toContain('disabled=""') // Choose documents disabled without clientId (no brand context)
   expect(html).not.toMatch(/Harbour Home|Harbour Tea|WI-DEMO/)
 })
+it.each(['en', 'zh-HK'])('renders the SME copilot landing with one-tap skills, one execution preview and no filters in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const html = renderWithIntl(<ConversationStudio brandName="Example Brand" evidence={emptyStudioEvidence} smeCopilot />, lang)
+  expect(html).toContain(copy.copilotTitle)
+  expect(html).toContain(copy.copilotDescription.replace(/'/g, '&#x27;'))
+  expect(html).toContain(copy.oneTapHint)
+  // One preview line states what Send will read; the legacy scattered cap notes are gone.
+  expect(html).toContain(copy.execution.preview.replace('{reads}', copy.execution.readsNothing).replace('{live}', '0'))
+  expect(html).not.toContain(copy.featureShellNote)
+  // The five filter chips do not exist on the copilot landing.
+  expect(html).not.toContain('aria-pressed')
+  expect(html.match(/class="as-filter"/g)).toBeNull()
+  // Four outcomes stay up front; the other two skills live behind one disclosure.
+  const more = html.indexOf(copy.moreSkills)
+  expect(html.match(/class="as-template /g)).toHaveLength(6)
+  expect(html.indexOf(copy.templates.pulse.label)).toBeLessThan(more)
+  expect(html.indexOf(copy.templates.improve.label)).toBeLessThan(more)
+  expect(html.indexOf(copy.templates.brief.label)).toBeGreaterThan(more)
+  expect(html).toContain(copy.savedNotice)
+})
+it.each(['en', 'zh-HK'])('keeps the legacy task-prefill landing when the SME flag is off in %s', lang => {
+  const html = renderWithIntl(<ConversationStudio brandName="Example Brand" evidence={emptyStudioEvidence} />, lang)
+  expect(html.match(/class="as-filter"/g)).toHaveLength(5)
+  expect(html.match(/aria-pressed="(?:true|false)"/g)).toHaveLength(5)
+})
 it.each(['en', 'zh-HK'])('keeps Choose documents enabled when attach candidates are unavailable in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio
   const html = renderWithIntl(

@@ -594,6 +594,18 @@
     "staff": {
       "banner": "Staff view · access granted by this account. Your threads are saved privately here and listed in its activity; no live answer, Search Console or provider data is read.",
       "backToAdmin": "Back to admin"
+    },
+    "copilotEyebrow": "CHAT WITH YOUR BRAND",
+    "copilotTitle": "What would you like AI to do for your brand today?",
+    "copilotDescription": "Pick a one-tap task, or ask in your own words. Answers use the brand's saved records; live answers stay labelled unverified.",
+    "moreSkills": "More skills",
+    "oneTapHint": "One tap — sends now using saved records.",
+    "execution": {
+      "preview": "Will read: {reads}. Live answers: {live}.",
+      "readsSaved": "saved records",
+      "readsSearchDemand": "search demand",
+      "readsPublicPage": "one public page",
+      "readsNothing": "nothing new"
     }
   },
   "seo": {
