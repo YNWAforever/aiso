@@ -2476,7 +2476,9 @@
     "billingUnavailable": "此帳戶未連結帳單管理入口。",
     "pricing": "比較方案",
     "pricingNote": "標準價格用於說明方案；實際訂閱費用請查看帳單管理入口。",
-    "currencyUsd": "美元"
+    "currencyUsd": "美元",
+    "advancedTitle": "進階",
+    "advancedBody": "員工存取、Search Console 同報告品牌。日常營運唔需要改呢啲。"
   },
   "pulseView": {
     "title": "AI 可見度觀測",
@@ -2649,7 +2651,9 @@
     "verifyCopied": "已複製檔案內容。",
     "verifyGetContent": "取得驗證內容",
     "verifyNeedsContent": "先取得 {domain} 的驗證內容，再放置檔案及檢查網域擁有權。",
-    "verifyCopyFailed": "複製失敗，請選取並複製上方的檔案內容。"
+    "verifyCopyFailed": "複製失敗，請選取並複製上方的檔案內容。",
+    "smeIntroTitle": "由呢度開始",
+    "smeIntroBody": "呢度係品牌身份：AI 應該認得嘅名同寫法，同你想檢查嘅網域。填一次，之後嘅掃描、答案同報告都會用。"
   },
   "observations": {
     "title": "已記錄觀察",
@@ -3371,7 +3375,9 @@
     "workflowNote": "核對觀察原文，整理私人草稿，再覆核來源版本。核准來源與允許代理使用須分別處理；改善建議不代表曝光提升。",
     "workflowObservations": "查看觀察證據",
     "workflowOpportunities": "修訂私人草稿",
-    "workflowSources": "覆核來源版本"
+    "workflowSources": "覆核來源版本",
+    "smeIntroTitle": "已核實資料",
+    "smeIntroBody": "助理當成真嘅品牌事實。只會用嚟支持答案，唔會公開。屬進階設定，冇問題可以唔使改。"
   },
   "assets": {
     "title": "已登記頁面",

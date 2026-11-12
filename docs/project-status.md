@@ -474,3 +474,27 @@ also the rollout step until the flag is removed.
 - Still owed: slice 4 (action skills — needs a named approval before any write), slice 7
   (account/settings split, `/entities` first-run, vocabulary pass), a real-brand
   authenticated preview run of the flag-on UI, and the axe fixture for each tab.
+
+## SME copilot: slice 6 merged, slice 7 account/settings (PR #247)
+
+- **#246 (merged `e8bd9a24`)** — Reports consolidation: 可分享報告 / 月度報告 /
+  全部品牌 tabs over existing routes, one chooser ("你想分享邊種報告？") replacing the
+  scan-only CTA under the flag. Publish/share/review/print untouched.
+- **Slice 7 (this PR)** — account and brand setup for an SME:
+  - **Settings split**: plan, billing link and members stay first; staff grants,
+    Search Console connections and report branding move behind one **進階** disclosure
+    under the flag. Both branches render the same panels (one `advancedPanels` value),
+    so flag-off HTML is unchanged; the settings/sources route tests now walk the element
+    tree instead of assuming a flat child list.
+  - **`/entities` is the start-here page** for the copilot: a plain-language intro explains
+    that brand identity (names/spellings) and the domain feed every scan, answer and report;
+    the editor and domain verification are unchanged.
+  - **`/sources` gains a plain-language intro** ("verified facts only support answers,
+    never published; advanced — skip unless something is wrong"); the workspace, review
+    destination and tenancy gates are unchanged.
+  - Account menu destinations are unchanged (`/entities`, `/sources`, `/assets`,
+    `/dashboard/settings`, `/dashboard/billing`); every URL still resolves.
+- Verification: full unit **8,502 passed / 15 skipped** (669 files), `lint` clean (0/0),
+  `typecheck` clean, `scripts/text-audit.mjs` clean. No migration.
+- Remaining: slice 4 action skills (needs a named approval before any write), the real-brand
+  authenticated preview run with the flag on, per-tab axe fixtures, and the vocabulary pass.

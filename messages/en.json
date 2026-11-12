@@ -2476,7 +2476,9 @@
     "billingUnavailable": "No billing portal is linked to this account.",
     "pricing": "Compare plans",
     "pricingNote": "Catalogue prices describe plans; your billing portal shows your actual subscription charges.",
-    "currencyUsd": "USD"
+    "currencyUsd": "USD",
+    "advancedTitle": "Advanced",
+    "advancedBody": "Staff access, Search Console and report branding. You do not need these for day-to-day work."
   },
   "pulseView": {
     "title": "Observed AI visibility",
@@ -2649,7 +2651,9 @@
     "verifyCopied": "File contents copied.",
     "verifyGetContent": "Get verification contents",
     "verifyNeedsContent": "First get the verification contents for {domain}. Then publish the file and check ownership.",
-    "verifyCopyFailed": "Copy failed. Select and copy the file contents above."
+    "verifyCopyFailed": "Copy failed. Select and copy the file contents above.",
+    "smeIntroTitle": "Start here",
+    "smeIntroBody": "This is the brand’s identity: the name and spellings AI should recognise, and the domain you want checked. Fill it once; it feeds every scan, answer and report."
   },
   "observations": {
     "title": "Recorded observations",
@@ -3371,7 +3375,9 @@
     "workflowNote": "Check original observations, edit a private draft, then review the source version. Source approval and permission for agent use are separate. Recommendations do not prove improved exposure.",
     "workflowObservations": "Review observation evidence",
     "workflowOpportunities": "Edit private drafts",
-    "workflowSources": "Review source versions"
+    "workflowSources": "Review source versions",
+    "smeIntroTitle": "Verified facts",
+    "smeIntroBody": "Facts the assistant treats as true about this brand. They only support answers and are never published. Advanced — skip unless something is wrong."
   },
   "assets": {
     "title": "Registered pages",

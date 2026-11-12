@@ -14,6 +14,7 @@ import {
 } from '@/components/entities/DomainVerificationPanel'
 import { VERIFICATION_PATH, deriveVerificationState, normalizeVerificationDomain } from '@/lib/domain-verification/schema'
 import { loadVerification } from '@/lib/domain-verification/store'
+import { isSmeCopilotUiEnabled } from '@/lib/flags'
 
 export default async function EntitiesPage({
   params,
@@ -24,6 +25,7 @@ export default async function EntitiesPage({
   const lang = requestedLang === 'zh-HK' ? 'zh-HK' : 'en'
   const href = `/${lang}/dashboard/${encodeURIComponent(clientId)}/entities`
   const t = await getTranslations({ locale: lang, namespace: 'entities' })
+  const smeCopilot = isSmeCopilotUiEnabled()
   let result
   try {
     result = await loadAuthenticatedEntityPage(clientId)
@@ -110,6 +112,12 @@ export default async function EntitiesPage({
   }
   return (
     <>
+      {smeCopilot && <section className="mx-auto w-full max-w-3xl px-4 pt-6 md:px-8">
+        <div className="rounded-xl border border-border bg-muted/40 p-4">
+          <p className="font-semibold">{t('smeIntroTitle')}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{t('smeIntroBody')}</p>
+        </div>
+      </section>}
       <EntityEditor
         clientId={result.client.id}
         brandName={result.client.brand_name}
