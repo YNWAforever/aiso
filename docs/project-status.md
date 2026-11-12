@@ -215,28 +215,28 @@ Design: `docs/superpowers/specs/2026-11-11-per-fix-billing-design.md` (merged #2
 Schema 107 is applied and recorded (`--verify`; production builds log
 `schema gate: all 105 shipped migrations are recorded.`). Shipped in five PRs:
 
-- **#226** �X migration 107 + the meter writer: `fix_billing_events` is insert-only,
+- **#226** — migration 107 + the meter writer: `fix_billing_events` is insert-only,
   `unique(fix_pack_id)` prevents double billing, `fixbilling:<uuid>` is minted at
   insert. Enqueue happens only for `account_billing.mode = 'metered'` and never fails
   the fix-pack response; reporting runs in `after()` and a failure leaves the row
   `pending`/`failed`, never charged.
-- **#228** �X admin open/switch: an existing plan subscription gets the metered price as a
+- **#228** — admin open/switch: an existing plan subscription gets the metered price as a
   second item; a subscription-less account needs an explicit `createSubscription:true`
   (a real `send_invoice` plan + metered subscription), linked through the lease and
   `apply_stripe_account_event`; a failed link cancels the new subscription. Unset
   `STRIPE_PRICE_FIX_METERED`/`STRIPE_FIX_METER_EVENT_NAME` fail closed with
   `503 METERED_NOT_CONFIGURED`.
-- **#229** �X admin one-off invoices: Stripe `send_invoice` invoice + line item +
+- **#229** — admin one-off invoices: Stripe `send_invoice` invoice + line item +
   finalize + send, mirrored into `billing_invoices`; a Stripe failure voids what it
   created and writes nothing; a mirror-only failure returns 503 **with** the Stripe
   invoice id and hosted URL and the repair path re-reads that invoice instead of issuing a
   second one. Webhook `invoice.finalized/paid/payment_failed/voided` with no
   subscription updates the mirror only.
-- **#230** �X client view: `/{lang}/dashboard/billing` + `GET /api/billing`
+- **#230** — client view: `/{lang}/dashboard/billing` + `GET /api/billing`
   (session-scoped, `getProfile` + `resolveCommercialEntitlement`); reported and
   pending/failed meter counts are returned and rendered separately with the honest note
   that pending/failed is not billed.
-- **#231** �X admin console `PerFixBillingPanel` + `GET /api/admin/billing/per-fix`
+- **#231** — admin console `PerFixBillingPanel` + `GET /api/admin/billing/per-fix`
   (mode, this Hong Kong month's split counts, failed events with retry) and the operator
   runbook `docs/runbooks/per-fix-billing.md`.
 
@@ -255,7 +255,7 @@ with no drift at deploy time.
 
 First `0 9 * * *` firing: `2026-11-11T09:01:01Z` (17:01 HKT). The Worker called the
 route and the ledger row exists, so the trigger is live, but the run is an error:
-`{ sent: 0, failed: 17 }` �X all 17 due trial emails were rejected by Resend within
+`{ sent: 0, failed: 17 }` — all 17 due trial emails were rejected by Resend within
 447 ms (six trial accounts with real gmail/hkwtia/fimmick addresses, so this is a
 provider-configuration failure, not recipient data). The ledger recorded only the counts,
 which is undiagnosable: #232 adds `errorCodes` (`cause.name`, bounded, deduplicated,
@@ -268,3 +268,71 @@ row by design: `FEATURE_SEARCH_CONSOLE` is unset in production, so the route ret
 Wrangler's OAuth login expired at `2026-11-11T09:07:31Z`, so `npm run worker:schedules`
 cannot re-read the deployed schedules until `npx wrangler login` runs again. This does
 not affect the deployed triggers; the `0 9` firing above is the evidence they run.
+That caveat no longer applies: Wrangler was re-authenticated and on 2026-11-12
+`npm run worker:schedules` read all four deployed triggers (`0 9`, `17 16`, `17 4`,
+`47 7 * * 1`, modified 2026-11-09/2026-11-11) and reported **no drift** against
+`cloudflare/aiso-worker/wrangler.jsonc`.
+
+## Studio LIVE continues the persisted thread (2026-11-12)
+
+#236 (merge `58b2d53e`) makes a LIVE answer a continuation of the Studio thread rather
+than a one-shot question. The client persists the turn first, then sends `threadId` +
+`position` with the answer request; the server resolves that thread against the caller's
+own `(id, account_id, client_id, profile_id)`, then replays up to the previous
+`STUDIO_HISTORY_TURNS = 10` turns (8,000-character budget, 2,000 per message) as
+user/assistant pairs before the current prompt, per platform. History is labelled as the
+operator's earlier context and replayed as data. A thread that is not the caller's is
+`404 NOT_FOUND` **before** any quota spend or provider call; a failed turn save leaves no
+orphan LIVE panel. `FEATURE_CONVERSATION_STUDIO` is now on for every brand
+(`STUDIO_ROLLOUT_CLIENT_IDS` removed) and `FEATURE_CONVERSATION_STUDIO_LIVE=1` enables
+the answer route.
+
+Two defects were found and fixed on the way:
+
+- LIVE turn positions are **0-based** — the append statement picks
+  `coalesce(max(position) + 1, 0)` — so validation accepts `0..STUDIO_TURN_CAP`, not
+  `1..`. The first draft rejected `position: 0` and would have failed every real request
+  (`9d10f8b3`).
+- The flag value had been stored as `"1\r\n"` by piping through PowerShell, so
+  `=== '1'` failed and the route returned 404. `vercel env pull` showed the value,
+  `vercel env add ... --value 1` re-set it exactly, and the redeployed build
+  (`aiso-6vwe990tc`, commit `58b2d53e`) logs `schema gate: all 106 shipped migrations
+  are recorded`; the unauthenticated answer route now returns **401**, not 404.
+
+The first PR-gate run failed on Studio e2e assertions that still compared the live
+request body to its old `{prompt, platforms, language}` shape; the assertions now require
+`threadId` and the turn `position` (`dfaf22a0`). Locally after that: the full
+`conversation-studio` e2e spec passes **76/76** on chromium and mobile, and the unit
+suite passes **8,433** tests.
+
+Production evidence (test admin account, test brand `3511d812-2be7-4599-9442-ec4307cc399e`,
+thread `17f6c7f1-6869-4de8-93ae-8538c7800756`): two turns were appended at positions
+**0** and **1** through the real API, each composed on the server (`request_id` +
+`receipts` stored). LIVE answer #1 hit a transient provider failure and stored
+`PROVIDER_UNAVAILABLE` honestly; LIVE answer #2 answered **both** 第一問 and 第二問,
+which is only possible if the first turn's prompt and answer came back as history. A
+thread read returns both turns with their stored live replies. `studio_live_weekly_usage`
+holds `answer_count = 2` for that brand in the week of 2026-11-09 (cap remains 10). A
+signed-in UI smoke on the same deployment returned 200 for the brand home, Studio,
+`reports?kind=monthly` and the month page, with the Studio composer, its continuity copy
+and the weekly cap present in the HTML.
+
+## Trial email: the fallback sender domain was never verified in Resend
+
+The first `0 9` firing (`2026-11-11T09:01:01Z`) recorded only `{sent: 0, failed: 17}`:
+it predates #232's `errorCodes`, but the sender explains it. With no
+`RESEND_TRIAL_FROM_EMAIL`, `sendTrialEmail` fell back to `hello@fimmick-aeo.com`, and
+DNS on 2026-11-12 shows `fimmick-aeo.com` has **no Resend records at all** —
+`resend._domainkey.fimmick-aeo.com` and `send.fimmick-aeo.com` are NXDOMAIN — so that
+domain cannot be verified and every send is rejected. `fimmick.com`, by contrast, has
+`resend._domainkey.fimmick.com` TXT, `send.fimmick.com` MX and SPF
+`include:amazonses.com`: it is the verified sending domain.
+
+`RESEND_FROM_EMAIL` and `RESEND_TRIAL_FROM_EMAIL` were therefore set to
+`business@fimmick.com` with `--value` (exact, no trailing newline; they are `sensitive`
+Vercel variables, so `vercel env pull` writes them empty and the API refuses to decrypt
+them, which is expected). Sensitive env changes only reach a new deployment, so
+production was redeployed as `aiso-367j6s5ld` (commit `58b2d53e`, Ready, schema gate
+106). #232's bounded `errorCodes` are in that build, so the next `0 9` firing is the
+verification: its `cron_runs.detail` will show `sent`/`failed` and, if it still fails, a
+provider cause name instead of the earlier counts-only row.
