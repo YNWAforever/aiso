@@ -649,7 +649,8 @@
         "needsScan": "No complete scan yet. Scan the brand first.",
         "planRequired": "This action needs the Pro plan or above.",
         "pending": "A generation is already running — it will appear under Improve when it finishes.",
-        "turnPrompt": "Summarise what to change next from the saved records."
+        "turnPrompt": "Summarise what to change next from the saved records.",
+        "outcome": "Turn the latest scan into up to three deliverable suggestions."
       },
       "monthly_report": {
         "actionLabel": "Record this month",
@@ -660,7 +661,8 @@
         "done": "This month is recorded — open Monthly report.",
         "failed": "Could not record this month. Try again.",
         "planRequired": "This action needs the Pro plan or above.",
-        "turnPrompt": "Summarise this month’s saved numbers."
+        "turnPrompt": "Summarise this month’s saved numbers.",
+        "outcome": "Turn this month’s saved numbers into the monthly record."
       }
     },
     "actions": {

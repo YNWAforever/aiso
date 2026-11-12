@@ -561,3 +561,19 @@ three one-tap actions to the Studio landing; each opens an inline confirm and th
   New tests: `skills.test.ts` action metadata, `skill-actions.test.ts` gates/URL/month,
   `studio-action-skills.test.ts` confirm/limit wiring. Re-running the authenticated
   production preview (axe on Chat) is the post-deploy check.
+
+### Slice 4 — post-deploy verification (2026-11-13, production after #250/#251)
+
+- Authenticated preview (real FOTOMAX session, zh-HK, read-only): 27 pages, **all 200**, no
+  login redirect, no app error, no console errors, and **axe reports no serious/critical
+  violations** — the `?step=results` contrast pair fixed in #249 is confirmed gone live.
+- The duplicate sidebar children are gone live too: the observations page now lists only
+  `AI 這樣說` + `AI 回答記錄` as navigation labels, reports only `報告` + its three tabs.
+- Action UI probe on `/studio` at 1440 and 390 wide: the 動作 section renders three cards
+  (生成優化建議 / 記錄本月數字 / 掃描品牌網站), the inline confirm opens with 確認執行 /
+  取消, and the console stays clean. **No action was executed** against the real brand in
+  this pass, so no scan quota, generation allowance or month record was spent; each write
+  path is the existing route already covered by its own tests.
+- The saved turn from #251 is code-verified (server-composed `{prompt, task, requestId}`
+  append with receipts); watching a live action create it is left to the owner because that
+  writes to the real brand.
