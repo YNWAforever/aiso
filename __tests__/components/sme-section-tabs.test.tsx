@@ -48,11 +48,18 @@ describe('SME section tabs', () => {
     expect(show({ pathname: `${base}/tasks` })).toContain(`${base}?step=improve`)
   })
 
-  it('renders nothing for Today, Chat, Reports or account pages', () => {
+  it('renders the Reports tabs and links the account queue', () => {
+    const html = show({ pathname: `${base}/month` })
+    expect(html).toContain(en.smeTabs.reports)
+    expect(html).toMatch(new RegExp(`<a[^>]*aria-current="page"[^>]*>${en.smeTabs.monthlyReport}</a>`))
+    expect(html).toContain('/en/dashboard/this-month')
+    expect(show({ pathname: `${base}/reports` })).toMatch(new RegExp(`<a[^>]*aria-current="page"[^>]*>${en.smeTabs.shareableReports}</a>`))
+  })
+
+  it('renders nothing for Today, Chat or account pages', () => {
     expect(show({ pathname: base })).toBe('')
     expect(show({ pathname: base, step: 'roi' })).toBe('')
     expect(show({ pathname: `${base}/studio` })).toBe('')
-    expect(show({ pathname: `${base}/this-month` })).toBe('')
     expect(show({ pathname: `${base}/entities` })).toBe('')
   })
 

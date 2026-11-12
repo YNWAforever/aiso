@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ReportsList, type ReportsListItem } from '@/components/reports/ReportsList'
 import { MonthlyReportsList } from '@/components/reports/MonthlyReportsList'
 import { requireAuth } from '@/lib/auth'
+import { isSmeCopilotUiEnabled } from '@/lib/flags'
 import { listAuthenticatedClientReports } from '@/lib/reports/service'
 import { loadOwnedReportClient } from '@/lib/reports/store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
@@ -136,7 +137,7 @@ export default async function ClientReportsPage({
             {m('open')}
           </Link>
         </Button>
-        {kind === 'scan' ? <Button asChild className="min-h-11">
+        {kind === 'scan' && !isSmeCopilotUiEnabled() ? <Button asChild className="min-h-11">
           <Link href={`/${locale}/dashboard/${clientId}/reports/new${scanQuery}`}>
             <Plus aria-hidden="true" />
             {t('create_share_report')}
@@ -144,6 +145,21 @@ export default async function ClientReportsPage({
         </Button> : null}
         </div>
       </div>
+
+      {isSmeCopilotUiEnabled() && <section aria-labelledby="report-chooser-title" className="mb-6 rounded-xl border border-border bg-muted/40 p-5">
+        <h2 id="report-chooser-title" className="text-base font-semibold">{t('chooser_title')}</h2>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">{t('chooser_body')}</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <Link href={`/${locale}/dashboard/${clientId}/reports/new${scanQuery}`} className="flex flex-col gap-1 rounded-lg border border-border bg-background p-4 no-underline hover:border-primary">
+            <span className="font-semibold">{t('chooser_scan')}</span>
+            <span className="text-sm leading-6 text-muted-foreground">{t('chooser_scan_body')}</span>
+          </Link>
+          <Link href={`/${locale}/dashboard/${clientId}/month/report`} className="flex flex-col gap-1 rounded-lg border border-border bg-background p-4 no-underline hover:border-primary">
+            <span className="font-semibold">{t('chooser_monthly')}</span>
+            <span className="text-sm leading-6 text-muted-foreground">{t('chooser_monthly_body')}</span>
+          </Link>
+        </div>
+      </section>}
 
       <nav aria-label={t('tabs_label')} className="mb-6 flex gap-1 border-b border-border">
         {TABS.map(tab => (

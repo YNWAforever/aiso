@@ -29,14 +29,23 @@ describe('SME section tabs', () => {
     expect(smeTabState({ base, segment: 'competitors', step: null })).toMatchObject({ active: 'competitors' })
   })
 
-  it('never adds tabs to Today, Reports, account pages or unknown steps', () => {
+  it('puts both report routes under Reports with the account-wide queue as the third tab', () => {
+    const accountBase = '/en/dashboard/this-month'
+    const reports = smeTabState({ base, segment: 'reports', step: null, accountBase })
+    expect(reports).toMatchObject({ section: 'reports', active: 'shareable' })
+    expect(reports?.tabs.map(tab => tab.href)).toEqual([`${base}/reports`, `${base}/month`, accountBase])
+    expect(smeTabState({ base, segment: 'reports/new', step: null })).toMatchObject({ section: 'reports', active: 'shareable' })
+    expect(smeTabState({ base, segment: 'month', step: null })).toMatchObject({ section: 'reports', active: 'monthly' })
+    expect(smeTabState({ base, segment: 'month/report', step: null })).toMatchObject({ section: 'reports', active: 'monthly' })
+  })
+
+  it('never adds tabs to Today, account pages or unknown steps', () => {
     for (const input of [
       { base, segment: '', step: null },
       { base, segment: '', step: 'home' },
       { base, segment: '', step: 'overview' },
       { base, segment: '', step: 'roi' },
       { base, segment: '', step: 'settings' },
-      { base, segment: 'reports', step: null },
       { base, segment: 'this-month', step: null },
       { base, segment: 'studio', step: null },
       { base, segment: 'entities', step: null },

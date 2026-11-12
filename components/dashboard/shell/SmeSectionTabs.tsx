@@ -23,7 +23,7 @@ export function SmeSectionTabs() {
   const prefix = `/${lang}/dashboard/${clientId}`
   if (pathname !== prefix && !pathname.startsWith(`${prefix}/`)) return null
   const segment = pathname.slice(prefix.length).replace(/^\//, '')
-  const state = smeTabState({ base: prefix, segment, step: searchParams.get('step') })
+  const state = smeTabState({ base: prefix, segment, step: searchParams.get('step'), accountBase: `/${lang}/dashboard/this-month` })
   if (!state) return null
   return <nav aria-label={t(smeSectionLabelKey(state.section))} className="border-b border-border bg-background">
     <ul className="mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto px-4 py-2 text-sm sm:px-6">
