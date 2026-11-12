@@ -58,10 +58,12 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
 /** Saved evidence is local; the optional B2 transport sends one question only. */
 type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; opportunities?: StudioOpportunities; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads; attachCandidates?: StudioAttachCandidate[] | null
   /** R3 A1 staff view: saved evidence only. No provider, Google or LIVE call, no attach, nothing saved. */
-  staffView?: boolean }
+  staffView?: boolean
+  /** A question carried in from the Today composer; prefills the home draft only. */
+  initialDraft?: string }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
-  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId}><StudioConversation {...props} /></StudioSessionProvider>
+  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft}><StudioConversation {...props} /></StudioSessionProvider>
 }
 function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')

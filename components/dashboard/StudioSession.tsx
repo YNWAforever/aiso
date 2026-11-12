@@ -100,13 +100,13 @@ function turnFromRecord(record: StudioTurnRecord, id: number): StudioTurn {
   }
 }
 
-function useSessionState(clientId?: string) {
+function useSessionState(clientId?: string, initialDraft = '') {
   const [threads, setThreads] = useState<StudioThread[]>([])
   const threadsRef = useRef(threads)
   useEffect(() => { threadsRef.current = threads }, [threads])
   const [navigation, setNavigation] = useState<{ activeId: string | null; version: number }>({ activeId: null, version: 0 })
   const [feedback, setFeedback] = useState<{ id: number; threadId: string; key: 'briefOpened' | 'branchOpened' | 'branchUnavailable' | 'followUpSent' } | null>(null)
-  const [newDraft, setNewDraft] = useState('')
+  const [newDraft, setNewDraft] = useState(initialDraft)
   const [newTemplate, setNewTemplate] = useState<StudioHomeTemplate | null>(null)
   const [busy, setBusy] = useState(false)
   const [hydrated, setHydrated] = useState(!clientId)
@@ -258,8 +258,8 @@ const Session = createContext<ReturnType<typeof useSessionState> | null>(null)
  * endpoint is read or written); the Studio layout no longer uses it, since a staff view
  * now exists only under a live grant and saves like any other, but offline fixtures do.
  */
-export function StudioSessionProvider({ children, clientId, persist = true }: { children: ReactNode; clientId?: string; persist?: boolean }) {
-  const value = useSessionState(persist ? clientId : undefined)
+export function StudioSessionProvider({ children, clientId, persist = true, initialDraft = '' }: { children: ReactNode; clientId?: string; persist?: boolean; initialDraft?: string }) {
+  const value = useSessionState(persist ? clientId : undefined, persist ? initialDraft : '')
   return <Session.Provider value={value}>{children}</Session.Provider>
 }
 export function useOptionalStudioSession() { return useContext(Session) }

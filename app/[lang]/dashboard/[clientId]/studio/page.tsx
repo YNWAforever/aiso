@@ -1,4 +1,4 @@
-﻿import { notFound, redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -18,10 +18,15 @@ import type { StudioAttachCandidate } from '@/lib/conversation-studio/live-types
 import { bindingMatchesDomain } from '@/lib/integrations/search-console/binding'
 import type { StudioSourceStatus } from '@/lib/conversation-studio/home'
 
-export default async function StudioPage({ params }: {
+export default async function StudioPage({ params, searchParams }: {
   params: Promise<{ lang: string; clientId: string }>
+  searchParams: Promise<{ ask?: string }>
 }) {
   const { lang, clientId } = await params
+  // The Today composer carries one question in. It only prefills the draft; the
+  // user still presses Send, so quota and writes keep their existing path.
+  const { ask } = await searchParams
+  const initialDraft = typeof ask === 'string' ? ask.slice(0, 1000) : undefined
   const profile = await requireAuth(lang)
   if (!isConversationStudioEnabled(clientId)) redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}?step=home`)
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(clientId)) notFound()
@@ -81,7 +86,7 @@ export default async function StudioPage({ params }: {
     platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
     cap: studioLiveCap(),
   } : undefined
-  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} />
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} />
 }
 
 /**

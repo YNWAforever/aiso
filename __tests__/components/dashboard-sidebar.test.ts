@@ -45,7 +45,7 @@ describe('dashboard sidebar brand resolution', () => {
   it('takes every link from the shared navigation model', () => {
     // One source for the sidebar, the breadcrumbs and ⌘K, so they cannot disagree.
     for (const file of [SIDEBAR, TOPBAR]) {
-      expect(code(file)).toContain('buildDashboardNav({ lang, clientId, features, scanId, conversationStudio })')
+      expect(code(file)).toContain('buildDashboardNav({ lang, clientId, features, scanId, conversationStudio, smeCopilot })')
       expect(code(file)).toContain('locateDashboard(')
     }
   })
@@ -63,7 +63,11 @@ describe('navigation copy', () => {
     const keys = ['nav_overview', 'nav_overview_desc', 'nav_scan_fix', 'nav_scan_fix_desc', 'nav_monitor', 'nav_monitor_desc',
       'nav_reports', 'nav_reports_desc', 'nav_settings', 'nav_settings_desc', 'nav_scan', 'nav_results', 'nav_fixes', 'nav_tasks',
       'opportunities', 'observations', 'question_bank', 'competitors', 'cited_sources', 'entity', 'sources', 'nav_assets', 'nav_account',
-      'select_brand_first', 'local_visibility']
+      'select_brand_first', 'local_visibility',
+      // SME copilot IA (2026-11-12)
+      'nav_today', 'nav_today_desc', 'nav_chat', 'nav_chat_desc', 'nav_what_ai_says', 'nav_what_ai_says_desc',
+      'nav_ai_visibility', 'nav_shared_reports', 'nav_monthly_reports', 'nav_all_brands', 'nav_account_desc',
+      'nav_brand_profile', 'nav_verified_facts', 'nav_pages', 'nav_billing', 'nav_account_menu']
     for (const locale of ['en', 'zh-HK'] as const) {
       const dashboard = JSON.parse(read(`messages/${locale}.json`)).dashboard
       for (const key of keys) expect(dashboard[key], `${locale} ${key}`).toBeTruthy()

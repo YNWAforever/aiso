@@ -1,5 +1,5 @@
-﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { conversationStudioNavEnabled, conversationStudioRolloutClients, isConversationStudioEnabled, isFeatureEnabled } from '@/lib/flags'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { conversationStudioNavEnabled, conversationStudioRolloutClients, isConversationStudioEnabled, isFeatureEnabled, isSmeCopilotUiEnabled } from '@/lib/flags'
 
 describe('conversation_studio flag', () => {
   afterEach(() => vi.unstubAllEnvs())
@@ -82,5 +82,17 @@ describe('conversation studio per-brand rollout allowlist', () => {
     vi.stubEnv('STUDIO_ROLLOUT_CLIENT_IDS', brand)
     expect(isConversationStudioEnabled(brand)).toBe(false)
     expect(conversationStudioNavEnabled()).toBe(false)
+  })
+})
+
+describe('sme_copilot_ui flag', () => {
+  it('defaults off and turns on only for exactly "1"', () => {
+    expect(isSmeCopilotUiEnabled()).toBe(false)
+    for (const value of ['0', 'true', '1 ', '']) {
+      vi.stubEnv('FEATURE_SME_COPILOT_UI', value)
+      expect(isSmeCopilotUiEnabled(), value).toBe(false)
+    }
+    vi.stubEnv('FEATURE_SME_COPILOT_UI', '1')
+    expect(isSmeCopilotUiEnabled()).toBe(true)
   })
 })

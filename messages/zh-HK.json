@@ -1698,7 +1698,23 @@
       "brandLimitBody": "你的方案包括 {limit} 個品牌，升級即可加入更多。",
       "brandLimitShort": "升級方案即可加入另一個品牌。"
     },
-    "local_trust_competitor_gap_points": "{value} 分"
+    "local_trust_competitor_gap_points": "{value} 分",
+    "nav_today": "今日",
+    "nav_today_desc": "一個行動、一個問題",
+    "nav_chat": "對話",
+    "nav_chat_desc": "用日常語言提問",
+    "nav_what_ai_says": "AI 這樣說",
+    "nav_what_ai_says_desc": "能見度、回答、來源",
+    "nav_ai_visibility": "AI 能見度",
+    "nav_shared_reports": "可分享報告",
+    "nav_monthly_reports": "月度報告",
+    "nav_all_brands": "全部品牌",
+    "nav_account_desc": "品牌、資料及方案",
+    "nav_brand_profile": "品牌設定",
+    "nav_verified_facts": "已核實資料",
+    "nav_pages": "頁面",
+    "nav_billing": "帳單",
+    "nav_account_menu": "帳戶選單"
   },
   "reports": {
     "scan_domain_mismatch": "此掃描的網域與品牌目前的網站不同。請選擇目前網域的已完成掃描，或執行新的掃描。",
@@ -2223,7 +2239,11 @@
     "monthlyReport": {
       "title": "本月報告",
       "version": "第 {n} 版",
-      "status": { "draft": "草稿", "published": "已發佈", "revoked": "已撤回" },
+      "status": {
+        "draft": "草稿",
+        "published": "已發佈",
+        "revoked": "已撤回"
+      },
       "open": "開啟報告"
     },
     "siteHealth": "網站健康",
@@ -5006,7 +5026,7 @@
     "not_shared": "未分享",
     "publish_failed": "未能發佈，請再試。",
     "stale": "已有較新的草稿，請重新載入並先檢視。"
-  },
+  },
   "billing": {
     "title": "帳務",
     "subtitle": "此帳戶的修正包用量與一次性帳單。",
@@ -5038,5 +5058,44 @@
     "status_void": "已作廢",
     "status_uncollectible": "無法收回",
     "status_unknown": "未知"
+  },
+  "today": {
+    "eyebrow": "今日",
+    "title": "今日",
+    "summary": "一件要做嘅事、一個提問方法，其餘放喺詳情。",
+    "actionCaption": "你嘅下一步",
+    "actionNone": "最新已保存嘅掃描冇需要處理嘅事項。",
+    "fixSentence": "建議先處理：{check}",
+    "fixDetail": "最多值 {n} 分",
+    "askLabel": "或者直接問 AI",
+    "askPlaceholder": "例如：點解我喺 AI 搜尋度唔見咗？",
+    "askCta": "問",
+    "askHint": "會帶你到對話並保留問題。",
+    "skills": {
+      "visibility": "了解現況",
+      "improve": "改善頁面",
+      "report": "準備月報"
+    },
+    "metrics": {
+      "visibility": "AI 提及率",
+      "score": "AEO 分數",
+      "report": "本月報告",
+      "empty": "未記錄",
+      "unavailable": "未能讀取",
+      "locked": "方案未包括",
+      "draft": "草稿",
+      "published": "已發佈",
+      "revoked": "已撤回",
+      "open": "開啟"
+    },
+    "setup": "設定檢查：{n} 項未完成",
+    "details": "詳情：分數趨勢、檢查項目及記錄",
+    "detailsIntro": "完整工作區：優先事項、網站健康、能見度、記錄及工具。",
+    "monthlyTitle": "本月報告",
+    "monthlyVersion": "版本 {n}",
+    "noScan": "仲未有已保存嘅掃描。",
+    "loadError": "未能開啟此品牌",
+    "loadErrorBody": "未能讀取品牌記錄，請由品牌組合再試。",
+    "oneBrandEyebrow": "你嘅品牌"
   }
 }

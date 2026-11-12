@@ -11,8 +11,9 @@ import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
-import { isConversationStudioEnabled } from '@/lib/flags'
+import { isConversationStudioEnabled, isSmeCopilotUiEnabled } from '@/lib/flags'
 import { STUDIO_DEFAULT_HOME } from '@/lib/dashboard-nav'
+import { BrandToday } from '@/components/dashboard/today/BrandToday'
 import { db } from '@/lib/db'
 import { redactSecrets } from '@/lib/security/redact-secrets'
 import { resolveCommercialEntitlement } from '@/lib/tier'
@@ -105,7 +106,10 @@ export default async function DashboardPage({
   const reportT = await getTranslations('reports')
   const portfolioT = await getTranslations('portfolio')
   const profile  = await requireAuth(lang)
-  if (STUDIO_DEFAULT_HOME && isConversationStudioEnabled(clientId) && (rawStep === undefined || rawStep === '' || rawStep === 'home')) {
+  // The approved SME copilot IA makes Today the brand home; the Studio
+  // default-home redirect is retired only while that flag is on.
+  const smeCopilot = isSmeCopilotUiEnabled()
+  if (!smeCopilot && STUDIO_DEFAULT_HOME && isConversationStudioEnabled(clientId) && (rawStep === undefined || rawStep === '' || rawStep === 'home')) {
     redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}/studio`)
   }
   const entitlement = resolveCommercialEntitlement(profile.accounts)
@@ -131,7 +135,14 @@ export default async function DashboardPage({
         monthlyReport = current ? { month: current.month, status: current.status, versionNumber: current.versionNumber } : null
       } catch { monthlyReport = null }
     }
-    return <WorkspaceHome workspace={buildWorkspaceHome(owned, monthlyReport)} lang={lang} />
+    const workspace = buildWorkspaceHome(owned, monthlyReport)
+    if (smeCopilot) return <BrandToday
+      workspace={workspace}
+      lang={lang}
+      chatEnabled={isConversationStudioEnabled(clientId)}
+      clientReportsOnline={features.client_reports_online}
+    />
+    return <WorkspaceHome workspace={workspace} lang={lang} />
   }
 
   if (step === 'monitor') {
