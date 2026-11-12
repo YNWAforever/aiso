@@ -210,6 +210,23 @@ describe('GET /api/cron/trial-emails', () => {
     expect(JSON.stringify((h.finishCronRun.mock.calls[0] as unknown[])[2])).not.toContain('owner@example.com')
     consoleError.mockRestore()
   })
+  it('names a missing API key so the ledger says which configuration is absent', async () => {
+    rows = [accountRow()]
+    h.sendTrialEmail.mockRejectedValue(
+      new Error('Missing API key. Pass it to the constructor `new Resend("re_123")`'),
+    )
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { GET } = await importRoute()
+
+    await GET(request('test-cron-secret-0123'))
+
+    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', {
+      sent: 0, failed: 4, errorCodes: ['missing_api_key'],
+    })
+    // The key placeholder must not leak into the ledger either.
+    expect(JSON.stringify((h.finishCronRun.mock.calls[0] as unknown[])[2])).not.toContain('re_123')
+    consoleError.mockRestore()
+  })
   it('happy path (no failures) returns status 200', async () => {
     const { GET } = await importRoute()
 

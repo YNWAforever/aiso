@@ -36,6 +36,11 @@ function cronSecret(): string | null {
  * `rate_limit_exceeded`); anything unrecognisable becomes `unknown`.
  */
 function providerErrorCode(err: unknown): string {
+  // Resend's constructor throws before any request when the key is missing. That is
+  // a configuration fault rather than a provider reply, but it was the actual cause
+  // of the first two production firings, so name it instead of the outer Error's
+  // generic 'error'. The message is matched, never recorded, and embeds no recipient.
+  if (err instanceof Error && /missing api key/i.test(err.message)) return 'missing_api_key'
   const cause = err instanceof Error ? err.cause : undefined
   const candidate =
     cause && typeof cause === 'object' && 'name' in cause && typeof (cause as { name?: unknown }).name === 'string'
