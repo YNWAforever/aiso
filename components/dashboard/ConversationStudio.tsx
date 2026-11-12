@@ -494,7 +494,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             {STUDIO_ACTION_SKILLS.map(skill => {
               const Icon = skill.id === 'scan_brand' ? ScanSearch : skill.id === 'monthly_report' ? FileText : FilePenLine
               const label = skill.id === 'scan_brand' ? t('skills.scan_brand.label') : t(`skills.${skill.id}.actionLabel`)
-              const outcome = skill.id === 'scan_brand' ? t('skills.scan_brand.outcome') : t(`skills.${skill.id}.actionConfirmBody`)
+              const outcome = t(`skills.${skill.id}.outcome`)
               const open = actionSkill === skill.id
               return <div key={skill.id} className="as-template space-y-2">
                 <span className="flex items-start gap-2 font-semibold"><Icon className="as-blue mt-0.5 size-4 shrink-0" aria-hidden="true" /><span>{label}</span></span>
