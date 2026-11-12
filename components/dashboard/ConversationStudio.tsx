@@ -105,6 +105,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const [actionPhase, setActionPhase] = useState<'confirm' | 'running' | 'done' | 'failed'>('confirm')
   const [actionError, setActionError] = useState<string | null>(null)
   const actionRunning = useRef(false)
+  const [actionPending, setActionPending] = useState(false)
   const funnelLocale = language === 'zh-HK' ? 'zh-HK' : 'en'
 
   useLayoutEffect(() => {
@@ -300,8 +301,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
       return
     }
     actionRunning.current = true
+    if (!actionRunning.current) actionRunning.current = true
     setActionPhase('running')
     setActionError(null)
+    setActionPending(false)
     trackFunnelEvent({ name: 'skill_action_confirmed', locale: funnelLocale })
     try {
       if (action.id === 'scan') {
@@ -313,6 +316,8 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         if (!scanId) throw new Error('scan')
         const response = await fetch(`/api/clients/${encodeURIComponent(clientId)}/agents/generate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scanId }) })
         if (response.status === 403) throw Object.assign(new Error('plan'), { plan: true })
+        // 202 means another generation is already leased; it is not a finished suggestion.
+        if (response.status === 202) { setActionPending(true); setActionPhase('done'); return }
         if (!response.ok) throw new Error('improve')
       } else {
         const response = await fetch(`/api/clients/${encodeURIComponent(clientId)}/months/${hongKongMonthKey(new Date())}`, { method: 'POST' })
@@ -470,16 +475,16 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               return <div key={skill.id} className="as-template space-y-2">
                 <span className="flex items-start gap-2 font-semibold"><Icon className="as-blue mt-0.5 size-4 shrink-0" aria-hidden="true" /><span>{label}</span></span>
                 <span className="as-muted as-small block">{outcome}</span>
-                {!open && <button type="button" className="as-button px-3 font-semibold" onClick={() => { setActionSkill(skill.id); setActionPhase('confirm'); setActionError(null) }}>{t('actions.open')}</button>}
+                {!open && <button type="button" className="as-button px-3 font-semibold" onClick={() => { setActionSkill(skill.id); setActionPhase('confirm'); setActionError(null); setActionPending(false) }}>{t('actions.open')}</button>}
                 {open && <div role="group" aria-label={label} className="space-y-2 rounded-lg border border-border p-3">
                   <p className="text-sm font-semibold">{t(skill.id === 'scan_brand' ? 'skills.scan_brand.confirmTitle' : `skills.${skill.id}.actionConfirmTitle`)}</p>
                   <p className="as-muted as-small">{skill.id === 'scan_brand' ? t('skills.scan_brand.confirmBody', { domain: brandDomain ?? '' }) : t(`skills.${skill.id}.actionConfirmBody`)}</p>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" className="as-button as-primary px-3 font-semibold disabled:opacity-50" disabled={actionPhase === 'running'} onClick={() => void runStudioAction(skill.id)}>{actionPhase === 'running' ? t(`skills.${skill.id}.running`) : t('actions.runNow')}</button>
-                    <button type="button" className="as-button px-3" disabled={actionPhase === 'running'} onClick={() => setActionSkill(null)}>{t('actions.cancel')}</button>
+                    <button type="button" className="as-button px-3" disabled={actionPhase === 'running'} onClick={() => { setActionSkill(null); setActionPending(false) }}>{t('actions.cancel')}</button>
                   </div>
                   {actionPhase === 'failed' && <p role="alert" className="as-note">{actionError}</p>}
-                  {actionPhase === 'done' && <p role="status" className="as-note">{t(`skills.${skill.id}.done`)}{basePath && <Link href={skill.id === 'scan_brand' ? `${basePath}?step=results` : skill.id === 'improve_page' ? `${basePath}?step=improve` : `${basePath}/month`} className="ml-1 underline">{t('actions.openResult')}</Link>}</p>}
+                  {actionPhase === 'done' && <p role="status" className="as-note">{t(actionPending ? `skills.${skill.id}.pending` : `skills.${skill.id}.done`)}{basePath && <Link href={skill.id === 'scan_brand' ? `${basePath}?step=results` : skill.id === 'improve_page' ? `${basePath}?step=improve` : `${basePath}/month`} className="ml-1 underline">{t('actions.openResult')}</Link>}</p>}
                 </div>}
               </div>
             })}

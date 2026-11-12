@@ -646,7 +646,8 @@
         "done": "建議已生成 — 去優化建議睇。",
         "failed": "未能開始生成，請再試。",
         "needsScan": "仲未有完整掃描，請先掃描品牌。",
-        "planRequired": "呢個動作需要 Pro 或以上方案。"
+        "planRequired": "呢個動作需要 Pro 或以上方案。",
+        "pending": "已有生成進行緊，完成後會出現喺優化建議。"
       },
       "monthly_report": {
         "actionLabel": "記錄本月數字",

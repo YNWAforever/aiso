@@ -646,7 +646,8 @@
         "done": "Suggestions generated — open Improve.",
         "failed": "Generation did not start. Try again.",
         "needsScan": "No complete scan yet. Scan the brand first.",
-        "planRequired": "This action needs the Pro plan or above."
+        "planRequired": "This action needs the Pro plan or above.",
+        "pending": "A generation is already running — it will appear under Improve when it finishes."
       },
       "monthly_report": {
         "actionLabel": "Record this month",
