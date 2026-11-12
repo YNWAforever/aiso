@@ -95,7 +95,7 @@ export async function answerStudio(request: Request, clientId: string): Promise<
       || (body.language !== 'en' && body.language !== 'zh-HK')
       || typeof threadId !== 'string' || !UUID.test(threadId)
       || typeof position !== 'number' || !Number.isInteger(position)
-      || position < 1 || position > STUDIO_TURN_CAP
+      || position < 0 || position > STUDIO_TURN_CAP
       || (attachedSourceId !== undefined
         && (typeof attachedSourceId !== 'string' || !UUID.test(attachedSourceId)))) return invalid()
     const selected = modelVariantsFor(body.platforms as string[])

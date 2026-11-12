@@ -132,7 +132,7 @@ it.each([null, [], {}, { ...body(), prompt: '' }, { ...body(), prompt: ' '.repea
   { ...body(), language: 'zh-TW' }, { ...body(), language: ['en'] }, { ...body(), accountId: 'foreign' },
   { ...body(), attachedSourceId: 'not-a-uuid' }, { ...body(), attachedSourceId: { id: attachedSourceId } },
   { ...body(), threadId: 'not-a-uuid' }, { ...body(), threadId: undefined },
-  { ...body(), position: 0 }, { ...body(), position: 1.5 }, { ...body(), position: 51 }, { ...body(), position: '2' },
+  { ...body(), position: -1 }, { ...body(), position: 1.5 }, { ...body(), position: 51 }, { ...body(), position: '2' },
 ])('rejects invalid input %# without outbound', async input => {
   const response = await send(input)
   expect(response.status).toBe(400)
@@ -336,7 +336,7 @@ it('uses the existing UTC Monday boundary for the durable brand-week', async () 
   expect((await reserveStudioAnswers(accountA, clientId, 1, studioWeek())).remaining).toBe(9)
 })
 
-it('continues a thread: earlier prompts and this platform¡¦s answers become context', async () => {
+it("continues a thread: earlier prompts and this platform's answers become context", async () => {
   historyRows = [
     { position: 1, prompt: 'FIRST QUESTION', live: { reply: { answers: [{ platform: 'gemini-flash', answer: 'FIRST ANSWER' }], quota: { cap: 10, remaining: 9, scope: 'brand' } } } },
   ]
@@ -351,7 +351,7 @@ it('continues a thread: earlier prompts and this platform¡¦s answers become cont
   expect(sent.messages[0].content).not.toContain('Do not claim access to saved records or conversation history.')
 })
 
-it('rejects a thread that is not this principal¡¦s own without spending quota', async () => {
+it("rejects a thread that is not this principal's own without spending quota", async () => {
   mocks.sql.mockImplementation((strings: TemplateStringsArray, ...values: unknown[]) => {
     if (strings.join('').includes('from studio_threads t')) return []
     return defaultSql(strings, ...values)
@@ -370,7 +370,7 @@ it('caps replayed history so a long thread cannot grow input tokens without boun
   }))
   expect((await send(body(undefined, { position: 7 }))).status).toBe(200)
   const sent = JSON.parse((outbound.mock.calls[0][1] as RequestInit).body as string)
-  // The 8,000-char window holds exactly two clipped pairs (4 ¡Ñ 2,000 chars).
+  // The 8,000-char window holds exactly two clipped pairs (4 x 2,000 chars).
   expect(sent.messages.slice(1, -1)).toHaveLength(4)
   expect(sent.messages.slice(1, -1).every((message: { content: string }) => message.content.length <= 2_001)).toBe(true)
 })
