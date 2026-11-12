@@ -80,8 +80,10 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
           {nav.map(section => {
             const Icon = SECTION_ICONS[section.key]
             const inSection = here.section === section.key
-            // The section page itself is current only when no item of it is.
-            const current = inSection && (section.items.length === 0 || here.item === null || section.items.every(item => item.key !== here.item))
+            // The section page itself is current only when no item of it is. The
+            // copilot has tabs inside the destination instead of sidebar children, so
+            // the destination itself is always the current link there.
+            const current = smeCopilot ? inSection : inSection && (section.items.length === 0 || here.item === null || section.items.every(item => item.key !== here.item))
             const unreachable = section.needsBrand && !clientId
             return (
               <div key={section.key}>
@@ -102,7 +104,7 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
                     </span>
                   </span>
                 </Link>
-                {inSection && section.items.length > 0 && (
+                {inSection && !smeCopilot && section.items.length > 0 && (
                   <ul className="mt-1 mb-2 ml-5 space-y-0.5 border-l border-border pl-3">
                     {section.items.map(item => {
                       const active = here.item === item.key

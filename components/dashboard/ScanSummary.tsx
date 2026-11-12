@@ -47,8 +47,8 @@ export function ScanSummary({ scan }: Props) {
             <span className="w-1.5 h-1.5 rounded-full bg-dash-success animate-pulse" />
             <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">{t('latest_scan')}</p>
           </div>
-          <p className="text-[12px] text-dash-muted/80 font-mono mt-1">{scan.domain}</p>
-          <p className="text-[10px] text-dash-muted/60 font-mono mt-0.5">{date}</p>
+          <p className="text-[12px] text-dash-muted font-mono mt-1">{scan.domain}</p>
+          <p className="text-[10px] text-dash-muted font-mono mt-0.5">{date}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-2">
@@ -87,7 +87,7 @@ export function ScanSummary({ scan }: Props) {
                 <div className="flex items-center gap-2.5">
                   <span className="w-2 h-2 rounded-full" style={{ background: 'var(' + group.accentVar + ')' }} />
                   <span className="text-[11px] font-medium text-dash-muted font-mono">{group.title}</span>
-                  <span className="text-[10px] text-dash-muted/60 font-mono">{passed}/{checks.length}</span>
+                  <span className="text-[10px] text-dash-muted font-mono">{passed}/{checks.length}</span>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <div className="w-12 h-1 rounded-full bg-dash-border overflow-hidden">
