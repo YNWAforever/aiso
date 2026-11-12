@@ -498,3 +498,29 @@ also the rollout step until the flag is removed.
   `typecheck` clean, `scripts/text-audit.mjs` clean. No migration.
 - Remaining: slice 4 action skills (needs a named approval before any write), the real-brand
   authenticated preview run with the flag on, per-tab axe fixtures, and the vocabulary pass.
+
+## Authenticated production preview (real brand, flag on) — 2026-11-13
+
+The owner captured a real session once (`npm run e2e:auth:capture` against
+`https://aiso-kappa.vercel.app`, zh-HK) so the flag-on UI could be checked in a browser
+for the first time. Read-only: 27 page visits (22 desktop at 1440×900 + 5 mobile at
+390×844), no clicks that mutate, brand `2fd186d8-c989-4eed-8e34-eb81841008a8` (FOTOMAX).
+
+- **Result: every page 200.** No login redirect, no `Application error`, no 404 copy, no
+  console errors, `h1` present on the content pages, and the section tabs render with the
+  right active item: AI 這樣說 (能見度 / AI 回答記錄 / 引用來源 / 競爭對手 / 監測問題) and
+  改善 (掃描 / 檢查結果 / 優化建議 / 待辦), Reports (可分享報告 / 月度報告 / 全部品牌).
+  Today has no tabs, as intended.
+- **Two findings fixed in this PR:**
+  1. **Duplicate navigation.** The sidebar still expanded destination children (AI 能見度/
+     觀察/問題庫/…, 掃描/結果/修復建議/…, 可分享報告/月度報告/全部品牌) under the same
+     sections whose new tab bar already lists them. The copilot sidebar now renders no
+     child list (the destination link itself is current); breadcrumbs and the command
+     palette keep using `section.items`, so no trail was lost.
+  2. **Contrast on the results step.** Axe found two serious colour-contrast failures on
+     `?step=results` — `text-dash-muted/80` (3.46:1) for the scan domain and
+     `text-dash-muted/60` (2.4:1) for the date. `ScanSummary` now uses the token at full
+     strength (5.19:1 light, 5.10:1 dark); re-running axe is part of this PR's evidence.
+- Honest limits of this run: screenshots capture the dashboard's scroll viewport rather
+  than the whole inner scroll region, and the check is read-only (no scan/publish/save
+  submitted against the real brand). The flag-off UI is not exercised here.

@@ -29,6 +29,12 @@ describe('SME copilot single shell wiring', () => {
     expect(overview).toContain('if (!staff && isSmeCopilotUiEnabled()) redirect')
   })
 
+  it('keeps destination tabs out of the sidebar as well (no duplicate child list)', () => {
+    const sidebar = read('components/dashboard/DashboardSidebar.tsx')
+    expect(sidebar).toContain('smeCopilot ? inSection')
+    expect(sidebar).toContain('!smeCopilot && section.items.length > 0')
+  })
+
   it('does not add a second sidebar or nav to the Chat landing', () => {
     const studio = read('components/dashboard/ConversationStudio.tsx')
     // Secondary Studio destinations are links in one disclosure, not a rail.
