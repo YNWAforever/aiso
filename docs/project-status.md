@@ -397,3 +397,53 @@ production**: the legacy UI is unchanged until a named approval turns it on.
   `studio_threads.skill`, MCP rate limit/"connect your assistant", What AI says /
   Improve / Reports tab chrome, shared lock/empty/error primitives, and dashboard a11y
   fixtures (the current a11y matrix cannot reach dashboard routes).
+
+## SME copilot: slices 2–3 (Chat landing, single shell, skills + MCP)
+
+The owner set `FEATURE_SME_COPILOT_UI=1` on Vercel **production** on 2026-11-13
+02:09 HKT (verified through the Vercel API: one `encrypted` production variable).
+Production changes reach users only on a new deployment, so every merge below is
+also the rollout step until the flag is removed.
+
+- **PR #241 (merged `b4ea85c4`)** — Chat copilot landing. Question-first copy; the six
+  home cards became one-tap sends that compose from **saved records only** (LIVE still
+  needs the explicit Send, so a card cannot spend quota); the five filter chips are gone
+  from this landing; one `execution-preview` line states what Send will read and how many
+  live answers it will request (`lib/conversation-studio/execution-preview.ts`, derived
+  from the same conditions that dispatch the reads). The legacy landing is unchanged when
+  the flag is off.
+- **PR #242** — single shell. Under the flag, `DashboardChrome` no longer takes its
+  full-bleed branch for `/studio`; the Studio-owned rail is not rendered (the staff R3
+  view keeps `StudioShell` for its live-grant banner and audit context), and the five
+  secondary Studio destinations moved into one "More in Chat" disclosure so no route was
+  lost. `StudioSessionProvider` and all thread/turn state are unchanged.
+- **Slice 3 (this PR)** — skills and MCP hardening.
+  - `lib/conversation-studio/skills.ts` is the server-owned registry: nine ids with
+    category, run mode, the existing home task they formalise, their read-only MCP tools,
+    and optional plan feature/destination. Copy stays in `messages/` (repo i18n
+    convention) and the six v1 cards are derived from the registry.
+  - **Migration `109_studio_thread_skill.sql`** adds nullable `studio_threads.skill` with
+    a CHECK against the registry's closed vocabulary and a per-brand partial index. It was
+    applied and `recorded` on the hosted branch **before** this PR merged
+    (`npm run migrate -- --verify`: `109_studio_thread_skill.sql  all present  recorded`),
+    so the production schema gate cannot block the build. Old threads derive the skill
+    from the first turn exactly as before; a new thread stores it at creation and the
+    API rejects unknown ids with 400.
+  - **MCP rate limit**: every `tools/call` counts this principal's last-60-second rows in
+    the insert-only `studio_mcp_calls` ledger and refuses the 31st with JSON-RPC
+    `-32000 Rate limit exceeded`, recorded as `denied`/`RATE_LIMITED`, with no tool
+    executed. A failed count fails closed (503 `AUDIT_UNAVAILABLE`). No new table or
+    counter; `STUDIO_MCP_CALLS_PER_MINUTE = 30`.
+  - **"Connect your assistant" card** on Chat → tools mints the existing one-hour session
+    token and states the six read-only tools and the 30/min limit. It renders only when
+    the transport is enabled for the brand and the signing secret is configured; the
+    runbook now carries the skill map, the limit and the card.
+- Verification: full unit suite **8,486 passed / 15 skipped** (660 files), `lint` clean
+  (0 errors, 0 warnings), `typecheck` clean; new tests cover the registry (5), the MCP
+  rate-limit refusal and fail-closed paths, thread skill persistence/validation against
+  real Postgres (PGlite), and the connect card copy in both locales.
+- Still owed after slice 3: action skills (`scan_brand`, `improve_page`,
+  `monthly_report`) need the slice-4 inline confirm + plan gates + idempotency and a named
+  approval before they can write; a real-brand authenticated preview run with the flag on;
+  slices 5–7 (What AI says / Improve / Reports tabs, account/settings split, funnel and
+  copy pass).

@@ -1,5 +1,5 @@
 import { authorizeStudioMcp } from '@/lib/conversation-studio/mcp/authorize'
-import { recordStudioMcpCall } from '@/lib/conversation-studio/mcp/audit'
+import { countStudioMcpCallsLastMinute, recordStudioMcpCall, STUDIO_MCP_CALLS_PER_MINUTE } from '@/lib/conversation-studio/mcp/audit'
 import { executeStudioMcpTool } from '@/lib/conversation-studio/mcp/execute'
 import { STUDIO_MCP_TOOLS, studioMcpTool } from '@/lib/conversation-studio/mcp/registry'
 import { verifyStudioMcpToken } from '@/lib/conversation-studio/mcp/token'
@@ -115,6 +115,25 @@ export async function POST(request: Request) {
       if (!name || !studioMcpTool(name)) {
         await recordStudioMcpCall({ ...principal, tool: name || '(missing)', outcome: 'denied', detail: 'UNKNOWN_TOOL', rpcId: id })
         return json(error(id, -32602, 'Unknown tool'), 200)
+      }
+      // Slice 3 hardening: a valid one-hour token must not be able to read a brand
+      // in a loop. The bound is counted from the insert-only audit ledger, and a
+      // failed count fails closed rather than serving an unbounded read.
+      let recentCalls: number
+      try {
+        recentCalls = await countStudioMcpCallsLastMinute(principal)
+      } catch (error_) {
+        console.error('[studio-mcp] rate-limit read failed:', error_)
+        return json({ error: 'AUDIT_UNAVAILABLE' }, 503)
+      }
+      if (recentCalls >= STUDIO_MCP_CALLS_PER_MINUTE) {
+        try {
+          await recordStudioMcpCall({ ...principal, tool: name, outcome: 'denied', detail: 'RATE_LIMITED', rpcId: id })
+        } catch (error_) {
+          console.error('[studio-mcp] audit write failed:', error_)
+          return json({ error: 'AUDIT_UNAVAILABLE' }, 503)
+        }
+        return json(error(id, -32000, 'Rate limit exceeded'), 200)
       }
       const result = await executeStudioMcpTool({ principal, name, args: params.arguments })
       try {

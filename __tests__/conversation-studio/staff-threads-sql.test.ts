@@ -61,7 +61,7 @@ beforeAll(async () => {
   await q('insert into accounts values ($1), ($2)', [client, fimmick])
   await q('insert into profiles values ($1,$2), ($3,$4), ($5,$4), ($6,$4)', [member, client, admin, fimmick, otherAdmin, plain])
   await q('insert into clients(id, account_id) values ($1, $2)', [brand, client])
-  for (const file of ['081_studio_private_threads', '087_studio_staff_grants', '088_studio_staff_threads', '103_studio_thread_lifecycle', '104_studio_thread_branch', '105_studio_turn_receipts']) {
+  for (const file of ['081_studio_private_threads', '087_studio_staff_grants', '088_studio_staff_threads', '103_studio_thread_lifecycle', '104_studio_thread_branch', '105_studio_turn_receipts', '109_studio_thread_skill']) {
     await state.pg.exec(readFileSync(`supabase/migrations/${file}.sql`, 'utf8'))
   }
 })

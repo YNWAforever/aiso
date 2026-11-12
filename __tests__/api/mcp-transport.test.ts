@@ -5,11 +5,12 @@ const mocks = vi.hoisted(() => ({
   authorize: vi.fn(),
   execute: vi.fn(),
   audit: vi.fn(),
+  count: vi.fn(),
 }))
 vi.mock('@/lib/conversation-studio/mcp/token', () => ({ verifyStudioMcpToken: mocks.verify }))
 vi.mock('@/lib/conversation-studio/mcp/authorize', () => ({ authorizeStudioMcp: mocks.authorize }))
 vi.mock('@/lib/conversation-studio/mcp/execute', () => ({ executeStudioMcpTool: mocks.execute }))
-vi.mock('@/lib/conversation-studio/mcp/audit', () => ({ recordStudioMcpCall: mocks.audit }))
+vi.mock('@/lib/conversation-studio/mcp/audit', () => ({ recordStudioMcpCall: mocks.audit, countStudioMcpCallsLastMinute: mocks.count, STUDIO_MCP_CALLS_PER_MINUTE: 30 }))
 import { GET, POST } from '@/app/api/mcp/studio/route'
 
 const claims = {
@@ -45,6 +46,7 @@ beforeEach(() => {
   mocks.verify.mockImplementation(token => token === 'v1.token' ? claims : null)
   mocks.authorize.mockResolvedValue({ ok: true, principal })
   mocks.audit.mockResolvedValue(undefined)
+  mocks.count.mockResolvedValue(0)
   mocks.execute.mockResolvedValue({ ok: true, data: { state: 'available', week: '2026-10-26' } })
 })
 
@@ -110,6 +112,24 @@ describe('internal Studio MCP transport', () => {
     expect(result.json.error.code).toBe(-32602)
     expect(mocks.execute).not.toHaveBeenCalled()
     expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ tool: 'save_work_item_draft', outcome: 'denied', detail: 'UNKNOWN_TOOL', rpcId: 5 }))
+  })
+
+  it('bounds a token to 30 calls a minute and records the denial', async () => {
+    mocks.count.mockResolvedValue(30)
+    const result = await call({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'brand_evidence' } })
+    expect(result.status).toBe(200)
+    expect(result.json.error.code).toBe(-32000)
+    expect(result.json.error.message).toBe('Rate limit exceeded')
+    expect(mocks.execute).not.toHaveBeenCalled()
+    expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ tool: 'brand_evidence', outcome: 'denied', detail: 'RATE_LIMITED', rpcId: 10 }))
+  })
+
+  it('fails closed when the rate-limit count cannot be read', async () => {
+    mocks.count.mockRejectedValue(new Error('relation studio_mcp_calls does not exist'))
+    const result = await call({ jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'brand_evidence' } })
+    expect(result.status).toBe(503)
+    expect(result.json).toEqual({ error: 'AUDIT_UNAVAILABLE' })
+    expect(mocks.execute).not.toHaveBeenCalled()
   })
 
   it('fails closed when the call cannot be audited', async () => {

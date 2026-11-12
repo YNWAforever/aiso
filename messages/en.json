@@ -607,7 +607,20 @@
       "readsPublicPage": "one public page",
       "readsNothing": "nothing new"
     },
-    "chatMoreTitle": "More in Chat"
+    "chatMoreTitle": "More in Chat",
+    "connectAssistant": {
+      "title": "Connect your assistant",
+      "body": "An external assistant can read this brand's saved records through six read-only tools: brand evidence, scan checks, content opportunities, brand sources, work-item drafts and Search Console status. Every call is re-authorised and audited.",
+      "readOnly": "Read-only. No tool can write, publish or change anything. Limit: 30 calls a minute.",
+      "mint": "Mint a 1-hour token",
+      "minting": "Minting…",
+      "endpoint": "Endpoint",
+      "expires": "Expires",
+      "copy": "Copy token",
+      "copied": "Copied",
+      "failed": "Could not mint a token. Try again.",
+      "unconfigured": "The assistant connection is not configured on this deployment yet."
+    }
   },
   "seo": {
     "home": {

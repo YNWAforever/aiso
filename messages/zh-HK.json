@@ -607,7 +607,20 @@
       "readsPublicPage": "一個公開網頁",
       "readsNothing": "暫時冇新資料"
     },
-    "chatMoreTitle": "Chat 更多"
+    "chatMoreTitle": "Chat 更多",
+    "connectAssistant": {
+      "title": "連接你的助理",
+      "body": "外部助理可以透過六個唯讀工具讀取呢個品牌嘅已保存記錄：品牌證據、掃描檢查、內容機會、品牌來源、待辦草稿同 Search Console 狀態。每次呼叫都會重新授權同記錄審計。",
+      "readOnly": "只讀。任何工具都唔可以寫入、發佈或修改。限制：每分鐘 30 次。",
+      "mint": "產生 1 小時 token",
+      "minting": "產生中…",
+      "endpoint": "端點",
+      "expires": "到期",
+      "copy": "複製 token",
+      "copied": "已複製",
+      "failed": "未能產生 token，請再試。",
+      "unconfigured": "呢個部署仲未設定助理連接。"
+    }
   },
   "seo": {
     "home": {

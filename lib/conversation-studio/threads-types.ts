@@ -1,4 +1,5 @@
 import type { StudioHomeTemplate } from './home'
+import type { StudioSkillId } from './skills'
 import type { StudioLiveReply } from './live-types'
 import type { StudioReceipt } from './receipts'
 import type { StudioReply } from './types'
@@ -23,8 +24,8 @@ export type StudioThreadRecord = {
   createdAt: string
   updatedAt: string
   turnCount: number
-  /** The skill (home task) of the first turn, if any. Derived on read; no column. */
-  skill: StudioHomeTemplate | null
+  /** The registry skill this thread started from (migration 109), else derived from first_task. */
+  skill: StudioSkillId | null
   visibility: StudioThreadVisibility
   pinned: boolean
   archived: boolean
@@ -60,6 +61,8 @@ export type StudioThreadCreateInput = {
   sourceTitle?: string | null
   /** Branch lineage. The origin must be visible to the creator (own or shared). */
   branchOf?: StudioThreadBranchOf
+  /** Registry skill id; validated against the closed vocabulary, never free text. */
+  skill?: StudioSkillId | null
 }
 
 export type StudioTurnCreateInput = {

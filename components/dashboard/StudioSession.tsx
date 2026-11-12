@@ -8,6 +8,7 @@ import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 import type { StudioReceipt } from '@/lib/conversation-studio/receipts'
+import type { StudioSkillId } from '@/lib/conversation-studio/skills'
 import { appendStudioTurn, createStudioThread, fetchStudioThread, fetchStudioThreads, finalizeStudioTurn, updateStudioThread } from '@/lib/conversation-studio/threads-client'
 import type {
   StudioThreadCreateInput,
@@ -51,7 +52,7 @@ export type StudioThread = {
   turnsError?: boolean
   updatedAt?: string
   /** Skill the thread started from (first turn's task). Absent while unknown. */
-  skill?: StudioHomeTemplate | null
+  skill?: StudioSkillId | null
   /** Saved visibility; a shared thread is read-only to everyone but its creator. */
   visibility: 'private' | 'shared'
   pinned: boolean

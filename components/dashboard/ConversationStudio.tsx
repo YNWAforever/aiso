@@ -22,6 +22,7 @@ import { extractTurnUrl } from '@/lib/conversation-studio/firecrawl-url'
 import { buildExecutionPreview } from '@/lib/conversation-studio/execution-preview'
 import { STUDIO_PROMPT_LIMIT, type StudioAttachCandidate, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
+import { skillForTask } from '@/lib/conversation-studio/skills'
 import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type StudioThread, type StudioTurn } from '@/components/dashboard/StudioSession'
 import Link from 'next/link'
 import './conversation-studio.css'
@@ -126,7 +127,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     const sourceTitle = kind === 'brief' ? source.title : undefined
     // The new thread keeps the origin's skill (when the turn has one) and records
     // where it came from; no turn is copied.
-    setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind, sourceTitle, turns: [], draft: seed, template: turn.task ?? null, saveState: 'unsaved', turnsLoaded: true, skill: turn.task ?? null, visibility: 'private', pinned: false, archived: false, mine: true, branchOf }, ...previous])
+    setThreads(previous => [{ id, title, goal: source.goal, week: source.week, kind, sourceTitle, turns: [], draft: seed, template: turn.task ?? null, saveState: 'unsaved', turnsLoaded: true, skill: skillForTask(turn.task), visibility: 'private', pinned: false, archived: false, mine: true, branchOf }, ...previous])
     const saving = saveThread(id, { kind, title, goal: source.goal, week: source.week, sourceTitle, branchOf })
     focusBriefStart.current = true
     openThread(id)
@@ -161,8 +162,8 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
     } else {
-      setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true, skill: task, visibility: 'private', pinned: false, archived: false, mine: true, branchOf: null }, ...previous])
-      void saveThread(id, { kind, title, goal: prompt, week: evidence.week, sourceTitle: null })
+      setThreads(previous => [{ id, title, goal: prompt, week: evidence.week, kind, turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true, skill: skillForTask(task), visibility: 'private', pinned: false, archived: false, mine: true, branchOf: null }, ...previous])
+      void saveThread(id, { kind, title, goal: prompt, week: evidence.week, sourceTitle: null, skill: skillForTask(task) })
       openThread(id)
       setNewDraft('')
       setNewTemplate(null)
