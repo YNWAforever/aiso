@@ -635,7 +635,8 @@
         "running": "Scanning…",
         "done": "Scan finished — open Check results.",
         "failed": "The scan could not start. Try again.",
-        "needsDomain": "No brand domain is set yet. Add it in Brand profile first."
+        "needsDomain": "No brand domain is set yet. Add it in Brand profile first.",
+        "turnPrompt": "Summarise the latest saved records after this scan."
       },
       "improve_page": {
         "actionLabel": "Generate suggestions",
@@ -647,7 +648,8 @@
         "failed": "Generation did not start. Try again.",
         "needsScan": "No complete scan yet. Scan the brand first.",
         "planRequired": "This action needs the Pro plan or above.",
-        "pending": "A generation is already running — it will appear under Improve when it finishes."
+        "pending": "A generation is already running — it will appear under Improve when it finishes.",
+        "turnPrompt": "Summarise what to change next from the saved records."
       },
       "monthly_report": {
         "actionLabel": "Record this month",
@@ -657,7 +659,8 @@
         "running": "Recording…",
         "done": "This month is recorded — open Monthly report.",
         "failed": "Could not record this month. Try again.",
-        "planRequired": "This action needs the Pro plan or above."
+        "planRequired": "This action needs the Pro plan or above.",
+        "turnPrompt": "Summarise this month’s saved numbers."
       }
     },
     "actions": {

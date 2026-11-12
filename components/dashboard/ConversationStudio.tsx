@@ -326,6 +326,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
       }
       setActionPhase('done')
       trackFunnelEvent({ name: 'skill_action_completed', locale: funnelLocale })
+      void saveActionTurn(skillId)
     } catch (error) {
       setActionPhase('failed')
       const planKey = skill?.action?.planFeature ? `skills.${skillId}.planRequired` : null
@@ -333,6 +334,29 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
       trackFunnelEvent({ name: 'skill_action_failed', locale: funnelLocale })
     } finally {
       actionRunning.current = false
+    }
+  }
+
+  /**
+   * Slice 4: a completed action is recorded as a saved turn. The server composes the
+   * stored reply from the records the action just wrote, so the turn never claims a
+   * read that did not happen; the thread sits in Continue without stealing navigation.
+   */
+  async function saveActionTurn(skillId: StudioSkillId) {
+    const skill = studioSkill(skillId)
+    if (!skill || !clientId) return
+    const task: StudioHomeTemplate | null = skillId === 'monthly_report' ? 'report' : 'improve'
+    const label = skillId === 'scan_brand' ? t('skills.scan_brand.label') : t(`skills.${skillId}.actionLabel`)
+    const prompt = t(`skills.${skillId}.turnPrompt`)
+    const title = boundedTitle(label)
+    const threadId = allocateThreadId()
+    const turn: StudioTurn = { id: allocateId(), requestId: crypto.randomUUID(), prompt, task, reply: composeSavedReply(prompt, HOME_TASKS[task].capability, evidenceForHomeTask(evidence, task)) }
+    setThreads(previous => [{ id: threadId, title, goal: prompt, week: evidence.week, kind: 'research', turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true, skill: skillId, visibility: 'private', pinned: false, archived: false, mine: true, branchOf: null }, ...previous])
+    await saveThread(threadId, { kind: 'research', title, goal: prompt, week: evidence.week, sourceTitle: null, skill: skillId })
+    const saved = await saveTurn(threadId, turn.id, { prompt, task, requestId: turn.requestId, language: language === 'zh-HK' ? 'zh-HK' : 'en' })
+    if (!saved.ok) {
+      // Do not leave an empty thread behind when the saved turn could not be written.
+      setThreads(previous => previous.filter(thread => thread.id !== threadId))
     }
   }
 

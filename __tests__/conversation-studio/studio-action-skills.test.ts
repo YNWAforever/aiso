@@ -48,6 +48,14 @@ describe('Studio action skills slice 4', () => {
     expect(page).toContain('features={resolveCommercialEntitlement(profile.accounts).features}')
   })
 
+  it('records a completed action as a saved turn composed by the server', () => {
+    expect(studio).toContain('async function saveActionTurn')
+    expect(studio).toContain('requestId: crypto.randomUUID()')
+    expect(studio).toContain('void saveActionTurn(skillId)')
+    expect(studio).toContain('turnPrompt')
+    expect(studio).toContain('saveThread(threadId')
+  })
+
   it('never renders actions for a staff view', () => {
     expect(studio).toContain('smeCopilot && clientId && !staffView')
   })

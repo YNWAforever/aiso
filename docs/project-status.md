@@ -550,13 +550,12 @@ three one-tap actions to the Studio landing; each opens an inline confirm and th
 - **Funnel** (`lib/observability/funnel.ts` + client list): `skill_action_confirmed`,
   `skill_action_completed`, `skill_action_failed` — name and locale only, no prompt, brand or
   scan data.
-- **Deliberate deviation, for honesty:** the action result is shown inline and links to the
-  destination, and the write it performs is the saved artefact (scan record / generated
-  drafts / month record). It does **not** fabricate a synthetic Studio turn, because a turn
-  composed before the new data loads could imply the Studio read records it did not read.
-  `improve_page` and `monthly_report` already produce their evidence turn through the
-  existing one-tap card; follow-up "open destination" is the outcome link.
-- **Verification:** unit **8,515 passed / 15 skipped**, `npm run typecheck` clean,
+- **Saved turn:** every completed action writes a saved Studio turn (new thread in
+  Continue). The client sends the skill prompt and a `requestId` only; the server
+  composes the stored reply and receipts from the records the action just wrote, so the
+  turn never claims a read that did not happen. A 202 "generation already running" is
+  shown as pending and writes no completed-sounding turn; failures write no turn.
+- **Verification:** unit **8,517 passed / 15 skipped**, `npm run typecheck` clean,
   `npm run lint` clean (0/0), `node scripts/text-audit.mjs` clean (the first pass caught a
   bare "AISO" in the new action note; both locales were reworded), `npm run build` passed.
   New tests: `skills.test.ts` action metadata, `skill-actions.test.ts` gates/URL/month,
