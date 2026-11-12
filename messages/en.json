@@ -624,7 +624,50 @@
     "examplesTitle": "Try one",
     "exampleOne": "What questions do buyers ask before choosing a brand like mine?",
     "exampleTwo": "Which pages should I improve first?",
-    "exampleThree": "What changed in AI answers this week?"
+    "exampleThree": "What changed in AI answers this week?",
+    "skills": {
+      "scan_brand": {
+        "label": "Scan the brand site",
+        "outcome": "Run the existing scan engine over all 20 checks. Results are saved on this brand.",
+        "confirmTitle": "What will run?",
+        "confirmBody": "A full scan of {domain}. The score and check results are saved on this brand.",
+        "run": "Start scan",
+        "running": "Scanning…",
+        "done": "Scan finished — open Check results.",
+        "failed": "The scan could not start. Try again.",
+        "needsDomain": "No brand domain is set yet. Add it in Brand profile first."
+      },
+      "improve_page": {
+        "actionLabel": "Generate suggestions",
+        "actionConfirmTitle": "Generate from the latest scan?",
+        "actionConfirmBody": "Uses the latest complete scan to write up to three suggestions and save them as drafts. It uses your plan’s AI generation allowance.",
+        "run": "Generate",
+        "running": "Generating…",
+        "done": "Suggestions generated — open Improve.",
+        "failed": "Generation did not start. Try again.",
+        "needsScan": "No complete scan yet. Scan the brand first.",
+        "planRequired": "This action needs the Pro plan or above.",
+        "pending": "A generation is already running — it will appear under Improve when it finishes."
+      },
+      "monthly_report": {
+        "actionLabel": "Record this month",
+        "actionConfirmTitle": "What will be recorded?",
+        "actionConfirmBody": "Records this month’s saved scores, work and monitoring numbers into the month record. Recording the same month again is safe and updates it.",
+        "run": "Record this month",
+        "running": "Recording…",
+        "done": "This month is recorded — open Monthly report.",
+        "failed": "Could not record this month. Try again.",
+        "planRequired": "This action needs the Pro plan or above."
+      }
+    },
+    "actions": {
+      "title": "Actions",
+      "note": "Each action runs an existing job only after you confirm it. A single tap never runs anything.",
+      "open": "Start",
+      "runNow": "Confirm and run",
+      "cancel": "Cancel",
+      "openResult": "Open result"
+    }
   },
   "seo": {
     "home": {

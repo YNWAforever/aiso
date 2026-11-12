@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isStudioSkillId, parseStudioSkill, skillForTask, skillForThread, STUDIO_CARD_SKILLS, STUDIO_SKILL_IDS, STUDIO_SKILLS } from '@/lib/conversation-studio/skills'
+import { isStudioSkillId, parseStudioSkill, skillAction, skillForTask, skillForThread, STUDIO_ACTION_SKILLS, STUDIO_CARD_SKILLS, STUDIO_SKILL_IDS, STUDIO_SKILLS } from '@/lib/conversation-studio/skills'
 import { STUDIO_HOME_TEMPLATES } from '@/lib/conversation-studio/home'
 import { STUDIO_MCP_TOOLS } from '@/lib/conversation-studio/mcp/registry'
 
@@ -20,9 +20,21 @@ describe('Studio skill registry', () => {
     }
   })
 
-  it('keeps action skills out of the one-tap cards until slice 4', () => {
+  it('keeps action-only skills out of the one-tap cards', () => {
     for (const skill of STUDIO_SKILLS.filter(item => item.runs === 'action')) expect(skill.task).toBeNull()
     expect(STUDIO_CARD_SKILLS.some(skill => skill.runs !== 'context-only')).toBe(false)
+    expect(STUDIO_SKILLS.filter(item => item.runs === 'action').map(item => item.id)).toEqual(['scan_brand'])
+  })
+
+  it('declares the slice-4 actions on their existing write paths, with plan gates', () => {
+    expect(STUDIO_ACTION_SKILLS.map(skill => skill.id)).toEqual(['improve_page', 'monthly_report', 'scan_brand'])
+    const actionOf = (id: string | null) => skillAction(id)
+    expect(actionOf('improve_page')).toMatchObject({ id: 'improve', endpoint: '/api/clients/{clientId}/agents/generate', planFeature: 'agent_recs' })
+    expect(actionOf('monthly_report')).toMatchObject({ id: 'report', endpoint: '/api/clients/{clientId}/months/{month}', planFeature: 'client_reports_online' })
+    expect(actionOf('scan_brand')).toMatchObject({ id: 'scan', endpoint: '/api/scan' })
+    // Context-only skills never expose an action.
+    expect(actionOf('draft_brief')).toBeNull()
+    expect(actionOf(null)).toBeNull()
   })
 
   it('derives a thread skill from the persisted column, else from the first task', () => {

@@ -26,6 +26,16 @@ export type StudioSkillId = typeof STUDIO_SKILL_IDS[number]
 export type StudioSkillCategory = 'discover' | 'improve' | 'deliver'
 export type StudioSkillRun = 'context-only' | 'compose' | 'action'
 
+/** The existing write path an action skill runs, named only so copy and the runbook stay honest. */
+export type StudioSkillActionId = 'scan' | 'improve' | 'report'
+
+export interface StudioSkillAction {
+  id: StudioSkillActionId
+  /** Existing endpoint (documentation, never a second write API). */
+  endpoint: string
+  planFeature?: keyof PlanFeatures
+}
+
 export interface StudioSkill {
   id: StudioSkillId
   category: StudioSkillCategory
@@ -38,17 +48,19 @@ export interface StudioSkill {
   planFeature?: keyof PlanFeatures
   /** Where the saved turn can be continued, when the skill points at another destination. */
   destination?: 'improve' | 'reports' | 'chat'
+  /** Slice 4: the action this skill can run after one explicit inline confirm. */
+  action?: StudioSkillAction
 }
 
 export const STUDIO_SKILLS: readonly StudioSkill[] = [
   { id: 'visibility_now', category: 'discover', runs: 'context-only', task: 'pulse', tools: ['brand_evidence'] },
   { id: 'what_ai_says', category: 'discover', runs: 'context-only', task: null, tools: ['brand_evidence', 'brand_sources'] },
   { id: 'top_opportunity', category: 'discover', runs: 'context-only', task: 'opportunity', tools: ['scan_checks', 'content_opportunities'], destination: 'improve' },
-  { id: 'improve_page', category: 'improve', runs: 'context-only', task: 'improve', tools: ['scan_checks', 'content_opportunities', 'brand_sources'], destination: 'improve' },
+  { id: 'improve_page', category: 'improve', runs: 'context-only', task: 'improve', tools: ['scan_checks', 'content_opportunities', 'brand_sources'], destination: 'improve', action: { id: 'improve', endpoint: '/api/clients/{clientId}/agents/generate', planFeature: 'agent_recs' } },
   { id: 'compare_competitors', category: 'discover', runs: 'context-only', task: 'competitors', tools: ['brand_evidence'] },
   { id: 'draft_brief', category: 'deliver', runs: 'context-only', task: 'brief', tools: ['content_opportunities', 'brand_sources'] },
-  { id: 'monthly_report', category: 'deliver', runs: 'context-only', task: 'report', tools: ['brand_evidence', 'scan_checks', 'work_item_drafts', 'search_console_status'], destination: 'reports' },
-  { id: 'scan_brand', category: 'improve', runs: 'action', task: null, tools: ['scan_checks'], destination: 'improve' },
+  { id: 'monthly_report', category: 'deliver', runs: 'context-only', task: 'report', tools: ['brand_evidence', 'scan_checks', 'work_item_drafts', 'search_console_status'], destination: 'reports', action: { id: 'report', endpoint: '/api/clients/{clientId}/months/{month}', planFeature: 'client_reports_online' } },
+  { id: 'scan_brand', category: 'improve', runs: 'action', task: null, tools: ['scan_checks'], destination: 'improve', action: { id: 'scan', endpoint: '/api/scan' } },
   { id: 'explain_drop', category: 'discover', runs: 'context-only', task: null, tools: ['brand_evidence'] },
 ]
 
@@ -67,6 +79,12 @@ export function parseStudioSkill(value: unknown): StudioSkillId | null {
 
 /** The six context skills that have a home card in v1, in registry order. */
 export const STUDIO_CARD_SKILLS: readonly StudioSkill[] = STUDIO_SKILLS.filter(skill => skill.task !== null && skill.runs === 'context-only')
+
+export const STUDIO_ACTION_SKILLS: readonly StudioSkill[] = STUDIO_SKILLS.filter(skill => skill.action !== undefined)
+
+export function skillAction(id: string | null | undefined): StudioSkillAction | null {
+  return studioSkill(id)?.action ?? null
+}
 
 export function skillForTask(task: StudioHomeTemplate | null | undefined): StudioSkillId | null {
   if (!task) return null

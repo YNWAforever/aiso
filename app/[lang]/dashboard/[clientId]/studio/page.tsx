@@ -36,7 +36,7 @@ export default async function StudioPage({ params, searchParams }: {
   let opportunities
   try {
     // Establish ownership before loading saved, account-scoped evidence.
-    brands = await db()`select id, brand_name from clients where id = ${clientId} and account_id = ${profile.account_id}`
+    brands = await db()`select id, brand_name, domain from clients where id = ${clientId} and account_id = ${profile.account_id}`
     if (brands[0]) {
       evidence = await loadStudioEvidence(profile.account_id, clientId)
       opportunities = await loadStudioOpportunities(clientId, lang)
@@ -86,7 +86,7 @@ export default async function StudioPage({ params, searchParams }: {
     platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
     cap: studioLiveCap(),
   } : undefined
-  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} smeCopilot={isSmeCopilotUiEnabled()} />
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} smeCopilot={isSmeCopilotUiEnabled()} brandDomain={brand.domain ?? null} features={resolveCommercialEntitlement(profile.accounts).features} />
 }
 
 /**

@@ -9,6 +9,8 @@ export const FUNNEL_EVENTS = [
   'scan_claim_failed', 'scan_retry_clicked',
   // Phase 7: what happens after the result. Same redacted fields, no new ones.
   'fix_opened', 'report_published', 'report_link_copied', 'report_pdf_downloaded',
+  // Slice 4 skills. Names only; nothing brand-specific is sent.
+  'skill_action_confirmed', 'skill_action_completed', 'skill_action_failed',
   'upgrade_prompt_viewed', 'upgrade_prompt_clicked',
 ] as const
 
