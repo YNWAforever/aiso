@@ -8,13 +8,18 @@ vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
 const clientId = '11111111-1111-4111-8111-111111111111'
 const accountA = '10000000-0000-4000-8000-000000000001'
 const accountB = '10000000-0000-4000-8000-000000000002'
+const threadId = '55555555-5555-4555-8555-555555555555'
+const position = 2
 const prompt = 'PRIVATE QUESTION: What does this brand do?'
 const reply = 'PRIVATE MODEL REPLY'
+/** Prior turns returned by the history read; empty means a fresh conversation. */
+let historyRows: unknown[] = []
 let outbound: ReturnType<typeof vi.fn>
 let info: ReturnType<typeof vi.spyOn>
 let warn: ReturnType<typeof vi.spyOn>
 let error: ReturnType<typeof vi.spyOn>
-const body = (platforms = ['gemini-flash']) => ({ prompt, platforms, language: 'zh-HK' })
+const body = (platforms = ['gemini-flash'], overrides: Record<string, unknown> = {}) => (
+  { prompt, platforms, language: 'zh-HK', threadId, position, ...overrides })
 const attachedSourceId = '33333333-3333-4333-8333-333333333333'
 const attachRow = {
   id: attachedSourceId, label: 'Approved brand facts', version_id: '44444444-4444-4444-8444-444444444444',
@@ -34,9 +39,15 @@ function answerQuota(strings: TemplateStringsArray, values: unknown[]) {
 }
 
 function defaultSql(strings: TemplateStringsArray, ...values: unknown[]) {
+  const text = strings.join('')
+  // Thread ownership is a separate read from the brand lookup; the fake returns
+  // the thread row so the happy path can proceed, and [] to exercise a miss.
+  if (text.includes('from studio_threads t')) return [{ id: threadId }]
+  // The real read orders by position desc; the helper reverses it to chronological.
+  if (text.includes('from studio_thread_turns')) return [...historyRows].reverse()
   const quota = answerQuota(strings, values)
   if (quota) return quota
-  if (strings.join('').includes('as used')) return [{ used: 0 }]
+  if (text.includes('as used')) return [{ used: 0 }]
   return [{ id: clientId, brand_name: 'Example Brand' }]
 }
 
@@ -75,6 +86,7 @@ beforeEach(() => {
   vi.stubEnv('OPENROUTER_API_KEY', 'mock-only')
   mocks.profile.mockResolvedValue({ account_id: accountA, accounts: { override_plan: 'pro' } })
   mocks.answerUsage.clear()
+  historyRows = []
   mocks.sql.mockImplementation(defaultSql)
   outbound = vi.fn(async () => completion())
   vi.stubGlobal('fetch', outbound)
@@ -119,6 +131,8 @@ it.each([null, [], {}, { ...body(), prompt: '' }, { ...body(), prompt: ' '.repea
   { ...body(), platforms: ['gemini-flash', 'gemini-flash'] }, { ...body(), platforms: [1] },
   { ...body(), language: 'zh-TW' }, { ...body(), language: ['en'] }, { ...body(), accountId: 'foreign' },
   { ...body(), attachedSourceId: 'not-a-uuid' }, { ...body(), attachedSourceId: { id: attachedSourceId } },
+  { ...body(), threadId: 'not-a-uuid' }, { ...body(), threadId: undefined },
+  { ...body(), position: 0 }, { ...body(), position: 1.5 }, { ...body(), position: 51 }, { ...body(), position: '2' },
 ])('rejects invalid input %# without outbound', async input => {
   const response = await send(input)
   expect(response.status).toBe(400)
@@ -320,4 +334,43 @@ it('uses the existing UTC Monday boundary for the durable brand-week', async () 
   vi.setSystemTime(new Date('2026-11-02T00:00:00Z'))
   expect(studioWeek()).toBe('2026-11-02')
   expect((await reserveStudioAnswers(accountA, clientId, 1, studioWeek())).remaining).toBe(9)
+})
+
+it('continues a thread: earlier prompts and this platform¡¦s answers become context', async () => {
+  historyRows = [
+    { position: 1, prompt: 'FIRST QUESTION', live: { reply: { answers: [{ platform: 'gemini-flash', answer: 'FIRST ANSWER' }], quota: { cap: 10, remaining: 9, scope: 'brand' } } } },
+  ]
+  const response = await send(body(undefined, { position: 2 }))
+  expect(response.status).toBe(200)
+  const sent = JSON.parse((outbound.mock.calls[0][1] as RequestInit).body as string)
+  expect(sent.messages).toHaveLength(4)
+  expect(sent.messages[1]).toEqual({ role: 'user', content: 'FIRST QUESTION' })
+  expect(sent.messages[2]).toEqual({ role: 'assistant', content: 'FIRST ANSWER' })
+  expect(sent.messages[3]).toEqual({ role: 'user', content: prompt })
+  expect(sent.messages[0].content).toContain('conversation context')
+  expect(sent.messages[0].content).not.toContain('Do not claim access to saved records or conversation history.')
+})
+
+it('rejects a thread that is not this principal¡¦s own without spending quota', async () => {
+  mocks.sql.mockImplementation((strings: TemplateStringsArray, ...values: unknown[]) => {
+    if (strings.join('').includes('from studio_threads t')) return []
+    return defaultSql(strings, ...values)
+  })
+  const response = await send()
+  expect(response.status).toBe(404)
+  expect(await response.json()).toEqual({ error: 'NOT_FOUND' })
+  expect(outbound).not.toHaveBeenCalled()
+})
+
+it('caps replayed history so a long thread cannot grow input tokens without bound', async () => {
+  historyRows = Array.from({ length: 6 }, (_, index) => ({
+    position: index + 1,
+    prompt: 'x'.repeat(2_000),
+    live: { reply: { answers: [{ platform: 'gemini-flash', answer: 'y'.repeat(2_000) }], quota: { cap: 10, remaining: 9, scope: 'brand' } } },
+  }))
+  expect((await send(body(undefined, { position: 7 }))).status).toBe(200)
+  const sent = JSON.parse((outbound.mock.calls[0][1] as RequestInit).body as string)
+  // The 8,000-char window holds exactly two clipped pairs (4 ¡Ñ 2,000 chars).
+  expect(sent.messages.slice(1, -1)).toHaveLength(4)
+  expect(sent.messages.slice(1, -1).every((message: { content: string }) => message.content.length <= 2_001)).toBe(true)
 })

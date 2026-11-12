@@ -218,13 +218,17 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         if (result.ok) setFeedback({ id: turn.id, threadId: result.threadId, key: 'followUpSent' })
         return result
       })
-    if (askLive) {
+    // Persist the user turn first: LIVE needs the server-assigned thread id and
+    // position to load this conversation's history, and a failed save must not
+    // produce an orphan live answer that is never attached to a turn.
+    const saved = await persist
+    if (askLive && saved.ok) {
       beginLive()
       let result: NonNullable<StudioTurn['live']>
       try {
         const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId!)}/studio/answer`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
-          body: JSON.stringify({ prompt, platforms, language, ...(attachment ? { attachedSourceId: attachment.id } : {}) }), signal: AbortSignal.timeout(25_000),
+          body: JSON.stringify({ prompt, platforms, language, threadId: saved.threadId, position: saved.position, ...(attachment ? { attachedSourceId: attachment.id } : {}) }), signal: AbortSignal.timeout(25_000),
         })
         const data = await response.json()
         if (response.ok) {
@@ -237,11 +241,8 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         }
       } catch { result = { error: 'STUDIO_UNAVAILABLE' } }
       setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id) ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: result } : item) } : thread))
-      const saved = await persist
-      if (saved.ok) await saveLive(saved.threadId, saved.position, result.reply ? { reply: result.reply } : { error: result.error ?? 'STUDIO_UNAVAILABLE' })
+      await saveLive(saved.threadId, saved.position, result.reply ? { reply: result.reply } : { error: result.error ?? 'STUDIO_UNAVAILABLE' })
       endLive()
-    } else {
-      void persist
     }
   }
 
@@ -290,6 +291,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     {!live && <p className="as-note">{t('featureShellNote')}</p>}
     {live && <p className="as-muted as-small">{t(liveExhausted ? 'live.exhausted' : !live.platforms.length ? 'live.upgrade' : live.cap === 0 ? 'live.disabled' : 'live.usesQuota', { count: platforms.length, cap: live.cap })}</p>}
     <p id="studio-composer-help" className="as-muted as-small">{t(live ? 'live.composerHelp' : 'composerHelp')}</p>
+    {live && !home && (current?.turns.length ?? 0) > 0 && <p className="as-muted as-small">{t('live.continuityNote')}</p>}
   </form>
 
   const scopeNote = <details className="as-note as-disclosure">
