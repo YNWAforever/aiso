@@ -413,6 +413,20 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             </li>)}
           </ul>}
         </section>
+        {smeCopilot && basePath && !staffView && <details className="as-note as-disclosure">
+          <summary>{t('chatMoreTitle')}</summary>
+          <ul className="as-record-list mt-3">
+            {([
+              ['threads', t('threadsTitle'), `${basePath}/studio/threads`],
+              ['weekly', t('nav.weekly'), `${basePath}/studio/weekly`],
+              ['documents', t('nav.documents'), `${basePath}/studio/documents`],
+              ['connections', t('nav.connections'), `${basePath}/studio/connections`],
+              ['tools', t('nav.tools'), `${basePath}/studio/tools`],
+            ] as const).map(([key, label, href]) => <li key={key}>
+              <Link href={href} className="as-record-link">{label}<ArrowUpRight className="ml-auto size-4 shrink-0" aria-hidden="true" /></Link>
+            </li>)}
+          </ul>
+        </details>}
         {scopeNote}
       </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
         <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} />

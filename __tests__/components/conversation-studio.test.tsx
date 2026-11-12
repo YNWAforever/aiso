@@ -62,6 +62,14 @@ it.each(['en', 'zh-HK'])('renders the SME copilot landing with one-tap skills, o
   expect(html.indexOf(copy.templates.brief.label)).toBeGreaterThan(more)
   expect(html).toContain(copy.savedNotice)
 })
+it('keeps secondary Studio destinations reachable from the copilot landing without a rail', () => {
+  const copy = en.conversationStudio
+  const html = renderWithIntl(<ConversationStudio brandName="Example Brand" clientId="11111111-1111-4111-8111-111111111111" evidence={emptyStudioEvidence} smeCopilot />)
+  expect(html).toContain(copy.chatMoreTitle)
+  for (const path of ['threads', 'weekly', 'documents', 'connections', 'tools']) {
+    expect(html).toContain(`/studio/${path}`)
+  }
+})
 it.each(['en', 'zh-HK'])('keeps the legacy task-prefill landing when the SME flag is off in %s', lang => {
   const html = renderWithIntl(<ConversationStudio brandName="Example Brand" evidence={emptyStudioEvidence} />, lang)
   expect(html.match(/class="as-filter"/g)).toHaveLength(5)

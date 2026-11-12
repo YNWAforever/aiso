@@ -606,7 +606,8 @@
       "readsSearchDemand": "搜尋需求",
       "readsPublicPage": "一個公開網頁",
       "readsNothing": "暫時冇新資料"
-    }
+    },
+    "chatMoreTitle": "Chat 更多"
   },
   "seo": {
     "home": {

@@ -65,7 +65,7 @@ export default async function DashboardLayout({
   return (
     <ToastProvider>
       <SessionRefresh />
-      <DashboardChrome conversationStudio={conversationStudio}
+      <DashboardChrome conversationStudio={conversationStudio} smeCopilot={smeCopilot}
       banner={entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}
