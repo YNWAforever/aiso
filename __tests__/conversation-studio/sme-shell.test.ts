@@ -23,9 +23,18 @@ describe('SME copilot single shell wiring', () => {
     expect(layout).toContain(': <StudioShell')
   })
 
+  it('sends the retired Studio overview to Today for members but not for staff', () => {
+    const overview = read('app/[lang]/dashboard/[clientId]/studio/overview/page.tsx')
+    expect(overview).toContain('isSmeCopilotUiEnabled()')
+    expect(overview).toContain('if (!staff && isSmeCopilotUiEnabled()) redirect')
+  })
+
   it('does not add a second sidebar or nav to the Chat landing', () => {
     const studio = read('components/dashboard/ConversationStudio.tsx')
     // Secondary Studio destinations are links in one disclosure, not a rail.
     expect(studio).toContain("t('chatMoreTitle')")
+    // An empty history offers three example asks instead of one dead paragraph.
+    expect(studio).toContain("['exampleOne', 'exampleTwo', 'exampleThree']")
+    expect(studio).toContain("t('examplesTitle')")
   })
 })

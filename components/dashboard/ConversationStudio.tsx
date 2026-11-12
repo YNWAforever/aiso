@@ -405,7 +405,15 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </section>
         <section aria-labelledby="studio-continue-title" className="space-y-3">
           <div className="as-section-heading"><h2 id="studio-continue-title">{t('continueTitle')}</h2>{embedded && basePath && <Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link>}</div>
-          {readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : threads.length === 0 ? <p className="as-muted">{t('threadsEmpty')}</p> : <ul className="as-continue-list">
+          {readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : threads.length === 0 ? <div className="space-y-3">
+            <p className="as-muted">{t('threadsEmpty')}</p>
+            {smeCopilot && <div className="space-y-2" aria-label={t('examplesTitle')}>
+              <p className="as-small font-semibold">{t('examplesTitle')}</p>
+              <div className="flex flex-wrap gap-2">
+                {(['exampleOne', 'exampleTwo', 'exampleThree'] as const).map(key => <button key={key} type="button" onClick={() => { updateDraft(t(key)); composer.current?.focus() }} className="as-button px-3 text-left">{t(key)}</button>)}
+              </div>
+            </div>}
+          </div> : <ul className="as-continue-list">
             {threads.map(thread => <li key={thread.id}>
               <button type="button" onClick={() => openThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">
                 <span className="min-w-0"><span className="block truncate">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span><span className="as-muted as-small">{t(thread.saveState !== 'persisted' ? 'temporaryLabel' : thread.visibility === 'shared' ? 'sharedLabel' : 'privateLabel')}</span></span>

@@ -620,7 +620,11 @@
       "copied": "Copied",
       "failed": "Could not mint a token. Try again.",
       "unconfigured": "The assistant connection is not configured on this deployment yet."
-    }
+    },
+    "examplesTitle": "Try one",
+    "exampleOne": "What questions do buyers ask before choosing a brand like mine?",
+    "exampleTwo": "Which pages should I improve first?",
+    "exampleThree": "What changed in AI answers this week?"
   },
   "seo": {
     "home": {
