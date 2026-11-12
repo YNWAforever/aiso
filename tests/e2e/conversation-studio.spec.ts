@@ -12,7 +12,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   const js = readFileSync(`${directory}/fixture.js`, 'utf8')
   const css = readFileSync(`${directory}/build.css`, 'utf8')
   const requests: string[] = []
-  const liveRequests: { prompt: string; platforms: string[]; language: string; attachedSourceId?: string }[] = []
+  const liveRequests: { prompt: string; platforms: string[]; language: string; threadId: string; position: number; attachedSourceId?: string }[] = []
   const saveRequests: { source: unknown; ruleVersion: string; fingerprint: string; locale: string }[] = []
   // Block and record ALL attempted outbound requests, including provider URLs,
   // unexpected same-origin calls and browser-triggered source prefetches.
@@ -122,11 +122,14 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.locator('#studio-inspected-live-0')).toBeFocused()
     await inspector.getByRole('button', { name: copy.evidence.close, exact: true }).click()
     await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
-    expect(liveRequests).toEqual([{ prompt: copy.templates.brief.prompt, platforms: ['gemini-flash', 'gpt-4o'], language: lang }])
+    // LIVE now carries the persisted thread and turn so the server can replay this
+    // conversation; the fixture assigns the first turn position 0.
+    expect(liveRequests).toHaveLength(1)
+    expect(liveRequests[0]).toMatchObject({ prompt: copy.templates.brief.prompt, platforms: ['gemini-flash', 'gpt-4o'], language: lang, threadId: expect.any(String), position: 0 })
     await page.locator('#studio-composer').fill('Second question only')
     await page.locator('button[type="submit"]').click()
     await expect(page.getByText('MOCK LIVE ANSWER', { exact: true })).toHaveCount(2)
-    expect(liveRequests[1]).toEqual({ prompt: 'Second question only', platforms: ['gemini-flash', 'gpt-4o'], language: lang })
+    expect(liveRequests[1]).toMatchObject({ prompt: 'Second question only', platforms: ['gemini-flash', 'gpt-4o'], language: lang, threadId: liveRequests[0].threadId, position: 1 })
     expect(requests).toEqual([])
     for (const dark of [false, true]) {
       await page.evaluate(dark => document.documentElement.classList.toggle('dark', dark), dark)
@@ -152,10 +155,12 @@ for (const lang of ['en', 'zh-HK']) {
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
     await page.locator('button[type="submit"]').click()
     await expect(page.getByRole('log')).toContainText(badge)
-    expect(liveRequests).toEqual([{
+    expect(liveRequests).toHaveLength(1)
+    expect(liveRequests[0]).toMatchObject({
       prompt: copy.templates.brief.prompt, platforms: ['gemini-flash'], language: lang,
       attachedSourceId: '33333333-3333-4333-8333-333333333333',
-    }])
+      threadId: expect.any(String), position: 0,
+    })
     await page.locator('form').getByRole('button', { name: copy.attach.clear, exact: true }).click()
     await expect(page.locator('form').getByText(badge, { exact: true })).toHaveCount(0)
     expect(requests).toEqual([])
@@ -526,7 +531,7 @@ for (const lang of ['en', 'zh-HK']) {
     await page.locator('button[type="submit"]').click()
     await expect(page.getByText('MOCK LIVE ANSWER', { exact: true })).toBeVisible()
     await expect(toast).toHaveText(copy.followUpSent)
-    expect(liveRequests[1]).toEqual({ prompt: briefPrompt, platforms: ['gemini-flash'], language: lang })
+    expect(liveRequests[1]).toMatchObject({ prompt: briefPrompt, platforms: ['gemini-flash'], language: lang, threadId: expect.any(String), position: expect.any(Number) })
     await expect(header).toContainText(copy.discussionEyebrow)
     await composer.fill('Keep brief draft')
     await page.getByRole('button', { name: copy.title, exact: true }).click()
