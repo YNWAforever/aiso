@@ -13,6 +13,14 @@ import Page from '@/app/[lang]/dashboard/settings/page'
 import { GoogleConnectionsPanel } from '@/components/integrations/GoogleConnectionsPanel'
 import { StaffAccessPanel } from '@/components/dashboard/StaffAccessPanel'
 const render=()=>Page({params:Promise.resolve({lang:'zh-HK'}),searchParams:Promise.resolve({})})
+const elements=(node:unknown,out:Array<{props:Record<string,unknown>;type?:unknown}> = []):Array<{props:Record<string,unknown>;type?:unknown}> => {
+  for (const child of Array.isArray(node) ? node.flat(Infinity) : [node]) {
+    if (!child || typeof child !== 'object' || !('props' in child)) continue
+    out.push(child as {props:Record<string,unknown>;type?:unknown})
+    elements((child as {props:Record<string,unknown>}).props.children, out)
+  }
+  return out
+}
 beforeEach(()=>{vi.clearAllMocks();mocks.auth.mockResolvedValue({id:'profile-a',account_id:'account-a',accounts:{plan:'free'}});mocks.branding.mockResolvedValue(null);mocks.members.mockResolvedValue({members:[],invitations:[]});mocks.staffGrants.mockResolvedValue([]);mocks.staffAudit.mockResolvedValue([])})
 it('keeps independent authentication ahead of branding data',async()=>{
  mocks.auth.mockRejectedValue(new Error('AUTH_REDIRECT'))
@@ -40,7 +48,7 @@ it.each([
 
 describe('Google connections on Settings',()=>{
   const pro={id:'profile-a',account_id:'account-a',accounts:{plan:'pro',status:'active',stripe_subscription_id:'sub'}}
-  const panelOf=(page:{props:{children:unknown}})=>[page.props.children].flat(3)
+  const panelOf=(page:{props:{children:unknown}})=>elements(page.props.children)
     .find((child):child is {props:Record<string,unknown>}=>Boolean(child)&&(child as {type?:unknown}).type===GoogleConnectionsPanel)
   beforeEach(()=>{process.env.FEATURE_SEARCH_CONSOLE='1';mocks.auth.mockResolvedValue(pro)})
   afterEach(()=>{delete process.env.FEATURE_SEARCH_CONSOLE;vi.restoreAllMocks()})
@@ -69,7 +77,7 @@ describe('Google connections on Settings',()=>{
 })
 
 describe('Fimmick staff access on Settings',()=>{
-  const staffPanel=(page:{props:{children:unknown}})=>[page.props.children].flat(3)
+  const staffPanel=(page:{props:{children:unknown}})=>elements(page.props.children)
     .find((child):child is {props:Record<string,unknown>}=>Boolean(child)&&(child as {type?:unknown}).type===StaffAccessPanel)
   it('reads grants and audit for the session account',async()=>{
     const panel=staffPanel(await render())

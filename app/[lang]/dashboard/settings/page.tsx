@@ -10,7 +10,7 @@ import { listStaffAudit, listStaffGrants } from '@/lib/staff-grants/store'
 import { MAX_ACCOUNT_MEMBERS } from '@/lib/members/schema'
 import { loadAccountMembers } from '@/lib/members/store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isFeatureEnabled, isSmeCopilotUiEnabled } from '@/lib/flags'
 import { listConnections } from '@/lib/integrations/search-console/store'
 import { GoogleConnectionsPanel } from '@/components/integrations/GoogleConnectionsPanel'
 import { isConsentErrorReason } from '@/lib/integrations/google/consent-reasons'
@@ -26,6 +26,10 @@ export default async function SettingsPage({
   const search = await searchParams
   const profile = await requireAuth(lang)
   const reportT = await getTranslations('reportBranding')
+  const advancedT = await getTranslations('settings')
+  // Approved IA: an SME sees plan/members first; staff grants, Search Console and
+  // report branding are real but not day-to-day, so they sit behind one disclosure.
+  const smeCopilot = isSmeCopilotUiEnabled()
   const billingT = await getTranslations('billing')
   const entitlement = resolveCommercialEntitlement(profile.accounts)
   const plan = entitlement.plan
@@ -70,28 +74,7 @@ export default async function SettingsPage({
   const reason = search.google === 'error' ? search.reason : undefined
   const notice = isConsentErrorReason(reason) ? reason : null
 
-  return (
-    <SettingsView lang={lang} plan={plan} status={status} hasStripe={hasStripe}>
-        <section id="billing" className="scroll-mt-6">
-          <div className="mb-4">
-            <h2 className="text-lg font-bold text-foreground">{billingT('title')}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{billingT('settings_body')}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <Link
-              href={`/${lang}/dashboard/billing`}
-              className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {billingT('settings_link')}
-            </Link>
-          </div>
-        </section>
-        <MembersPanel
-          self={profile.id}
-          limit={MAX_ACCOUNT_MEMBERS}
-          members={membership.members}
-          invitations={membership.invitations}
-        />
+  const advancedPanels = <>
         <StaffAccessPanel grants={staffGrants} audit={staffAudit} loadFailed={staffLoadFailed} />
         {searchConsoleOn && (
           <GoogleConnectionsPanel
@@ -130,6 +113,37 @@ export default async function SettingsPage({
             </div>
           )}
         </section>
+  </>
+
+  return (
+    <SettingsView lang={lang} plan={plan} status={status} hasStripe={hasStripe}>
+        <section id="billing" className="scroll-mt-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-foreground">{billingT('title')}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{billingT('settings_body')}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <Link
+              href={`/${lang}/dashboard/billing`}
+              className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {billingT('settings_link')}
+            </Link>
+          </div>
+        </section>
+        <MembersPanel
+          self={profile.id}
+          limit={MAX_ACCOUNT_MEMBERS}
+          members={membership.members}
+          invitations={membership.invitations}
+        />
+        {smeCopilot ? <details className="scroll-mt-6 rounded-xl border border-border bg-card p-6">
+          <summary className="cursor-pointer text-lg font-bold text-foreground">{advancedT('advancedTitle')}</summary>
+          <p className="mt-1 text-sm text-muted-foreground">{advancedT('advancedBody')}</p>
+          <div className="mt-6 space-y-8">
+            {advancedPanels}
+          </div>
+        </details> : <>{advancedPanels}</>}
     </SettingsView>
   )
 }

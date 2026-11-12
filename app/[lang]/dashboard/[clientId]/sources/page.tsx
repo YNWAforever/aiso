@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { SourcePackWorkspace } from '@/components/sources/SourcePackWorkspace'
 import { requireAuth } from '@/lib/auth'
@@ -5,6 +6,7 @@ import { listSourcePage,type SourcePage } from '@/lib/sources/pagination'
 import { loadOwnedDraftClient } from '@/lib/work-items/store'
 import { buildSourcePack, type SourcePack } from '@/lib/view-models/source-pack'
 import { readSource } from '@/lib/sources/store'
+import { isSmeCopilotUiEnabled } from '@/lib/flags'
 import type { SourceDto } from '@/lib/sources/schema'
 
 /**
@@ -33,6 +35,8 @@ export default async function SourcesPage({
 }) {
   const { lang: requestedLang, clientId } = await params
   const lang = requestedLang === 'zh-HK' ? 'zh-HK' : 'en'
+  const t = await getTranslations({ locale: lang, namespace: 'sources' })
+  const smeCopilot = isSmeCopilotUiEnabled()
   const profile = await requireAuth(lang)
   const query=await searchParams??{}
   const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -66,5 +70,11 @@ export default async function SourcesPage({
     }
   }
 
-  return <SourcePackWorkspace key={`${clientId}:${sourceId??''}:${versionId??''}`} clientId={clientId} pack={pack} page={page} loadFailed={loadFailed} initialReview={initialReview} initialReviewStale={initialReviewStale} />
+  const intro = smeCopilot ? <div className="mx-auto w-full max-w-5xl px-4 pt-6 md:px-8">
+    <div className="rounded-xl border border-border bg-muted/40 p-4">
+      <p className="font-semibold">{t('smeIntroTitle')}</p>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">{t('smeIntroBody')}</p>
+    </div>
+  </div> : null
+  return <>{intro}<SourcePackWorkspace key={`${clientId}:${sourceId??''}:${versionId??''}`} clientId={clientId} pack={pack} page={page} loadFailed={loadFailed} initialReview={initialReview} initialReviewStale={initialReviewStale} /></>
 }
