@@ -524,3 +524,41 @@ for the first time. Read-only: 27 page visits (22 desktop at 1440×900 + 5 mobil
 - Honest limits of this run: screenshots capture the dashboard's scroll viewport rather
   than the whole inner scroll region, and the check is read-only (no scan/publish/save
   submitted against the real brand). The flag-off UI is not exercised here.
+
+## SME copilot Slice 4 — action skills — 2026-11-13
+
+Approved slice 4 ships behind the existing `FEATURE_SME_COPILOT_UI=1` flag only. It adds
+three one-tap actions to the Studio landing; each opens an inline confirm and then calls a
+**write route that already existed**. No new write API, no migration, no new flag.
+
+- **Registry** (`lib/conversation-studio/skills.ts`): `StudioSkill.action` names the write
+  path and its plan feature. `scan_brand` → `POST /api/scan`; `improve_page` →
+  `POST /api/clients/{clientId}/agents/generate` (`agent_recs`); `monthly_report` →
+  `POST /api/clients/{clientId}/months/{month}` (`client_reports_online`). Context skills
+  keep no action; the six one-tap cards are unchanged.
+- **Gates** (`lib/conversation-studio/skill-actions.ts`, unit-tested): no domain → scan asks
+  for one; no completed scan → improve asks for a scan; missing plan feature or missing
+  features → `planRequired` (the browser gate fails closed, and the server re-checks
+  entitlement on the real route, so a 403 is reported as a plan limit rather than a generic
+  failure). Bare saved domains are normalised with `https://`; the report month is the Hong
+  Kong calendar month, not UTC.
+- **Confirm and idempotency** (`components/dashboard/ConversationStudio.tsx`): the card
+  button only opens the confirm (`role="group"`, title, what will be written, Cancel /
+  確認執行). A ref guard plus disabled buttons stop a double tap while a run is in flight;
+  success shows 完成 with a link to the destination, failure shows `role="alert"` copy and
+  never turns green. Actions are hidden for staff views and outside the copilot flag.
+- **Funnel** (`lib/observability/funnel.ts` + client list): `skill_action_confirmed`,
+  `skill_action_completed`, `skill_action_failed` — name and locale only, no prompt, brand or
+  scan data.
+- **Deliberate deviation, for honesty:** the action result is shown inline and links to the
+  destination, and the write it performs is the saved artefact (scan record / generated
+  drafts / month record). It does **not** fabricate a synthetic Studio turn, because a turn
+  composed before the new data loads could imply the Studio read records it did not read.
+  `improve_page` and `monthly_report` already produce their evidence turn through the
+  existing one-tap card; follow-up "open destination" is the outcome link.
+- **Verification:** unit **8,515 passed / 15 skipped**, `npm run typecheck` clean,
+  `npm run lint` clean (0/0), `node scripts/text-audit.mjs` clean (the first pass caught a
+  bare "AISO" in the new action note; both locales were reworded), `npm run build` passed.
+  New tests: `skills.test.ts` action metadata, `skill-actions.test.ts` gates/URL/month,
+  `studio-action-skills.test.ts` confirm/limit wiring. Re-running the authenticated
+  production preview (axe on Chat) is the post-deploy check.

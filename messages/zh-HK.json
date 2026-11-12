@@ -624,7 +624,49 @@
     "examplesTitle": "試下問",
     "exampleOne": "客人揀同類品牌之前會問咩問題？",
     "exampleTwo": "我應該先改善邊幾頁？",
-    "exampleThree": "今個星期 AI 答案有咩變化？"
+    "exampleThree": "今個星期 AI 答案有咩變化？",
+    "skills": {
+      "scan_brand": {
+        "label": "掃描品牌網站",
+        "outcome": "用現有掃描引擎重跑全部 20 項檢查，結果會保存喺呢個品牌。",
+        "confirmTitle": "會做咩？",
+        "confirmBody": "會完整掃描 {domain}，分數同檢查結果會保存喺呢個品牌。",
+        "run": "開始掃描",
+        "running": "掃描中…",
+        "done": "掃描完成 — 去檢查結果睇。",
+        "failed": "掃描未能開始，請再試。",
+        "needsDomain": "未設定品牌網域，請先去品牌設定填返。"
+      },
+      "improve_page": {
+        "actionLabel": "生成優化建議",
+        "actionConfirmTitle": "用最新掃描生成建議？",
+        "actionConfirmBody": "會用最新一次完整掃描，生成最多三個優化建議並保存為草稿，會用你方案嘅 AI 生成額度。",
+        "run": "開始生成",
+        "running": "生成中…",
+        "done": "建議已生成 — 去優化建議睇。",
+        "failed": "未能開始生成，請再試。",
+        "needsScan": "仲未有完整掃描，請先掃描品牌。",
+        "planRequired": "呢個動作需要 Pro 或以上方案。"
+      },
+      "monthly_report": {
+        "actionLabel": "記錄本月數字",
+        "actionConfirmTitle": "會記錄咩？",
+        "actionConfirmBody": "會將本月已保存嘅分數、工作同監測數字寫入月度記錄；同一個月再記錄會安全更新。",
+        "run": "記錄本月",
+        "running": "記錄中…",
+        "done": "本月數字已記錄 — 去月度報告睇。",
+        "failed": "未能記錄本月，請再試。",
+        "planRequired": "呢個動作需要 Pro 或以上方案。"
+      }
+    },
+    "actions": {
+      "title": "動作",
+      "note": "每個動作都要你確認之後，先會執行現有工作；淨係撳一下唔會執行。",
+      "open": "開始",
+      "runNow": "確認執行",
+      "cancel": "取消",
+      "openResult": "睇結果"
+    }
   },
   "seo": {
     "home": {

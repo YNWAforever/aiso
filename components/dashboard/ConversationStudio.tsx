@@ -22,7 +22,10 @@ import { extractTurnUrl } from '@/lib/conversation-studio/firecrawl-url'
 import { buildExecutionPreview } from '@/lib/conversation-studio/execution-preview'
 import { STUDIO_PROMPT_LIMIT, type StudioAttachCandidate, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
-import { skillForTask } from '@/lib/conversation-studio/skills'
+import { skillForTask, studioSkill, STUDIO_ACTION_SKILLS, type StudioSkillId } from '@/lib/conversation-studio/skills'
+import { hongKongMonthKey, scanUrlFor, studioActionBlocker } from '@/lib/conversation-studio/skill-actions'
+import { trackFunnelEvent } from '@/lib/funnel-client'
+import type { PlanFeatures } from '@/lib/plans/catalog'
 import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type StudioThread, type StudioTurn } from '@/components/dashboard/StudioSession'
 import Link from 'next/link'
 import './conversation-studio.css'
@@ -68,12 +71,15 @@ type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; o
   /** A question carried in from the Today composer; prefills the home draft only. */
   initialDraft?: string
   /** Approved SME copilot IA: question-first landing and one-tap skills. */
-  smeCopilot?: boolean }
+  smeCopilot?: boolean
+  /** Slice 4 action skills: the brand's domain (scan) and plan features (gates). */
+  brandDomain?: string | null
+  features?: PlanFeatures }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
   return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft}><StudioConversation {...props} /></StudioSessionProvider>
 }
-function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false }: Props & { embedded?: boolean }) {
+function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
@@ -94,6 +100,12 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const draft = current?.draft ?? newDraft
   const home = !current
   const basePath = clientId ? `/${language}/dashboard/${encodeURIComponent(clientId)}` : null
+  // Slice 4: an action needs one explicit confirm before it runs an existing job.
+  const [actionSkill, setActionSkill] = useState<StudioSkillId | null>(null)
+  const [actionPhase, setActionPhase] = useState<'confirm' | 'running' | 'done' | 'failed'>('confirm')
+  const [actionError, setActionError] = useState<string | null>(null)
+  const actionRunning = useRef(false)
+  const funnelLocale = language === 'zh-HK' ? 'zh-HK' : 'en'
 
   useLayoutEffect(() => {
     if (previousNavigation.current !== navigationVersion || activeId !== null) {
@@ -275,6 +287,50 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     void submitTurn(t(`templates.${key}.prompt`), key, { allowLive: false })
   }
 
+  /** Runs the skill's existing write path only after the inline confirm is accepted. */
+  async function runStudioAction(skillId: StudioSkillId) {
+    const skill = studioSkill(skillId)
+    const action = skill?.action
+    if (!action || !clientId || actionRunning.current) return
+    const blocker = studioActionBlocker({ skillId, brandDomain, latestScanId: evidence.scan?.id ?? null, features })
+    if (blocker) {
+      setActionPhase('failed')
+      setActionError(t(`skills.${skillId}.${blocker}`))
+      trackFunnelEvent({ name: 'skill_action_failed', locale: funnelLocale })
+      return
+    }
+    actionRunning.current = true
+    setActionPhase('running')
+    setActionError(null)
+    trackFunnelEvent({ name: 'skill_action_confirmed', locale: funnelLocale })
+    try {
+      if (action.id === 'scan') {
+        const response = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: scanUrlFor(brandDomain ?? ''), clientId }) })
+        if (response.status === 403) throw Object.assign(new Error('plan'), { plan: true })
+        if (!response.ok) throw new Error('scan')
+      } else if (action.id === 'improve') {
+        const scanId = evidence.scan?.id
+        if (!scanId) throw new Error('scan')
+        const response = await fetch(`/api/clients/${encodeURIComponent(clientId)}/agents/generate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scanId }) })
+        if (response.status === 403) throw Object.assign(new Error('plan'), { plan: true })
+        if (!response.ok) throw new Error('improve')
+      } else {
+        const response = await fetch(`/api/clients/${encodeURIComponent(clientId)}/months/${hongKongMonthKey(new Date())}`, { method: 'POST' })
+        if (response.status === 403) throw Object.assign(new Error('plan'), { plan: true })
+        if (!response.ok) throw new Error('report')
+      }
+      setActionPhase('done')
+      trackFunnelEvent({ name: 'skill_action_completed', locale: funnelLocale })
+    } catch (error) {
+      setActionPhase('failed')
+      const planKey = skill?.action?.planFeature ? `skills.${skillId}.planRequired` : null
+      setActionError(error instanceof Error && (error as Error & { plan?: boolean }).plan && planKey ? t(planKey) : t(`skills.${skillId}.failed`))
+      trackFunnelEvent({ name: 'skill_action_failed', locale: funnelLocale })
+    } finally {
+      actionRunning.current = false
+    }
+  }
+
   const preview = buildExecutionPreview({ clientId, staffView, sourceStatus, prompt: draft, live: Boolean(live), platforms, liveExhausted })
   const previewReads = [preview.savesTurn && t('execution.readsSaved'), preview.readsSearchDemand && t('execution.readsSearchDemand'), preview.readsPublicPage && t('execution.readsPublicPage')].filter(Boolean).join(' · ')
   const executionPreview = t('execution.preview', { reads: previewReads || t('execution.readsNothing'), live: preview.liveAnswers })
@@ -403,6 +459,32 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             </div>
           </>}
         </section>
+        {smeCopilot && clientId && !staffView && <section aria-labelledby="studio-actions-title" className="space-y-3">
+          <div className="as-section-heading"><h2 id="studio-actions-title">{t('actions.title')}</h2><p className="as-muted as-small">{t('actions.note')}</p></div>
+          <div className="as-template-grid">
+            {STUDIO_ACTION_SKILLS.map(skill => {
+              const Icon = skill.id === 'scan_brand' ? ScanSearch : skill.id === 'monthly_report' ? FileText : FilePenLine
+              const label = skill.id === 'scan_brand' ? t('skills.scan_brand.label') : t(`skills.${skill.id}.actionLabel`)
+              const outcome = skill.id === 'scan_brand' ? t('skills.scan_brand.outcome') : t(`skills.${skill.id}.actionConfirmBody`)
+              const open = actionSkill === skill.id
+              return <div key={skill.id} className="as-template space-y-2">
+                <span className="flex items-start gap-2 font-semibold"><Icon className="as-blue mt-0.5 size-4 shrink-0" aria-hidden="true" /><span>{label}</span></span>
+                <span className="as-muted as-small block">{outcome}</span>
+                {!open && <button type="button" className="as-button px-3 font-semibold" onClick={() => { setActionSkill(skill.id); setActionPhase('confirm'); setActionError(null) }}>{t('actions.open')}</button>}
+                {open && <div role="group" aria-label={label} className="space-y-2 rounded-lg border border-border p-3">
+                  <p className="text-sm font-semibold">{t(skill.id === 'scan_brand' ? 'skills.scan_brand.confirmTitle' : `skills.${skill.id}.actionConfirmTitle`)}</p>
+                  <p className="as-muted as-small">{skill.id === 'scan_brand' ? t('skills.scan_brand.confirmBody', { domain: brandDomain ?? '' }) : t(`skills.${skill.id}.actionConfirmBody`)}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className="as-button as-primary px-3 font-semibold disabled:opacity-50" disabled={actionPhase === 'running'} onClick={() => void runStudioAction(skill.id)}>{actionPhase === 'running' ? t(`skills.${skill.id}.running`) : t('actions.runNow')}</button>
+                    <button type="button" className="as-button px-3" disabled={actionPhase === 'running'} onClick={() => setActionSkill(null)}>{t('actions.cancel')}</button>
+                  </div>
+                  {actionPhase === 'failed' && <p role="alert" className="as-note">{actionError}</p>}
+                  {actionPhase === 'done' && <p role="status" className="as-note">{t(`skills.${skill.id}.done`)}{basePath && <Link href={skill.id === 'scan_brand' ? `${basePath}?step=results` : skill.id === 'improve_page' ? `${basePath}?step=improve` : `${basePath}/month`} className="ml-1 underline">{t('actions.openResult')}</Link>}</p>}
+                </div>}
+              </div>
+            })}
+          </div>
+        </section>}
         <section aria-labelledby="studio-continue-title" className="space-y-3">
           <div className="as-section-heading"><h2 id="studio-continue-title">{t('continueTitle')}</h2>{embedded && basePath && <Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link>}</div>
           {readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : threads.length === 0 ? <div className="space-y-3">
