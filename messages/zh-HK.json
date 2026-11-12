@@ -594,6 +594,18 @@
     "staff": {
       "banner": "員工檢視 · 已獲此帳戶授權。你的對話會私人儲存於此，並列入其活動紀錄；不會讀取即時回答、Search Console 或供應商數據。",
       "backToAdmin": "返回管理"
+    },
+    "copilotEyebrow": "同你嘅品牌對話",
+    "copilotTitle": "你今日想 AI 幫你嘅品牌做咩？",
+    "copilotDescription": "揀一個一鍵任務，或者用自己嘅講法提問。答案會用品牌已保存記錄；即時回答會標明未經核實。",
+    "moreSkills": "更多技能",
+    "oneTapHint": "一鍵即發送，只用已保存記錄。",
+    "execution": {
+      "preview": "會讀：{reads}。即時回答：{live} 次。",
+      "readsSaved": "已保存記錄",
+      "readsSearchDemand": "搜尋需求",
+      "readsPublicPage": "一個公開網頁",
+      "readsNothing": "暫時冇新資料"
     }
   },
   "seo": {

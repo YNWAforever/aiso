@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { isConversationStudioEnabled, isFeatureEnabled } from '@/lib/flags'
+import { isConversationStudioEnabled, isFeatureEnabled, isSmeCopilotUiEnabled } from '@/lib/flags'
 import { requireStudioBrand } from '@/lib/conversation-studio/secondary'
 import { ConversationStudio } from '@/components/dashboard/ConversationStudio'
 import { loadStudioEvidence } from '@/lib/conversation-studio/evidence'
@@ -86,7 +86,7 @@ export default async function StudioPage({ params, searchParams }: {
     platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
     cap: studioLiveCap(),
   } : undefined
-  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} />
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} smeCopilot={isSmeCopilotUiEnabled()} />
 }
 
 /**
