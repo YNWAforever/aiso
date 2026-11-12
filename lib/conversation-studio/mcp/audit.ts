@@ -38,3 +38,31 @@ export async function recordStudioMcpCall(input: {
       ${input.tool.slice(0, 64)}, ${input.outcome}, ${auditDetail(input.detail ?? null)}, ${auditRpcId(input.rpcId ?? null)})
   `
 }
+
+/**
+ * Bounded per-token / per-brand call rate (slice 3). The transport had none, so
+ * one valid one-hour token could read the whole brand in a loop. The audit table
+ * is insert-only and already records every call; counting its last minute is the
+ * same data the operator can see, with no new table, counter or migration.
+ *
+ * The count includes denied and failed calls, so a caller cannot escape the
+ * bound by asking for unknown tools.
+ */
+export const STUDIO_MCP_CALLS_PER_MINUTE = 30
+
+export async function countStudioMcpCallsLastMinute(input: {
+  accountId: string
+  clientId: string
+  profileId: string
+}): Promise<number> {
+  const sql = db()
+  const rows = await sql`
+    select count(*)::int as n
+    from studio_mcp_calls
+    where account_id = ${input.accountId}::uuid
+      and client_id = ${input.clientId}::uuid
+      and profile_id = ${input.profileId}::uuid
+      and created_at > now() - interval '60 seconds'
+  `
+  return Number(rows[0]?.n ?? 0)
+}

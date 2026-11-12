@@ -84,6 +84,7 @@ beforeAll(async () => {
   await state.pg.exec(readFileSync('supabase/migrations/103_studio_thread_lifecycle.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/104_studio_thread_branch.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/105_studio_turn_receipts.sql', 'utf8'))
+  await state.pg.exec(readFileSync('supabase/migrations/109_studio_thread_skill.sql', 'utf8'))
   // Member flows must be unchanged once 087/088 add staff principals.
   await state.pg.exec(readFileSync('supabase/migrations/087_studio_staff_grants.sql', 'utf8'))
   await state.pg.exec(readFileSync('supabase/migrations/088_studio_staff_threads.sql', 'utf8'))
@@ -231,9 +232,9 @@ it('tags each thread with the skill of its first turn, derived on read through t
   const listed = await (await listThreads(request(`/api/studio/${brandA}/threads`), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: Array<{ id: string; skill: string | null }> }
   const skillOf = (id: string) => listed.threads.find(thread => thread.id === id)?.skill
   expect(skillOf(plain)).toBeNull()
-  expect(skillOf(skilled)).toBe('competitors')
+  expect(skillOf(skilled)).toBe('compare_competitors')
   const detail = await (await getThread(request(`/api/studio/${brandA}/threads/${skilled}`), { params: Promise.resolve({ clientId: brandA, threadId: skilled }) })).json() as { thread: { skill: string | null } }
-  expect(detail.thread.skill).toBe('competitors')
+  expect(detail.thread.skill).toBe('compare_competitors')
   const fresh = await create()
   expect((fresh.data.thread as { skill?: unknown }).skill).toBeNull()
 })
@@ -242,6 +243,24 @@ async function update(clientId: string, threadId: string, body: unknown) {
   return updateThread(request(`/api/studio/threads/${threadId}`, 'PATCH', body), { params: Promise.resolve({ clientId, threadId }) })
 }
 
+it('persists a validated registry skill on creation and rejects free text', async () => {
+  const withSkill = await createThread(request(`/api/studio/${brandA}/threads`, 'POST', { ...threadBody, skill: 'visibility_now' }), { params: Promise.resolve({ clientId: brandA }) })
+  expect(withSkill.status).toBe(201)
+  expect((await withSkill.json() as { thread: { skill: string } }).thread.skill).toBe('visibility_now')
+  const bad = await createThread(request(`/api/studio/${brandA}/threads`, 'POST', { ...threadBody, skill: 'Not A Skill' }), { params: Promise.resolve({ clientId: brandA }) })
+  expect(bad.status).toBe(400)
+})
+it('keeps the persisted skill across reads, and derives it from the first turn for older threads', async () => {
+  const created = await createThread(request(`/api/studio/${brandA}/threads`, 'POST', { ...threadBody, skill: 'compare_competitors' }), { params: Promise.resolve({ clientId: brandA }) })
+  const { thread } = await created.json() as { thread: { id: string } }
+  const read = await getThread(request(`/api/studio/${brandA}/threads/${thread.id}`), { params: Promise.resolve({ clientId: brandA, threadId: thread.id }) })
+  expect((await read.json() as { thread: { skill: string } }).thread.skill).toBe('compare_competitors')
+  // A pre-109 thread carries no column; the first turn's task still names its skill.
+  const legacy = await create(brandA)
+  await append(brandA, legacy.data.thread.id, { ...turnBody, task: 'pulse' })
+  const legacyRead = await getThread(request(`/api/studio/${brandA}/threads/${legacy.data.thread.id}`), { params: Promise.resolve({ clientId: brandA, threadId: legacy.data.thread.id }) })
+  expect((await legacyRead.json() as { thread: { skill: string } }).thread.skill).toBe('visibility_now')
+})
 it('lets the owner rename, pin and share a thread; a teammate reads it but cannot change it', async () => {
   const { data } = await create()
   await append(brandA, data.thread.id, { ...turnBody, task: 'pulse' })

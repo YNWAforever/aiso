@@ -12,6 +12,8 @@ import type { StudioConnection, StudioDriveConnection, StudioOutputs } from '@/l
 import type { StudioDfsBrandSettings } from '@/lib/conversation-studio/dfs-query'
 import type { StudioFirecrawlBrandSettings } from '@/lib/conversation-studio/firecrawl-query'
 import { buildStudioTools } from '@/lib/conversation-studio/navigation'
+import { studioSkill } from '@/lib/conversation-studio/skills'
+import { StudioConnectAssistant } from '@/components/dashboard/StudioConnectAssistant'
 import type { NavFeatures } from '@/lib/dashboard-nav'
 
 function ViewHeading({ view }: { view: 'threads' | 'documents' | 'connections' | 'tools' }) {
@@ -31,7 +33,11 @@ export function StudioThreads({ clientId }: { clientId: string }) {
   const base = `/${lang}/dashboard/${clientId}/studio`
   // Threads exist only after the client-side read, so "now" is never rendered on the server.
   const now = new Date()
-  const skillLabel = (skill: StudioThread['skill']) => skill ? t(`templates.${skill}.label`) : null
+  const skillLabel = (skill: StudioThread['skill']) => {
+    // Threads persist the registry id (109); the card copy stays the home-task label.
+    const task = skill ? studioSkill(skill)?.task : null
+    return task ? t(`templates.${task}.label`) : null
+  }
   const visible = session.threads.filter(thread => matchesThread(thread, query, skillLabel(thread.skill)))
   async function act(id: string, patch: { title?: string; pinned?: boolean; archived?: boolean; visibility?: 'private' | 'shared' }) {
     setActionFailed(false)
@@ -233,11 +239,11 @@ export function StudioConnections({ clientId, connection, driveNotice }: { clien
   </main>
 }
 
-export function StudioTools({ clientId, features, admin }: { clientId: string; features: NavFeatures; admin: boolean }) {
+export function StudioTools({ clientId, features, admin, mcpEnabled = false }: { clientId: string; features: NavFeatures; admin: boolean; mcpEnabled?: boolean }) {
   const t = useTranslations('conversationStudio')
   const dashboard = useTranslations('dashboard')
   const lang = useLocale()
   return <main className="as-page space-y-6"><ViewHeading view="tools" /><div className="as-tool-grid">{buildStudioTools({ lang, clientId, features, admin, conversationStudio: true }).map(tool => <Link key={tool.key} href={tool.href} className="as-card as-tool flex items-center gap-3">
     <span className="min-w-0 flex-1 font-semibold">{dashboard(tool.labelKey)}</span>{tool.locked && <Lock className="size-4 shrink-0" aria-label={t('planRequired')} />}{tool.badge && <span className="as-badge">{tool.badge}</span>}<ArrowUpRight className="size-4 shrink-0 as-blue" aria-hidden="true" />
-  </Link>)}</div></main>
+  </Link>)}</div>{mcpEnabled && <StudioConnectAssistant clientId={clientId} />}</main>
 }

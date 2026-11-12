@@ -107,3 +107,35 @@ the account/brand pair keeps its composite tenant FK.
   `empty`. A database incident cannot read as "the brand has nothing".
 - This is an internal surface: it is not documented in the product UI, and no
   customer-facing endpoint exposes MCP details.
+
+## Rate limit (slice 3)
+
+Every `tools/call` first counts this principal's rows in `studio_mcp_calls` for the
+last 60 seconds. At **30 or more** the call is refused with JSON-RPC
+`-32000 "Rate limit exceeded"`, recorded as `denied` / `RATE_LIMITED`, and no tool
+executes. The count includes denied and failed calls, so asking for an unknown tool
+does not buy a fresh budget. If the count cannot be read (a database incident) the
+transport fails closed with 503 `AUDIT_UNAVAILABLE` rather than serving an unbounded
+read. There is no new table or counter: the audit ledger already holds the data, and
+`STUDIO_MCP_CALLS_PER_MINUTE` in `lib/conversation-studio/mcp/audit.ts` is the bound.
+
+## Skill map (slice 3)
+
+The in-product one-tap skills and this transport describe the same reads; the
+registry is `lib/conversation-studio/skills.ts` and is shared, not copied.
+
+| Skill id | Reads (MCP tools) |
+| --- | --- |
+| `visibility_now` | `brand_evidence` |
+| `what_ai_says` | `brand_evidence`, `brand_sources` |
+| `top_opportunity` | `scan_checks`, `content_opportunities` |
+| `improve_page` | `scan_checks`, `content_opportunities`, `brand_sources` |
+| `compare_competitors` | `brand_evidence` |
+| `draft_brief` | `content_opportunities`, `brand_sources` |
+| `monthly_report` | `brand_evidence`, `scan_checks`, `work_item_drafts`, `search_console_status` |
+| `scan_brand` | `scan_checks` (action skill; runnable in slice 4, read-only tools unchanged) |
+| `explain_drop` | `brand_evidence` |
+
+Threads persist the skill they started from (migration `109`, nullable, closed
+vocabulary); turns keep their own `task` for composition and idempotency. Older
+threads derive the skill from the first turn exactly as before.
