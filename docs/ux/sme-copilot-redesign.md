@@ -1,6 +1,7 @@
 # SME copilot redesign — design spec (for approval)
 
-Status: draft v3, 2026-11-12. Owner: Willy. Prepared by: agent, from three read-only
+Status: **approved 2026-11-12** (owner: 5 destinations + avatar account menu; full
+redesign, spec first). Owner: Willy. Prepared by: agent, from three read-only
 audits of the live source (home/nav, Studio/MCP, function pages/design system).
 Scope: account home, brand home, primary navigation, Conversation Studio, and the
 function pages behind them. Non-goals: marketing pages, pricing, onboarding funnel
