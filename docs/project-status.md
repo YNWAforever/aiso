@@ -319,12 +319,30 @@ and the weekly cap present in the HTML.
 
 ## Trial email: the fallback sender domain was never verified in Resend
 
-The first `0 9` firing (`2026-11-11T09:01:01Z`) recorded only `{sent: 0, failed: 17}`:
-it predates #232's `errorCodes`, but the sender explains it. With no
-`RESEND_TRIAL_FROM_EMAIL`, `sendTrialEmail` fell back to `hello@fimmick-aeo.com`, and
+The first `0 9` firing (`2026-11-11T09:01:01Z`) recorded only `{sent: 0, failed: 17}`;
+it predates #232's `errorCodes`. The second firing (`2026-11-12T09:00:59.947Z`, the first
+with #232 deployed) recorded `{sent: 0, failed: 17, errorCodes: ["error"]}` — the
+bounded code is honest but blunt. Production runtime logs name the cause exactly:
+
+```
+[cron/trial-emails] failed to send to account 0749becd-…:
+Error: Missing API key. Pass it to the constructor `new Resend("re_123")`
+```
+
+**Production's `RESEND_API_KEY` is absent at runtime, not merely wrong.** The Vercel
+entry is `sensitive`, so `vercel env pull` writes `""` and the API refuses to decrypt it;
+the runtime message is the only reliable reading, and it says the constructor received no
+key. `providerErrorCode` therefore recorded the outer `Error.name` (`'Error'` →
+`'error'`): `sendTrialEmail` never reached Resend. The helper now recognises that
+message and records `missing_api_key` instead, so a recurrence names the fix in the
+ledger rather than needing the one-hour runtime log. Nothing about the domain could have
+mattered until a key exists.
+
+The sender is a second, independent defect waiting behind it. With no
+`RESEND_TRIAL_FROM_EMAIL`, `sendTrialEmail` falls back to `hello@fimmick-aeo.com`, and
 DNS on 2026-11-12 shows `fimmick-aeo.com` has **no Resend records at all** —
 `resend._domainkey.fimmick-aeo.com` and `send.fimmick-aeo.com` are NXDOMAIN — so that
-domain cannot be verified and every send is rejected. `fimmick.com`, by contrast, has
+domain can never be verified. `fimmick.com`, by contrast, has
 `resend._domainkey.fimmick.com` TXT, `send.fimmick.com` MX and SPF
 `include:amazonses.com`: it is the verified sending domain.
 
@@ -333,6 +351,7 @@ domain cannot be verified and every send is rejected. `fimmick.com`, by contrast
 Vercel variables, so `vercel env pull` writes them empty and the API refuses to decrypt
 them, which is expected). Sensitive env changes only reach a new deployment, so
 production was redeployed as `aiso-367j6s5ld` (commit `58b2d53e`, Ready, schema gate
-106). #232's bounded `errorCodes` are in that build, so the next `0 9` firing is the
-verification: its `cron_runs.detail` will show `sent`/`failed` and, if it still fails, a
-provider cause name instead of the earlier counts-only row.
+106). That redeploy did not change the missing-key outcome: the next run still needs a
+real `RESEND_API_KEY` supplied by the Resend account owner. Until then the trial drip
+remains `{sent: 0, failed: 17}` — and the retry mask never advances, so the same 17
+sends are still due.
