@@ -5127,5 +5127,18 @@
     "loadError": "Could not open this brand",
     "loadErrorBody": "The brand records could not be read. Try again from your portfolio.",
     "oneBrandEyebrow": "Your brand"
+  },
+  "smeTabs": {
+    "whatAiSays": "What AI says",
+    "improve": "Improve",
+    "visibility": "Visibility",
+    "answers": "AI answer log",
+    "citations": "Cited sources",
+    "competitors": "Competitors",
+    "questions": "Monitored questions",
+    "scan": "Scan",
+    "results": "Check results",
+    "suggestions": "Suggestions",
+    "todos": "To-dos"
   }
 }

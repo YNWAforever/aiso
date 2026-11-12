@@ -1,7 +1,8 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
+import { SmeSectionTabs } from '@/components/dashboard/shell/SmeSectionTabs'
 
 /** Route-aware presentation only. Server layouts/pages retain all authorization. */
 export function DashboardChrome({ children, sidebar, topbar, banner, conversationStudio, smeCopilot = false }: {
@@ -17,7 +18,7 @@ export function DashboardChrome({ children, sidebar, topbar, banner, conversatio
     <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden print:block print:overflow-visible">
       {sidebar}
       <div className="flex-1 min-w-0 w-full flex flex-col overflow-auto print:block print:overflow-visible">
-        {topbar}{children}
+        {topbar}{smeCopilot && <Suspense fallback={null}><SmeSectionTabs /></Suspense>}{children}
       </div>
     </div>
   </div>
