@@ -603,3 +603,36 @@ flag-off page is byte-identical.
 - **Verification**: unit **8,524 passed / 15 skipped**, lint 0/0, typecheck clean, text
   audit clean, build passed. New `observation-sme.test.tsx` covers both locales, the
   honest empty state, the flag-off legacy branch and the evidence-first detail order.
+
+### Observations final clarity pass — 2026-11-13
+
+PR #253 merged as `568d3454`; its full CI gate passed. Authenticated read-only checks of
+that production release returned HTTP 200 on desktop (1440px) and mobile (390px), with no
+console/page errors or axe violations. The real FOTOMAX brand currently has 10 active
+questions and zero records in the returned observation window; no monitoring or AI
+collection was triggered to manufacture an answer for the preview.
+
+The follow-up keeps the simplified layout and corrects the remaining ambiguity:
+
+- Two compact side-by-side stats on mobile, with the selected week always visible above
+  the records. Removed the page-slice date that could be mistaken for a brand-wide latest
+  recording. Counts now follow the selected result filter as well as question/platform/week.
+- Unknown question activity is not counted as active; truncated lists show a lower-bound
+  `+`. The disclosure is named **Your questions / 你嘅問題** because it includes paused ones.
+- A successful record means an answer and brand classification were saved, not proof of a
+  complete provider response. The badges and action now say that; missing-answer records
+  offer **View record**, never promise a full answer. Unknown mentions stay unknown.
+- Empty copy describes the selected week and offers next steps, without claiming a pending
+  run or promising that the next run will succeed. No claim that every question has an answer.
+- Native disclosure arrows are visible for filters, question lists and technical details.
+  Removed the technical maintenance footer from the SME branch only.
+- **Clear filters** preserves the selected run, week and limit. The saved-answer dialog
+  retains a plain-language test-response caveat; technical provenance remains available.
+- Added bilingual unit coverage and keyboard/browser checks at 390px and 1440px for filters,
+  run context, counters, plain-text answer safety, evidence disclosure, Escape/focus restore,
+  overflow and accessibility.
+- Local verification: lint 0 errors/warnings, typecheck and text audit clean, full unit
+  **8,528 passed / 15 skipped**, production build passed. Observations browser suite:
+  **16/16 passed**, including the four new SME locale/viewport cases. Full axe checks
+  found a duplicate nested landmark in the new view; removed the redundant inner region
+  and reran the entire observations browser suite with zero violations.

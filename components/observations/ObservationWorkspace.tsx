@@ -124,7 +124,8 @@ function Workspace({
     void load(next)
   }
   function clearFilters() {
-    const next = { week: data.selectedWeek ?? '', promptId: '', platform: '', result: undefined as 'success' | 'incomplete' | undefined }
+    // Clear optional filters without losing the selected run, week or page size.
+    const next = { ...filters, promptId: '', platform: '', result: undefined }
     setFilters(next)
     setPlatformDraft('')
     setPlatformError(false)
@@ -137,23 +138,17 @@ function Workspace({
   if (smeCopilot) {
     const badge = 'inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium'
     const filterCount = [filters.promptId, filters.platform, filters.result].filter(Boolean).length
-    const activeQuestions = data.questions.filter(question => question.isActive !== false).length
-    const latest = data.items.reduce<string | null>((max, item) => {
-      const value = item.collectedAt ?? item.recordedAt
-      if (!value) return max
-      return !max || value > max ? value : max
-    }, null)
-    const latestLabel = latest && !Number.isNaN(Date.parse(latest))
-      ? new Intl.DateTimeFormat(lang === 'zh-HK' ? 'zh-HK' : 'en', { dateStyle: 'medium' }).format(new Date(latest))
-      : copy.smeNoRecord
+    const activeQuestions = data.questions.filter(question => question.isActive === true).length
+    // API counters are scoped to the selected week/question/platform, before result filtering.
+    const matchingRecords = filters.result === 'success' ? data.counts.successfulRows
+      : filters.result === 'incomplete' ? data.counts.incompleteRows : data.counts.recordedRows
     const mention = (item: ObservationResponse['items'][number]) => item.brandMentioned === null
       ? copy.smeMentionUnknown
       : item.brandMentioned ? copy.smeMentioned : copy.smeNotMentioned
 
     const stats = [
-      [copy.smeMonitored, String(activeQuestions)],
-      [copy.smeRecorded, String(data.counts.recordedRows)],
-      [copy.smeLatest, latestLabel],
+      [copy.smeMonitored, `${activeQuestions}${data.questionsTruncated ? '+' : ''}`],
+      [copy.smeRecorded, String(matchingRecords)],
     ]
 
     return (
@@ -169,7 +164,7 @@ function Workspace({
           </div>
         </header>
         {runPanel}
-        <section aria-label={copy.smeStatsLabel} className="grid gap-3 sm:grid-cols-3">
+        <section aria-label={copy.smeStatsLabel} className="grid grid-cols-2 gap-3">
           {stats.map(([label, value]) => (
             <div key={label} className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs font-medium text-muted-foreground">{label}</p>
@@ -182,14 +177,20 @@ function Workspace({
             <h2 id="sme-answers-title" className="text-lg font-semibold">{copy.smeAnswersTitle}</h2>
             <p className="text-sm text-muted-foreground">{copy.smeAnswersHint}</p>
           </div>
-          <p className="text-sm text-muted-foreground">{format(copy.smeAnswersCount, data.counts.recordedRows)}</p>
+          <label className="flex flex-wrap items-center gap-3 text-sm font-medium">
+            <span>{copy.week}</span>
+            <select className={field + ' sm:max-w-52'} value={filters.week} onChange={(event) => select('week', event.target.value)}>
+              {!weeks.length && <option value="">{copy.smeNoRecord}</option>}
+              {weeks.map((value) => (<option key={value}>{value}</option>))}
+            </select>
+          </label>
           <details className="rounded-xl border border-border bg-card">
-            <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm font-medium">
+            <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-medium">
               <span>{copy.smeFilter}</span>
               {filterCount > 0 && <span className={badge}>{copy.smeFilterActive} · {filterCount}</span>}
             </summary>
             <div className="space-y-4 border-t border-border p-4">
-              <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label={copy.smeFilter}>
+              <section className="grid gap-3 sm:grid-cols-3" aria-label={copy.smeFilter}>
                 <label className="min-w-0">
                   {copy.question}
                   <select className={field} value={filters.promptId ?? ''} onChange={(event) => select('promptId', event.target.value)}>
@@ -214,13 +215,6 @@ function Workspace({
                   <p id="observation-platform-error" role={platformError ? 'alert' : undefined}>{platformError ? copy.platformInvalid : ''}</p>
                 </form>
                 <label className="min-w-0">
-                  {copy.week}
-                  <select className={field} value={filters.week} onChange={(event) => select('week', event.target.value)}>
-                    {!weeks.length && <option value="">{copy.unknown}</option>}
-                    {weeks.map((value) => (<option key={value}>{value}</option>))}
-                  </select>
-                </label>
-                <label className="min-w-0">
                   {copy.result}
                   <select className={field} value={filters.result ?? ''} onChange={(event) => select('result', event.target.value)}>
                     <option value="">{copy.allResults}</option>
@@ -239,11 +233,11 @@ function Workspace({
               <button className="min-h-11 underline" onClick={() => void load(filters, lastRequest.current.cursor)}>{copy.retry}</button>
             </p>
           )}
-          <section className="space-y-3" aria-busy={busy} aria-label={copy.smeAnswersTitle}>
+          <div className="space-y-3" aria-busy={busy}>
             {!data.items.length && !busy && !error && (
               <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
                 <p className="font-semibold">{filterCount > 0 ? copy.smeNoFiltered : copy.smeNoRecordsTitle}</p>
-                {filterCount === 0 && <p className="mt-1 text-sm text-muted-foreground">{format(copy.smeNoRecordsBody, activeQuestions)}</p>}
+                {filterCount === 0 && <p className="mt-1 text-sm text-muted-foreground">{copy.smeNoRecordsBody}</p>}
                 {filterCount > 0 && <button className="mt-3 min-h-11 underline" type="button" onClick={clearFilters}>{copy.smeClearFilters}</button>}
               </div>
             )}
@@ -253,13 +247,13 @@ function Workspace({
                 <div className="flex flex-wrap gap-2 text-xs">
                   <span className={badge}>{item.platform}</span>
                   <span className={badge}>{item.scanWeek}</span>
-                  <span className={badge}>{item.result === 'success' ? copy.smeComplete : copy.smeIncomplete}</span>
+                  <span className={badge}>{item.result === 'success' ? copy.smeComplete : item.hasAnswer ? copy.smeIncomplete : copy.noAnswer}</span>
                   <span className={item.brandMentioned === true ? badge + ' bg-tone-success-soft' : badge}>{mention(item)}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-4">
-                  <button type="button" className="min-h-11 rounded-lg border border-border px-4 text-sm font-medium" onClick={() => setDetailId(item.id)}>{copy.smeViewAnswer}</button>
+                  <button type="button" className="min-h-11 rounded-lg border border-border px-4 text-sm font-medium" onClick={() => setDetailId(item.id)}>{item.hasAnswer ? copy.smeViewAnswer : copy.smeViewRecord}</button>
                   <details className="min-w-0">
-                    <summary className="flex min-h-11 cursor-pointer items-center text-sm text-muted-foreground">{copy.smeDetails}</summary>
+                    <summary className="min-h-11 cursor-pointer py-3 text-sm text-muted-foreground">{copy.smeDetails}</summary>
                     <dl className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
                       <div><dt>{copy.recordedAt}</dt><dd className="break-words">{item.recordedAt ?? copy.unknown}</dd></div>
                       <div><dt>{copy.collectedAt}</dt><dd className="break-words">{item.collectedAt ?? copy.unknownCollectionTime}</dd></div>
@@ -270,7 +264,7 @@ function Workspace({
                 </div>
               </article>
             ))}
-          </section>
+          </div>
           {data.nextCursor && (
             <div className="flex justify-center">
               <button className="min-h-11 rounded-lg border border-border px-4" disabled={busy || error} onClick={() => void load(filters, data.nextCursor!)}>{copy.next}</button>
@@ -279,7 +273,7 @@ function Workspace({
         </section>
         <section aria-labelledby="sme-monitoring-title" className="rounded-xl border border-border bg-card">
           <details>
-            <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm font-semibold">
+            <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold">
               <span id="sme-monitoring-title">{copy.smeMonitoringTitle} ({data.questions.length})</span>
             </summary>
             <div className="space-y-2 border-t border-border p-4">
@@ -298,7 +292,6 @@ function Workspace({
           </details>
         </section>
         {detailId && <ObservationDetail key={detailId} clientId={clientId} observationId={detailId} copy={copy} smeCopilot onClose={() => setDetailId(null)} />}
-        <MaintenanceNextSteps clientId={clientId} lang={lang} current="observations" copy={copy} />
       </main>
     )
   }
