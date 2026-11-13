@@ -441,6 +441,7 @@ function OpportunityContent({
               key={`${selected.id}:${selected.revision}`}
               clientId={clientId}
               item={selected}
+              smeCopilot={smeCopilot}
               onSaved={(item) => {
                 setItems((old) =>
                   old.map((row) => (row.id === item.id ? item : row)),

@@ -11,10 +11,12 @@ export function DraftEditor({
   clientId,
   item,
   onSaved,
+  smeCopilot = false,
 }: {
   clientId: string
   item: WorkItem
   onSaved: (item: WorkItem) => void
+  smeCopilot?: boolean
 }) {
   const lang = useLocale()
   const fieldId = useId()
@@ -117,31 +119,36 @@ export function DraftEditor({
     'w-full rounded-lg border border-border bg-background p-3 text-foreground'
   const button =
     'min-h-11 rounded-lg border border-border px-4 py-2 font-semibold disabled:opacity-50'
+  const reviewNavigation = dirty || busy ? (
+    <p>{t('saveBeforeVersions')}</p>
+  ) : (
+    <a className={smeCopilot ? `${button} inline-flex items-center bg-primary text-primary-foreground` : 'inline-flex min-h-11 items-center underline'}
+      href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(saved.id)}/versions`}>
+      {t(smeCopilot ? 'sme.prepareReview' : 'versionHistory')}
+    </a>
+  )
+  const savedEvidence = <>
+    <p>{t('snapshotNotice')}</p>
+    <p className="whitespace-pre-wrap break-words">{saved.evidenceSnapshot.initialTitle}</p>
+    <p className="whitespace-pre-wrap break-words">{saved.evidenceSnapshot.initialAction}</p>
+    <EvidenceDetails evidence={saved.evidenceSnapshot.evidence} limitations={saved.evidenceSnapshot.limitations} />
+  </>
+  const recordingDetails = <>
+    <p>{t('draftLanguage')}: {saved.locale === 'en' ? 'English' : '繁體中文（香港）'}</p>
+    <p className="text-sm">{t('createdAt')}: {saved.createdAt} · {t('updatedAt')}: {saved.updatedAt}</p>
+  </>
   return (
     <section
       aria-label={t('savedDraft')}
       className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-4 sm:p-6"
     >
-      <h2 className="text-xl font-semibold">{t('savedDraft')}</h2>
+      <h2 className="text-xl font-semibold">{t(smeCopilot ? 'sme.editDraft' : 'savedDraft')}</h2>
       <p>{t('draftOnly')}</p>
-      {dirty || busy ? (
-        <p>{t('saveBeforeVersions')}</p>
-      ) : (
-        <a
-          className="inline-flex min-h-11 items-center underline"
-          href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(saved.id)}/versions`}
-        >
-          {t('versionHistory')}
-        </a>
-      )}
-      <p>
-        {t('draftLanguage')}:{' '}
-        {saved.locale === 'en' ? 'English' : '繁體中文（香港）'}
-      </p>
-      <p className="text-sm">
-        {t('createdAt')}: {saved.createdAt} · {t('updatedAt')}:{' '}
-        {saved.updatedAt}
-      </p>
+      {smeCopilot && <div className="space-y-2 text-sm text-muted-foreground">
+        <p>{t(saved.evidenceSnapshot.evidence.kind === 'pulse-metric' ? 'pulseUnknowns' : 'redacted')}</p>
+        {saved.evidenceSnapshot.evidence.kind === 'scan-check' && saved.evidenceSnapshot.evidence.limited && <p>{t('limitedScan')}</p>}
+      </div>}
+      {!smeCopilot && <>{reviewNavigation}{recordingDetails}</>}
       <form onSubmit={save} className="space-y-4" aria-busy={busy}>
         <div className="space-y-2">
           <label className="block" htmlFor={fieldId + '-title'}>
@@ -248,8 +255,8 @@ export function DraftEditor({
         {error && <p role="alert">{t(error)}</p>}
         <div className="flex flex-wrap gap-3">
           <button
-            className={`${button} bg-primary text-primary-foreground`}
-            disabled={busy}
+            className={`${button} ${!smeCopilot || dirty ? 'bg-primary text-primary-foreground' : ''}`}
+            disabled={busy || (smeCopilot && !dirty)}
             type="submit"
           >
             {busy ? t('saving') : t('saveChanges')}
@@ -269,21 +276,21 @@ export function DraftEditor({
           {status}
         </p>
       </form>
+      {smeCopilot && <div>{reviewNavigation}</div>}
       <WorkOperationsPanel clientId={clientId} itemId={item.id} revision={saved.revision} onRevision={revision=>{const next={...saved,revision};setSaved(next);onSaved(next)}}/>
-      <section className="space-y-3 border-t border-border pt-4">
+      {smeCopilot ? <>
+        <details className="space-y-3 border-t border-border pt-4">
+          <summary className="min-h-11 cursor-pointer font-semibold">{t('savedEvidence')}</summary>
+          {savedEvidence}
+        </details>
+        <details className="space-y-3 border-t border-border pt-4">
+          <summary className="min-h-11 cursor-pointer font-semibold">{t('sme.recordingDetails')}</summary>
+          {recordingDetails}
+        </details>
+      </> : <section className="space-y-3 border-t border-border pt-4">
         <h3 className="font-semibold">{t('savedEvidence')}</h3>
-        <p>{t('snapshotNotice')}</p>
-        <p className="whitespace-pre-wrap break-words">
-          {saved.evidenceSnapshot.initialTitle}
-        </p>
-        <p className="whitespace-pre-wrap break-words">
-          {saved.evidenceSnapshot.initialAction}
-        </p>
-        <EvidenceDetails
-          evidence={saved.evidenceSnapshot.evidence}
-          limitations={saved.evidenceSnapshot.limitations}
-        />
-      </section>
+        {savedEvidence}
+      </section>}
     </section>
   )
 }

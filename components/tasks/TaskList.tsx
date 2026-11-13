@@ -23,7 +23,7 @@ type Filter = 'all' | TaskStatus
  * Opportunities, where drafts are edited. Null tasks means the list could not be read: say so and
  * offer a retry, never an empty list.
  */
-export function TaskList({ lang, clientId, tasks, limited }: { lang: string; clientId: string; tasks: TaskRow[] | null; limited: boolean }) {
+export function TaskList({ lang, clientId, tasks, limited, smeCopilot = false }: { lang: string; clientId: string; tasks: TaskRow[] | null; limited: boolean; smeCopilot?: boolean }) {
   const t = useTranslations('dashboard.tasks')
   const format = useFormatter()
   const [filter, setFilter] = useState<Filter>('all')
@@ -62,11 +62,12 @@ export function TaskList({ lang, clientId, tasks, limited }: { lang: string; cli
             aria-pressed={filter === f}
             onClick={() => setFilter(f)}
             className={cn(
-              'min-h-9 rounded-full border px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+              'rounded-full border px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+              smeCopilot ? 'min-h-11' : 'min-h-9',
               filter === f ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground hover:bg-neutral-3',
             )}
           >
-            {f === 'all' ? t('all', { count: tasks.length }) : t(`filter.${f}`, { count: count(f) })}
+            {f === 'all' ? t('all', { count: tasks.length }) : t(smeCopilot && f === 'delivered' ? 'sme.deliveredFilter' : `filter.${f}`, { count: count(f) })}
           </button>
         ))}
       </div>
@@ -86,12 +87,14 @@ export function TaskList({ lang, clientId, tasks, limited }: { lang: string; cli
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-foreground">{task.title}</span>
                       <span className="block text-xs text-muted-foreground">
-                        {task.versionNumber === null ? t('not_submitted') : t('version', { number: task.versionNumber })}
-                        {updated ? ` · ${t('updated', { date: updated })}` : ''}
+                        {smeCopilot ? t(`sme.next.${task.status}`) : task.versionNumber === null ? t('not_submitted') : t('version', { number: task.versionNumber })}
+                        {smeCopilot
+                          ? task.versionNumber === null ? '' : ` · ${t('version', { number: task.versionNumber })}`
+                          : updated ? ` · ${t('updated', { date: updated })}` : ''}
                       </span>
                     </span>
                     <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold', style.className)}>
-                      <Icon aria-hidden="true" className="size-3.5" />{t(`status.${task.status}`)}
+                      <Icon aria-hidden="true" className="size-3.5" />{t(smeCopilot && task.status === 'delivered' ? 'sme.delivered' : `status.${task.status}`)}
                     </span>
                     <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                   </Link>
