@@ -24,8 +24,22 @@ describe('guided monitoring', () => {
   it.each(['en', 'zh-HK'])('keeps pause distinct from empty answers in %s', lang => {
     const c = (lang === 'en' ? en : zh).runProgress.sme
     const html = render(lang, { options: { ...options, enabled: false } })
-    expect(html).toContain(c.paused)
+    expect(html.split(c.paused)).toHaveLength(2)
+    expect(html.split(`>${(lang === 'en' ? en : zh).runProgress.refresh}</button>`)).toHaveLength(2)
     expect(html).not.toContain(`>${c.start}</button>`)
+    for (const patch of [
+      { contextConfirmed: false, remaining: 0, expected: 10 },
+      { contextConfirmed: false, prompts: 0, variants: 0, expected: 0 },
+    ]) {
+      const blocked = render(lang, { options: { ...options, enabled: false, ...patch } })
+      expect(blocked).toContain(c.paused)
+      expect(blocked).toContain(c.blockers.context_missing)
+      if (patch.remaining === 0) expect(blocked).toContain(c.blockers.quota_exceeded)
+      if (patch.prompts === 0) {
+        expect(blocked).toContain(c.blockers.no_prompts)
+        expect(blocked).toContain(c.blockers.no_models)
+      }
+    }
   })
   it('shows saved partial counts, source-scoped results and honest reasons', () => {
     const html = render('en', { options: { ...options, currentCanonicalId: 'saved' }, run })

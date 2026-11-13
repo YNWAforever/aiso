@@ -774,8 +774,22 @@ cover exact result scope, deferred cross-card locking, identical append retry,
 lost create acknowledgement, pending generation, HKT rollover, lost paid-action
 reply and malformed success bodies. They use intercepted offline transports, not
 production paid actions. CI integration and canonical deployed acceptance are
-still required before release; final phase-wide accessibility adds the explicit
-320/390/768/1440px action-panel matrix and keyboard focus verification.
+completed for this slice as follows; final phase-wide accessibility adds the
+explicit 320/390/768/1440px action-panel matrix and keyboard focus verification.
+
+Release verification: PR #257 passed every exact-head CI class and aggregate
+`pr-gate` at `5d7893fc05abd23153bcf283c903478fbe4ca842`, then merged as
+`be51657524889f4addffc0bc2a7122a05b35dee9` at 2026-11-13 09:32:26Z. Vercel
+production `dpl_62cAC9ERA5bwRt1H1Vp33cGXUTW8` is Ready and aliased to
+`https://aiso-kappa.vercel.app`; its production build log names main `be51657`,
+records all 107 shipped migrations, and completed at 09:33:09Z. Authenticated
+canonical en/1440px and zh-HK/390px Studio checks returned 200, displayed all three
+action cards and opened/cancelled the scan confirmation. Every non-read request
+was blocked by the acceptance browser, and none was attempted. Both captured
+confirmation screenshots were inspected; they are bounded viewport checks, not
+proof of the full matrix or actual paid execution/persistence. The acceptance
+script waits for the client thread-index GET before interacting, rather than
+clicking server-rendered controls before hydration.
 
 ## SME daily workflow — PR 4: saved evidence to private work draft — 2026-11-13
 
@@ -815,3 +829,67 @@ version submission/review/approval and delivery/attestation regressions. CI
 integration and exact-head aggregate gate plus canonical read-only deployment
 acceptance remain required. All action transports in browser tests are
 intercepted fixtures; production paid operations are not authorized or exercised.
+
+Release verification: PR #258 passed every exact-head CI class and aggregate
+`pr-gate` at `b7dd6bbfa67a1421eb4e44e328cabfb9dff1b9cc`, then merged as
+`7b281370fe93f1ebc14acfcb8af19c7137f1b3d9` at 2026-11-13 09:56:50Z. Ready
+production `dpl_375siTPKxbbwh7gUjiswm4LansPH` is aliased to the canonical host;
+its build names main `7b28137`, all 107 shipped migrations recorded, and
+Build Completed 09:57:23Z. Canonical authenticated Opportunities checks in
+en/1440px and zh-HK/390px returned 200, displayed the new one-draft heading and
+at most one visible finding, and keyboard-opened the evidence disclosure.
+Both cases passed axe/reflow with no page errors and no non-read requests
+attempted (the browser blocks them). Both bounded viewport screenshots were
+inspected. Saving/editing/reopening/version/approval/delivery remain fixture and
+CI evidence, not a claim of production write acceptance.
+
+## SME daily workflow — PR 5 candidate: keyboard and bilingual acceptance
+
+- Studio confirmations now receive focus when opened, support Escape and Cancel
+  returning to the newly mounted opener, and move focus to their action heading
+  after explicit Confirm or append-only retry. Async completion does not steal
+  focus from the owner's next question. Card headings and visible focus outlines
+  are semantic and keyboard-tested.
+- All three Studio confirmations are exercised in en/zh-HK, light/dark and
+  320/390/768/1440px, with 44px action controls, reflow and axe. Cancelling writes
+  nothing; unknown thread creation offers history instead of creating a duplicate.
+  Deferred append retry additionally proves heading focus, identical original
+  save input and preserved composer focus when the save reply arrives.
+- SME monitoring uses a saved-AI-answer heading, not a ranking claim. The paused
+  state and primary Refresh are no longer repeated; all distinct model/question/
+  context/allowance blockers remain visible and secondary Refresh is retained when
+  another primary action is shown. Flag-off heading/presentation remain unchanged.
+- Existing save/list/reload/dirty-draft browser journeys now run in both SME and
+  legacy modes using actual hydrated component variants.
+- Full regression exposed an existing missing ICU `{answers}` argument in the
+  private monthly report page. Pass the raw localized rule-note template to the
+  existing view, which inserts the report's frozen answer threshold. Two strict
+  translator regressions prove both report locales with a non-default saved
+  threshold, including a Chinese report inside English dashboard chrome. This is
+  a one-line read-only copy fix, not a report/schema/movement/publishing change.
+
+Read-only independent review found no introduced correctness/security blocker;
+its suggested append-focus coverage and existing report-template correction are
+included. Release requires every exact-head CI class plus aggregate `pr-gate`,
+then independent canonical Ready deployment/schema-gate verification and the
+64-case read-only matrix (four destinations, two locales/themes, four widths).
+The final deployment identity and matrix results are recorded in this slice's PR
+release-verification comment after merge, not inferred from local fixtures. Paid
+production and brand writes remain outside the approved acceptance scope.
+
+Final candidate local gates on Node 24.22.2 passed: lint 0 errors/warnings,
+typecheck and text audit clean, **8,573 unit tests passed / 15 skipped** (669
+passed files / 1 skipped), production build, **208/208** fixture-generation tests,
+and **700/700** Chromium/mobile browser cases across the twelve daily-workflow
+and downstream regression specs, **zero skips/flakes/unexpected failures**.
+The final run includes the strict report-copy and deferred append-focus checks.
+A preliminary local browser invocation omitted an onboarding fixture directory;
+all twelve setup failures were identified and the complete fixture environment
+was restored for the passing rerun. No product assertions or lint rules were
+weakened to pass validation.
+
+A fresh canonical GET-only diagnosis at 2026-11-13 10:11Z still confirms 10 active
+questions × 5 variants, 50 expected answers, 1,500 allowance remaining, collection
+paused, no canonical/latest run and zero saved answers. Schedule/next-due remain
+unknown; this establishes the current blocker, not a historical root cause or
+scheduler-health claim. No configuration was changed to make acceptance pass.

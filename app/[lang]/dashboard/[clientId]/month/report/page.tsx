@@ -98,7 +98,7 @@ export default async function MonthlyReportPage({ params, searchParams }: {
         visibilityOpening: r('visibility_opening'), visibilityClosing: r('visibility_closing'),
         visibilityChange: r('visibility_change'), visibilityVerdict: r('visibility_verdict'),
         visibilityRising: r('visibility_rising'), visibilityFalling: r('visibility_falling'),
-        visibilityPlatform: r('visibility_platform'), visibilityRuleNote: r('visibility_rule_note'),
+        visibilityPlatform: r('visibility_platform'), visibilityRuleNote: r.raw('visibility_rule_note'),
         search: r('search'), before: r('before'), endOfMonth: r('end_of_month'),
         clicks: r('clicks'), impressions: r('impressions'), notConnected: r('not_connected'), notRecorded: r('not_recorded'), nextMonth: r('next_month'),
       }} /></div> : null}

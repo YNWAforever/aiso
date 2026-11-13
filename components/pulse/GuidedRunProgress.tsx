@@ -63,13 +63,15 @@ export function GuidedRunProgress({ lang, clientId, brandName, options, run, err
   const results = run ? `${base}/observations?run=${encodeURIComponent(run.id)}&week=${encodeURIComponent(run.week)}` : `${base}/observations`
   const currentResults = options?.currentCanonicalId ? `${base}/observations?run=${encodeURIComponent(options.currentCanonicalId)}&week=${encodeURIComponent(options.week)}` : `${base}/observations?result=incomplete`
   const changed = confirmation && (confirmation.signature !== signature || !eligible(confirmation.action))
+  const visibleBlockers = availability?.reasons.filter(reason => reason !== 'paused' || options?.enabled !== false) ?? []
+  const refreshIsPrimary = !!options && !availability?.canStart && !run && availability?.action !== 'view_existing' && availability?.action !== 'edit_prompts'
 
   return <section id="first-monitoring" aria-labelledby="monitoring-heading" aria-busy={busy} className="my-6 space-y-4 rounded-2xl border border-border bg-card p-5 sm:p-6">
     <header><h2 ref={heading} tabIndex={-1} id="monitoring-heading" className="text-xl font-bold">{c.title}</h2>{brandName && <p className="mt-1 text-sm text-muted-foreground">{brandName}</p>}</header>
     {error ? <div role="alert" className="space-y-3"><p>{error}</p>{error === c.planRequired && <Link className={button} href={`/${lang}/pricing`}>{c.viewPlans}</Link>}{error === c.signInRequired && <Link className={button} href={`/${lang}/auth/login`}>{c.signIn}</Link>}<button type="button" className={button} disabled={busy} onClick={refresh}>{copy.refresh}</button></div> : !options ? <p role="status">{copy.loading}</p> : <>
       <p className="text-sm text-muted-foreground">{c.week}: {options.week}</p>
       <p className="font-semibold">{!options.enabled ? c.paused : run ? c.states[run.coverage.status] : availability?.canStart ? c.ready : c.needsAttention}</p>
-      {availability && availability.reasons.length > 0 && <ul className="list-disc space-y-1 pl-5 text-sm" aria-label={copy.availabilityTitle}>{availability.reasons.map(reason => <li key={reason}>{c.blockers[reason]}</li>)}</ul>}
+      {visibleBlockers.length > 0 && <ul className="list-disc space-y-1 pl-5 text-sm" aria-label={copy.availabilityTitle}>{visibleBlockers.map(reason => <li key={reason}>{c.blockers[reason]}</li>)}</ul>}
       {run && <div className="space-y-2" aria-live="polite">
         <p className="text-sm">{run.purpose === 'retest' ? c.retest : c.weekly}: {run.week}</p>
         <p>{fill(c.saved, { saved: run.coverage.succeeded, expected: run.coverage.expected })}</p>
@@ -104,7 +106,7 @@ export function GuidedRunProgress({ lang, clientId, brandName, options, run, err
         {run?.purpose === 'canonical' && run.coverage.status === 'completed' && <button type="button" className={button} disabled={busy} onClick={() => void repair(run.id)}>{copy.repairSummary}</button>}
         {run?.coverage.status === 'completed' && <button type="button" className={button} disabled={!retestReady || busy} onClick={e => request('retest', e.currentTarget)}>{copy.retest}</button>}
         {options.latest && options.latest.id !== run?.id && <Link className={button} href={`${base}/observations?run=${encodeURIComponent(options.latest.id)}&week=${encodeURIComponent(options.latest.week)}`}>{c.latest}</Link>}
-        <button type="button" className={button} disabled={busy} onClick={refresh}>{copy.refresh}</button>
+        {!refreshIsPrimary && <button type="button" className={button} disabled={busy} onClick={refresh}>{copy.refresh}</button>}
       </div></details>
     </>}
   </section>

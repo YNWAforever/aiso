@@ -1456,6 +1456,7 @@
     "step_improve_body": "Draft improvements from your saved website checks. Review each suggestion against its source evidence. Available monitoring samples are shown separately and do not establish that a change improved AI visibility.",
     "step_improve_locked": "Upgrade to unlock the analysis included in your plan. Review website recommendations and available monitoring evidence; comparisons require compatible observations.",
     "step_monitor_title": "Monitor your ranking",
+    "step_monitor_sme_title": "Check saved AI answers",
     "step_monitor_body": "Track your Share of Voice — how often your brand appears in AI-generated answers across all platforms. See which queries you're missing and where competitors are showing up instead.",
     "step_roi_title": "Local trust and enquiry value",
     "step_roi_body": "Show owners how local trust, AI visibility, completed fixes, and estimated enquiry value are moving over time.",
