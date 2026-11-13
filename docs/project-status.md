@@ -1061,9 +1061,9 @@ operation was executed. Populated export behavior is fixture/unit/service/CI evi
 this release does not establish production export-receipt persistence, provider
 execution or SME usability.
 
-## SME execution workflow — PR 4 candidate: reconcile and inspect saved outcomes
+## SME execution workflow — PR 4 released: reconcile and inspect saved outcomes
 
-The verification candidate gives unknown or unconfirmed handoffs a status read instead
+The verification workflow gives unknown or unconfirmed handoffs a status read instead
 of a resend. Scope invalidation, synchronous action locks and read/mutation generations
 reject stale completions and duplicate actions. Receipt completion remains a developer
 claim; check results show their full stored timestamp, and insertion by this check is
@@ -1087,7 +1087,7 @@ available in disclosures. Unsupported schema-2 packages receive an explicit unav
 comparison message without a first-source fallback; authentication/denial messages remain
 distinct. No SQL, public DTO, server gate, endpoint, input or provider policy changed.
 
-The current full local gate has passed **9,056 unit tests / 15 existing skips**
+The release's full local gate passed **9,056 unit tests / 15 existing skips**
 (675 files passed / 1 skipped), complete Next type generation and TypeScript checks,
 full lint with zero errors/warnings, a clean text audit, the Turbopack production build
 and **285 actual fixture tests in 27 files**. The writers generated 30 localized delivery
@@ -1099,5 +1099,45 @@ from these executed local regressions.
 
 Independent production, narrow presentation and test-credibility reviews found no
 blockers. The latter's optional gaps were tightened with deterministic first-observation
-refresh counts and tracking of all non-read request attempts. Full exact-head CI, merge,
-canonical deployment/read acceptance remain pending; this candidate is not released.
+refresh counts and tracking of all non-read request attempts.
+
+Released as [#263](https://github.com/YNWAforever/aiso/pull/263): tested head
+`9f7cb4a9d69c35b1b81027dc4b535aaf4aa1c862`, CI run `43509712044`, all ten required
+jobs successful. Actual CI execution passed **9,071 unit tests**, **425 integration checks**
+and **2,414 browser cases**, with zero skipped/flaky/unexpected browser results. The CI
+checkout tree, candidate tree and merged tree are identical. Merge
+`8ffdbb4d21f234da9b3facca2007f3b0f3d4fc1c` is on canonical Ready deployment
+`dpl_AM4yP7WidEBS423KqeDurEMhJYvj`; full metadata and that production build's
+**107 shipped migrations recorded** gate were verified. No migration was applied.
+
+Canonical acceptance passed **36/36 safe-read cases**, with zero write attempts and
+266 denied unrelated/auth/prefetch reads. All 16 Tasks views showed the real empty state
+with zero rows; retained suggestions remained available. Four canonical screenshots were
+inspected. Populated handoff/check/outcome behavior remains fixture evidence; no production
+export, handoff, check or paid workload was run. Evidence:
+https://github.com/YNWAforever/aiso/pull/263#issuecomment-6865939179 .
+
+## SME execution workflow — PR 5: acceptance checkpoint
+
+The acceptance candidate adds seven disposable-Postgres export-receipt cases joining the
+actual retained-version reader, DTO mapper, renderer and app-role receipt store. They cover
+V1/V2 JSON/text, the real third-member downloader, repeated receipts, exact scope/hash
+binding, receipt-schema/renderer separation, precise UTC and append-only permissions,
+with zero manual delivery attestations. Existing target/role guards and legacy helper
+callers are preserved. Independent source review found no blocker.
+
+At the local acceptance checkpoint, the seven cases had source review and type/lint
+evidence; database execution had not been claimed. After merging the exact released
+verification head, the complete local gate passed **9,056 unit tests / 15 existing skips**,
+full lint with zero errors/warnings, Next type generation/TypeScript, clean text audit,
+production build and **285 actual fixture-generation tests in 27 files**. The scoped
+Chromium/mobile regression passed **1,180/1,180**, with zero skipped/flaky/unexpected
+results. All eight representative fixture screenshots match the inspected verification
+images byte-for-byte.
+
+The mandatory exact-target CI result must prove that every new database case actually
+ran. Final-head CI, merge, canonical Ready SHA/schema gate, guarded read acceptance and
+inspected canonical screenshots are recorded in the acceptance PR's checks and post-merge
+release receipt. The [acceptance matrix](./ux/sme-execution-acceptance.md) keeps those
+receipts separate from the pre-gate checkpoint and does not infer production persistence,
+provider execution or representative SME usability from fixtures.

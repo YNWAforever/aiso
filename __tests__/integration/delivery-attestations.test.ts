@@ -3,8 +3,12 @@ import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assertApprovedTarget } from './approved-target'
 import { draft } from '../change-sets/fixtures'
-import { freezeReview } from '@/lib/change-sets/validation'
-import { attestDelivery, readDelivery, readDeliveryVersion, withdrawDelivery } from '@/lib/delivery/store'
+import { freezeMultiSourceReview, freezeReview } from '@/lib/change-sets/validation'
+import { attestDelivery, readDelivery, readDeliveryVersion, recordExportEvent, withdrawDelivery } from '@/lib/delivery/store'
+import { createDeliveryExport } from '@/lib/delivery/export'
+import type { ActorSnapshot } from '@/lib/change-sets/types'
+import type { WorkItem } from '@/lib/work-items/schema'
+import { approvedMultiSourceVersion } from '../delivery/multi-source-fixtures'
 import { submitVersion } from '@/lib/change-sets/store'
 import type { AttestInput, DeliveryScope } from '@/lib/delivery/types'
 const storeConnection = vi.hoisted(() => ({ sql: null as NeonQueryFunction<false, false> | null }))
@@ -14,7 +18,8 @@ vi.mock('@/lib/db', () => ({ db: () => {
 } }))
 vi.mock('server-only', () => ({}))
 
-// AUTHORED / UNRUN. Exact disposable target approval and migrations through 043 are external gates.
+// Exact disposable target approval and schema replay are external harness gates.
+// Export-receipt cases additionally exercise 045's ledger and 051's V2 content.
 // No provisioning, environment-file loading, migration application or cleanup here.
 const project = process.env.C9E_DISPOSABLE_PROJECT_ID
 const branch = process.env.C9E_DISPOSABLE_BRANCH_ID
@@ -77,8 +82,9 @@ describe.skipIf(!optedIn)('delivery constraints on an exact disposable target', 
     deliveredAt=clock.time
   })
 
-  async function createVersion(number: number, decision: 'approved' | 'changes_requested' | null, decidedAt: string | null = null, workItemId = item) {
-    const frozen=freezeReview({...draft(),id:workItemId,clientId:client,revision:number})
+  async function createVersion(number: number, decision: 'approved' | 'changes_requested' | null, decidedAt: string | null = null, workItemId = item, sources?: WorkItem['evidenceSnapshot'][]) {
+    const value = { ...draft(), id: workItemId, clientId: client, revision: number }
+    const frozen = sources ? freezeMultiSourceReview(value, sources) : freezeReview(value)
     const version=randomUUID(), approval=randomUUID()
     await owner`insert into work_item_versions (id,account_id,client_id,work_item_id,version_number,draft_revision,content,content_hash,validation,submitter) values (${version},${account},${client},${workItemId},${number},${number},${JSON.stringify(frozen.content)}::jsonb,${frozen.contentHash},${JSON.stringify(frozen.validation)}::jsonb,${JSON.stringify(actor(author))}::jsonb)`
     if (decision !== null) await owner`insert into work_item_decisions (id,account_id,client_id,work_item_id,version_id,content_hash,decision,reason,actor_id,actor,grant_revision,grant_event_id,request_id,decided_at) values (${approval},${account},${client},${workItemId},${version},${frozen.contentHash},${decision},'Fixture review',${reviewer},${JSON.stringify(actor(reviewer,'account_approver'))}::jsonb,1,${grant},${randomUUID()},COALESCE(${decidedAt}::timestamptz,clock_timestamp()))`
@@ -358,6 +364,99 @@ describe.skipIf(!optedIn)('delivery constraints on an exact disposable target', 
       expect(ids.length).toBeLessThanOrEqual(3)
     } while (cursor)
     expect(ids).toEqual([original, withdrawalId, replacementId].sort().reverse())
+  })
+
+  // Exercise the real app SQL -> retained DTO -> renderer -> append-only receipt
+  // path. These are export observations, never manual delivery attestations.
+  async function exportFixture(schemaVersion: 1 | 2) {
+    const sources = schemaVersion === 2 ? approvedMultiSourceVersion().evidenceSnapshots : undefined
+    let versionId = version
+    if (sources) {
+      await prepareNextDraft()
+      versionId = (await createVersion(2, 'approved', null, item, sources)).version
+    }
+    const downloader: ActorSnapshot = { profileId: randomUUID(), displayName: 'Export downloader', role: 'account_member' }
+    await owner`insert into neon_auth.user (id,email,name,"emailVerified") values (${downloader.profileId},${`${downloader.profileId}@example.test`},'Export downloader',false)`
+    await owner`insert into profiles (id,account_id,display_name) values (${downloader.profileId},${account},'Export downloader')`
+    const scope = { ...deliveryScope(), versionId, actorId: downloader.profileId }
+    const result = await readDeliveryVersion(scope)
+    if (!('value' in result)) throw new Error('Expected approved retained export fixture')
+    expect(result.value.schemaVersion).toBe(schemaVersion)
+    expect(result.value.decision?.decision).toBe('approved')
+    expect(result.value.submittedBy.profileId).not.toBe(downloader.profileId)
+    expect(result.value.decision?.decidedBy.profileId).not.toBe(downloader.profileId)
+    if (result.value.schemaVersion === 2) expect(result.value.evidenceSnapshots).toEqual(sources)
+    return { scope, retained: result.value, downloader }
+  }
+  function exportRows(scope: DeliveryScope) {
+    return app`select id,schema_version,account_id,client_id,work_item_id,version_id,content_hash,
+      artifact_hash,format,renderer_version,actor_id,actor,
+      to_char(exported_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') exported_at
+      from work_item_export_events where account_id=${scope.accountId} and client_id=${scope.clientId}
+        and work_item_id=${scope.itemId} and version_id=${scope.versionId} and actor_id=${scope.actorId}
+      order by exported_at,id`
+  }
+  it.each([[1, 'json'], [1, 'text'], [2, 'json'], [2, 'text']] as const)('persists a V%i %s export receipt through the actual application role', async (schemaVersion, format) => {
+    const { scope, retained, downloader } = await exportFixture(schemaVersion)
+    const artifact = createDeliveryExport(retained, format)
+    expect(await recordExportEvent(scope, { contentHash: retained.contentHash, artifactHash: artifact.exportHash,
+      format, rendererVersion: artifact.rendererVersion, actor: downloader })).toBe(true)
+    const rows = await exportRows(scope)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ schema_version: 1, account_id: account, client_id: client, work_item_id: item,
+      version_id: retained.id, content_hash: retained.contentHash, artifact_hash: artifact.exportHash,
+      format, renderer_version: `delivery-export.v${schemaVersion}`, actor_id: downloader.profileId, actor: downloader })
+    expect(rows[0].exported_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/)
+    expect(await eventCount()).toBe(0)
+  })
+  it('records repeated V2 downloads separately while both formats identify the same canonical envelope', async () => {
+    const { scope, retained, downloader } = await exportFixture(2)
+    for (const format of ['json', 'text', 'json'] as const) {
+      const artifact = createDeliveryExport(retained, format)
+      expect(await recordExportEvent(scope, { contentHash: retained.contentHash, artifactHash: artifact.exportHash,
+        format, rendererVersion: artifact.rendererVersion, actor: downloader })).toBe(true)
+    }
+    const rows = await exportRows(scope)
+    expect(rows).toHaveLength(3)
+    expect(new Set(rows.map(row => row.id)).size).toBe(3)
+    expect(new Set(rows.map(row => row.artifact_hash)).size).toBe(1)
+    expect(rows.filter(row => row.format === 'json')).toHaveLength(2)
+    expect(rows.filter(row => row.format === 'text')).toHaveLength(1)
+    expect(rows.every(row => row.renderer_version === 'delivery-export.v2' && row.actor_id === downloader.profileId)).toBe(true)
+    expect(await eventCount()).toBe(0)
+  })
+  it('returns false and writes no receipt for mismatched V2 tenant/version/hash bindings', async () => {
+    const { scope, retained, downloader } = await exportFixture(2)
+    const artifact = createDeliveryExport(retained, 'json')
+    const input = { contentHash: retained.contentHash, artifactHash: artifact.exportHash,
+      format: 'json' as const, rendererVersion: artifact.rendererVersion, actor: downloader }
+    for (const field of ['accountId', 'clientId', 'itemId', 'versionId'] as const) {
+      expect(await recordExportEvent({ ...scope, [field]: field === 'accountId' ? otherAccount : randomUUID() }, input)).toBe(false)
+    }
+    const changedHash = retained.contentHash.replace(/^./, value => value === '0' ? '1' : '0')
+    expect(await recordExportEvent(scope, { ...input, contentHash: changedHash })).toBe(false)
+    expect(await exportRows(scope)).toEqual([])
+    expect(await eventCount()).toBe(0)
+  })
+  it('keeps actual V2 export receipts append-only for the application role', async () => {
+    const { scope, retained, downloader } = await exportFixture(2)
+    const artifact = createDeliveryExport(retained, 'text')
+    expect(await recordExportEvent(scope, { contentHash: retained.contentHash, artifactHash: artifact.exportHash,
+      format: 'text', rendererVersion: artifact.rendererVersion, actor: downloader })).toBe(true)
+    const [grants] = await app`select current_user role,
+      has_table_privilege(current_user,'public.work_item_export_events','SELECT') r,
+      has_table_privilege(current_user,'public.work_item_export_events','INSERT') i,
+      has_table_privilege(current_user,'public.work_item_export_events','UPDATE') u,
+      has_table_privilege(current_user,'public.work_item_export_events','DELETE') d,
+      has_table_privilege(current_user,'public.work_item_export_events','TRUNCATE') t`
+    expect(grants).toEqual({ role: 'aeo_app', r: true, i: true, u: false, d: false, t: false })
+    const before = await exportRows(scope), id = before[0].id
+    await expect(app`update work_item_export_events set renderer_version='changed'
+      where account_id=${account} and client_id=${client} and work_item_id=${item} and version_id=${retained.id} and id=${id}`).rejects.toMatchObject({ code: '42501' })
+    await expect(app`delete from work_item_export_events
+      where account_id=${account} and client_id=${client} and work_item_id=${item} and version_id=${retained.id} and id=${id}`).rejects.toMatchObject({ code: '42501' })
+    expect(await exportRows(scope)).toEqual(before)
+    expect(await eventCount()).toBe(0)
   })
 
   it('actual malformed retained package is validation_failed and cannot create an event', async () => {
