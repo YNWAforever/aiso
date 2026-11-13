@@ -3317,6 +3317,36 @@
     }
   },
   "outcomes": {
+    "sme": {
+      "context": "已儲存的比較脈絡",
+      "anchorState": "已記錄的交付基準",
+      "anchorStates": {
+        "active": "有效的已記錄基準",
+        "no-delivery": "沒有已記錄的交付基準",
+        "withdrawn": "已記錄基準已撤回"
+      },
+      "deliveredAt": "基準保留的交付時間",
+      "recordedAt": "基準記錄時間",
+      "anchorId": "已記錄基準參考",
+      "anchorLimitation": "這些時段以已記錄的交付基準計算。本次成效讀取不包含其來源脈絡，因此無法確定交付是如何記錄或核實的。",
+      "noDelivery": "必須有有效的已記錄交付基準，才能推算比較時段。",
+      "anchorWithdrawn": "已記錄基準已撤回，已停止以此基準比較。",
+      "intervalPolicy": "D7、D28 及 D56 是儲存證據的比較時段，分別於已記錄交付時間後經過 7、28 及 56 個 UTC 日開始。每個時段恰好涵蓋七日 [開始, 開始 + 7 日)，包含開始時間，不包含結束時間。這些並非未來收集排程。重新整理只讀取儲存證據。",
+      "comparisonLimitation": "請一併閱讀變化、比較基礎及證據限制。儲存的技術觀察並不證明搜尋排名、業務影響或因果關係。",
+      "notComparable": "這些紀錄不足以建立可比較成效，請分別閱讀保留結果及限制。",
+      "pathLimitation": "未保留最終路徑識別，無法證實兩次檢查的是同一頁；部分可比較結果僅供參考。",
+      "pulseUnranked": "Pulse 結果描述收集是否完成，不會排列為改善或倒退。",
+      "noSelectedEvidence": "此時段未選取任何儲存觀察，並不代表結果為零。",
+      "multiSourceUnavailable": "目前未能提供多來源套件比較。本次讀取無法傳回此已儲存套件的成效；重新整理只會重試讀取儲存證據。",
+      "sourceDetails": "來源識別碼",
+      "technicalDetails": "版本及評估詳情",
+      "schema": "成效結構版本",
+      "client": "品牌參考",
+      "item": "任務參考",
+      "truncated": "候選選取受限",
+      "yes": "是",
+      "no": "否"
+    },
     "title": "儲存證據成效",
     "limitation": "此讀取僅反映當時狀態；來源修改、刪除、延遲匯入或撤回均可能改變結果，並不證明影響或因果關係。",
     "refresh": "重新整理成效",

@@ -3317,6 +3317,36 @@
     }
   },
   "outcomes": {
+    "sme": {
+      "context": "Saved comparison context",
+      "anchorState": "Recorded delivery anchor",
+      "anchorStates": {
+        "active": "Active recorded anchor",
+        "no-delivery": "No recorded delivery anchor",
+        "withdrawn": "Recorded anchor withdrawn"
+      },
+      "deliveredAt": "Delivery time retained in the anchor",
+      "recordedAt": "Anchor recorded at",
+      "anchorId": "Recorded anchor reference",
+      "anchorLimitation": "These windows use the recorded delivery anchor. This outcome read does not include its provenance, so it cannot establish how delivery was recorded or verified.",
+      "noDelivery": "An active recorded delivery anchor is needed to derive comparison windows.",
+      "anchorWithdrawn": "The recorded anchor was withdrawn; comparisons under it are disabled.",
+      "intervalPolicy": "D7, D28 and D56 are stored-evidence comparison windows starting 7, 28 and 56 elapsed UTC days after the recorded delivery time. Each spans exactly seven days [start, start + 7 days), including the start and excluding the end. These are not scheduled future collections. Refresh only reads stored evidence.",
+      "comparisonLimitation": "Read the change with its comparison basis and evidence limits. Stored technical observations do not establish search ranking, business impact or causality.",
+      "notComparable": "These records do not support a comparable outcome. Read the retained results and limits separately.",
+      "pathLimitation": "Final-path identity was not retained. The two runs cannot be proven to have checked the same page; a partial comparison is indicative only.",
+      "pulseUnranked": "Pulse results describe collection completion and are not ranked as improvement or regression.",
+      "noSelectedEvidence": "No stored observation is selected for this window; this is not a zero result.",
+      "multiSourceUnavailable": "Multi-source package comparisons are not currently available. This read could not return outcomes for this saved package. Refresh only retries the stored-evidence read.",
+      "sourceDetails": "Source identifier",
+      "technicalDetails": "Version and evaluation details",
+      "schema": "Outcome schema version",
+      "client": "Brand reference",
+      "item": "Task reference",
+      "truncated": "Candidate selection limited",
+      "yes": "Yes",
+      "no": "No"
+    },
     "title": "Stored evidence outcomes",
     "limitation": "This point-in-time read can change after source edits, deletion, late ingestion or withdrawal. It does not establish impact or causality.",
     "refresh": "Refresh outcomes",
