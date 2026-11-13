@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { OutcomeReadError, OutcomeWindows } from '@/components/outcomes/OutcomeWindows'
 import { OutcomeWorkspace } from '@/components/outcomes/OutcomeWorkspace'
 import { VersionWorkspace } from '@/components/change-sets/VersionWorkspace'
-import { OUTCOME_REASON_CODES, type SafeEvidence } from '@/lib/outcomes/types'
+import { OUTCOME_REASON_CODES, type OutcomeComparison, type SafeEvidence } from '@/lib/outcomes/types'
 import { parseOutcomeResponse } from '@/lib/outcomes/dto'
 import { outcome, outcomes } from './c9f-fixtures'
 import { fixtureProps } from './c9e-fixtures'
@@ -48,7 +48,7 @@ describe('SME stored comparison presentation', () => {
     { name: 'different method', baseline, selected: { ...selected, reasons: ['different-methods-or-scope'] }, status: 'not_comparable', change: 'cannot_determine' },
     { name: 'incomplete evidence', baseline, selected: { ...selected, reasons: ['incomplete-collection'] }, status: 'insufficient_evidence', change: 'cannot_determine' },
     { name: 'not observed yet', baseline, selected: null, status: 'insufficient_evidence', change: 'not_yet_observed' },
-  ] as const
+  ] satisfies Array<{ name: string; baseline: SafeEvidence; selected: SafeEvidence | null; status: OutcomeComparison['status']; change: OutcomeComparison['outcome'] }>
   for (const lang of ['en', 'zh-HK']) {
     const copy = lang === 'en' ? en.outcomes : zh.outcomes
     const visible = (html: string) => html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '')

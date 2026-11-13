@@ -9,11 +9,13 @@ import {
   type HandoffAction, type HandoffReadState,
 } from '@/lib/site-edit/handoff-read-view'
 
-type Session = { scope: object; active: boolean; state: HandoffReadState; controller: AbortController }
+type HandoffScope = { endpoint: string; contentHash: string; decisionKey: string }
+type Session = { scope: HandoffScope; active: boolean; state: HandoffReadState; controller: AbortController }
 type HandoffPanelProps = {
   clientId: string
   version: VersionDetail
   smeCopilot?: boolean
+  emphasize?: boolean
   /**
    * Invalidates existing delivery/outcome READS; do not remount their forms.
    * The first validated GET in each client/item/version/hash/decision scope
@@ -30,7 +32,7 @@ type HandoffPanelProps = {
 }
 
 /** Server capabilities authorize actions; receipts remain developer claims. */
-export function HandoffPanel({ clientId, version, smeCopilot = false, onRecordedChange }: HandoffPanelProps) {
+export function HandoffPanel({ clientId, version, smeCopilot = false, emphasize = true, onRecordedChange }: HandoffPanelProps) {
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(version.workItemId)}/versions/${encodeURIComponent(version.id)}/handoff`
   const decisionKey = JSON.stringify(version.decision)
   const scope = useMemo(() => ({ endpoint, contentHash: version.contentHash, decisionKey }), [endpoint, version.contentHash, decisionKey])
@@ -124,26 +126,27 @@ export function HandoffPanel({ clientId, version, smeCopilot = false, onRecorded
     if (reconcile && current(session)) await load()
   }
 
-  return <HandoffPanelView version={version} state={state} smeCopilot={smeCopilot} onSend={() => { void post('send') }} onCheck={() => { void post('check') }} onRefresh={() => { void load(true) }} />
+  return <HandoffPanelView version={version} state={state} smeCopilot={smeCopilot} emphasize={emphasize} onSend={() => { void post('send') }} onCheck={() => { void post('check') }} onRefresh={() => { void load(true) }} />
 }
 
 type HandoffPanelViewProps = {
   version: VersionDetail
   state: HandoffReadState
   smeCopilot?: boolean
+  emphasize?: boolean
   onSend: () => void
   onCheck: () => void
   onRefresh: () => void
 }
 /** Presentation export also permits SSR contract tests without mocking hooks. */
-export function HandoffPanelView({ version, state, smeCopilot = false, onSend, onCheck, onRefresh }: HandoffPanelViewProps) {
+export function HandoffPanelView({ version, state, smeCopilot = false, emphasize = true, onSend, onCheck, onRefresh }: HandoffPanelViewProps) {
   const t = useTranslations('siteEditHandoff')
   const handoff = state.handoff, busy = state.busy !== null
   const removal = version.editSpec?.kind === 'jsonld_remove'
   const primary = handoffPrimaryAction(state, removal)
   const button = 'min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50'
   const smeButton = button + ' max-w-full whitespace-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
-  const actionClass = (action: 'send' | 'check' | 'refresh') => smeButton + (primary === action ? ' bg-primary text-primary-foreground' : '')
+  const actionClass = (action: 'send' | 'check' | 'refresh') => smeButton + (emphasize && primary === action ? ' bg-primary text-primary-foreground' : '')
   const canSend = handoffCanSend(state), canCheck = handoffCanCheck(state)
   const matched = handoff?.liveCheck?.outcome === (removal ? 'missing' : 'found')
   if (!smeCopilot) return (

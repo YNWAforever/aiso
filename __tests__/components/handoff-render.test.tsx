@@ -3,6 +3,8 @@ import { renderToString } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
 import { HandoffPanel, HandoffPanelView } from '@/components/site-edit/HandoffPanel'
 import { freezeReview } from '@/lib/change-sets/validation'
+import { parseVersionDetail } from '@/lib/change-sets/read-view'
+import { createDeliveryExport } from '@/lib/delivery/export'
 import type { VersionDetail } from '@/lib/change-sets/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import {
@@ -53,6 +55,15 @@ const markup = (text: string) => renderToString(<>{text}</>)
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn(() => { throw Error('SSR must not fetch') })) })
 afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals() })
 
+it('uses genuinely frozen V1/V2 specs and valid approved read DTOs', () => {
+  for (const saved of [version, removal, multi]) {
+    const parsed = parseVersionDetail(saved, saved.workItemId)
+    expect(parsed.editSpec).toEqual(saved.editSpec)
+    expect(parsed.decision?.decision).toBe('approved')
+    expect(createDeliveryExport(parsed, 'json').rendererVersion).toBe(`delivery-export.v${parsed.schemaVersion}`)
+  }
+})
+
 // These are render contracts over real view/state code. They do not execute
 // hydrated effects, event handlers, cross-scope promises or callback integration.
 describe.each(['en', 'zh-HK'])('handoff SSR contract (%s)', lang => {
@@ -99,6 +110,19 @@ describe.each(['en', 'zh-HK'])('handoff SSR contract (%s)', lang => {
       expect(primary(html)[0]).not.toContain('disabled=""')
       expect(html).toContain(copy.sme.refresh)
       expect(html).not.toContain(copy.live.check)
+    }
+  })
+  it('keeps permitted handoff actions secondary while the parent has the primary step', () => {
+    const read = beginHandoffRead(initialHandoffReadState())!
+    const unavailable = failHandoffRead(read.state, read.token)!
+    for (const state of [ready(), ready(sent()), ready(view({ state: 'unknown', jobId, lastEventAt: at })), unavailable]) {
+      const normal = renderView(state)
+      const secondary = render(<HandoffPanelView version={version} state={state} smeCopilot emphasize={false} onSend={noop} onCheck={noop} onRefresh={noop} />, lang)
+      expect(primary(normal)).toHaveLength(1)
+      expect(primary(secondary)).toHaveLength(0)
+      expect(controls(secondary)).toHaveLength(controls(normal).length)
+      expect(controls(secondary).filter(button => button.includes('disabled=""'))).toHaveLength(controls(normal).filter(button => button.includes('disabled=""')).length)
+      expect(secondary).toContain(copy.sme.refresh)
     }
   })
   it('permits a fresh failed retry only when the server permits it', () => {
