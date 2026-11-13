@@ -894,7 +894,7 @@ paused, no canonical/latest run and zero saved answers. Schedule/next-due remain
 unknown; this establishes the current blocker, not a historical root cause or
 scheduler-health claim. No configuration was changed to make acceptance pass.
 
-## SME execution workflow — PR 1 candidate: resume saved work
+## SME execution workflow — PR 1 released: resume saved work
 
 The [approved five-PR execution phase](ux/sme-execution-workflow.md) continues from
 saved drafts to explicit review, delivery and verification. It does not authorize
@@ -925,5 +925,57 @@ A preliminary browser run found twelve obsolete SME heading expectations; the
 assertions now check the new heading and keyboard-open the saved evidence before
 checking its exact original content. Duplicate-write/focus/conflict assertions
 remain intact; the complete suite was rerun, not only the failures.
-Exact-head complete CI and canonical read-only release acceptance remain pending;
-no production draft persistence or real SME usability acceptance is claimed.
+Released as [#260](https://github.com/YNWAforever/aiso/pull/260), exact tested head
+`a76cadc032d631ba9d9d03559016a51c86794683`, merge
+`c6e37e6bc5f933fc5e8d0d5b4ff65e4ed52aa96c`. All six CI classes, four browser
+shards and aggregate `pr-gate` passed. Canonical alias independently resolved to
+Ready `dpl_G6yypMBuPaDw6s9G4nSTXkghyyCv`; exact merge metadata and production
+build's **107 shipped migrations recorded** gate were verified. No migration applied.
+At 2026-11-13 23:23 HKT, **32/32 live read-only cases** passed: both entry pages ×
+en/zh-HK × light/dark × 320/390/768/1440, zero page errors, axe violations or
+horizontal reflow failures; four local screenshots inspected. The owned brand's
+Tasks are empty (all 16 Tasks views, zero rows); Opportunities shows retained scan
+suggestions. Populated save/ack/conflict/reload evidence is hydrated-fixture/CI only,
+not live persistence or SME usability acceptance. Explicit safe-read allowlists
+recorded 18 blocked unreviewed GET/auth/navigation-prefetch requests in the final
+browser context (the original verifier did not aggregate denied reads across contexts).
+No business write was attempted in any case, and audited GET exports were neither
+allowed nor invoked.
+[Durable release evidence](https://github.com/YNWAforever/aiso/pull/260#issuecomment-6857464466).
+The remaining four slices are not yet released.
+
+## SME execution workflow — PR 2 candidate: review frozen work
+
+The existing SME flag selects guided version review: explicit server-identified
+latest detail, saved-draft versus frozen revision, historical inspection, intentional
+review choice, independent-review waiting and a concrete return-to-draft link after
+changes requested. A same-revision submission is not advertised as a new version.
+All frozen V1/V2 sources retain saved order, duplicate sources, original copy/language,
+limitations and complete escaped technical snapshots. No current source is fetched
+or reinterpreted to replace frozen evidence.
+
+Transport checks bind item/version/hash/revision/schema/number before accepting a
+detail or decision acknowledgement. Pending, failed, denied and malformed responses
+retain review inputs and normalized retry identity. Brand/item scope remounts fence
+late callbacks; explicit historical selection and dirty review/delivery fields survive
+unrelated reads. Newer validated terminal detail also updates its matching summary;
+older pending history cannot reverse that observation. Existing uppercase UUID URLs
+canonicalize to the existing database identity. Legacy approved default, backend
+contracts and delivery/handoff/outcome mounts are retained.
+
+Focused **168/168** decoder/page/SSR checks, typecheck and targeted lint passed.
+The first hydrated review/delivery run passed **228/236**, with eight failures from
+a contradictory legacy pending fixture (its list was approved while detail was
+pending); the fixture now consistently describes pending review and has its own SSR
+regression. An expanded diagnostic run passed **844/848**; its four failures were one
+new outage fixture reused without a saved draft, while the tested real page retains
+the successfully read draft. The SME-only fixture now retains that draft and has two
+additional bilingual SSR checks; legacy outage data and all browser assertions remain.
+The updated full candidate passes lint zero errors/warnings, typecheck, text audit,
+**8,732 unit tests / 15 skipped** (671 files passed / 1 skipped), production build
+and **219 fixture tests**. The complete Chromium/mobile browser rerun passed
+**848/848** in 14.4 minutes, zero skipped/flaky/unexpected results. Selected
+bilingual desktop/mobile screenshots were inspected. Exact-head CI and canonical
+release acceptance remain pending.
+No production approval, audited export, delivery, handoff, live check or paid operation
+was executed.

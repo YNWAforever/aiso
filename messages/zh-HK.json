@@ -3103,7 +3103,32 @@
     "editSpecPageTitle": "頁面標題",
     "editSpecDescription": "Meta 描述",
     "editSpecUnchanged": "不變",
-    "editSpecLlmsTxtTitle": "網站修改：llms.txt"
+    "editSpecLlmsTxtTitle": "網站修改：llms.txt",
+    "sme": {
+      "title": "審批已保存內容",
+      "chooseDecision": "請選擇審批決定",
+      "discardReview": "捨棄審批修改",
+      "finishReview": "審批選擇同已輸入原因已保留。完成審批或明確捨棄呢啲修改之後，先切換版本。",
+      "independentReview": "提交時，系統會核對審批權限，以及審批者係咪同內容作者獨立。批准唔代表已交付或已驗證。",
+      "frozenSources": "呢個版本保留嘅證據",
+      "sourceNumber": "已保存來源 {number}",
+      "frozenTechnical": "完整已保存來源記錄",
+      "packageRecord": "版本記錄及資料檢查",
+      "english": "英文",
+      "chinese": "繁體中文（香港）",
+      "prepare": "建立審批版本",
+      "review": "審閱呢個固定版本",
+      "wait": "等待獨立成員審批",
+      "approved": "已記錄批准",
+      "revise": "睇修改意見再修訂",
+      "historical": "正在查看較早版本",
+      "newerDraft": "已保存草稿有較新修改，並未包括喺呢個固定版本入面。",
+      "savedDraft": "已保存草稿及重新載入",
+      "history": "其他版本及重新載入",
+      "downstream": "交付及已記錄結果",
+      "backToThisDraft": "返回呢份草稿",
+      "unsaved": "未保存嘅審批或交付內容會遺失。確定離開呢個頁面？"
+    }
   },
   "approverAccess": {
     "title": "帳戶審核員",

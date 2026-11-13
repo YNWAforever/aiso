@@ -11,6 +11,8 @@ import {
   access,
 } from '../../__tests__/components/c9d-fixtures'
 import { outcome } from '../../__tests__/components/c9f-fixtures'
+import type { VersionDetail } from '../../lib/change-sets/types'
+import type { VersionWorkspaceProps } from '../../components/change-sets/VersionWorkspace'
 const errors = new WeakMap<Page, string[]>()
 async function fixture(
   page: Page,
@@ -600,4 +602,240 @@ for (const lang of ['en', 'zh-HK']) {
       page.getByRole('button', { name: c.recordDecision, exact: true }),
     ).toBeEnabled()
   })
+}
+
+async function reviewProps(page: Page): Promise<VersionWorkspaceProps> {
+  return JSON.parse((await page.locator('#fixture-props').textContent())!).props
+}
+function decided(saved: VersionDetail, decision: 'approved' | 'changes_requested', reason: string): VersionDetail {
+  return { ...saved, decision: { decision, reason, decidedBy: { profileId: '88888888-8888-4888-8888-888888888888', displayName: 'Independent reviewer', role: 'account_approver' }, decidedAt: '2026-09-07T00:00:00.123456Z' }, capabilities: { canDecide: false } }
+}
+for (const lang of ['en','zh-HK']) {
+  test(`SME requires explicit choice, preserves choice-only edits and discards to unset ${lang}`, async ({ page }) => {
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'sme')
+    let writes = 0
+    await page.route('**/versions/*/decision', route => { writes++; return route.fulfill({ status: 503, json: {} }) })
+    const choice = page.getByLabel(c.decision, { exact: true }), record = page.getByRole('button', { name: c.recordDecision, exact: true })
+    await expect(choice).toHaveValue('')
+    await expect(record).toBeDisabled()
+    await choice.locator('..').evaluate(form => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+    await expect(page.getByRole('alert')).toHaveText(c.sme.chooseDecision)
+    await expect(choice).toBeFocused()
+    await choice.selectOption('approved')
+    await expect(page.getByText(c.sme.finishReview, { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: new RegExp((lang === 'en' ? 'Version 1' : '版本 1') + ' ·') })).toBeDisabled()
+    page.once('dialog', async dialog => { expect(dialog.message()).toBe(c.sme.unsaved); await dialog.dismiss() })
+    await page.getByRole('link', { name: c.backToDrafts, exact: true }).click()
+    await expect(page).toHaveURL(`https://review.fixture/${lang}`)
+    await expect(choice).toHaveValue('approved')
+    await page.getByRole('button', { name: c.sme.discardReview, exact: true }).click()
+    await expect(choice).toHaveValue('')
+    await expect(record).toBeDisabled()
+    await expect(page.getByRole('button', { name: new RegExp((lang === 'en' ? 'Version 1' : '版本 1') + ' ·') })).toBeEnabled()
+    expect(writes).toBe(0)
+  })
+  for (const failure of ['403','409','evidence-changed','503','network','json','foreign-item','foreign-id','hash','revision','number','schema','missing-decision','decision','reason']) {
+    test(`SME ${failure} retains choice, reason and exact normalized retry identity ${lang}`, async ({ page }) => {
+      const { changeSets: c } = await fixture(page, lang, 'C9D', ['hash','revision','schema'].includes(failure) ? 'smeV2' : 'sme')
+      const saved = (await reviewProps(page)).initialVersion!, bodies: Record<string, unknown>[] = []
+      await page.route('**/versions/*/decision', route => {
+        const body = route.request().postDataJSON(); bodies.push(body)
+        if (bodies.length > 1) return route.fulfill({ status: 503, json: {} })
+        if (failure === 'network') return route.abort('failed')
+        if (failure === 'json') return route.fulfill({ status: 200, contentType: 'application/json', body: '{' })
+        if (['403','409','503','evidence-changed'].includes(failure)) return route.fulfill({ status: failure === 'evidence-changed' ? 409 : Number(failure), json: { error: failure === 'evidence-changed' ? 'EVIDENCE_CHANGED' : 'CHANGE_SET_UNAVAILABLE' } })
+        const ack = decided(saved, 'approved', 'Café')
+        const change = failure === 'foreign-item' ? { workItemId: clientId } : failure === 'foreign-id' ? { id: clientId } : failure === 'hash' ? { contentHash: 'f'.repeat(64) } : failure === 'revision' ? { draftRevision: saved.draftRevision + 1 } : failure === 'number' ? { versionNumber: saved.versionNumber + 1 } : failure === 'schema' ? { schemaVersion: saved.schemaVersion === 1 ? 2 : 1 } : failure === 'missing-decision' ? { decision: null } : { decision: { ...ack.decision!, ...(failure === 'decision' ? { decision: 'changes_requested' } : { reason: 'Different reason' }) } }
+        return route.fulfill({ json: { version: { ...ack, ...change } } })
+      })
+      const choice = page.getByLabel(c.decision, { exact: true }), reason = page.getByLabel(c.reason, { exact: true }), record = page.getByRole('button', { name: c.recordDecision, exact: true })
+      await choice.selectOption('approved'); await reason.fill('  Cafe\u0301  '); await record.click()
+      await expect(page.getByRole('alert')).toHaveText(failure === '403' ? c.denied : ['409','evidence-changed'].includes(failure) ? c.conflict : c.unavailable)
+      await expect(choice).toHaveValue('approved'); await expect(reason).toHaveValue('  Cafe\u0301  '); await expect(reason).toBeFocused()
+      await reason.fill('Café'); await record.click()
+      await expect(page.getByRole('alert')).toHaveText(c.unavailable)
+      expect(bodies).toHaveLength(2); expect(bodies[0]).toEqual(bodies[1]); expect(bodies[0]).toEqual({ decision: 'approved', reason: 'Café', requestId: expect.any(String) })
+      await choice.selectOption('changes_requested'); await record.click()
+      await expect(page.getByRole('alert')).toHaveText(c.unavailable)
+      expect(bodies).toHaveLength(3); expect(bodies[2].requestId).not.toBe(bodies[1].requestId)
+      await expect(choice).toHaveValue('changes_requested'); await expect(reason).toHaveValue('Café')
+      await page.getByRole('button', { name: c.sme.discardReview, exact: true }).click()
+      await expect(choice).toHaveValue('')
+    })
+  }
+  test(`SME decision stays live during history and outranks the deferred pending response ${lang}`, async ({ page }) => {
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'sme')
+    let release!: () => void, reads = 0, writes = 0
+    const gate = new Promise<void>(resolve => { release = resolve })
+    await page.route('**/work-items/*/versions', async route => { reads++; await gate; return route.fulfill({ json: initial }) })
+    await page.route('**/versions/*/decision', route => { writes++; return route.fulfill({ json: { version: decided(version, 'approved', 'Intentional independent review') } }) })
+    await page.getByRole('button', { name: c.reloadHistory, exact: true }).click()
+    await expect.poll(() => reads).toBe(1)
+    try {
+      await page.getByLabel(c.decision, { exact: true }).selectOption('approved')
+      await page.getByLabel(c.reason, { exact: true }).fill('Intentional independent review')
+      await page.getByRole('button', { name: c.recordDecision, exact: true }).click()
+      await expect(page.getByText('Intentional independent review', { exact: true })).toBeVisible()
+    } finally { release() }
+    await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+    await expect(page.getByRole('status')).toHaveText(c.decisionRecorded)
+    await expect(page.getByRole('button', { name: c.recordDecision, exact: true })).toHaveCount(0)
+    expect(writes).toBe(1)
+  })
+  test(`SME capability refresh keeps choice and reason mounted and disables only the retained review ${lang}`, async ({ page }) => {
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'sme')
+    let writes = 0
+    await page.route('**/versions/*/decision', route => { writes++; return route.abort() })
+    await page.route('**/work-items/*/versions', route => route.fulfill({ json: { ...initial, versions: [{ ...version, capabilities: { canDecide: false } }] } }))
+    const choice = page.getByLabel(c.decision, { exact: true }), reason = page.getByLabel(c.reason, { exact: true })
+    await choice.selectOption('changes_requested'); await reason.fill('Retain this explicit choice')
+    await page.getByRole('button', { name: c.reloadHistory, exact: true }).click()
+    await expect(choice).toHaveValue('changes_requested'); await expect(choice).toBeDisabled()
+    await expect(reason).toHaveValue('Retain this explicit choice'); await expect(reason).toHaveAttribute('readonly', '')
+    await expect(page.getByRole('button', { name: c.recordDecision, exact: true })).toBeDisabled()
+    await page.getByRole('button', { name: c.sme.discardReview, exact: true }).click()
+    await expect(choice).toHaveCount(0)
+    expect(writes).toBe(0)
+  })
+  for (const decision of ['approved','changes_requested'] as const) for (const entry of ['initial','selected']) {
+    test(`SME ${decision} terminal ${entry} detail survives stale pending history ${lang}`, async ({ page }) => {
+      const { changeSets: c } = await fixture(page, lang, 'C9D', entry === 'selected' ? 'smeHistorical' : decision === 'approved' ? 'smeTerminal' : 'smeChanges')
+      const props = await reviewProps(page), list = props.initial!
+      let writes = 0
+      await page.route('**/versions/*/decision', route => { writes++; return route.abort() })
+      await page.route('**/work-items/*/versions', route => route.fulfill({ json: list }))
+      if (entry === 'selected') {
+        const latest = list.versions.find(row => row.id === list.latestVersionId)!
+        if (version.schemaVersion !== 1 || latest.schemaVersion !== 1) throw Error('Expected V1 historical fixture')
+        const terminal = decided({ ...version, ...latest, schemaVersion: 1 }, decision, 'Fresh terminal detail')
+        await page.route('**/versions/' + latest.id, route => route.fulfill({ json: { version: terminal } }))
+        await page.getByRole('button', { name: new RegExp((lang === 'en' ? 'Version 2' : '版本 2') + ' ·') }).click()
+      }
+      await expect(page.getByRole('heading', { name: decision === 'approved' ? c.sme.approved : c.sme.revise, exact: true })).toBeVisible()
+      await expect(page.getByText('Fresh terminal detail', { exact: true })).toBeVisible()
+      await page.getByRole('button', { name: c.reloadHistory, exact: true }).click()
+      await expect(page.getByRole('alert')).toHaveText(c.unavailable)
+      await expect(page.getByText('Fresh terminal detail', { exact: true })).toBeVisible()
+      await expect(page.getByRole('heading', { name: decision === 'approved' ? c.sme.approved : c.sme.revise, exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: c.recordDecision, exact: true })).toHaveCount(0)
+      if (decision === 'changes_requested') await expect(page.getByRole('link', { name: c.sme.backToThisDraft, exact: true })).toHaveAttribute('href', `/${lang}/dashboard/${clientId}/opportunities?draft=${draft.id}`)
+      expect(writes).toBe(0)
+    })
+  }
+  test(`SME new saved edits freeze only after explicit acknowledgement and independent latest reload ${lang}`, async ({ page }) => {
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'smeNewer')
+    const props = await reviewProps(page)
+    const submitted: VersionDetail = { ...version, id: '66666666-6666-4666-8666-666666666666', versionNumber: 2, draftRevision: 2, title: props.initialDraft!.title, capabilities: { canDecide: false } }
+    let release!: () => void, posts = 0, reads = 0
+    const gate = new Promise<void>(resolve => { release = resolve })
+    await page.route('**/work-items/*/versions', async route => {
+      if (route.request().method() === 'GET') { reads++; return route.fulfill({ json: { versions: [version, submitted], latestVersionId: submitted.id, nextCursor: null } }) }
+      posts++; expect(route.request().postDataJSON()).toEqual({ expectedRevision: 2 }); await gate
+      return route.fulfill({ status: 201, json: { version: submitted } })
+    })
+    const freeze = page.getByRole('button', { name: c.submitVersion, exact: true })
+    await expect(page.getByRole('heading', { name: c.sme.prepare, exact: true })).toBeVisible()
+    await expect(page.getByText(c.sme.newerDraft, { exact: true })).toBeVisible()
+    await expect(freeze).toHaveClass(/bg-primary/)
+    expect(posts).toBe(0)
+    await freeze.click(); await expect.poll(() => posts).toBe(1)
+    try { await expect(freeze).toBeDisabled(); await expect(page.getByRole('status')).not.toHaveText(c.versionSubmitted) } finally { release() }
+    await expect(page.getByRole('status')).toHaveText(c.versionSubmitted)
+    await expect(page.getByRole('heading', { name: c.sme.wait, exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: submitted.title, exact: true })).toBeVisible()
+    await expect(freeze).toHaveCount(0); expect(posts).toBe(1); expect(reads).toBe(1)
+    await expect(page.getByRole('button', { name: c.recordDecision, exact: true })).toHaveCount(0)
+  })
+  test(`SME unavailable history never enables freezing while confirmed empty history does ${lang}`, async ({ page }) => {
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'smeUnavailable')
+    let posts = 0
+    await page.route('**/work-items/*/versions', route => {
+      if (route.request().method() !== 'GET') { posts++; return route.abort() }
+      return route.fulfill({ json: { versions: [], latestVersionId: null, nextCursor: null } })
+    })
+    await expect(page.getByRole('button', { name: c.submitVersion, exact: true })).toHaveCount(0)
+    await expect(page.getByText(c.noVersions, { exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: c.reloadHistory, exact: true }).click()
+    await expect(page.getByRole('heading', { name: c.sme.prepare, exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: c.submitVersion, exact: true })).toBeEnabled()
+    await expect(page.getByText(c.noVersions, { exact: true })).toBeVisible()
+    expect(posts).toBe(0)
+  })
+  test(`SME historical inspection stays read-only through refresh until latest is explicitly opened ${lang}`, async ({ page }) => {
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'smeHistorical')
+    const props = await reviewProps(page), list = props.initial!, latest = list.versions.find(row => row.id === list.latestVersionId)!
+    let details = 0, writes = 0
+    await page.route('**/work-items/*/versions', route => { if (route.request().method() !== 'GET') writes++; return route.fulfill({ json: list }) })
+    await page.route('**/versions/' + latest.id, route => { details++; return route.fulfill({ json: { version: { ...version, ...latest } } }) })
+    await expect(page.getByRole('heading', { name: c.sme.historical, exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: c.recordDecision, exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: c.reloadHistory, exact: true }).click()
+    await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+    await expect(page.getByRole('heading', { name: c.sme.historical, exact: true })).toBeVisible()
+    expect(details).toBe(0)
+    await page.getByRole('button', { name: c.sme.review + ' · ' + c.versionNumber.replace('{number}', '2'), exact: true }).click()
+    await expect(page.getByRole('heading', { name: c.sme.review, exact: true })).toBeVisible()
+    await expect(page.getByLabel(c.decision, { exact: true })).toHaveValue('')
+    expect(details).toBe(1); expect(writes).toBe(0)
+  })
+  for (const operation of ['decision','history'] as const) test(`SME old ${operation} completion cannot affect a new brand scope with the same version identity ${lang}`, async ({ page }) => {
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'sme')
+    const props = await reviewProps(page), nextBrand = '99999999-9999-4999-8999-999999999999'
+    let release!: () => void, requests = 0
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const path = operation === 'decision' ? '**/versions/*/decision' : '**/work-items/*/versions'
+    await page.route(path, async route => {
+      requests++; await gate
+      return route.fulfill({ json: operation === 'decision' ? { version: decided(version, 'approved', 'Old brand decision') } : initial })
+    })
+    if (operation === 'decision') {
+      await page.getByLabel(c.decision, { exact: true }).selectOption('approved')
+      await page.getByLabel(c.reason, { exact: true }).fill('Old brand decision')
+      await page.getByRole('button', { name: c.recordDecision, exact: true }).click()
+    } else await page.getByRole('button', { name: c.reloadHistory, exact: true }).click()
+    await expect.poll(() => requests).toBe(1)
+    const oldResponse = page.waitForResponse(response => response.url().includes('/' + clientId + '/') && response.url().endsWith(operation === 'decision' ? '/decision' : '/versions'))
+    const next = { ...props, clientId: nextBrand, initialDraft: { ...props.initialDraft!, clientId: nextBrand } }
+    await page.evaluate(value => window.dispatchEvent(new CustomEvent('fixture-review-scope', { detail: value })), next)
+    try {
+      await expect(page.getByRole('link', { name: c.backToDrafts, exact: true })).toHaveAttribute('href', `/${lang}/dashboard/${nextBrand}/opportunities`)
+      await expect(page.getByLabel(c.decision, { exact: true })).toHaveValue('')
+      await page.getByLabel(c.decision, { exact: true }).selectOption('changes_requested')
+      await page.getByLabel(c.reason, { exact: true }).fill('New scope edits')
+    } finally { release() }
+    await oldResponse
+    await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+    await expect(page.getByLabel(c.decision, { exact: true })).toHaveValue('changes_requested')
+    await expect(page.getByLabel(c.reason, { exact: true })).toHaveValue('New scope edits')
+    await expect(page.getByRole('status')).not.toHaveText(c.decisionRecorded)
+    await expect(page.getByText('Old brand decision', { exact: true })).toHaveCount(0)
+    expect(requests).toBe(1)
+  })
+  for (const width of [320,390,768,1440]) for (const theme of ['light','dark']) {
+    test(`SME genuine V2 keeps every frozen source ordered and keyboard accessible ${lang} ${width} ${theme}`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 })
+      const { changeSets: c, opportunities: o } = await fixture(page, lang, 'C9D', 'smeV2')
+      await page.evaluate(value => document.documentElement.classList.toggle('dark', value === 'dark'), theme)
+      const saved = (await reviewProps(page)).initialVersion!
+      if (saved.schemaVersion !== 2) throw Error('Expected actual frozen V2 fixture')
+      const sources = page.getByRole('region', { name: new RegExp(c.sme.sourceNumber.replace('{number}', '\\d+')) })
+      await expect(sources).toHaveCount(3)
+      await expect(sources.nth(0)).toContainText('Saved scan <script>source</script>')
+      await expect(sources.nth(1)).toContainText('Original title'); await expect(sources.nth(2)).toContainText('Original title')
+      await expect(page.getByText(o.pulseUnknowns, { exact: true })).toHaveCount(2)
+      for (let index = 0; index < 3; index++) {
+        const summary = sources.nth(index).locator('summary').filter({ hasText: c.sme.frozenTechnical })
+        await summary.focus(); await page.keyboard.press('Enter')
+        await expect(summary.locator('..')).toHaveJSProperty('open', true)
+        expect(JSON.parse((await sources.nth(index).locator('pre').textContent())!)).toEqual(saved.evidenceSnapshots[index])
+        expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+      }
+      await expect(page.getByLabel(c.decision, { exact: true })).toHaveValue('')
+      await expect(page.getByRole('button', { name: c.recordDecision, exact: true })).toBeDisabled()
+      expect(await page.locator('button.bg-primary').count()).toBe(1)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+      if ((lang === 'en' && width === 1440 && theme === 'light') || (lang === 'zh-HK' && width === 390 && theme === 'dark')) await page.screenshot({ path: `artifacts/ux/sme-review-${lang}-${width}-${theme}-${testInfo.project.name}.png`, fullPage: true })
+    })
+  }
 }
