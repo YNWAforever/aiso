@@ -2617,6 +2617,8 @@
     "method": "僅作示範：沒有掃描任何網站。實際報告會說明掃描覆蓋範圍、已採集的頁面，以及較早的掃描是否以相同方式採集。"
   },
   "generatedWork": {
+    "reviewDraftEvidence": "查看證據，開始私人草稿",
+    "draftEvidenceNotice": "草稿資格會另外按最新已保存嘅監測同掃描證據檢查，唔係按呢啲生成建議判斷。",
     "title": "已生成的建議",
     "generateImprove": "生成審閱建議",
     "checkStatus": "查看已儲存的生成狀態",
@@ -2853,6 +2855,14 @@
     "smeActivityUnknown": "狀態未明"
   },
   "opportunities": {
+    "sme": {
+      "title": "先處理一份草稿",
+      "intro": "用已保存證據準備私人工作草稿。保存草稿唔等於發佈或批核。",
+      "evidence": "查看已保存證據",
+      "window": "證據時段同來源狀態",
+      "moreSuggestions": "其他個別發現",
+      "moreGroups": "其他分組發現"
+    },
     "title": "改善機會",
     "intro": "檢視保留的 Pulse 及網站證據，再將希望跟進的發現儲存為私人草稿。",
     "views": "工作區檢視",

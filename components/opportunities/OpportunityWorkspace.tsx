@@ -9,7 +9,7 @@ import type { OpportunityResponse } from '@/lib/opportunities/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { DraftEditor } from '@/components/work-items/DraftEditor'
 import { EvidenceDetails } from './EvidenceDetails'
-type WorkspaceProps = { clientId: string } & (
+type WorkspaceProps = { clientId: string; smeCopilot?: boolean } & (
   | { initial: OpportunityResponse; initialError?: never }
   | { initial: null; initialError: 'unavailable' }
 )
@@ -20,6 +20,7 @@ function OpportunityContent({
   clientId,
   initial,
   initialError,
+  smeCopilot = false,
 }: WorkspaceProps) {
   const t = useTranslations('opportunities'),
     locale = useLocale() === 'zh-HK' ? 'zh-HK' : 'en'
@@ -239,80 +240,28 @@ function OpportunityContent({
   }
   const button =
     'min-h-11 rounded-lg border border-border px-4 py-2 font-semibold disabled:opacity-50'
-  return (
-    <main className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-4 text-foreground sm:p-8">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <p>{t('intro')}</p>
-      </header>
-      <div
-        role="group"
-        aria-label={t('views')}
-        className="flex flex-wrap gap-3"
-      >
-        <button
-          className={button}
-          aria-pressed={view === 'suggestions'}
-          disabled={saving !== null}
-          onClick={() => showView('suggestions')}
-        >
-          {t('suggestions')}
-        </button>
-        <button
-          className={button}
-          aria-pressed={view === 'drafts'}
-          disabled={saving !== null}
-          onClick={showDrafts}
-        >
-          {t('savedDrafts')}
-        </button>
-      </div>
-      <p role="status" aria-live="polite">
-        {status || (saving ? t('saving') : opening ? t('loadingDraft') : '')}
-      </p>
-      {openError && <p role="alert">{t('openError')}</p>}
-      <section
-        hidden={view !== 'suggestions'}
-        aria-label={t('suggestions')}
-        className="space-y-5"
-        aria-busy={refreshing}
-      >
-        <div className="space-y-2 rounded-xl border border-border bg-card p-4">
-          <p>{t('window')}</p>
+  const windowDetails = <>          <p>{t('window')}</p>
           {data && (
             <>
               <p>
                 {t('week')}: {data.window.pulseWeek ?? t('noWeek')}
               </p>
-              {data.window.pulseTruncated && <p>{t('pulseTruncated')}</p>}
-              {data.partial && <p>{t('partial')}</p>}
+              {!smeCopilot && data.window.pulseTruncated && <p>{t('pulseTruncated')}</p>}
+              {!smeCopilot && data.partial && <p>{t('partial')}</p>}
               <p>
                 {t('pulse')}: {t(`sourceStates.${data.sourceStates.pulse}`)}
               </p>
               <p>
                 {t('scan')}: {t(`sourceStates.${data.sourceStates.scan}`)}
               </p>
-              {data.savedDraftsState === 'unavailable' && (
+              {!smeCopilot && data.savedDraftsState === 'unavailable' && (
                 <p>{t('savedUnknown')}</p>
               )}
             </>
           )}
-          <button
-            className={button}
-            disabled={refreshing || saving !== null}
-            onClick={() => refresh()}
-          >
-            {refreshing ? t('loadingSuggestions') : t('refresh')}
-          </button>
-          {loadError && (
-            <p role="alert">{t(data ? 'loadError' : 'initialLoadError')}</p>
-          )}
-        </div>
-        {data && data.suggestions.length === 0 && (Object.values(data.sourceStates).includes('unavailable')
-          ? <p>{t('noAvailableSuggestions')}</p>
-          : <EmptyState illustration="fixes" title={t('empty')} action={<a href={`/${locale}/dashboard/${clientId}?step=scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('emptyAction')}</a>} />)}
-        {data?.groups&&<GroupedOpportunityCards clientId={clientId} groups={data.groups.filter(g=>g.context?.runId&&g.platforms.length>1)} suggestions={data.suggestions} onOpen={id=>void open(id)}/>}
-        {data?.suggestions.filter(s=>!data.groups?.some(g=>g.context?.runId&&g.platforms.length>1&&g.suggestionKeys.includes(s.key))).map((suggestion) => {
+</>
+  const hasGroups = Boolean(data?.groups?.some(group => group.context?.runId && group.platforms.length > 1))
+  const suggestionCards = data?.suggestions.filter(s=>!data.groups?.some(g=>g.context?.runId&&g.platforms.length>1&&g.suggestionKeys.includes(s.key))).map((suggestion) => {
           const copy = suggestion.evidence.kind === 'scan-check' ? scanOpportunityCopy(suggestion.evidence, locale) : null
           const displayArgs = copy ? { ...suggestion.args, checkTitle: copy.title, checkAction: copy.action } : suggestion.args
           return (
@@ -326,10 +275,13 @@ function OpportunityContent({
             <p className="whitespace-pre-wrap break-words">
               {t(`rules.${suggestion.actionKey}.action`, displayArgs)}
             </p>
-            <EvidenceDetails
-              evidence={suggestion.evidence}
-              limitations={suggestion.limitations}
-            />
+            {smeCopilot ? <>
+              <p className="text-sm text-muted-foreground">{t(suggestion.evidence.kind === 'pulse-metric' ? 'pulseWhy' : 'scanWhy')}</p>
+              <details>
+                <summary className="min-h-11 cursor-pointer py-3 font-medium">{t('sme.evidence')}</summary>
+                <EvidenceDetails evidence={suggestion.evidence} limitations={suggestion.limitations} />
+              </details>
+            </> : <EvidenceDetails evidence={suggestion.evidence} limitations={suggestion.limitations} />}
             {suggestion.savedState === 'unavailable' && (
               <p>{t('savedUnknown')}</p>
             )}
@@ -376,7 +328,76 @@ function OpportunityContent({
             )}
           </article>
           )
-        })}
+        })
+  return (
+    <main className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-4 text-foreground sm:p-8">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-bold">{t(smeCopilot ? 'sme.title' : 'title')}</h1>
+        <p>{t(smeCopilot ? 'sme.intro' : 'intro')}</p>
+      </header>
+      <div
+        role="group"
+        aria-label={t('views')}
+        className="flex flex-wrap gap-3"
+      >
+        <button
+          className={button}
+          aria-pressed={view === 'suggestions'}
+          disabled={saving !== null}
+          onClick={() => showView('suggestions')}
+        >
+          {t('suggestions')}
+        </button>
+        <button
+          className={button}
+          aria-pressed={view === 'drafts'}
+          disabled={saving !== null}
+          onClick={showDrafts}
+        >
+          {t('savedDrafts')}
+        </button>
+      </div>
+      <p role="status" aria-live="polite">
+        {status || (saving ? t('saving') : opening ? t('loadingDraft') : '')}
+      </p>
+      {openError && <p role="alert">{t('openError')}</p>}
+      <section
+        hidden={view !== 'suggestions'}
+        aria-label={t('suggestions')}
+        className="space-y-5"
+        aria-busy={refreshing}
+      >
+        <div className="space-y-2 rounded-xl border border-border bg-card p-4">
+          {!smeCopilot ? windowDetails : <>
+            {data?.partial && <p>{t('partial')}</p>}
+            {data?.window.pulseTruncated && <p>{t('pulseTruncated')}</p>}
+            {data?.savedDraftsState === 'unavailable' && <p>{t('savedUnknown')}</p>}
+            {data?.sourceStates.pulse === 'unavailable' && <p>{t('pulse')}: {t('sourceStates.unavailable')}</p>}
+            {data?.sourceStates.scan === 'unavailable' && <p>{t('scan')}: {t('sourceStates.unavailable')}</p>}
+            <details><summary className="min-h-11 cursor-pointer py-3 font-medium">{t('sme.window')}</summary>{windowDetails}</details>
+          </>}
+          <button
+            className={button}
+            disabled={refreshing || saving !== null}
+            onClick={() => refresh()}
+          >
+            {refreshing ? t('loadingSuggestions') : t('refresh')}
+          </button>
+          {loadError && (
+            <p role="alert">{t(data ? 'loadError' : 'initialLoadError')}</p>
+          )}
+        </div>
+        {data && data.suggestions.length === 0 && (Object.values(data.sourceStates).includes('unavailable')
+          ? <p>{t('noAvailableSuggestions')}</p>
+          : <EmptyState illustration="fixes" title={t('empty')} action={<a href={`/${locale}/dashboard/${clientId}?step=scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('emptyAction')}</a>} />)}
+        {data?.groups&&<GroupedOpportunityCards clientId={clientId} smeCopilot={smeCopilot} groups={data.groups.filter(g=>g.context?.runId&&g.platforms.length>1)} suggestions={data.suggestions} onOpen={id=>void open(id)}/>}
+        {!smeCopilot ? suggestionCards : <>
+          {!hasGroups && suggestionCards?.[0]}
+          {(suggestionCards?.length ?? 0) > (hasGroups ? 0 : 1) && <details className="space-y-4">
+            <summary className="min-h-11 cursor-pointer py-3 font-medium">{t('sme.moreSuggestions')}</summary>
+            <div className="space-y-5">{hasGroups ? suggestionCards : suggestionCards?.slice(1)}</div>
+          </details>}
+        </>}
         {data?.window.nextCursor&&<button className={button} disabled={refreshing||saving!==null} onClick={()=>refresh(true)}>{t('moreCandidates')}</button>}
       </section>
       <section

@@ -6,7 +6,8 @@ import { initial, clientId, scanSuggestion, manyCandidates } from './c9c-fixture
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { writeC9cFixture } from './c9c-fixture-writer'
-export const htmlFor = (lang: string, data: typeof initial | null = initial) =>
+import { groupedCandidates, groupedConflict, blockedCandidates } from './c9c-group-fixtures'
+export const htmlFor = (lang: string, data: typeof initial | null = initial, smeCopilot = false) =>
   renderToString(
     <NextIntlClientProvider
       timeZone="UTC"
@@ -15,6 +16,7 @@ export const htmlFor = (lang: string, data: typeof initial | null = initial) =>
     >
       <OpportunityWorkspace
         clientId={clientId}
+        smeCopilot={smeCopilot}
         {...(data
           ? { initial: data }
           : { initial: null, initialError: 'unavailable' as const })}
@@ -22,6 +24,35 @@ export const htmlFor = (lang: string, data: typeof initial | null = initial) =>
     </NextIntlClientProvider>,
   )
 describe('opportunity rendering', () => {
+  it.each(['en', 'zh-HK'])('SME preserves returned group order and a blocked historical first group %s', lang => {
+    const html = htmlFor(lang, groupedConflict, true), copy = (lang === 'en' ? en : zh).opportunities
+    const first = html.slice(html.indexOf('<article'), html.indexOf('</article>'))
+    expect(first).toContain('First retained question')
+    expect(first).toContain(copy.groupHistoricalConflict)
+    expect(first).not.toContain('<button')
+    expect(html.indexOf('Second retained question')).toBeGreaterThan(html.indexOf(copy.sme.moreGroups))
+    expect(html.indexOf(copy.sme.moreSuggestions)).toBeGreaterThan(html.indexOf('Second retained question'))
+    const noGroups = htmlFor(lang, { ...groupedCandidates, groups: undefined }, true)
+    expect(noGroups).not.toContain(copy.sme.moreGroups)
+    expect(noGroups).not.toContain(copy.groupTitle)
+  })
+  it.each(['en', 'zh-HK'])('SME keeps a blocked first finding first, with other findings disclosed and evidence retained %s', lang => {
+    const data = { ...initial, suggestions: [{ ...initial.suggestions[0], saveAvailability: 'limited-evidence' as const }, scanSuggestion] }
+    const html = htmlFor(lang, data, true), copy = (lang === 'en' ? en : zh).opportunities
+    expect(html).toContain(copy.sme.title)
+    const first = html.indexOf('<article'), second = html.indexOf('<article', first + 1)
+    const firstCard = html.slice(first, html.indexOf('</article>', first))
+    expect(firstCard).toContain(copy.limitedEvidence)
+    expect(firstCard).toContain('disabled=""')
+    expect(firstCard).toContain(copy.sme.evidence)
+    expect(firstCard).toContain(copy.pulseWhy)
+    expect(second).toBeGreaterThan(html.indexOf(copy.sme.moreSuggestions))
+    expect(html).toContain(copy.partial)
+    expect(html).toContain(copy.savedUnknown)
+    expect(html).toContain(copy.pulseTruncated)
+    expect(html).toContain(copy.sme.window)
+    expect(htmlFor(lang, data)).not.toContain(copy.sme.moreSuggestions)
+  })
   it.each(['en', 'zh-HK'])('T19 describes FAQ content with a localized next step, without guessing a page %s', lang => {
     const suggestion = { ...scanSuggestion, source: { ...scanSuggestion.source, checkKey: 'c11_faq' as const }, args: { checkKey: 'c11_faq', assessment: 'fail' }, evidence: { ...scanSuggestion.evidence, checkKey: 'c11_faq' as const } }
     const html = htmlFor(lang, { ...initial, suggestions: [suggestion as typeof scanSuggestion] })
@@ -100,6 +131,12 @@ afterAll(() =>
     { clientId, initial },
     htmlFor,
     {
+      smeGrouped: { props: { clientId, initial: groupedCandidates, smeCopilot: true }, html: lang => htmlFor(lang, groupedCandidates, true) },
+      smeGroupedConflict: { props: { clientId, initial: groupedConflict, smeCopilot: true }, html: lang => htmlFor(lang, groupedConflict, true) },
+      smeBlocked: { props: { clientId, initial: blockedCandidates, smeCopilot: true }, html: lang => htmlFor(lang, blockedCandidates, true) },
+      sme: { props: { clientId, initial, smeCopilot: true }, html: lang => htmlFor(lang, initial, true) },
+      smeMany: { props: { clientId, initial: manyCandidates, smeCopilot: true }, html: lang => htmlFor(lang, manyCandidates, true) },
+      smeUnavailable: { props: { clientId, initial: null, initialError: 'unavailable', smeCopilot: true }, html: lang => htmlFor(lang, null, true) },
       continuation:{props:{clientId,initial:{...initial,window:{...initial.window,nextCursor:'next-evidence'}}},html:lang=>htmlFor(lang,{...initial,window:{...initial.window,nextCursor:'next-evidence'}})},
       many: { props:{clientId,initial:manyCandidates},html:lang=>htmlFor(lang,manyCandidates) },
       saved: {

@@ -720,6 +720,27 @@ aggregate gate at exact head `44d36980` and merged as `3431e7d7`. PR #256 was
 retargeted to main after that merge; its gate and canonical acceptance remain
 required. A merge alone is not evidence of a successful production deployment.
 
+Canonical verification update (2026-11-13 09:06–09:15 UTC): PR #255's merge
+`3431e7d7` reached production deployment `dpl_3qp2PhjtUdpAhyGfuxn5Jr3rT2Qo`,
+Ready with the canonical alias. PR #256 subsequently passed every job class and
+aggregate gate at exact head `bc7c2ab1`, merged as `e02288de`, and reached Ready
+production `dpl_4QsnrVjMtsaK5KENjhuGMcgmpbXk` at the same alias. Each inspected
+production build log names the corresponding main commit and records all 107
+shipped migrations; no migration was added or applied for this phase.
+
+Authenticated, read-only canonical checks passed for English at 1440px and zh-HK
+at 390px: Monitor and empty observations returned 200; the empty-state link
+retained the monitoring anchor; the guided card displayed the paused collector,
+one visible refresh action, no start action, and the saved 10 × 5 = 50 workload
+behind its disclosure. All non-GET/HEAD/OPTIONS browser requests were blocked by
+the acceptance harness; none was attempted. Screenshots were inspected. This is
+acceptance of the actual paused/read-only state, not a live provider-run test.
+Read-only diagnostic API checks still show no saved run or answer, collector
+`enabled:false`, schedule state unknown and no next due time; they do not establish
+a historical root cause or scheduler health. The full four-width/theme journey
+and paid-operation acceptance remain separate; paid production actions are not
+authorized or exercised.
+
 ## SME daily workflow — PR 3: action outcome versus conversation save — 2026-11-13
 
 - SME Studio actions now retain independent per-skill outcomes behind the same
@@ -755,3 +776,42 @@ reply and malformed success bodies. They use intercepted offline transports, not
 production paid actions. CI integration and canonical deployed acceptance are
 still required before release; final phase-wide accessibility adds the explicit
 320/390/768/1440px action-panel matrix and keyboard focus verification.
+
+## SME daily workflow — PR 4: saved evidence to private work draft — 2026-11-13
+
+- The existing server-controlled SME flag now selects a focused presentation on
+  Opportunities, including the owned-source-unavailable fallback. Legacy
+  presentation remains the default when the flag is off.
+- The first existing display unit remains first: returned explicit monitoring
+  groups before returned individual findings, in their existing order. A blocked
+  first unit is never silently replaced by another. Other findings and full
+  evidence/window details remain mounted in native disclosures.
+- Partial, unavailable, truncated, unknown-saved, limited-evidence and conflict
+  notices remain explicit. The primary card shows one source-specific reason and
+  its existing save-or-open action. Group save handlers retain their single
+  mounted state, duplicate-write lock and acknowledged draft IDs while details
+  are collapsed or reopened; no grouping is inferred from matching text.
+- Selected-scan Improve gains a read-only bridge to the separate saved-evidence
+  workflow. It does not map generated recommendations to eligible work items or
+  redirect the selected scan to the latest one. Generation remains explicit and
+  secondary; no generation or draft write starts on render.
+- Eligibility, source/rule/fingerprint/locale write bodies, re-derivation/CAS,
+  tenant/entitlement checks, per-key conflicts, selection epochs, saved-ID reads,
+  dirty editor, versions, approval and delivery contracts remain unchanged.
+  Saving organizational-private work does not publish, approve or verify it.
+
+Read-only independent review found no introduced regression in the scoped diff.
+The focused 128-case Chromium/mobile run passed, including grouped historical
+conflicts, blocked first findings, exact grouped save inputs and retained IDs,
+feature-off refusal without individual fallback, no inferred grouping, SME on/off
+503/409/late-read/known-limited-draft behavior, and en/zh-HK light/dark
+320/390/768/1440px reflow/axe/keyboard disclosure and 44px summary targets.
+Full candidate verification on Node 24.22.2: lint 0 errors/warnings, typecheck and
+text audit clean, **8,569 unit tests passed / 15 skipped** (669 passed files /
+1 skipped), production build passed, **208/208** fixture-generation tests and
+**256/256** Chromium/mobile browser cases with zero skips/flakes/unexpected
+failures. The latter also reruns saved draft list/restoration, unsaved editor,
+version submission/review/approval and delivery/attestation regressions. CI
+integration and exact-head aggregate gate plus canonical read-only deployment
+acceptance remain required. All action transports in browser tests are
+intercepted fixtures; production paid operations are not authorized or exercised.

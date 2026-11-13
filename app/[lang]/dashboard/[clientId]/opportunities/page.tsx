@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { notFound, redirect } from 'next/navigation'
 import { OpportunityWorkspace } from '@/components/opportunities/OpportunityWorkspace'
 import { requireAuth } from '@/lib/auth'
+import { isSmeCopilotUiEnabled } from '@/lib/flags'
 import { loadOwnedDraftClient } from '@/lib/work-items/store'
 import {
   loadAuthenticatedOpportunities,
@@ -15,6 +16,7 @@ export default async function OpportunitiesPage({
   const { lang: requestedLang, clientId } = await params
   const lang = requestedLang === 'zh-HK' ? 'zh-HK' : 'en'
   const profile = await requireAuth(lang)
+  const smeCopilot = isSmeCopilotUiEnabled()
   const t = await getTranslations({ locale: lang, namespace: 'opportunities' })
   const href = `/${lang}/dashboard/${encodeURIComponent(clientId)}/opportunities`
   let initial
@@ -37,6 +39,7 @@ export default async function OpportunitiesPage({
       return (
         <OpportunityWorkspace
           clientId={clientId}
+          smeCopilot={smeCopilot}
           initial={null}
           initialError="unavailable"
         />
@@ -52,5 +55,5 @@ export default async function OpportunitiesPage({
       </main>
     )
   }
-  return <OpportunityWorkspace clientId={clientId} initial={initial} />
+  return <OpportunityWorkspace clientId={clientId} initial={initial} smeCopilot={smeCopilot} />
 }
