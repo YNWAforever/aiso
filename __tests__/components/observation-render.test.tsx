@@ -216,6 +216,13 @@ afterAll(async () => {
       `<div id="root">${renderToString(<ObservationWorkspace {...propsFor(lang)} />)}</div><script id="fixture-props" type="application/json">${JSON.stringify(propsFor(lang)).replace(/</g, '\\u003c')}</script>`,
     )
   }
+  for (const lang of ['en', 'zh-HK']) {
+    const props = { ...propsFor(lang), smeCopilot: true, initialFilters: { run: '77777777-7777-4777-8777-777777777777', limit: '1', platform: 'ChatGPT', result: 'incomplete' as const } }
+    writeFileSync(
+      join(dir, `${lang}-sme.html`),
+      `<div id="root">${renderToString(<ObservationWorkspace {...props} />)}</div><script id="fixture-props" type="application/json">${JSON.stringify(props).replace(/</g, '\\u003c')}</script>`,
+    )
+  }
   const entry = join(resolve(dir), 'observation-entry.tsx')
   writeFileSync(
     entry,

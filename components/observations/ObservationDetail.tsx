@@ -46,10 +46,11 @@ export function ObservationDetailContent({observation:d,copy:c,smeCopilot=false}
     </section>
     <section className="space-y-2">
       <h3 className="font-semibold">{c.rawAnswer}</h3>
+      <p className="text-sm text-muted-foreground">{c.smeEvidenceNote}</p>
       {d.rawAnswer?<p className="whitespace-pre-wrap break-words">{d.rawAnswer}</p>:<p>{c.noAnswer}</p>}
     </section>
     <details className="rounded-lg border border-border p-3">
-      <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">{c.smeTechnical}</summary>
+      <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{c.smeTechnical}</summary>
       <div className="mt-3 space-y-4">{technical}</div>
     </details>
   </div>

@@ -102,11 +102,40 @@ describe('SME observation page', () => {
     const copy = copyFor(lang)
     const html = renderToString(<ObservationWorkspace {...propsFor(lang, noAnswers)} />)
     expect(html).toContain(copy.smeNoRecordsTitle)
-    expect(html).toContain(copy.smeNoRecordsBody.replace('{count}', '1'))
+    expect(html).toContain(copy.smeNoRecordsBody)
     // Monitored questions stay reachable, collapsed, with plain status words.
     expect(html).toContain(copy.smeMonitoringTitle)
     expect(html).toContain(copy.smeActive)
     expect(html).toContain(copy.smeInactive)
+  })
+
+  it('does not count unknown question activity as active, and marks truncated counts', () => {
+    const copy = copyFor('en')
+    const initial = { ...withAnswers, questionsTruncated: true, questions: withAnswers.questions.map(q => ({ ...q, isActive: null })) }
+    const html = renderToString(<ObservationWorkspace {...propsFor('en', initial)} />)
+    const stats = html.split(`aria-label="${copy.smeStatsLabel}"`)[1].split('</section>')[0]
+    expect(stats).toContain('>0+</p>')
+    expect(html).toContain(copy.smeActivityUnknown)
+    expect(html).toContain(copy.questionsTruncated)
+  })
+
+  it.each(['success', 'incomplete'] as const)('uses the %s count rather than the unfiltered record total', result => {
+    const initial = { ...withAnswers, counts: { recordedRows: 9, successfulRows: 6, incompleteRows: 3 } }
+    const copy = copyFor('en')
+    const html = renderToString(<ObservationWorkspace {...propsFor('en', initial)} initialFilters={{ result }} />)
+    const stats = html.split(`aria-label="${copy.smeStatsLabel}"`)[1].split('</section>')[0]
+    expect(stats).toContain(`>${result === 'success' ? 6 : 3}</p>`)
+    expect(stats).not.toContain('>9</p>')
+  })
+
+  it('does not promise a full answer when a record has no answer', () => {
+    const html = renderToString(<ObservationWorkspace {...propsFor('en', withAnswers)} />)
+    const missing = html.split('<article')[2].split('</article>')[0]
+    expect(missing).toContain(copyFor('en').noAnswer)
+    expect(missing).toContain(copyFor('en').smeViewRecord)
+    expect(missing).not.toContain(copyFor('en').smeViewAnswer)
+    expect(html).not.toContain(copyFor('en').workflowTitle)
+    expect(html).not.toContain(copyFor('en').smeLatest)
   })
 
   it('keeps the flags-off evidence page as the only flat table', () => {
@@ -152,6 +181,7 @@ describe('SME answer detail', () => {
     expect(full).toBeGreaterThan(answer)
     expect(technical).toBeGreaterThan(full)
     expect(html).not.toContain(copy.apiSample)
+    expect(html).toContain(copy.smeEvidenceNote)
     // The technical block is still available, just folded into a disclosure.
     expect(html).toContain('<details')
     expect(html).toContain(copy.collector)

@@ -5,12 +5,12 @@ import type { ObservationCopy } from '@/components/observations/copy'
 
 const clientId = '11111111-1111-4111-8111-111111111111'
 const promptId = '22222222-2222-4222-8222-222222222222'
-async function fixture(page: Page, lang: string): Promise<ObservationCopy> {
+async function fixture(page: Page, lang: string, sme = false): Promise<ObservationCopy> {
   const dir = process.env.C9B_HTML_DIR,
     css = process.env.C9B_CSS_PATH
   test.skip(!dir || !css, 'C9B fixture paths required')
   const copy = JSON.parse(readFileSync(`${dir}/${lang}-copy.json`, 'utf8'))
-  const html = readFileSync(`${dir}/${lang}-default.html`, 'utf8')
+  const html = readFileSync(`${dir}/${lang}-${sme ? 'sme' : 'default'}.html`, 'utf8')
   const style = readFileSync(css!, 'utf8'),
     js = readFileSync(`${dir}/observation-fixture.js`, 'utf8')
   const errors: string[] = []
@@ -62,6 +62,60 @@ const response = (result: 'success' | 'incomplete' = 'success') => ({
 })
 
 for (const lang of ['en', 'zh-HK']) {
+  for (const width of [390, 1440]) {
+    test(`SME answers keep filters, evidence and focus at ${width}px in ${lang}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      const copy = await fixture(page, lang, true)
+      const week = page.getByRole('combobox', { name: copy.week, exact: true })
+      await expect(week).toBeVisible()
+      const result = page.getByRole('combobox', { name: copy.result, exact: true })
+      await expect(result).not.toBeVisible()
+      const filter = page.locator('summary').filter({ hasText: copy.smeFilter }).first()
+      await filter.focus()
+      await page.keyboard.press('Enter')
+      await expect(result).toBeVisible()
+      const requests: URL[] = []
+      await page.route('**/api/clients/*/observations?*', route => {
+        requests.push(new URL(route.request().url()))
+        return route.fulfill({ json: response() })
+      })
+      await page.getByRole('button', { name: copy.smeClearFilters, exact: true }).click()
+      await expect(page.getByRole('heading', { name: 'Response historical question' })).toBeVisible()
+      expect(requests[0].searchParams.get('run')).toBe('77777777-7777-4777-8777-777777777777')
+      expect(requests[0].searchParams.get('limit')).toBe('1')
+      expect(requests[0].searchParams.get('week')).toBe('2026-09-01')
+      expect(requests[0].searchParams.has('platform')).toBe(false)
+      expect(requests[0].searchParams.has('result')).toBe(false)
+      await result.selectOption('success')
+      await expect(page.getByRole('status')).toBeEmpty()
+      await expect(page.locator(`section[aria-label="${copy.smeStatsLabel}"]`)).toContainText('1')
+      expect(requests.at(-1)?.searchParams.get('result')).toBe('success')
+      await page.route('**/api/clients/*/observations/*', route => route.fulfill({ json: { observation: {
+        ...response().items[0], rawAnswer: '<script>window.bad=true</script> Saved test answer.',
+        promptSnapshot: null, brandSnapshot: null,
+        requestedModel: 'test/requested', collector: 'test-collector', collectorVersion: 'test', providerRequestId: null,
+        classification: { status: 'classified', method: 'test', version: 'test', brandMentioned: false, sentiment: 'unknown', matchedText: [] },
+        links: [{ url: 'https://example.com/evidence', kind: 'text-link' }], providerFinishReason: null, searchEvidence: null, grounding: null,
+      } } }))
+      const trigger = page.getByRole('button', { name: copy.smeViewAnswer, exact: true })
+      await trigger.click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('<script>window.bad=true</script> Saved test answer.', { exact: true })).toBeVisible()
+      await expect(dialog.getByText(copy.smeEvidenceNote, { exact: true })).toBeVisible()
+      expect(await page.evaluate(() => Object.hasOwn(window, 'bad'))).toBe(false)
+      await expect(dialog.getByText('test-collector', { exact: true })).not.toBeVisible()
+      await dialog.locator('summary').click()
+      await expect(dialog.getByText('test-collector', { exact: true })).toBeVisible()
+      await expect(dialog.getByRole('link', { name: 'https://example.com/evidence' })).toHaveAttribute('rel', 'noopener noreferrer')
+      expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+      expect(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true)
+      await page.keyboard.press('Escape')
+      await expect(dialog).toHaveCount(0)
+      await expect(trigger).toBeFocused()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    })
+  }
   test(`T09 original answer modal retries, keeps filters and restores focus in ${lang}`,async({page})=>{
     await page.setViewportSize({width:375,height:900})
     const copy=await fixture(page,lang)
