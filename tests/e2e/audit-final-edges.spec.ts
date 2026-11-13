@@ -43,13 +43,14 @@ for(const lang of ['en','zh-HK']){
  })
 }
 
-for(const lang of ['en','zh-HK'])test('T36 paused configured monitoring offers question review '+lang,async({page})=>{
+for(const lang of ['en','zh-HK'])test('T36 paused configured monitoring offers read-only refresh '+lang,async({page})=>{
  const dir=process.env.AISO_FIRST_PULSE_HTML_DIR;if(!dir)throw Error('Actual Pulse fixture required')
  await page.route('**/*',r=>r.abort());await page.route('https://paused-edge.fixture/'+lang,r=>r.fulfill({contentType:'text/html; charset=utf-8',body:'<!doctype html><html lang="'+lang+'"><head><title>Paused monitoring</title><style>'+readFileSync(dir+'/build.css','utf8')+'</style></head><body><div id="root"></div><script>'+readFileSync(dir+'/fixture.js','utf8')+'</script></body></html>'}))
  await page.route('**/api/dashboard/clients/*/pulse-runs',r=>r.fulfill({json:{enabled:false,prompts:2,variants:5,expected:10,remaining:20,contextConfirmed:true,week:'2026-10-05',currentCanonicalId:null,legacyCurrentWeek:false,legacyObservationIds:[],search:{requested:'off'},latest:null}}))
  await page.goto('https://paused-edge.fixture/'+lang)
  await expect(page.getByRole('button',{name:lang==='en'?'Start first monitoring':'開始首次監測',exact:true})).toBeDisabled()
- await expect(page.getByRole('link',{name:lang==='en'?'Review tracking questions':'覆核監測問題',exact:true})).toHaveAttribute('href',/prompts$/)
+ await expect(page.getByRole('link',{name:lang==='en'?'Review tracking questions':'覆核監測問題',exact:true})).toHaveCount(0)
+ await expect(page.getByRole('button',{name:lang==='en'?'Refresh saved status':'重新讀取已保存的狀態',exact:true})).toBeEnabled()
 })
 
 for(const lang of ['en','zh-HK'])test('T36 unavailable status refresh is read only and never starts work '+lang,async({page})=>{
@@ -58,5 +59,5 @@ for(const lang of ['en','zh-HK'])test('T36 unavailable status refresh is read on
  let reads=0,posts=0;await page.route('**/api/dashboard/clients/*/pulse-runs',r=>{if(r.request().method()==='POST')posts++;reads++;return r.fulfill(reads===1?{status:503,json:{error:'PULSE_UNAVAILABLE'}}:{json:{enabled:false,prompts:2,variants:5,expected:10,remaining:20,contextConfirmed:true,week:'2026-10-05',currentCanonicalId:null,legacyCurrentWeek:false,legacyObservationIds:[],search:{requested:'off'},latest:null}})})
  await page.goto('https://status-edge.fixture/'+lang);await expect(page.getByRole('alert')).toBeVisible()
  await page.getByRole('button',{name:lang==='en'?'Refresh saved status':'重新讀取已保存的狀態',exact:true}).click()
- await expect(page.getByRole('alert')).toHaveCount(0);await expect(page.getByRole('link',{name:lang==='en'?'Review tracking questions':'覆核監測問題',exact:true})).toBeVisible();expect(reads).toBe(2);expect(posts).toBe(0)
+ await expect(page.getByRole('alert')).toHaveCount(0);await expect(page.getByRole('link',{name:lang==='en'?'Review tracking questions':'覆核監測問題',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:lang==='en'?'Refresh saved status':'重新讀取已保存的狀態',exact:true})).toBeVisible();expect(reads).toBe(2);expect(posts).toBe(0)
 })

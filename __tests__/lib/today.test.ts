@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTodayView, todayHref } from '@/lib/view-models/today'
+import { buildTodayView } from '@/lib/view-models/today'
 import type { WorkspaceHome } from '@/lib/view-models/workspace-home'
 
 type Overrides = {
@@ -33,15 +33,15 @@ const visibility: WorkspaceHome['visibility'] = { state: 'ready', observedAt: '2
 const fixPriority = { checkKey: 'c3_bot_access', bucket: 'core', assessment: 'fail', pointsAtStake: 6 } as unknown as NonNullable<WorkspaceHome['priorities']['primaryAction']>
 
 describe('buildTodayView', () => {
-  it('recommends the top observed fix when the monitor next step is hidden, linking to results', () => {
+  it('retains the existing top observed website-fix priority ahead of monitoring', () => {
     const view = buildTodayView(home({ nextStep: { kind: 'confirm_prompts', href: '/en/dashboard/c1/prompts', labelKey: 'configure' }, priorities: { primaryAction: fixPriority }, health }), { lang: 'en' })
     expect(view.action).toEqual({ kind: 'fix', href: '/en/dashboard/c1?step=results&scanId=s1', checkKey: 'c3_bot_access', points: 6 })
     expect(view.illustration).toBe('fixes')
   })
 
-  it('maps a monitoring next step onto What AI says when there is no fix', () => {
+  it('preserves the monitoring action and reason when there is no fix', () => {
     const view = buildTodayView(home({ nextStep: { kind: 'review_run', href: '/en/dashboard/c1/observations', labelKey: 'review', reasonKey: 'no_models' }, health }), { lang: 'en' })
-    expect(view.action).toMatchObject({ kind: 'next', href: '/en/dashboard/c1?step=monitor' })
+    expect(view.action).toEqual({ kind: 'next', href: '/en/dashboard/c1/observations', labelKey: 'review', reasonKey: 'no_models' })
   })
 
   it('keeps whatever the workspace projects for an ordinary next step', () => {
@@ -80,15 +80,29 @@ describe('buildTodayView', () => {
   })
 })
 
-describe('todayHref', () => {
-  it('maps hidden Monitor targets onto the visible What AI says tab', () => {
-    for (const href of ['/en/dashboard/c1/prompts', '/en/dashboard/c1/observations', '/en/dashboard/c1?step=monitor&scanId=s1']) {
-      expect(todayHref(href, '/en/dashboard/c1')).toBe('/en/dashboard/c1?step=monitor')
+describe('Today semantic next steps', () => {
+  const cases: NonNullable<WorkspaceHome['nextStep']>[] = [
+    { kind: 'confirm_prompts', labelKey: 'configure', href: '/__locale__/dashboard/c1/prompts' },
+    { kind: 'start_run', labelKey: 'start', href: '/__locale__/dashboard/c1?step=monitor#first-monitoring' },
+    { kind: 'monitoring_status', labelKey: 'status', reasonKey: 'paused', href: '/__locale__/dashboard/c1?step=monitor#first-monitoring' },
+    { kind: 'monitoring_status', labelKey: 'status', reasonKey: 'unknown', href: '/__locale__/dashboard/c1?step=monitor#first-monitoring' },
+    { kind: 'review_run', labelKey: 'repair', href: '/__locale__/dashboard/c1/observations?run=saved&week=2026-11-09&result=incomplete#run-status' },
+    { kind: 'review_run', labelKey: 'review', href: '/__locale__/dashboard/c1/observations?run=saved#run-status' },
+    { kind: 'review_results', labelKey: 'results', href: '/__locale__/dashboard/c1/observations' },
+    { kind: 'review_work', labelKey: 'work', href: '/__locale__/dashboard/c1/opportunities?draft=saved' },
+  ]
+  it.each(['en', 'zh-HK'])('normalizes only the locale prefix and keeps exact scope in %s', lang => {
+    for (const nextStep of cases) {
+      const view = buildTodayView(home({ nextStep }), { lang })
+      const { href, labelKey, reasonKey } = nextStep
+      expect(view.action).toEqual({ kind: 'next', href: href.replace('/__locale__/', `/${lang}/`), labelKey, ...(reasonKey ? { reasonKey } : {}) })
+      expect(JSON.stringify(view.action)).not.toContain('__locale__')
     }
   })
-
-  it('leaves every other href alone', () => {
-    expect(todayHref('/en/dashboard/c1?step=scan', '/en/dashboard/c1')).toBe('/en/dashboard/c1?step=scan')
-    expect(todayHref('/en/dashboard/c1/opportunities', '/en/dashboard/c1')).toBe('/en/dashboard/c1/opportunities')
+  it('does not replace a scoped saved-run or saved-work link with an unrelated website fix', () => {
+    const monitoring = buildTodayView(home({ nextStep: cases[4], priorities: { primaryAction: fixPriority }, health }), { lang: 'en' })
+    expect(monitoring.action).toMatchObject({ kind: 'next', labelKey: 'repair', href: '/en/dashboard/c1/observations?run=saved&week=2026-11-09&result=incomplete#run-status' })
+    const work = buildTodayView(home({ nextStep: cases[7], priorities: { primaryAction: fixPriority }, health }), { lang: 'en' })
+    expect(work.action).toMatchObject({ kind: 'next', labelKey: 'work', href: '/en/dashboard/c1/opportunities?draft=saved' })
   })
 })

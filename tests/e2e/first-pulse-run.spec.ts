@@ -46,6 +46,16 @@ for(const lang of ['en','zh-HK'])for(const state of ['quota','models','paused'] 
 })
 
 for(const lang of ['en','zh-HK']){
+ for(const state of ['quota','models','paused'] as const)test('configured monitoring blocked by '+state+' refreshes status rather than sending the owner back to questions '+lang,async({page})=>{
+  await fixture(page,lang)
+  const data={prompts:2,variants:state==='models'?0:5,expected:state==='models'?0:10,remaining:state==='quota'?9:20,contextConfirmed:true,week:'2026-10-05',currentCanonicalId:null,latest:null,legacyCurrentWeek:false,legacyObservationIds:[],search:{requested:'off'},enabled:state!=='paused'}
+  let posts=0,reads=0;await page.route('**/api/dashboard/clients/'+clientId+'/pulse-runs',route=>{if(route.request().method()==='POST')posts++;else reads++;return route.fulfill({json:data})})
+  await page.goto('https://first-pulse.fixture/'+lang)
+  await expect(page.getByRole('list')).toBeVisible()
+  await expect(page.locator('a[href$="/prompts"]')).toHaveCount(0)
+  const refresh=page.getByRole('button',{name:lang==='en'?'Refresh saved status':'重新讀取已保存的狀態',exact:true})
+  await refresh.click();await expect.poll(()=>reads).toBe(2);expect(posts).toBe(0)
+ })
  test('T31 current canonical and legacy lead to saved evidence without collection '+lang,async({page})=>{
   await fixture(page,lang)
   const data={prompts:2,variants:5,expected:10,remaining:0,contextConfirmed:true,week:'2026-10-05',currentCanonicalId:runId,latest:null,legacyCurrentWeek:true,legacyObservationIds:[],search:{requested:'off'},enabled:false}

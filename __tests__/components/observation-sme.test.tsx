@@ -103,10 +103,25 @@ describe('SME observation page', () => {
     const html = renderToString(<ObservationWorkspace {...propsFor(lang, noAnswers)} />)
     expect(html).toContain(copy.smeNoRecordsTitle)
     expect(html).toContain(copy.smeNoRecordsBody)
+    expect(html).toContain(copy.smeMonitoringStatus)
+    expect(html).toContain(`href="/${lang}/dashboard/${clientId}?step=monitor#first-monitoring"`)
     // Monitored questions stay reachable, collapsed, with plain status words.
     expect(html).toContain(copy.smeMonitoringTitle)
     expect(html).toContain(copy.smeActive)
     expect(html).toContain(copy.smeInactive)
+  })
+
+  it('keeps an explicitly selected run when checking status without treating the empty week as the current week', () => {
+    const html = renderToString(<ObservationWorkspace {...propsFor('en', noAnswers)} initialFilters={{ run: 'saved-run', week: '2026-10-05' }} />)
+    expect(html).toContain(`href="/en/dashboard/${clientId}?step=monitor&amp;run=saved-run#first-monitoring"`)
+    expect(html).not.toContain('step=monitor&amp;week=2026-10-05')
+  })
+
+  it('does not offer a new monitoring action for an empty filtered or legacy list', () => {
+    const filtered = renderToString(<ObservationWorkspace {...propsFor('en', noAnswers)} initialFilters={{ result: 'success' }} />)
+    expect(filtered).not.toContain(copyFor('en').smeMonitoringStatus)
+    const legacy = renderToString(<ObservationWorkspace {...propsFor('en', noAnswers)} smeCopilot={false} />)
+    expect(legacy).not.toContain(copyFor('en').smeMonitoringStatus)
   })
 
   it('does not count unknown question activity as active, and marks truncated counts', () => {

@@ -63,6 +63,25 @@ const response = (result: 'success' | 'incomplete' = 'success') => ({
 
 for (const lang of ['en', 'zh-HK']) {
   for (const width of [390, 1440]) {
+    test(`SME empty answers offer scoped read-only monitoring status at ${width}px in ${lang}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      const copy = await fixture(page, lang, true)
+      let writes = 0
+      await page.route('**/api/**', route => {
+        if (route.request().method() !== 'GET') writes++
+        return route.fulfill({ json: { ...response(), items: [], nextCursor: null, counts: { recordedRows: 0, successfulRows: 0, incompleteRows: 0 } } })
+      })
+      await page.locator('summary').filter({ hasText: copy.smeFilter }).first().click()
+      await page.getByRole('button', { name: copy.smeClearFilters, exact: true }).click()
+      const status = page.getByRole('link', { name: copy.smeMonitoringStatus, exact: true })
+      await expect(status).toBeVisible()
+      await expect(status).toHaveAttribute('href', `/${lang}/dashboard/${clientId}?step=monitor&run=77777777-7777-4777-8777-777777777777#first-monitoring`)
+      await status.focus()
+      await expect(status).toBeFocused()
+      expect(writes).toBe(0)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    })
     test(`SME answers keep filters, evidence and focus at ${width}px in ${lang}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 })
       const copy = await fixture(page, lang, true)
