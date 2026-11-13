@@ -577,3 +577,29 @@ three one-tap actions to the Studio landing; each opens an inline confirm and th
 - The saved turn from #251 is code-verified (server-composed `{prompt, task, requestId}`
   append with receipts); watching a live action create it is left to the owner because that
   writes to the real brand.
+
+## SME copilot — AI 回答記錄 simplified for the owner — 2026-11-13
+
+Owner feedback: the observations page was too dense to use ("make it more simple and easy
+to understand to use"). Rectified behind the same `FEATURE_SME_COPILOT_UI` flag, so the
+flag-off page is byte-identical.
+
+- **One clear purpose.** Header answers what this page is (AI 回答記錄), what it means
+  (AI 答過你嘅問題，我哋逐條記錄低…) and where to manage questions.
+- **Three plain stats** replace the raw row counters: 監察緊 N 條問題 / 已記錄 N 個回答 /
+  最新一次記錄 (date, or 未有記錄 when empty).
+- **Answer cards lead with the question**, then plain tags (platform · week · 完整回答 /
+  未完整回答 · 有冇提及品牌) and one action 睇完整回答. Model, market and timestamps move
+  into a 記錄詳情 disclosure instead of ten labelled rows.
+- **The raw monitored-question list is gone.** The flat list that printed 啟用/停用 +
+  目前分類: category_query + 目前語言: zh-HK is now a collapsed 監察緊嘅問題 section with
+  監察中／已暫停 badges; no category or language codes are shown to the SME.
+- **Filters live behind a 篩選 disclosure**, with a count chip when active and 清除篩選.
+- **Empty states are explicit and truthful.** No recording yet: 未有 AI 回答記錄 + "you
+  monitor N questions; answers appear after the next monitoring run". Filtered empty:
+  呢個篩選未有記錄 + clear filters. Nothing invents an answer or treats zero as success.
+- **Detail modal**: saved answer first, key points next, and the evidence fields (model,
+  classification, links, limitations) folded into 技術資料.
+- **Verification**: unit **8,524 passed / 15 skipped**, lint 0/0, typecheck clean, text
+  audit clean, build passed. New `observation-sme.test.tsx` covers both locales, the
+  honest empty state, the flag-off legacy branch and the evidence-first detail order.
