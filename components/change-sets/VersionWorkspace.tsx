@@ -348,9 +348,23 @@ function ScopedVersionWorkspace({
       requestAnimationFrame(() => { if (alive.current) statusRef.current?.focus() })
     }}
   />
+  const handoff = selected?.editSpec && <HandoffPanel key={'handoff' + selected.id + selected.contentHash + (selected.decision?.decision ?? 'pending')} clientId={clientId} version={selected} />
+  const manualDelivery = selected && <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} smeCopilot={smeCopilot} emphasize={latestIsCurrent && !canFreeze && !historical && selected.decision?.decision === 'approved'} />
+  const deliveryChoice = `${clientId}:${workItemId}:${selected?.id ?? ''}:delivery`
   const downstream = selected && <>
-    {selected.editSpec && <HandoffPanel key={'handoff' + selected.id + selected.contentHash + (selected.decision?.decision ?? 'pending')} clientId={clientId} version={selected} />}
-    <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} />
+    {smeCopilot ? <div className="space-y-3">
+      <details name={deliveryChoice} className="min-w-0 space-y-3">
+        <summary className="min-h-11 cursor-pointer rounded-lg border border-border px-3 py-2 font-semibold">{t('sme.manualPath')}</summary>
+        {manualDelivery}
+      </details>
+      <details name={deliveryChoice} className="min-w-0 space-y-3">
+        <summary className="min-h-11 cursor-pointer rounded-lg border border-border px-3 py-2 font-semibold">{t('sme.developerPath')}</summary>
+        {handoff || <div className="space-y-2">
+          <p>{t('sme.developerUnavailable')}</p>
+          <a className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/opportunities?draft=${encodeURIComponent(workItemId)}`}>{t('sme.backToThisDraft')}</a>
+        </div>}
+      </details>
+    </div> : <>{handoff}{manualDelivery}</>}
     <OutcomeWorkspace clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} />
   </>
   const stage = !historyAvailable ? 'unavailable' : canFreeze ? 'sme.prepare' : historical ? 'sme.historical'
@@ -385,7 +399,7 @@ function ScopedVersionWorkspace({
       <VersionDetails version={selected} latestVersionId={latestIsCurrent ? page?.latestVersionId ?? null : null} smeCopilot={smeCopilot} />
       {smeCopilot ? <>
         {decisionForm}
-        <details open className="space-y-4 rounded-xl border border-border p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">{t('sme.downstream')}</summary>{downstream}</details>
+        <details open={selected.decision?.decision === 'approved'} className="space-y-4 rounded-xl border border-border p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">{t('sme.downstream')}</summary>{downstream}</details>
       </> : <>{downstream}{decisionForm}</>}
     </>}
   </main>

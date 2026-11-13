@@ -3126,6 +3126,9 @@
       "savedDraft": "Saved draft and reload",
       "history": "Other versions and reload",
       "downstream": "Delivery and recorded results",
+      "manualPath": "Download and deliver it yourself",
+      "developerPath": "Send a website edit to your developer",
+      "developerUnavailable": "This version has no approved website edit for developer handoff.",
       "backToThisDraft": "Return to this draft",
       "unsaved": "Your unsaved review or delivery details will be lost. Leave this page?"
     }
