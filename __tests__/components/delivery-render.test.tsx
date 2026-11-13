@@ -16,6 +16,15 @@ import zh from '@/messages/zh-HK.json'
 vi.mock('server-only', () => ({}))
 const render = (node: React.ReactNode, lang: string) => renderToString(<NextIntlClientProvider locale={lang} messages={lang === 'en' ? en : zh} timeZone="UTC">{node}</NextIntlClientProvider>)
 describe('delivery rendering', () => {
+  it('keeps pending review list and detail consistent before approval refresh', () => {
+    const summary = pendingProps.initial.versions.find(saved => saved.id === pendingProps.initialVersion.id)
+    expect(summary?.decision).toBeNull()
+    expect(summary?.capabilities.canDecide).toBe(true)
+    const html = render(<VersionWorkspace {...pendingProps} />, 'en')
+    expect(html).toContain(en.changeSets.recordDecision)
+    expect(html).toContain('aria-label="Manual delivery"')
+    expect(html).not.toContain(`role="alert">${en.changeSets.unavailable}`)
+  })
   it.each(['en', 'zh-HK'])('renders the bilingual manual-delivery and UTC contract %s', lang => {
     const html = render(<DeliveryWorkspace clientId={clientId} version={version} onDirtyChange={() => {}} />, lang)
     expect(html).toContain('UTC')

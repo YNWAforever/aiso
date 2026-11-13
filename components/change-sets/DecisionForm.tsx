@@ -1,5 +1,6 @@
 'use client'
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { parseVersionDetail } from '@/lib/change-sets/read-view'
 import { useTranslations } from 'next-intl'
 import type {
   VersionDetail,
@@ -10,7 +11,11 @@ export function DecisionForm({
   version,
   onCompleted,
   onDirty,
+  smeCopilot = false,
+  emphasize = true,
 }: {
+  smeCopilot?: boolean
+  emphasize?: boolean
   endpoint: string
   version: VersionDetail
   onCompleted: (value: VersionDetail) => void
@@ -21,14 +26,23 @@ export function DecisionForm({
     reasonRef = useRef<HTMLTextAreaElement>(null)
   const [reason, setReason] = useState(''),
     [decision, setDecision] =
-      useState<ReviewDecisionInput['decision']>('approved'),
+      useState<ReviewDecisionInput['decision'] | ''>(smeCopilot ? '' : 'approved'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('')
   const request = useRef<{ payload: string; requestId: string } | null>(null),
-    lock = useRef(false)
+    lock = useRef(false), alive = useRef(true), decisionRef = useRef<HTMLSelectElement>(null)
+  useEffect(() => {
+    alive.current = true
+    return () => { alive.current = false }
+  }, [])
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (lock.current) return
+    if (lock.current || !version.capabilities.canDecide || version.decision) return
+    if (decision !== 'approved' && decision !== 'changes_requested') {
+      setError('sme.chooseDecision')
+      decisionRef.current?.focus()
+      return
+    }
     const normalized = reason.trim().normalize('NFC')
     if (!normalized || [...normalized].length > 2000) {
       setError('invalidReason')
@@ -51,6 +65,7 @@ export function DecisionForm({
           requestId: request.current.requestId,
         }),
       })
+      if (!alive.current) return
       if (!res.ok) {
         setError(
           res.status === 409
@@ -62,17 +77,24 @@ export function DecisionForm({
         return
       }
       const data = await res.json()
+      const confirmed = parseVersionDetail(data?.version, version.workItemId, { id: version.id, contentHash: version.contentHash, draftRevision: version.draftRevision })
+      if (confirmed.schemaVersion !== version.schemaVersion || confirmed.versionNumber !== version.versionNumber || confirmed.decision?.decision !== decision || confirmed.decision?.reason !== normalized) throw Error()
+      if (!alive.current) return
+      // Let the workspace reject a conflicting terminal observation before
+      // discarding entered values or their retry identity.
+      onCompleted(confirmed)
       request.current = null
       setReason('')
       onDirty(false)
-      onCompleted(data.version)
       completed = true
     } catch {
-      setError('unavailable')
+      if (alive.current) setError('unavailable')
     } finally {
       lock.current = false
-      setBusy(false)
-      if (!completed) reasonRef.current?.focus()
+      if (alive.current) {
+        setBusy(false)
+        if (!completed) reasonRef.current?.focus()
+      }
     }
   }
   return (
@@ -85,15 +107,18 @@ export function DecisionForm({
         {t('decision')}
       </label>
       <select
+        ref={decisionRef}
         id={id + 'decision'}
+        aria-invalid={error === 'sme.chooseDecision' || undefined}
         className="min-h-11 w-full border border-border bg-background p-2"
         value={decision}
-        disabled={busy}
+        disabled={busy || (smeCopilot && (!version.capabilities.canDecide || Boolean(version.decision)))}
         onChange={(e) => {
           setDecision(e.target.value as ReviewDecisionInput['decision'])
           onDirty(true)
         }}
       >
+        {smeCopilot && <option value="">{t('sme.chooseDecision')}</option>}
         <option value="approved">{t('approved')}</option>
         <option value="changes_requested">{t('changes_requested')}</option>
       </select>
@@ -107,18 +132,19 @@ export function DecisionForm({
         rows={4}
         required
         value={reason}
-        readOnly={busy}
+        readOnly={busy || (smeCopilot && (!version.capabilities.canDecide || Boolean(version.decision)))}
         onChange={(e) => {
           setReason(e.target.value)
           onDirty(true)
         }}
       />
       <p>{t('reasonLimit')}</p>
+      {smeCopilot && <p className="text-sm text-muted-foreground">{t('sme.independentReview')}</p>}
       {error && <p role="alert">{t(error)}</p>}
       <button
         type="submit"
-        className="min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50"
-        disabled={busy || !version.capabilities.canDecide}
+        className={`min-h-11 rounded border px-4 py-2 font-semibold disabled:opacity-50 ${smeCopilot && emphasize ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
+        disabled={busy || !version.capabilities.canDecide || Boolean(version.decision) || (smeCopilot && !decision)}
       >
         {t('recordDecision')}
       </button>
@@ -128,12 +154,12 @@ export function DecisionForm({
         disabled={busy}
         onClick={() => {
           setReason('')
-          setDecision('approved')
+          setDecision(smeCopilot ? '' : 'approved')
           setError('')
           onDirty(false)
         }}
       >
-        {t('discardReason')}
+        {t(smeCopilot ? 'sme.discardReview' : 'discardReason')}
       </button>
     </form>
   )

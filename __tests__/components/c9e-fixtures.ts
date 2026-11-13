@@ -8,4 +8,6 @@ export const draft: WorkItem = { id: version.workItemId, clientId, status: 'draf
 export const older = { ...version, id: '123e4567-e89b-42d3-a456-426614174005' }
 export const fixtureProps = { clientId, workItemId: draft.id, initialDraft: draft,
   initial: { versions: [version, older], latestVersionId: version.id, nextCursor: null }, initialVersion: version }
-export const pendingProps = { ...fixtureProps, initialVersion: { ...version, decision: null, capabilities: { canDecide: true } } }
+const pendingVersion = { ...version, decision: null, capabilities: { canDecide: true } }
+export const pendingProps = { ...fixtureProps,
+  initial: { ...fixtureProps.initial, versions: [pendingVersion, older] }, initialVersion: pendingVersion }
