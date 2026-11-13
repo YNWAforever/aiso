@@ -1,68 +1,91 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { VersionDetail } from '@/lib/change-sets/types'
+import {
+  acceptHandoffMutation, acceptHandoffRead, beginHandoffMutation, beginHandoffRead, decodeHandoff,
+  failHandoffMutation, failHandoffRead, handoffCanCheck, handoffCanSend, handoffPrimaryAction,
+  handoffResponseError, handoffTimestamp, initialHandoffReadState,
+  type HandoffAction, type HandoffReadState,
+} from '@/lib/site-edit/handoff-read-view'
 
-type Handoff = {
-  state: 'none' | 'sending' | 'sent' | 'failed' | 'unknown'
-  jobId: string | null
-  executorRef: string | null
-  lastEventAt: string | null
-  canSend: boolean
-  block: 'not_approved' | 'superseded' | 'no_edit_spec' | 'not_approver' | 'not_entitled' | 'limit_reached' | 'not_connected' | 'in_flight' | 'already_sent' | null
-  receipt: { status: 'completed' | 'rejected'; completedAt: string } | null
-  liveCheck: { outcome: 'found' | 'missing' | 'fetch_failed'; checkedAt: string; attested: boolean; structuredData: 'pass' | 'warn' | 'fail' | null } | null
-  canCheck: boolean
-  checkBlock: 'not_open' | 'too_soon' | null
+type HandoffScope = { endpoint: string; contentHash: string; decisionKey: string }
+type Session = { scope: HandoffScope; active: boolean; state: HandoffReadState; controller: AbortController }
+type HandoffPanelProps = {
+  clientId: string
+  version: VersionDetail
+  smeCopilot?: boolean
+  emphasize?: boolean
+  /**
+   * Invalidates existing delivery/outcome READS; do not remount their forms.
+   * The first validated GET in each client/item/version/hash/decision scope
+   * notifies once when receipt/check observations already exist, so a concurrent
+   * initial delivery read cannot leave older history visible. An empty first read
+   * is silent. Later accepted GETs notify only for changed receipt/latest-check
+   * fields, not identical reads or cooldown/capability changes.
+   * Every validated successful member live-check POST notifies once, including
+   * checks that insert no delivery event. Send responses notify only for changed
+   * recorded observations. Stale, failed or malformed completions never notify.
+   * This is not a promise that a receipt's after-response check has finished.
+   */
+  onRecordedChange?: () => void
 }
-const STATES = ['none', 'sending', 'sent', 'failed', 'unknown']
-const BLOCKS = [null, 'not_approved', 'superseded', 'no_edit_spec', 'not_approver', 'not_entitled', 'limit_reached', 'not_connected', 'in_flight', 'already_sent']
-const CHECK_BLOCKS = [null, 'not_open', 'too_soon']
-const ERRORS = ['HANDOFF_NOT_APPROVER', 'HANDOFF_LIMIT_REACHED', 'HANDOFF_UPGRADE_REQUIRED', 'LIVE_CHECK_NOT_OPEN', 'LIVE_CHECK_TOO_SOON', 'HANDOFF_NOT_APPROVED', 'HANDOFF_SUPERSEDED', 'HANDOFF_NO_EDIT_SPEC', 'HANDOFF_DOMAIN_UNVERIFIED', 'HANDOFF_CONFLICT', 'HANDOFF_IN_FLIGHT', 'HANDOFF_NOT_CONNECTED']
 
-function parse(value: unknown): Handoff {
-  const h = (value as { handoff?: Handoff })?.handoff
-  if (!h || !STATES.includes(h.state) || !BLOCKS.includes(h.block) || typeof h.canSend !== 'boolean' || h.canSend !== (h.block === null)) throw Error()
-  if (h.receipt !== null && (!h.receipt || !['completed', 'rejected'].includes(h.receipt.status) || typeof h.receipt.completedAt !== 'string')) throw Error()
-  if (!CHECK_BLOCKS.includes(h.checkBlock) || h.canCheck !== (h.checkBlock === null)) throw Error()
-  if (h.liveCheck !== null && (!h.liveCheck || !['found', 'missing', 'fetch_failed'].includes(h.liveCheck.outcome)
-    || typeof h.liveCheck.checkedAt !== 'string' || typeof h.liveCheck.attested !== 'boolean'
-    || ![null, 'pass', 'warn', 'fail'].includes(h.liveCheck.structuredData))) throw Error()
-  return h
-}
-
-/**
- * Site-edit S2: send this approved version's edit spec to the developer who
- * applies it. The state is honest about what AISO knows: "sent" means the
- * developer accepted the job, never that the page changed. S4's live check is
- * the only path to "verified", and only for what was on the page at fetch time.
- */
-export function HandoffPanel({ clientId, version }: { clientId: string; version: VersionDetail }) {
-  const t = useTranslations('siteEditHandoff')
-  const [handoff, setHandoff] = useState<Handoff | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const alive = useRef(true)
+/** Server capabilities authorize actions; receipts remain developer claims. */
+export function HandoffPanel({ clientId, version, smeCopilot = false, emphasize = true, onRecordedChange }: HandoffPanelProps) {
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(version.workItemId)}/versions/${encodeURIComponent(version.id)}/handoff`
+  const decisionKey = JSON.stringify(version.decision)
+  const scope = useMemo(() => ({ endpoint, contentHash: version.contentHash, decisionKey }), [endpoint, version.contentHash, decisionKey])
+  const sessionRef = useRef<Session | null>(null)
+  const callbackRef = useRef(onRecordedChange)
+  const [snapshot, setSnapshot] = useState(() => ({ scope, state: initialHandoffReadState() }))
+  // A committed scope change invalidates old callbacks before passive effects.
+  // Snapshot identity also hides old observations/authority during the new render.
+  useLayoutEffect(() => { callbackRef.current = onRecordedChange })
+  useLayoutEffect(() => {
+    const session: Session = { scope, active: true, state: initialHandoffReadState(), controller: new AbortController() }
+    sessionRef.current = session
+    return () => {
+      session.active = false
+      session.controller.abort()
+      if (sessionRef.current === session) sessionRef.current = null
+    }
+  }, [scope])
+  const current = useCallback((session: Session) => session.active && sessionRef.current === session, [])
+  const publish = useCallback((session: Session, state: HandoffReadState | null) => {
+    if (!state || !current(session)) return
+    // Ref first: even two clicks before React renders cannot start two writes.
+    session.state = state
+    setSnapshot({ scope: session.scope, state })
+  }, [current])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (explicit = false) => {
+    const session = sessionRef.current
+    if (!session || session.scope !== scope || !current(session)) return
+    const started = beginHandoffRead(session.state)
+    if (!started) return
+    publish(session, started.state)
+    let notify = false
     try {
-      const res = await fetch(endpoint, { cache: 'no-store' })
+      const res = await fetch(endpoint, { cache: 'no-store', signal: session.controller.signal })
       if (!res.ok) throw Error()
-      const next = parse(await res.json())
-      if (alive.current) { setHandoff(next); setError(null) }
-    } catch { if (alive.current) { setHandoff(null); setError('HANDOFF_UNAVAILABLE') } }
-  }, [endpoint])
+      const handoff = decodeHandoff(await res.json())
+      if (!current(session)) return
+      const accepted = acceptHandoffRead(session.state, started.token, handoff, explicit)
+      if (accepted) { publish(session, accepted.state); notify = accepted.recordedChange }
+    } catch {
+      if (current(session)) publish(session, failHandoffRead(session.state, started.token))
+    }
+    if (notify && current(session)) callbackRef.current?.()
+  }, [endpoint, scope, current, publish])
 
   useEffect(() => {
-    alive.current = true
     const start = setTimeout(() => { void load() }, 0)
-    return () => { alive.current = false; clearTimeout(start) }
+    return () => clearTimeout(start)
   }, [load])
-
-  // The check button is spaced a minute apart server-side; reload once that
-  // minute is up so a retry becomes available without leaving the page.
-  const cooldownFrom = handoff?.checkBlock === 'too_soon' ? handoff.liveCheck?.checkedAt ?? null : null
+  const state = snapshot.scope === scope ? snapshot.state : initialHandoffReadState()
+  // One cooldown GET, never a POST poll or automatic resend.
+  const cooldownFrom = state.handoff?.checkBlock === 'too_soon' ? state.handoff.liveCheck?.checkedAt ?? null : null
   useEffect(() => {
     if (!cooldownFrom) return
     const wait = Math.max(0, Date.parse(cooldownFrom) + 60_000 - Date.now()) + 1_000
@@ -70,30 +93,71 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
     return () => clearTimeout(timer)
   }, [cooldownFrom, load])
 
-  async function post(url: string, allowed: boolean) {
-    if (busy || !allowed) return
-    setBusy(true); setError(null)
+  async function post(action: HandoffAction) {
+    const session = sessionRef.current
+    if (!session || session.scope !== scope || !current(session)) return
+    const started = beginHandoffMutation(session.state, action)
+    if (!started) return
+    publish(session, started.state)
+    let notify = false, reconcile = false
     try {
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contentHash: version.contentHash }) })
-      const body = await res.json().catch(() => null)
-      if (!res.ok) { setError(ERRORS.includes(body?.error) ? body.error : 'HANDOFF_UNAVAILABLE'); await load(); return }
-      if (alive.current) setHandoff(parse(body))
-    } catch { if (alive.current) setError('HANDOFF_UNAVAILABLE') }
-    finally { if (alive.current) setBusy(false) }
+      const res = await fetch(endpoint + (action === 'check' ? '/live-check' : ''), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentHash: version.contentHash }), signal: session.controller.signal,
+      })
+      const body: unknown = await res.json().catch(() => null)
+      if (!current(session)) return
+      if (!res.ok) {
+        const error = handoffResponseError(body)
+        publish(session, failHandoffMutation(session.state, started.token, error))
+        // Reconcile known server refusals, retaining their error until an
+        // explicit successful refresh acknowledges the newly read status.
+        reconcile = error !== 'HANDOFF_UNAVAILABLE'
+      } else {
+        const handoff = decodeHandoff(body, action === 'check')
+        const accepted = acceptHandoffMutation(session.state, started.token, handoff)
+        if (accepted) { publish(session, accepted.state); notify = accepted.recordedChange }
+      }
+    } catch {
+      if (current(session)) publish(session, failHandoffMutation(session.state, started.token, 'HANDOFF_UNAVAILABLE'))
+    }
+    // No finally writes: a late old-scope completion cannot unlock a new scope.
+    if (notify && current(session)) callbackRef.current?.()
+    if (reconcile && current(session)) await load()
   }
 
-  const send = () => post(endpoint, Boolean(handoff?.canSend))
-  const check = () => post(endpoint + '/live-check', Boolean(handoff?.canCheck))
-  const resend = handoff?.state === 'failed' || handoff?.state === 'unknown'
-  return (
-    <section className="space-y-3 rounded-xl border border-border p-4" aria-labelledby="site-edit-handoff-heading" aria-busy={busy || !handoff}>
+  return <HandoffPanelView version={version} state={state} smeCopilot={smeCopilot} emphasize={emphasize} onSend={() => { void post('send') }} onCheck={() => { void post('check') }} onRefresh={() => { void load(true) }} />
+}
+
+type HandoffPanelViewProps = {
+  version: VersionDetail
+  state: HandoffReadState
+  smeCopilot?: boolean
+  emphasize?: boolean
+  onSend: () => void
+  onCheck: () => void
+  onRefresh: () => void
+}
+/** Presentation export also permits SSR contract tests without mocking hooks. */
+export function HandoffPanelView({ version, state, smeCopilot = false, emphasize = true, onSend, onCheck, onRefresh }: HandoffPanelViewProps) {
+  const t = useTranslations('siteEditHandoff')
+  const handoff = state.handoff, busy = state.busy !== null
+  const removal = version.editSpec?.kind === 'jsonld_remove'
+  const primary = handoffPrimaryAction(state, removal)
+  const button = 'min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50'
+  const smeButton = button + ' max-w-full whitespace-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+  const actionClass = (action: 'send' | 'check' | 'refresh') => smeButton + (emphasize && primary === action ? ' bg-primary text-primary-foreground' : '')
+  const canSend = handoffCanSend(state), canCheck = handoffCanCheck(state)
+  const matched = handoff?.liveCheck?.outcome === (removal ? 'missing' : 'found')
+  if (!smeCopilot) return (
+    <section className="space-y-3 rounded-xl border border-border p-4" aria-labelledby="site-edit-handoff-heading" aria-busy={busy || state.loading}>
       <h2 id="site-edit-handoff-heading" className="text-xl font-semibold">{t('title')}</h2>
       {handoff?.receipt && (
         <p role="status" aria-live="polite">
           {t(`receipt.${handoff.receipt.status}`, { date: handoff.receipt.completedAt.slice(0, 10) })}
         </p>
       )}
-      {handoff && !handoff.receipt && (
+      {handoff && !handoff.receipt && !state.reconcileRequired && (
         <p role="status" aria-live="polite">
           {t(`state.${handoff.state}`)}
           {handoff.executorRef && <> · <span className="break-all">{t('reference', { ref: handoff.executorRef })}</span></>}
@@ -101,24 +165,54 @@ export function HandoffPanel({ clientId, version }: { clientId: string; version:
       )}
       {handoff?.liveCheck && (
         <p role="status" aria-live="polite">
-          {t(`${version.editSpec?.kind === 'jsonld_remove' ? 'live.removeResult' : 'live.result'}.${handoff.liveCheck.attested ? 'verified' : handoff.liveCheck.outcome}`, { date: handoff.liveCheck.checkedAt.slice(0, 10) })}
+          {t(`${removal ? 'live.removeResult' : 'live.result'}.${handoff.liveCheck.attested ? 'verified' : handoff.liveCheck.outcome}`, { date: handoff.liveCheck.checkedAt.slice(0, 10) })}
         </p>
       )}
       {handoff?.liveCheck?.structuredData && <p>{t(`live.structuredData.${handoff.liveCheck.structuredData}`)}</p>}
       {handoff?.block && handoff.block !== 'already_sent' && handoff.block !== 'in_flight' && <p className="text-muted-foreground">{t(`block.${handoff.block}`)}</p>}
-      {error && <p role="alert">{t(`errors.${error}`)}</p>}
-      {handoff && handoff.state !== 'sent' && !handoff.receipt && (
-        <button type="button" onClick={send} disabled={busy || !handoff.canSend}
-          className="min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50">
-          {busy ? t('sending') : resend ? t('resend') : t('send')}
+      {state.error && <p role="alert">{t(`errors.${state.error}`)}</p>}
+      {handoff && !state.reconcileRequired && handoff.state !== 'sent' && handoff.state !== 'unknown' && !handoff.receipt && (
+        <button type="button" onClick={onSend} disabled={!canSend}
+          className={button}>
+          {state.busy === 'send' ? t('sending') : handoff.state === 'failed' ? t('resend') : t('send')}
         </button>
       )}
       {handoff && handoff.checkBlock !== 'not_open' && (
-        <button type="button" onClick={check} disabled={busy || !handoff.canCheck}
-          className="min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50">
-          {busy ? t('live.checking') : t('live.check')}
+        <button type="button" onClick={onCheck} disabled={!canCheck}
+          className={button}>
+          {state.busy === 'check' ? t('live.checking') : t('live.check')}
         </button>
       )}
+      {(state.reconcileRequired || handoff?.state === 'unknown') && <button type="button" onClick={onRefresh} disabled={busy || state.loading} className={button}>{t('sme.refresh')}</button>}
+    </section>
+  )
+  return (
+    <section className="min-w-0 space-y-3 break-words rounded-xl border border-border bg-background p-4 text-foreground" aria-labelledby="site-edit-handoff-heading" aria-busy={busy || state.loading}>
+      <h2 id="site-edit-handoff-heading" className="text-xl font-semibold">{t('sme.title')}</h2>
+      {state.loading && <p role="status" aria-live="polite">{t('sme.loading')}</p>}
+      {state.reconcileRequired && handoff?.state !== 'unknown' ? <p role="status" aria-live="polite">{t('sme.unconfirmed')}</p>
+        : handoff && (!handoff.receipt || handoff.state === 'unknown') && <p role="status" aria-live="polite">{t(`sme.state.${state.busy === 'send' ? 'sending' : handoff.state}`)}</p>}
+      {handoff?.executorRef && <p className="break-all">{t('reference', { ref: handoff.executorRef })}</p>}
+      {handoff?.receipt && <p role="status" aria-live="polite" className="break-words">{t(`sme.receipt.${handoff.receipt.status}`, { date: handoffTimestamp(handoff.receipt.completedAt) })}</p>}
+      {handoff?.liveCheck && <>
+        <p role="status" aria-live="polite" className="break-words">{t(`sme.${removal ? 'removeResult' : 'result'}.${handoff.liveCheck.outcome}`, { date: handoffTimestamp(handoff.liveCheck.checkedAt) })}</p>
+        {handoff.liveCheck.attested ? <p>{t('sme.recordedByCheck')}</p> : matched && <p>{t('sme.noNewDelivery')}</p>}
+        <p className="text-muted-foreground">{t('sme.checkLimitation')}</p>
+        {handoff.liveCheck.structuredData && <p>{t(`sme.structuredData.${handoff.liveCheck.structuredData}`)}</p>}
+      </>}
+      {handoff?.block && handoff.block !== 'already_sent' && handoff.block !== 'in_flight' && <p className="text-muted-foreground">{t(`block.${handoff.block}`)}</p>}
+      {handoff?.checkBlock === 'too_soon' && <p>{t('sme.cooldown')}</p>}
+      {state.reconcileRequired && (handoff?.receipt || handoff?.liveCheck) && <p>{t('sme.historical')}</p>}
+      {state.error && <p role="alert">{t(`errors.${state.error}`)}</p>}
+      <div className="flex flex-wrap gap-2">
+        {handoff && !state.reconcileRequired && !handoff.receipt && (handoff.state === 'none' || handoff.state === 'failed' || handoff.state === 'sending') && <button type="button" onClick={onSend} disabled={!canSend} className={actionClass('send')}>
+          {state.busy === 'send' ? t('sending') : handoff.state === 'failed' ? t('sme.retrySend') : t('send')}
+        </button>}
+        {handoff && handoff.checkBlock !== 'not_open' && <button type="button" onClick={onCheck} disabled={!canCheck} className={actionClass('check')}>
+          {state.busy === 'check' ? t('live.checking') : t('live.check')}
+        </button>}
+        <button type="button" onClick={onRefresh} disabled={busy || state.loading} className={actionClass('refresh')}>{t('sme.refresh')}</button>
+      </div>
     </section>
   )
 }

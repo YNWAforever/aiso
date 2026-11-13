@@ -31,11 +31,13 @@ function pageDTO(value: unknown, version: VersionDetail): DeliveryPage {
 function responseError(status: number) {
   return status === 401 ? 'unauthenticated' : status === 403 ? 'denied' : status === 409 ? 'conflict' : status === 400 || status === 413 || status === 422 ? 'invalid' : 'unavailable'
 }
-export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDeliveryChange, smeCopilot = false, emphasize = true }: { clientId: string; version: VersionDetail; onDirtyChange: (dirty: boolean) => void; onDeliveryChange?: () => void; smeCopilot?: boolean; emphasize?: boolean }) {
+export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDeliveryChange, smeCopilot = false, emphasize = true, refreshKey = 0 }: { clientId: string; version: VersionDetail; onDirtyChange: (dirty: boolean) => void; onDeliveryChange?: () => void; smeCopilot?: boolean; emphasize?: boolean; refreshKey?: number }) {
   const t = useTranslations('delivery'), id = useId()
+  const lastRefresh = useRef(refreshKey)
   const [page, setPage] = useState<DeliveryPage | null>(null), [authority, setAuthority] = useState(false)
   const [authorityVersion, setAuthorityVersion] = useState<VersionDetail | null>(null)
-  const authorized = authority && authorityVersion === version
+  const [authorityRefresh, setAuthorityRefresh] = useState(refreshKey)
+  const authorized = authority && authorityVersion === version && authorityRefresh === refreshKey
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState(''), [status, setStatus] = useState('')
   const [fields, setFields] = useState<DeliveryFields>(emptyFields), [target, setTarget] = useState<string | null>(null), [reason, setReason] = useState('')
   const generation = useRef(0), lock = useRef(false), dirty = useRef(false), alive = useRef(true)
@@ -43,16 +45,17 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
   const base = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(version.workItemId)}/versions/${encodeURIComponent(version.id)}`
   const endpoint = base + '/delivery'
   const markDirty = useCallback((next: boolean) => { dirty.current = next; onDirtyChange(next) }, [onDirtyChange])
-  const load = useCallback(async (cursor: string | null = null) => {
-    const token = ++generation.current
-    setLoading(true); setAuthority(false); setError('')
+  const load = useCallback(async (cursor: string | null = null, preserveError = false) => {
+    const token = ++generation.current, requestedRefresh = lastRefresh.current
+    setLoading(true); setAuthority(false)
+    if (!preserveError) setError('')
     try {
       const res = await fetch(endpoint + (cursor ? '?cursor=' + encodeURIComponent(cursor) : ''), { cache: 'no-store' })
       if (!res.ok) throw Error(responseError(res.status))
       const next = pageDTO(await res.json(), version)
       if (!alive.current || token !== generation.current) return
       setPage(previous => cursor && previous ? { ...next, events: [...previous.events, ...next.events].filter((e, i, all) => all.findIndex(x => x.eventId === e.eventId) === i) } : next)
-      setAuthorityVersion(version); setAuthority(true)
+      setAuthorityVersion(version); setAuthorityRefresh(requestedRefresh); setAuthority(true)
     } catch (failure) {
       if (alive.current && token === generation.current) { setAuthority(false); setError(failure instanceof Error && ['unauthenticated', 'denied', 'conflict', 'invalid'].includes(failure.message) ? failure.message : 'unavailable') }
     } finally { if (alive.current && token === generation.current) setLoading(false) }
@@ -63,6 +66,12 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     const start = setTimeout(() => { void load() }, 0)
     return () => { clearTimeout(start); alive.current = false; requests.current++ }
   }, [load])
+  useEffect(() => {
+    if (lastRefresh.current === refreshKey) return
+    lastRefresh.current = refreshKey
+    const start = setTimeout(() => { void load(null, true) }, 0)
+    return () => clearTimeout(start)
+  }, [load, refreshKey])
   useEffect(() => {
     const unload = (event: BeforeUnloadEvent) => { if (dirty.current) { event.preventDefault(); event.returnValue = '' } }
     const navigate = (event: MouseEvent) => {
