@@ -3,9 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { parseOutcomeResponse } from '@/lib/outcomes/dto'
 import type { OutcomeResponse } from '@/lib/outcomes/types'
-import { OutcomeWindows } from './OutcomeWindows'
+import { OutcomeReadError, OutcomeWindows } from './OutcomeWindows'
 type ReadState = { key: string; value: OutcomeResponse | null; error: string; loading: boolean }
-export function OutcomeWorkspace({ clientId, itemId, versionId, refreshKey }: { clientId: string; itemId: string; versionId: string; refreshKey: number }) {
+// versionSchema is presentation context only; neither flag changes the read scope or lifecycle.
+export function OutcomeWorkspace({ clientId, itemId, versionId, refreshKey, smeCopilot = false, versionSchema = 1 }: { clientId: string; itemId: string; versionId: string; refreshKey: number; smeCopilot?: boolean; versionSchema?: 1 | 2 }) {
   const t = useTranslations('outcomes')
   const [retry, setRetry] = useState(0)
   const [read, setRead] = useState<ReadState | null>(null)
@@ -38,9 +39,9 @@ export function OutcomeWorkspace({ clientId, itemId, versionId, refreshKey }: { 
   return <section className="min-w-0 space-y-4 rounded-xl border border-border p-4 break-words" aria-label={t('title')} aria-busy={loading}>
     <h2 className="text-xl font-semibold">{t('title')}</h2>
     <p>{t('limitation')}</p>
-    <button type="button" className="min-h-11 rounded border border-border px-4 py-2 font-semibold" onClick={() => setRetry(value => value + 1)}>{current?.error ? t('retry') : t('refresh')}</button>
+    <button type="button" className={smeCopilot ? 'min-h-11 max-w-full whitespace-normal rounded border border-border px-4 py-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring' : 'min-h-11 rounded border border-border px-4 py-2 font-semibold'} onClick={() => setRetry(value => value + 1)}>{current?.error ? t('retry') : t('refresh')}</button>
     <p aria-live="polite" aria-atomic="true">{loading ? t('loading') : current?.error ? '' : t('loaded')}</p>
-    {current?.error && <p role="alert">{t(current.error)}</p>}
-    {current?.value && <OutcomeWindows value={current.value} />}
+    {current?.error && <OutcomeReadError error={current.error} smeCopilot={smeCopilot} versionSchema={versionSchema} />}
+    {current?.value && <OutcomeWindows value={current.value} smeCopilot={smeCopilot} />}
   </section>
 }

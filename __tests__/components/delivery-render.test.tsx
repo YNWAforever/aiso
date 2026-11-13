@@ -9,7 +9,9 @@ import { VersionWorkspace } from '@/components/change-sets/VersionWorkspace'
 import { createDeliveryExport } from '@/lib/delivery/export'
 import { eventRow } from '../delivery/fixtures'
 import { deliveryEventDTO } from '@/lib/delivery/dto'
-import { fixtureProps, pendingProps, version, clientId, smeProps, smeV2Props, smeDeveloperProps, smeHistoricalProps, multiVersion, developerVersion } from './c9e-fixtures'
+import { fixtureProps, pendingProps, version, clientId, smeProps, smeV2Props, smeDeveloperProps, smeHistoricalProps, multiVersion, developerVersion, hydratedVariants } from './c9e-fixtures'
+import { C9EVersionWorkspaceFixture } from './c9e-workspace-fixture'
+import { parseVersionDetail } from '@/lib/change-sets/read-view'
 import { writeC9cFixture } from './c9c-fixture-writer'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -27,7 +29,7 @@ describe('delivery rendering', () => {
       expect(html.match(/name="[^"]+:delivery"/g)).toHaveLength(2)
       expect(html).toContain((lang === 'en' ? en : zh).delivery.sme.manualLimitation)
       expect(html.match(/<button[^>]*bg-primary[^>]*>/g)).toHaveLength(1)
-      if (!props.initialVersion.editSpec) expect(html).toContain(copy.sme.developerUnavailable)
+      if (!props.initialVersion!.editSpec) expect(html).toContain(copy.sme.developerUnavailable)
     }
     const legacy = render(<VersionWorkspace {...fixtureProps} />, lang)
     expect(legacy).not.toContain(copy.sme.manualPath)
@@ -61,12 +63,19 @@ describe('delivery rendering', () => {
     expect(html).toContain(lang === 'en' ? 'Server recorded time' : '伺服器記錄時間')
   })
 })
-const smeVariants = { sme: smeProps, smeV2: smeV2Props, smeDeveloper: smeDeveloperProps, smeHistorical: smeHistoricalProps }
+const smeVariants = { sme: smeProps, smeV2: smeV2Props, smeDeveloper: smeDeveloperProps, smeHistorical: smeHistoricalProps, ...hydratedVariants }
+it.each(Object.entries(hydratedVariants))('accepts genuinely frozen hydrated website fixture %s', (_name, props) => {
+  const saved = props.initialVersion!
+  expect(parseVersionDetail(saved, saved.workItemId)).toEqual(saved)
+  expect(saved.decision && Object.keys(saved.decision).sort()).toEqual(saved.decision ? ['decidedAt', 'decidedBy', 'decision', 'reason'] : null)
+  if (saved.decision?.decision === 'approved') expect(createDeliveryExport(saved, 'json').body).toContain(saved.contentHash)
+  expect(render(<C9EVersionWorkspaceFixture {...props} />, 'en')).toBe(render(<VersionWorkspace {...props} />, 'en'))
+})
 afterAll(async () => {
-  await writeC9cFixture('C9E', 'VersionWorkspace', '@/components/change-sets/VersionWorkspace', fixtureProps,
-    lang => render(<VersionWorkspace {...fixtureProps} />, lang),
-    { pending: { props: pendingProps, html: lang => render(<VersionWorkspace {...pendingProps} />, lang) },
-      ...Object.fromEntries(Object.entries(smeVariants).map(([name, props]) => [name, { props, html: (lang: string) => render(<VersionWorkspace {...props} />, lang) }])) }, 'delivery')
+  await writeC9cFixture('C9E', 'C9EVersionWorkspaceFixture', '@/__tests__/components/c9e-workspace-fixture', fixtureProps,
+    lang => render(<C9EVersionWorkspaceFixture {...fixtureProps} />, lang),
+    { pending: { props: pendingProps, html: lang => render(<C9EVersionWorkspaceFixture {...pendingProps} />, lang) },
+      ...Object.fromEntries(Object.entries(smeVariants).map(([name, props]) => [name, { props, html: (lang: string) => render(<C9EVersionWorkspaceFixture {...props} />, lang) }])) }, 'delivery')
   const dir = process.env.C9E_HTML_DIR
   if (!dir) return
   for (const [name, saved] of Object.entries({ '': version, multi: multiVersion, developer: developerVersion })) {

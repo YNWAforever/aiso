@@ -99,7 +99,7 @@ function ScopedVersionWorkspace({
   const [error, setError] = useState(seed.error), [status, setStatus] = useState(''),
     [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false),
     [deliveryDirty, setDeliveryDirty] = useState(false), [outcomeRefresh, setOutcomeRefresh] = useState(0),
-    [mutationFloor, setMutationFloor] = useState(0)
+    [deliveryRefresh, setDeliveryRefresh] = useState(0), [mutationFloor, setMutationFloor] = useState(0)
   const alive = useRef(true), lock = useRef(false), versionReadGeneration = useRef(0)
   const pageRef = useRef(page), selectedRef = useRef(selected), draftRef = useRef(draft)
   // Per-scope positive knowledge: validated terminal reads must survive moving
@@ -120,6 +120,11 @@ function ScopedVersionWorkspace({
   }, [])
   const deliveryChanged = useCallback(() => {
     if (alive.current) setOutcomeRefresh(value => value + 1)
+  }, [])
+  const handoffRecordedChange = useCallback(() => {
+    if (!alive.current) return
+    setDeliveryRefresh(value => value + 1)
+    setOutcomeRefresh(value => value + 1)
   }, [])
   const deliveryDirtyChange = useCallback((next: boolean) => {
     if (!alive.current) return
@@ -348,8 +353,9 @@ function ScopedVersionWorkspace({
       requestAnimationFrame(() => { if (alive.current) statusRef.current?.focus() })
     }}
   />
-  const handoff = selected?.editSpec && <HandoffPanel key={'handoff' + selected.id + selected.contentHash + (selected.decision?.decision ?? 'pending')} clientId={clientId} version={selected} />
-  const manualDelivery = selected && <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} smeCopilot={smeCopilot} emphasize={latestIsCurrent && !canFreeze && !historical && selected.decision?.decision === 'approved'} />
+  const deliveryEmphasize = latestIsCurrent && !canFreeze && !historical && selected?.decision?.decision === 'approved'
+  const handoff = selected?.editSpec && <HandoffPanel key={'handoff' + selected.id + selected.contentHash + (selected.decision?.decision ?? 'pending')} clientId={clientId} version={selected} smeCopilot={smeCopilot} emphasize={deliveryEmphasize} onRecordedChange={handoffRecordedChange} />
+  const manualDelivery = selected && <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} smeCopilot={smeCopilot} emphasize={deliveryEmphasize} refreshKey={deliveryRefresh} />
   const deliveryChoice = `${clientId}:${workItemId}:${selected?.id ?? ''}:delivery`
   const downstream = selected && <>
     {smeCopilot ? <div className="space-y-3">
@@ -365,7 +371,7 @@ function ScopedVersionWorkspace({
         </div>}
       </details>
     </div> : <>{handoff}{manualDelivery}</>}
-    <OutcomeWorkspace clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} />
+    <OutcomeWorkspace clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} smeCopilot={smeCopilot} versionSchema={selected.schemaVersion} />
   </>
   const stage = !historyAvailable ? 'unavailable' : canFreeze ? 'sme.prepare' : historical ? 'sme.historical'
     : latest?.decision?.decision === 'approved' ? 'sme.approved' : latest?.decision?.decision === 'changes_requested' ? 'sme.revise'

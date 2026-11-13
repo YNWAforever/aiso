@@ -998,7 +998,7 @@ across all contexts**, with **zero write requests attempted**.
 No production approval, audited export, delivery, handoff, live check or paid operation
 was executed.
 
-## SME execution workflow — PR 3 candidate: export and choose delivery
+## SME execution workflow — PR 3 released: export and choose delivery
 
 The isolated delivery candidate retains the captured V1 JSON/text bytes and canonical
 JSON hashes. Its fixtures were captured once against the untouched c6e37e6 V1 renderer;
@@ -1037,6 +1037,67 @@ unexpected results. The full browser run covers the retained home, monitoring, e
 Studio, saved-draft, review and delivery scopes plus all 48 new delivery cases.
 An independent source review found no export/receipt compatibility blocker: the existing
 receipt renderer column accepts both tags without DDL, and the service waits for the
-actual downloader's bound receipt before returning either format. Receipt persistence
-was not tested by a production export; mandatory disposable integration, exact-head CI
-and canonical release verification remain pending.
+actual downloader's bound receipt before returning either format.
+
+PR **#262** passed all required exact-head CI classes, all four browser shards and the
+aggregate gate, including disposable integration, at tested head
+`2187dcc92cac51715aa3274bbfb0408625bbdaec` (run **43479681625**). It merged as
+`c40cfe70d2f93e47ed2d98d3d48ce7218f088e8c`; the merged source tree is identical to the
+tested head. Canonical Ready deployment **dpl_8Hh5ZFQnS5ZvpVNgNf3GUvFCRVcC** /
+`aiso-hsfyla7db-ynwaforevers-projects.vercel.app` independently matches that complete
+merged SHA. Its production main/c40cfe7 build reports all **107 shipped migrations
+recorded**, with no migration applied.
+
+Canonical read-only acceptance passed **36/36**: 32 Tasks/Opportunities cases across
+two locales, themes and four widths, plus four missing owned-review probes. Axe,
+reflow and page errors remained zero; all four canonical screenshots were inspected.
+All 16 Tasks views remained empty, while Opportunities retained scan suggestions.
+The guard aggregated **161 denied unrelated GET/auth/prefetch reads** across all
+contexts and **zero write requests attempted**. Missing reviews still require the
+localized not-found/noindex/no decision/freeze/review controls rather than a status-only
+404 assertion. [Durable release evidence](https://github.com/YNWAforever/aiso/pull/262#issuecomment-6861884546).
+No production approval, audited export, manual delivery, handoff, live check or paid
+operation was executed. Populated export behavior is fixture/unit/service/CI evidence;
+this release does not establish production export-receipt persistence, provider
+execution or SME usability.
+
+## SME execution workflow — PR 4 candidate: reconcile and inspect saved outcomes
+
+The verification candidate gives unknown or unconfirmed handoffs a status read instead
+of a resend. Scope invalidation, synchronous action locks and read/mutation generations
+reject stale completions and duplicate actions. Receipt completion remains a developer
+claim; check results show their full stored timestamp, and insertion by this check is
+separate from the provenance of an existing delivery event. Structured-data verdicts
+remain observations. Actions require fresh scoped server capabilities; an unknown send
+continues through reconciliation.
+
+Validated receipt/check observations refresh existing delivery and outcome reads through
+stable callbacks without remounting forms or changing their keys. A new delivery refresh
+key revokes action authority during render until the matching read completes. Automatic
+successful refreshes retain manual input, correction/withdrawal context, retry identity
+and an unconfirmed manual-write error. Pending preparation/review and historical actions
+retain priority over handoff controls. Legacy presentation defaults remain intact.
+
+Saved outcome cards lead with provisional status, comparison basis, movement and both
+verdicts, followed by their full timing and evidence. Repeated selected-evidence limits
+appear once, and raw check codes stay with source IDs in their native disclosure. Actual 7/28/56-day UTC intervals describe saved
+evidence rather than a collection schedule. Pulse remains unranked, and delivery-date
+copy stays neutral because the outcome anchor carries no provenance. Technical IDs stay
+available in disclosures. Unsupported schema-2 packages receive an explicit unavailable
+comparison message without a first-source fallback; authentication/denial messages remain
+distinct. No SQL, public DTO, server gate, endpoint, input or provider policy changed.
+
+The current full local gate has passed **9,056 unit tests / 15 existing skips**
+(675 files passed / 1 skipped), complete Next type generation and TypeScript checks,
+full lint with zero errors/warnings, a clean text audit, the Turbopack production build
+and **285 actual fixture tests in 27 files**. The writers generated 30 localized delivery
+HTMLs and eight outcome HTMLs. The **1,180-case local browser regression across 13 scopes**
+passed on Chromium and mobile with zero skipped, flaky or unexpected results. All eight
+representative hydrated screenshots were inspected; their final-run hashes match the
+inspected files. Full configured discovery is 2,414 cases in 56 files, recorded separately
+from these executed local regressions.
+
+Independent production, narrow presentation and test-credibility reviews found no
+blockers. The latter's optional gaps were tightened with deterministic first-observation
+refresh counts and tracking of all non-read request attempts. Full exact-head CI, merge,
+canonical deployment/read acceptance remain pending; this candidate is not released.
