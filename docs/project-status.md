@@ -1029,5 +1029,14 @@ expectations now require the exact frozen hash as well, and the eight complete V
 manual-record/withdrawal flows passed their targeted rerun. All other existing and new
 cases passed, including explicit developer send, retained inputs, historical V2 export,
 revoked authority, and the 32-case measured 44px/reflow/axe matrix. Four bounded manual
-UI screenshots were inspected. This is not yet a single complete green regression run;
-the full **896-case** candidate gate, exact-head CI and release verification remain pending.
+UI screenshots were inspected. The final complete local candidate gate then passed:
+lint zero errors/warnings, typecheck, clean text audit, **8,864 unit tests / 15 skipped**
+(673 files passed / 1 skipped), Turbopack production build, **247 fixture tests**, and
+**896/896 Chromium/mobile browser cases** in 14.1 minutes with zero skipped, flaky or
+unexpected results. The full browser run covers the retained home, monitoring, evidence,
+Studio, saved-draft, review and delivery scopes plus all 48 new delivery cases.
+An independent source review found no export/receipt compatibility blocker: the existing
+receipt renderer column accepts both tags without DDL, and the service waits for the
+actual downloader's bound receipt before returning either format. Receipt persistence
+was not tested by a production export; mandatory disposable integration, exact-head CI
+and canonical release verification remain pending.
