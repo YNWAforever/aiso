@@ -1745,6 +1745,19 @@
       "action_report": "New report"
     },
     "tasks": {
+      "sme": {
+        "title": "Continue your work",
+        "subtitle": "Open a task to see its next step. A delivery record is not proof of a verified change.",
+        "delivered": "Delivery recorded",
+        "deliveredFilter": "Delivery recorded ({count})",
+        "next": {
+          "draft": "Continue draft",
+          "in_review": "Open review",
+          "changes_requested": "Read feedback and revise",
+          "approved": "Arrange delivery",
+          "delivered": "View delivery and evidence"
+        }
+      },
       "title": "Tasks",
       "subtitle": "Every fix, from draft to delivered.",
       "filters": "Filter by status",
@@ -2862,7 +2875,10 @@
       "evidence": "View the saved evidence",
       "window": "Evidence window and source status",
       "moreSuggestions": "Other individual findings",
-      "moreGroups": "Other grouped findings"
+      "moreGroups": "Other grouped findings",
+      "editDraft": "Prepare this draft",
+      "prepareReview": "Prepare for review",
+      "recordingDetails": "Draft recording details"
     },
     "title": "Opportunities",
     "intro": "Review retained Pulse and website evidence, then save the findings you want to work on as private drafts.",

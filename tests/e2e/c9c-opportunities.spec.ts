@@ -99,7 +99,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByText(copy.openError,{exact:true})).toBeVisible()
     await more.click();await more.click()
     await second.getByRole('button',{name:copy.openDraft,exact:true}).click()
-    await expect(page.getByRole('heading',{name:copy.savedDraft,exact:true})).toBeVisible()
+    await expect(page.getByRole('heading',{name:copy.sme.editDraft,exact:true})).toBeVisible()
     expect(posts).toBe(1);expect(reads).toBe(2)
   })
   test(`SME disabled group save is explicit and never falls back to an individual save ${lang}`,async({page})=>{
@@ -284,12 +284,18 @@ for (const lang of ['en', 'zh-HK']) {
     expect(posts).toBe(1)
     release()
     await expect(
-      page.getByRole('heading', { name: copy.savedDraft, exact: true }),
+      page.getByRole('heading', { name: sme ? copy.sme.editDraft : copy.savedDraft, exact: true }),
     ).toBeVisible()
     await expect(page.locator('[tabindex="-1"]')).toBeFocused()
     await expect(
       page.getByRole('status').filter({ hasText: copy.draftSaved }),
     ).toBeVisible()
+    if (sme) {
+      await expect(page.getByText('Original title', { exact: true })).not.toBeVisible()
+      const evidence = page.locator('summary').filter({ hasText: copy.savedEvidence })
+      await evidence.focus(); await page.keyboard.press('Enter')
+      await expect(evidence.locator('..')).toHaveJSProperty('open', true)
+    }
     await expect(
       page.getByText('Original title', { exact: true }),
     ).toBeVisible()
@@ -689,7 +695,7 @@ for (const lang of ['en', 'zh-HK']) {
           .click()
         if (otherSaveStatus === 200)
           await expect(
-            page.getByRole('heading', { name: copy.savedDraft, exact: true }),
+            page.getByRole('heading', { name: sme ? copy.sme.editDraft : copy.savedDraft, exact: true }),
           ).toBeVisible()
         else {
           await expect(second.getByRole('alert')).toHaveText(copy.saveError)

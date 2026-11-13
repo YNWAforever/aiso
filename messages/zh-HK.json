@@ -1745,6 +1745,19 @@
       "action_report": "新增報告"
     },
     "tasks": {
+      "sme": {
+        "title": "繼續處理工作",
+        "subtitle": "打開一項工作，睇下一步。交付紀錄唔等於已驗證改動。",
+        "delivered": "已記錄交付",
+        "deliveredFilter": "已記錄交付（{count}）",
+        "next": {
+          "draft": "繼續編輯草稿",
+          "in_review": "打開審批版本",
+          "changes_requested": "睇修改意見再修訂",
+          "approved": "安排交付",
+          "delivered": "查看交付同證據"
+        }
+      },
       "title": "任務",
       "subtitle": "每項修復，由草稿到交付。",
       "filters": "按狀態篩選",
@@ -2862,7 +2875,10 @@
       "evidence": "查看已保存證據",
       "window": "證據時段同來源狀態",
       "moreSuggestions": "其他個別發現",
-      "moreGroups": "其他分組發現"
+      "moreGroups": "其他分組發現",
+      "editDraft": "整理呢份草稿",
+      "prepareReview": "準備提交審批",
+      "recordingDetails": "草稿記錄詳情"
     },
     "title": "改善機會",
     "intro": "檢視保留的 Pulse 及網站證據，再將希望跟進的發現儲存為私人草稿。",

@@ -893,3 +893,37 @@ questions × 5 variants, 50 expected answers, 1,500 allowance remaining, collect
 paused, no canonical/latest run and zero saved answers. Schedule/next-due remain
 unknown; this establishes the current blocker, not a historical root cause or
 scheduler-health claim. No configuration was changed to make acceptance pass.
+
+## SME execution workflow — PR 1 candidate: resume saved work
+
+The [approved five-PR execution phase](ux/sme-execution-workflow.md) continues from
+saved drafts to explicit review, delivery and verification. It does not authorize
+production brand writes, audited exports, website handoffs or paid workloads.
+
+- The existing SME flag now selects a next-step presentation for Tasks. Returned
+  order, concrete draft/review URLs, the 200-item cap, ownership and unavailable
+  reads are unchanged. Recorded delivery is not presented as verified impact.
+- Saved draft editors receive that same serialized flag. SME edits and save are
+  prominent; review navigation appears only when edits are clean and not saving.
+  A clean SME save is disabled instead of sending an unchanged PATCH. Legacy
+  presentation and all edit/revision inputs remain unchanged.
+- Saved evidence and recording metadata use native disclosures, without unmounting
+  fields or operation state. Pulse uncertainty and scan redaction/limited-evidence
+  warnings stay visible above the editor. Conflict reload still explicitly replaces
+  local edits; a failed save does not expose a review link for dirty work.
+- New owner-page/SSR tests cover flag modes, returned ordering, concrete links,
+  delivery wording, ownership denial and unavailable reads. Hydrated journeys add
+  pending acknowledgement, confirmed save, preserved conflict edits, explicit reload
+  and keyboard evidence disclosure in both locales and flag modes.
+
+Focused unit checks passed **28/28**. Read-only independent review found no
+introduced actionable issue. Full candidate gates on Node 24.22.2 passed: lint
+0 errors/warnings, typecheck, text audit, **8,581 unit tests / 15 skipped** (670
+passed files / 1 skipped), production build, **210/210 fixture tests**, and
+**708/708 Chromium/mobile browser cases**, zero skips/flakes/unexpected failures.
+A preliminary browser run found twelve obsolete SME heading expectations; the
+assertions now check the new heading and keyboard-open the saved evidence before
+checking its exact original content. Duplicate-write/focus/conflict assertions
+remain intact; the complete suite was rerun, not only the failures.
+Exact-head complete CI and canonical read-only release acceptance remain pending;
+no production draft persistence or real SME usability acceptance is claimed.
