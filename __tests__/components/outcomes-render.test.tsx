@@ -3,11 +3,13 @@ import { renderToString } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
 import { OutcomeReadError, OutcomeWindows } from '@/components/outcomes/OutcomeWindows'
 import { OutcomeWorkspace } from '@/components/outcomes/OutcomeWorkspace'
-import { VersionWorkspace } from '@/components/change-sets/VersionWorkspace'
 import { OUTCOME_REASON_CODES, type OutcomeComparison, type SafeEvidence } from '@/lib/outcomes/types'
 import { parseOutcomeResponse } from '@/lib/outcomes/dto'
-import { outcome, outcomes } from './c9f-fixtures'
-import { fixtureProps } from './c9e-fixtures'
+import { outcome, outcomes, smeComparisonCases, smeOutcomes } from './c9f-fixtures'
+import { fixtureProps, smeProps, smeV2Props, smeSingleV2Props } from './c9e-fixtures'
+import { C9EVersionWorkspaceFixture } from './c9e-workspace-fixture'
+import { writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { writeC9cFixture } from './c9c-fixture-writer'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
@@ -161,7 +163,16 @@ describe('SME stored comparison presentation', () => {
   }
 })
 
+it.each(smeComparisonCases)('validates mounted outcome fixture $name against the real comparison policy', example => {
+  const value = smeOutcomes[example.name]
+  expect(parseOutcomeResponse(value)).toEqual(value)
+  expect(value.windows[0].comparison).toMatchObject({ status: example.status, outcome: example.change })
+})
+const mountedVariants = { sme: smeProps, smeV2: smeV2Props, smeSingleV2: smeSingleV2Props }
 afterAll(async () => {
-  await writeC9cFixture('C9F', 'VersionWorkspace', '@/components/change-sets/VersionWorkspace', fixtureProps,
-    lang => render(<VersionWorkspace {...fixtureProps} />, lang), {}, 'outcomes')
+  await writeC9cFixture('C9F', 'C9EVersionWorkspaceFixture', '@/__tests__/components/c9e-workspace-fixture', fixtureProps,
+    lang => render(<C9EVersionWorkspaceFixture {...fixtureProps} />, lang),
+    Object.fromEntries(Object.entries(mountedVariants).map(([name, props]) => [name, { props, html: (lang: string) => render(<C9EVersionWorkspaceFixture {...props} />, lang) }])), 'outcomes')
+  const dir = process.env.C9F_HTML_DIR
+  if (dir) for (const [name, props] of Object.entries(mountedVariants)) for (const lang of ['en', 'zh-HK']) writeFileSync(join(dir, `${lang}-${name}-data.json`), JSON.stringify(props))
 })

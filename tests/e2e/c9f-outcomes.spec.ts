@@ -4,20 +4,23 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
-import { outcomes, outcome } from '../../__tests__/components/c9f-fixtures'
+import { outcomes, outcome, smeComparisonCases, smeOutcomes } from '../../__tests__/components/c9f-fixtures'
 import type { VersionWorkspaceProps } from '../../components/change-sets/VersionWorkspace'
 import type { OutcomeResponse } from '../../lib/outcomes/types'
 import type { DeliveryEvent, DeliveryPage } from '../../lib/delivery/types'
 const errors = new WeakMap<Page, string[]>()
-async function fixture(page: Page, lang: string, initial: OutcomeResponse = outcomes.noDelivery) {
+async function fixture(page: Page, lang: string, initial: OutcomeResponse = outcomes.noDelivery, variant = 'default') {
   const dir = process.env.C9F_HTML_DIR!, css = process.env.C9F_CSS_PATH!
   if (!dir || !css) throw Error('C9F fixtures required')
-  const props = JSON.parse(readFileSync(dir + '/' + lang + '-data.json', 'utf8')) as VersionWorkspaceProps
-  const version = props.initialVersion!, older = { ...version, id: props.initial!.versions[1].id }
+  const props = JSON.parse(readFileSync(dir + '/' + lang + (variant === 'default' ? '' : '-' + variant) + '-data.json', 'utf8')) as VersionWorkspaceProps
+  const version = props.initialVersion!, older = { ...version, id: props.initial!.versions[1]?.id ?? version.id }
   const c = (lang === 'en' ? en : zh).outcomes, d = (lang === 'en' ? en : zh).delivery
   const state = { value: initial, reads: 0, mutations: [] as string[], events: [] as DeliveryEvent[], active: null as string | null,
     hook: null as ((route: Route) => Promise<void>) | null, mutationHook: null as ((route: Route) => Promise<void>) | null }
   const pageErrors: string[] = []; errors.set(page, pageErrors); page.on('pageerror', e => pageErrors.push(e.message))
+  page.on('request', request => {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method())) state.mutations.push(new URL(request.url()).pathname)
+  })
   // Deliberately model an uncancellable transport so request-generation guards,
   // independently of AbortController, must reject late fulfilled bodies.
   await page.addInitScript(() => {
@@ -27,11 +30,11 @@ async function fixture(page: Page, lang: string, initial: OutcomeResponse = outc
   await page.route('**/*', route => route.abort())
   await page.route('**/api/clients/**', async route => {
     const req = route.request(), path = new URL(req.url()).pathname
-    if (req.method() !== 'GET') state.mutations.push(path)
     if (path.endsWith('/outcomes')) {
       expect(req.method()).toBe('GET'); expect(new URL(req.url()).search).toBe('')
       state.reads++
-      return state.hook ? state.hook(route) : route.fulfill({ json: state.value })
+      if (state.hook) return state.hook(route)
+      return version.schemaVersion === 2 ? route.fulfill({ status: 503, json: { error: 'OUTCOMES_UNAVAILABLE' } }) : route.fulfill({ json: state.value })
     }
     if (path.includes('/delivery') && req.method() === 'POST') {
       if (state.mutationHook) return state.mutationHook(route)
@@ -50,10 +53,10 @@ async function fixture(page: Page, lang: string, initial: OutcomeResponse = outc
     }
     return route.fulfill({ json: { version: path.includes(older.id) ? older : version } })
   })
-  await page.route(`https://outcomes.fixture/${lang}`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>Outcomes</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${readFileSync(css, 'utf8')}</style></head><body>${readFileSync(dir + '/' + lang + '-default.html', 'utf8')}<script>${readFileSync(dir + '/fixture.js', 'utf8')}</script></body></html>` }))
+  await page.route(`https://outcomes.fixture/${lang}`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>Outcomes</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${readFileSync(css, 'utf8')}</style></head><body>${readFileSync(dir + '/' + lang + '-' + variant + '.html', 'utf8')}<script>${readFileSync(dir + '/fixture.js', 'utf8')}</script></body></html>` }))
   await page.goto(`https://outcomes.fixture/${lang}`)
   await page.waitForFunction(() => Boolean((window as Window & { c9cFixtureReady?: boolean }).c9cFixtureReady))
-  const section = page.getByRole('region', { name: c.title, exact: true }), delivery = page.getByRole('region', { name: d.title, exact: true })
+  const section = page.getByRole('region', { name: c.title, exact: true }), delivery = page.getByRole('region', { name: variant === 'default' ? d.title : d.sme.title, exact: true, includeHidden: variant !== 'default' })
   await expect(section).toHaveAttribute('aria-busy', 'false')
   await expect(delivery).toHaveAttribute('aria-busy', 'false')
   const refresh = () => section.getByRole('button', { name: c.refresh, exact: true }).click()
@@ -165,5 +168,112 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(delivery.getByRole('alert')).toHaveText(d.unavailable)
     expect(state.reads).toBe(reads)
     await expect(delivery.getByLabel(d.destination, { exact: true })).toHaveValue('Keep my destination')
+  })
+}
+
+for (const lang of ['en', 'zh-HK']) {
+  for (const example of smeComparisonCases) test(`PR4 mounted SME outcomes ${example.name} preserve basis movement and exact windows ${lang}`, async ({ page }) => {
+    const value = smeOutcomes[example.name]
+    const { c, section, state, refresh } = await fixture(page, lang, value, 'sme')
+    const first = section.getByRole('article').first()
+    await expect(first.getByText(c.comparisonBasis + ': ' + (example.status === 'not_comparable' ? c.sme.notComparable : c.comparisonStatuses[example.status]), { exact: true })).toBeVisible()
+    await expect(first.getByText(c.comparisonChange + ': ' + c.comparisonOutcomes[example.change], { exact: true })).toBeVisible()
+    await expect(first.getByText(c.comparisonBaseline + ': ' + c.verdicts[example.baseline.verdict as keyof typeof c.verdicts], { exact: true })).toBeVisible()
+    await expect(first.getByText(c.comparisonObserved + ': ' + (example.selected ? c.verdicts[example.selected.verdict as keyof typeof c.verdicts] : c.unknown), { exact: true })).toBeVisible()
+    await expect(first.getByText(c.sme.comparisonLimitation, { exact: true })).toBeVisible()
+    await expect(first.getByText(c.provisional, { exact: true })).toHaveCount(example.selected ? 1 : 0)
+    if (example.status === 'partially_comparable') {
+      await expect(section.getByText(c.sme.pathLimitation, { exact: true }).first()).toBeVisible()
+      await expect(section.getByText(c.reasons['final-path-identity-withheld'], { exact: true })).toHaveCount(0)
+    }
+    for (const window of value.windows) {
+      const card = section.getByRole('article', { name: c.window.replace('{day}', String(window.day)), exact: true })
+      await expect(card.locator(`time[datetime="${window.startsAt}"]`)).toBeVisible()
+      await expect(card.locator(`time[datetime="${window.endsAt}"]`)).toBeVisible()
+      const start = Date.parse(value.anchor!.deliveredAt) + window.day * 86_400_000
+      expect(Date.parse(window.startsAt)).toBe(start); expect(Date.parse(window.endsAt)).toBe(start + 7 * 86_400_000)
+      await expect(card.getByText(c.timeState + ': ' + c.timeStates[window.timeState], { exact: true })).toBeVisible()
+      await expect(card.getByText(c.evidenceState + ': ' + c.evidenceStates[window.evidenceState], { exact: true })).toBeVisible()
+    }
+    await expect(section.getByText(c.sme.intervalPolicy, { exact: true })).toBeVisible()
+    await expect(section.getByText(c.sme.anchorLimitation, { exact: true })).toBeVisible()
+    await expect(section.getByText(c.reasons['self-reported-delivery'], { exact: true })).toHaveCount(0)
+    const details = section.locator('summary').filter({ hasText: c.sme.technicalDetails })
+    await details.focus(); await page.keyboard.press('Enter')
+    await expect(section.getByText(c.sme.anchorId + ': ' + value.anchor!.id, { exact: true })).toBeVisible()
+    await expect(section.getByText(c.contentHash + ': ' + value.contentHash, { exact: true })).toBeVisible()
+    for (const summary of await section.locator('summary').filter({ hasText: c.sme.sourceDetails }).all()) await summary.click()
+    await expect(section.getByText(c.source + ': ' + example.baseline.source.id, { exact: true })).toBeVisible()
+    if (example.selected) await expect(first.getByText(c.source + ': ' + example.selected.source.id, { exact: true })).toBeVisible()
+    const reads = state.reads
+    await refresh(); await expect.poll(() => state.reads).toBe(reads + 1)
+    await expect(section).toHaveAttribute('aria-busy', 'false'); expect(state.mutations).toEqual([])
+  })
+
+  test(`PR4 mounted Pulse timing missing evidence and neutral anchors stay honest ${lang}`, async ({ page }) => {
+    const { c, section, state, refresh } = await fixture(page, lang, outcomes.pulse, 'sme')
+    await expect(section.getByText(c.sme.pulseUnranked, { exact: true }).first()).toBeVisible()
+    await expect(section.getByRole('heading', { name: c.baseline, exact: true }).locator('..').getByText(c.collectedAt + ': ' + c.collectionUnknown, { exact: true })).toBeVisible()
+    await expect(section.getByText(c.comparisonChange + ': ' + c.comparisonOutcomes.improved, { exact: true })).toHaveCount(0)
+    await expect(section.getByText(c.comparisonChange + ': ' + c.comparisonOutcomes.regressed, { exact: true })).toHaveCount(0)
+    await expect(section.getByText(c.sme.anchorLimitation, { exact: true })).toBeVisible()
+    for (const value of [outcomes.awaiting, outcomes.missing, outcomes.unavailable, outcomes.noDelivery, outcomes.withdrawn]) {
+      state.value = value; await refresh(); await expect(section).toHaveAttribute('aria-busy', 'false')
+      await expect(section.getByText(c.sme.anchorState + ': ' + c.sme.anchorStates[value.anchorState], { exact: true })).toBeVisible()
+      for (const window of value.windows) {
+        const card = section.getByRole('article', { name: c.window.replace('{day}', String(window.day)), exact: true })
+        await expect(card.getByText(c.timeState + ': ' + c.timeStates[window.timeState], { exact: true })).toBeVisible()
+        await expect(card.getByText(c.evidenceState + ': ' + c.evidenceStates[window.evidenceState], { exact: true })).toBeVisible()
+        if (!window.selected) await expect(card.getByText(c.sme.noSelectedEvidence, { exact: true })).toBeVisible()
+      }
+    }
+    expect(state.mutations).toEqual([])
+  })
+
+  for (const variant of ['smeV2', 'smeSingleV2']) test(`PR4 actual ${variant} outcome 503 explains unsupported package and preserves auth errors ${lang}`, async ({ page }) => {
+    const { c, section, state } = await fixture(page, lang, outcomes.scan, variant)
+    await expect(section.getByRole('alert')).toHaveText(c.sme.multiSourceUnavailable)
+    await expect(section.getByRole('article')).toHaveCount(0)
+    await expect(section.getByText(c.baseline, { exact: true })).toHaveCount(0)
+    for (const [status, copy] of [[401, c.unauthenticated], [403, c.denied]] as const) {
+      state.hook = route => route.fulfill({ status, json: { error: status === 401 ? 'OUTCOMES_UNAUTHENTICATED' : 'OUTCOMES_DENIED' } })
+      await section.getByRole('button', { name: c.retry, exact: true }).click()
+      await expect(section.getByRole('alert')).toHaveText(copy)
+      await expect(section.getByText(c.sme.multiSourceUnavailable, { exact: true })).toHaveCount(0)
+    }
+    state.hook = null
+    await section.getByRole('button', { name: c.retry, exact: true }).click()
+    await expect(section.getByRole('alert')).toHaveText(c.sme.multiSourceUnavailable)
+    expect(state.reads).toBe(4); expect(state.mutations).toEqual([])
+  })
+
+  test(`PR4 SME withdrawal replacement wins over an older observation read ${lang}`, async ({ page }) => {
+    const { c, d, state, section, delivery, fill, refresh } = await fixture(page, lang, outcomes.noDelivery, 'sme')
+    await page.locator('summary').filter({ hasText: (lang === 'en' ? en : zh).changeSets.sme.manualPath }).click()
+    await fill(); await delivery.getByRole('button', { name: d.record, exact: true }).click()
+    await expect(section.getByText(c.sme.anchorState + ': ' + c.sme.anchorStates.active, { exact: true })).toBeVisible()
+    const stale = state.value, original = stale.anchor!.id
+    let held!: Route, calls = 0
+    state.hook = async route => {
+      if (++calls === 1) held = route
+      else await route.fulfill({ json: state.value })
+    }
+    await fill(); await refresh(); await expect.poll(() => Boolean(held)).toBe(true)
+    await delivery.getByRole('button', { name: d.sme.withdraw, exact: true }).click()
+    await delivery.getByLabel(d.withdrawReason, { exact: true }).fill('Correct saved context')
+    await delivery.getByRole('button', { name: d.confirmWithdraw, exact: true }).click()
+    await expect(section.getByText(c.sme.anchorState + ': ' + c.sme.anchorStates.withdrawn, { exact: true })).toBeVisible()
+    await expect(delivery.getByLabel(d.destination, { exact: true })).toHaveValue('Keep my destination')
+    await delivery.getByRole('button', { name: d.record, exact: true }).click()
+    await expect(section.getByText(c.sme.anchorState + ': ' + c.sme.anchorStates.active, { exact: true })).toBeVisible()
+    const replacement = state.value.anchor!.id
+    expect(replacement).not.toBe(original)
+    const response = page.waitForResponse(r => r.headers()['x-fixture-old-observation'] === '1')
+    await held.fulfill({ headers: { 'X-Fixture-Old-Observation': '1' }, json: stale }); await response
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
+    await section.locator('summary').filter({ hasText: c.sme.technicalDetails }).click()
+    await expect(section.getByText(c.sme.anchorId + ': ' + replacement, { exact: true })).toBeVisible()
+    await expect(section.getByText(c.sme.anchorId + ': ' + original, { exact: true })).toHaveCount(0)
+    expect(state.mutations).toHaveLength(3)
   })
 }

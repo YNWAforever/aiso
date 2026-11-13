@@ -49,13 +49,13 @@ const disclosureFocus = 'min-h-11 cursor-pointer rounded py-2 font-semibold focu
 function SmeEvidence({ value }: { value: SafeEvidence }) {
   const t = useTranslations('outcomes')
   return <div className="min-w-0 space-y-2 break-words">
-    <p>{t('source')}: {t(`sources.${value.source.kind}`)}{value.source.checkKey && <> · <span className="break-all">{value.source.checkKey}</span></>}</p>
+    <p>{t('source')}: {t(`sources.${value.source.kind}`)}</p>
     <p>{t('collectedAt')}: {value.collectedAt ? <time className="break-all" dateTime={value.collectedAt}>{value.collectedAt}</time> : t('collectionUnknown')}</p>
     <p>{t('recordedAt')}: {value.recordedAt ? <time className="break-all" dateTime={value.recordedAt}>{value.recordedAt}</time> : t('unknown')}</p>
     <p>{t('verdict')}: {value.verdict ? t(`verdicts.${value.verdict}`) : t('unknown')}</p>
     {value.source.kind === 'pulse-metric' && <p>{t('sme.pulseUnranked')}</p>}
     <SmeReasons reasons={value.reasons} />
-    <details className="min-w-0"><summary className={disclosureFocus}>{t('sme.sourceDetails')}</summary><p className="break-all">{t('source')}: {value.source.id}</p></details>
+    <details className="min-w-0"><summary className={disclosureFocus}>{t('sme.sourceDetails')}</summary><p className="break-all">{t('source')}: {value.source.id}</p>{value.source.checkKey && <p className="break-all">{value.source.checkKey}</p>}</details>
   </div>
 }
 
@@ -76,14 +76,14 @@ function SmeOutcomeWindows({ value }: { value: OutcomeResponse }) {
     <div className="grid min-w-0 gap-4 xl:grid-cols-3">
       {value.windows.map(window => <article key={window.day} className="min-w-0 space-y-3 rounded-lg border border-border p-3" aria-label={t('window', { day: window.day })}>
         <h3 className="font-semibold">{t('window', { day: window.day })}</h3>
+        {window.provisional && <p>{t('provisional')}</p>}
+        <Comparison value={window.comparison} smeCopilot />
         <p>{t('startsAt')}: <time className="break-all" dateTime={window.startsAt}>{window.startsAt} (UTC)</time></p>
         <p>{t('endsAt')}: <time className="break-all" dateTime={window.endsAt}>{window.endsAt} (UTC)</time></p>
         <p>{t('timeState')}: {t(`timeStates.${window.timeState}`)}</p>
         <p>{t('evidenceState')}: {t(`evidenceStates.${window.evidenceState}`)}</p>
-        {window.provisional && <p>{t('provisional')}</p>}
-        <SmeReasons reasons={window.reasons} />
+        <SmeReasons reasons={window.reasons.filter(reason => !window.selected?.reasons.includes(reason))} />
         {window.selected ? <SmeEvidence value={window.selected} /> : <p>{t('sme.noSelectedEvidence')}</p>}
-        <Comparison value={window.comparison} smeCopilot />
       </article>)}
     </div>
     {value.diagnostics.length > 0 && <div className="space-y-3"><h3 className="font-semibold">{t('diagnostics')}</h3><p>{t('diagnosticsLimitation')}</p>{value.diagnostics.map(row => <SmeEvidence key={JSON.stringify(row.source)} value={row} />)}</div>}
