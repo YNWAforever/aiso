@@ -56,7 +56,7 @@ export function RunProgress({clientId,lang}:{clientId:string;lang:string}){
    <p className="text-sm">{copy.schedule}</p>
    {!!availability?.reasons.length&&<ul aria-label={copy.availabilityTitle} className="list-disc pl-5">{availability.reasons.map(reason=><li key={reason}>{copy.availabilityReasons[reason]}</li>)}</ul>}
    {availability?.action==='view_existing'&&<Link className={button} href={options.currentCanonicalId?`${base}/observations?run=${encodeURIComponent(options.currentCanonicalId)}&week=${options.week}`:`${base}/observations?result=incomplete`}>{copy.viewExisting}</Link>}
-   {!error&&availability?.action==='wait'&&<Link className={button} href={`${base}/prompts`}>{copy.reviewQuestions}</Link>}
+   {!error&&availability?.action==='wait'&&<button type="button" className={button} disabled={busy} onClick={()=>setRevision(value=>value+1)}>{copy.refresh}</button>}
    {availability?.action==='edit_prompts'&&<Link className={button} href={`${base}/prompts`}>{copy.setup}</Link>}
    {!options.enabled&&<p>{copy.disabled}</p>}
    {options.legacyCurrentWeek&&!run&&<p>{copy.legacy} <Link className="underline" href={`${base}/observations?result=incomplete`}>{copy.legacyLink}</Link></p>}

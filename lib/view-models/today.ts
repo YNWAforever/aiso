@@ -1,4 +1,4 @@
-﻿import type { WorkspaceHome } from './workspace-home'
+import type { WorkspaceHome } from './workspace-home'
 import type { IllustrationName } from '@/components/ui/illustration'
 
 /**
@@ -48,30 +48,26 @@ export interface TodayView {
   }
 }
 
-/** Map a workspace next-step href onto the SME IA's visible destinations. */
-export function todayHref(href: string, brand: string): string {
-  if (href.includes('?step=monitor') || /\/prompts$/.test(href) || /\/observations$/.test(href)) return `${brand}?step=monitor`
-  return href
-}
-
 export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; client_reports_online?: boolean }): TodayView {
   const brand = `/${input.lang}/dashboard/${workspace.client.id}`
   const health = workspace.siteHealth.data
   const visibility = workspace.visibility.data
   const top = workspace.priorities.state === 'ready' ? workspace.priorities.primaryAction : null
-  const hinted = workspace.nextStep?.href
-  const monitorBound = !!hinted && (hinted.includes('?step=monitor') || /\/prompts$/.test(hinted) || /\/observations$/.test(hinted))
+  const step = workspace.nextStep
+  // Retain the existing site-fix priority for generic monitoring/setup links.
+  // Scoped saved-run links must continue to open that exact work, not a website fix.
+  const monitorBound = !!step && (step.href.includes('?step=monitor') || /\/(?:prompts|observations)$/.test(step.href))
 
   let action: TodayAction
   let illustration: IllustrationName
   if (monitorBound && top && health) {
     action = { kind: 'fix', href: `${brand}?step=results&scanId=${encodeURIComponent(health.scanId)}`, checkKey: top.checkKey, points: Number(top.pointsAtStake.toFixed(1)) }
     illustration = 'fixes'
-  } else if (monitorBound) {
-    action = { kind: 'next', href: `${brand}?step=monitor`, labelKey: 'scan' }
-    illustration = 'scan'
-  } else if (workspace.nextStep) {
-    action = { kind: 'next', href: todayHref(workspace.nextStep.href, brand), labelKey: workspace.nextStep.labelKey, ...(workspace.nextStep.reasonKey ? { reasonKey: workspace.nextStep.reasonKey } : {}) }
+  } else if (step) {
+    // The workspace projector is locale-neutral. Only replace its path prefix;
+    // retain the exact destination, query, fragment, action and blocking reason.
+    const href = step.href.replace(/^\/__locale__\//, `/${input.lang}/`)
+    action = { kind: 'next', href, labelKey: step.labelKey, ...(step.reasonKey ? { reasonKey: step.reasonKey } : {}) }
     illustration = action.href.includes('?step=scan') ? 'scan' : 'tasks'
   } else {
     action = { kind: 'none', href: `${brand}?step=scan` }

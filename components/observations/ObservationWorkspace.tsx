@@ -237,7 +237,10 @@ function Workspace({
             {!data.items.length && !busy && !error && (
               <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
                 <p className="font-semibold">{filterCount > 0 ? copy.smeNoFiltered : copy.smeNoRecordsTitle}</p>
-                {filterCount === 0 && <p className="mt-1 text-sm text-muted-foreground">{copy.smeNoRecordsBody}</p>}
+                {filterCount === 0 && <>
+                  <p className="mt-1 text-sm text-muted-foreground">{copy.smeNoRecordsBody}</p>
+                  <a className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-medium" href={`/${lang}/dashboard/${encodeURIComponent(clientId)}?step=monitor${filters.run ? '&run=' + encodeURIComponent(filters.run) : ''}#first-monitoring`}>{copy.smeMonitoringStatus}</a>
+                </>}
                 {filterCount > 0 && <button className="mt-3 min-h-11 underline" type="button" onClick={clearFilters}>{copy.smeClearFilters}</button>}
               </div>
             )}

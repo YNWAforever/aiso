@@ -636,3 +636,42 @@ The follow-up keeps the simplified layout and corrects the remaining ambiguity:
   **16/16 passed**, including the four new SME locale/viewport cases. Full axe checks
   found a duplicate nested landmark in the new view; removed the redundant inner region
   and reran the entire observations browser suite with zero violations.
+
+## SME daily workflow — PR 1: truthful next steps — 2026-11-13
+
+The owner approved the next five-PR phase in [the daily workflow plan](ux/sme-daily-workflow.md).
+This first change preserves Today action labels/reasons and exact scoped links rather
+than replacing monitoring tasks with “Run a new scan”. It also normalizes the workspace
+projector's `__locale__` prefix, which previously leaked through scoped saved-work links.
+Existing website-fix prioritization is retained; no new priority score is introduced.
+Empty SME observations gain a read-only monitoring-status link, preserving an explicit
+run without implying that an empty historical week is the current monitoring period.
+Configured brands blocked by pause/model/quota conditions get a status refresh rather
+than a misleading question-edit CTA. Flag-off observations remain unchanged; the shared
+monitoring wait-state correction applies to both layouts.
+
+Authenticated canonical GET diagnosis at **2026-11-13 07:59 UTC (15:59 HKT)**, FOTOMAX
+`2fd186d8-c989-4eed-8e34-eb81841008a8`:
+
+- Both `pulse-runs` options and observations returned 200 using the saved owner session.
+- Options: week `2026-11-09`, 10 active questions, 5 configured model variants, expected
+  workload 50, context confirmed, remaining/cap 1500/1500; current canonical ID and
+  latest run null, no current-week legacy answers or legacy repair IDs.
+- **`enabled: false`, availability `paused`, action `wait`, `canStart: false`.** This
+  establishes a current collection-availability blocker, not the historical cause of
+  every missing answer and not proof that a scheduler is running or stopped.
+- Schedule state unknown, next due null. Observations selected week null, no returned
+  records, 10 explicitly active questions, list not truncated.
+- No flag, model, schedule, plan or brand setting was changed. No monitoring, repair,
+  generation, scan, email or other write endpoint was invoked. A live write test still
+  requires separate approval; fixtures do not establish actual provider delivery.
+
+Local candidate verification: lint 0 errors/warnings, typecheck and text audit clean;
+full unit **8,531 passed / 15 skipped** (666 passed files, 1 skipped), production
+build clean on Node 24.22.2. Component fixture generation: **204/204 passed**.
+Browser fixtures: **84/84 passed**, no skipped/flaky/unexpected cases, covering
+first-monitoring plus observations in Chromium and Pixel 5/mobile, including new
+bilingual paused/model/quota read-only refresh and empty-answer status-link/axe
+checks. The final Today priority-preservation adjustment was rechecked with all
+10 Today unit tests and typecheck. CI integration and deployed acceptance remain
+separate gates; local fixtures do not prove live providers.
