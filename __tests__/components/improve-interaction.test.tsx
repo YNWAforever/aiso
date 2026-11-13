@@ -14,7 +14,7 @@ vi.mock('react',async original=>({...await original<typeof import('react')>(),
   useRef(initial:unknown){const i=hooks.cursor++;if(!(i in hooks.slots))hooks.slots[i]={current:initial};return hooks.slots[i]},
   useEffect(effect:()=>unknown){effect()},
 }))
-vi.mock('next/navigation',()=>({useRouter:()=>({refresh:hooks.refresh}),useParams:()=>({clientId:hooks.clientId})}))
+vi.mock('next/navigation',()=>({useRouter:()=>({refresh:hooks.refresh}),useParams:()=>({clientId:hooks.clientId,lang:hooks.locale})}))
 vi.mock('next-intl',async original=>{const actual=await original<typeof import('next-intl')>();return{...actual,
   useTranslations:(namespace:'dashboard'|'generatedWork')=>actual.createTranslator({locale:hooks.locale,messages:hooks.locale==='en'?en:zhHK,namespace})}})
 
@@ -36,6 +36,18 @@ function mount(getScan:()=>Scan=()=>baseScan){
 }
 beforeEach(()=>{hooks.slots=[];hooks.cursor=0;hooks.locale='en';hooks.clientId='client-a';hooks.refresh.mockReset();vi.stubGlobal('fetch',vi.fn())})
 
+it.each(['en','zh-HK'] as const)('SME bridge is a separate localized read-only evidence link, not generated-text eligibility %s',lang=>{
+  hooks.locale=lang
+  const copy=(lang==='en'?en:zhHK).generatedWork
+  const props={scan:baseScan,features,recommendations:[],progress:[],competitors:[]}
+  const html=renderToStaticMarkup(ImproveStep({...props,smeCopilot:true}))
+  expect(html).toContain(`href="/${lang}/dashboard/client-a/opportunities"`)
+  expect(html).toContain(copy.reviewDraftEvidence)
+  expect(html).toContain(copy.draftEvidenceNotice)
+  expect(fetch).not.toHaveBeenCalled()
+  hooks.cursor=0
+  expect(renderToStaticMarkup(ImproveStep(props))).not.toContain(copy.reviewDraftEvidence)
+})
 it('generates only after an explicit click for the same selected scan',async()=>{
   vi.mocked(fetch).mockResolvedValue(response())
   const view=mount();view.html();expect(fetch).not.toHaveBeenCalled()

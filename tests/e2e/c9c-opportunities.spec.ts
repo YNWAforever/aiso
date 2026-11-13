@@ -1,4 +1,5 @@
 import { scanSuggestion } from '../../__tests__/components/c9c-fixtures'
+import { groupedCandidates } from '../../__tests__/components/c9c-group-fixtures'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFileSync } from 'node:fs'
@@ -56,6 +57,88 @@ test.afterEach(({ page }) => {
   expect(errors.get(page) ?? []).toEqual([])
 })
 for (const lang of ['en', 'zh-HK']) {
+  test(`SME historical first group stays first instead of offering the next group ${lang}`,async({page})=>{
+    const {copy}=await fixture(page,lang,'C9C',false,'smeGroupedConflict')
+    await expect(page.locator('article:visible')).toHaveCount(1)
+    await expect(page.locator('article').first().getByText(copy.groupHistoricalConflict,{exact:true})).toBeVisible()
+    await expect(page.getByRole('button',{name:copy.groupSave,exact:true})).toHaveCount(0)
+    await page.getByText(copy.sme.moreGroups,{exact:true}).click()
+    await expect(page.locator('article:visible')).toHaveCount(2)
+    await expect(page.locator('article').nth(1).getByRole('button',{name:copy.groupSave,exact:true})).toBeVisible()
+  })
+  test(`SME limited first individual stays blocked with other findings still available ${lang}`,async({page})=>{
+    const {copy}=await fixture(page,lang,'C9C',false,'smeBlocked')
+    await expect(page.locator('article:visible')).toHaveCount(1)
+    await expect(page.locator('article').first().getByRole('button',{name:copy.saveDraft,exact:true})).toBeDisabled()
+    await expect(page.locator('article').first().getByText(copy.limitedEvidence,{exact:true})).toBeVisible()
+    await page.getByText(copy.sme.moreSuggestions,{exact:true}).click()
+    await expect(page.locator('article').nth(1).getByRole('button',{name:copy.saveDraft,exact:true})).toBeEnabled()
+  })
+  test(`SME grouped save keeps its exact sources, busy lock and returned id across disclosure changes ${lang}`,async({page})=>{
+    const {copy,draft}=await fixture(page,lang,'C9C',false,'smeGrouped')
+    const group=groupedCandidates.groups![1]
+    let posts=0,reads=0,release!:()=>void
+    const gate=new Promise<void>(resolve=>{release=resolve})
+    await page.route('**/api/clients/*/work-items/groups',async route=>{
+      posts++
+      expect(route.request().postDataJSON()).toEqual({groupKey:group.key,sources:groupedCandidates.suggestions.filter(row=>group.suggestionKeys.includes(row.key)).map(row=>({source:row.source,ruleVersion:row.ruleVersion,fingerprint:row.fingerprint,locale:lang}))})
+      await gate;await route.fulfill({json:{item:{id:draft.id}}})
+    })
+    await page.route(`**/api/clients/*/work-items/${draft.id}`,route=>{
+      reads++
+      return route.fulfill(reads===1?{status:503,json:{error:'WORK_ITEMS_UNAVAILABLE'}}:{json:{item:draft}})
+    })
+    const more=page.getByText(copy.sme.moreGroups,{exact:true}),second=page.locator('article').nth(1)
+    await more.click()
+    await second.getByRole('button',{name:copy.groupSave,exact:true}).click()
+    await page.keyboard.press('Enter')
+    await more.click();await more.click()
+    await expect(second.getByRole('button',{name:copy.saving,exact:true})).toBeDisabled()
+    expect(posts).toBe(1)
+    release()
+    await expect(page.getByText(copy.openError,{exact:true})).toBeVisible()
+    await more.click();await more.click()
+    await second.getByRole('button',{name:copy.openDraft,exact:true}).click()
+    await expect(page.getByRole('heading',{name:copy.savedDraft,exact:true})).toBeVisible()
+    expect(posts).toBe(1);expect(reads).toBe(2)
+  })
+  test(`SME disabled group save is explicit and never falls back to an individual save ${lang}`,async({page})=>{
+    const {copy}=await fixture(page,lang,'C9C',false,'smeGrouped')
+    let groupPosts=0,singlePosts=0
+    await page.route('**/api/clients/*/work-items',route=>{if(route.request().method()==='POST')singlePosts++;return route.abort()})
+    await page.route('**/api/clients/*/work-items/groups',route=>{groupPosts++;return route.fulfill({status:403,json:{error:'MULTI_SOURCE_DISABLED'}})})
+    await page.locator('article').first().getByRole('button',{name:copy.groupSave,exact:true}).click()
+    await expect(page.getByRole('alert')).toHaveText(copy.groupFeatureDisabled)
+    expect(groupPosts).toBe(1);expect(singlePosts).toBe(0)
+  })
+  test(`SME never infers a group from matching question text without supplied groups ${lang}`,async({page})=>{
+    const {copy}=await fixture(page,lang,'C9C',false,'smeGrouped')
+    await page.route('**/api/clients/*/opportunities',route=>route.fulfill({json:{...groupedCandidates,groups:undefined}}))
+    await page.getByRole('button',{name:copy.refresh,exact:true}).click()
+    await expect(page.getByRole('region',{name:copy.groupTitle,exact:true})).toHaveCount(0)
+    await expect(page.getByRole('button',{name:copy.groupSave,exact:true})).toHaveCount(0)
+    await expect(page.locator('article:visible')).toHaveCount(1)
+    await page.getByText(copy.sme.moreSuggestions,{exact:true}).click()
+    await expect(page.locator('article:visible')).toHaveCount(5)
+  })
+  for (const width of [320,390,768,1440]) for (const dark of [false,true]) test(`SME draft findings ${lang} ${width} ${dark?'dark':'light'} preserve one first action and disclose others`,async({page})=>{
+    await page.setViewportSize({width,height:900})
+    const {copy}=await fixture(page,lang,'C9C',false,'smeMany')
+    await page.evaluate(dark=>document.documentElement.classList.toggle('dark',dark),dark)
+    await expect(page.getByRole('heading',{name:copy.sme.title,exact:true})).toBeVisible()
+    await expect(page.locator('article:visible')).toHaveCount(1)
+    const first=page.locator('article').first()
+    await expect(first.getByRole('button',{name:copy.saveDraft,exact:true})).toBeVisible()
+    await first.getByText(copy.sme.evidence,{exact:true}).focus()
+    await page.keyboard.press('Enter')
+    await expect(first.locator('details').first()).toHaveJSProperty('open',true)
+    expect((await first.getByText(copy.sme.evidence,{exact:true}).boundingBox())?.height).toBeGreaterThanOrEqual(44)
+    await expect(first.getByText(copy.scanWhy,{exact:true})).toHaveCount(2)
+    await page.getByText(copy.sme.moreSuggestions,{exact:true}).click()
+    await expect(page.locator('article:visible')).toHaveCount(16)
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+    expect((await new AxeBuilder({page}).analyze()).violations).toEqual([])
+  })
   test(`T12 empty candidate pages can continue and preserve existing candidates in ${lang}`,async({page})=>{
     const {copy,data}=await fixture(page,lang,'C9C',false,'continuation')
     let reads=0
@@ -166,11 +249,11 @@ for (const lang of ['en', 'zh-HK']) {
       'Edited during outage',
     )
   })
-  test(`C9c selected save, duplicate protection, focus and retained source in ${lang}`, async ({
+  for (const sme of [false,true]) test(`C9c ${sme?'SME ':''}selected save, duplicate protection, focus and retained source in ${lang}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: 375, height: 900 })
-    const { copy, data, draft } = await fixture(page, lang)
+    const { copy, data, draft } = await fixture(page, lang, 'C9C', false, sme ? 'sme' : 'default')
     let posts = 0,
       release!: () => void
     const gate = new Promise<void>((resolve) => {
@@ -217,10 +300,10 @@ for (const lang of ['en', 'zh-HK']) {
     ).toBe(true)
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   })
-  test(`C9c failed save, changed evidence and explicit refresh in ${lang}`, async ({
+  for (const sme of [false,true]) test(`C9c ${sme?'SME ':''}failed save, changed evidence and explicit refresh in ${lang}`, async ({
     page,
   }) => {
-    const { copy, data } = await fixture(page, lang)
+    const { copy, data } = await fixture(page, lang, 'C9C', false, sme ? 'sme' : 'default')
     let status = 503,
       gets = 0
     await page.route('**/api/clients/*/work-items', (route) =>
@@ -241,7 +324,7 @@ for (const lang of ['en', 'zh-HK']) {
     })
     await save.click()
     await expect(page.getByRole('alert')).toHaveText(copy.saveError)
-    await expect(page.getByText(copy.pulseWhy, { exact: true })).toBeVisible()
+    await expect(page.getByText(copy.pulseWhy, { exact: true }).first()).toBeVisible()
     status = 409
     await save.click()
     await expect(
@@ -295,7 +378,7 @@ for (const lang of ['en', 'zh-HK']) {
     await page
       .getByRole('button', { name: copy.suggestions, exact: true })
       .click()
-    await expect(page.getByText(copy.pulseWhy, { exact: true })).toBeVisible()
+    await expect(page.getByText(copy.pulseWhy, { exact: true }).first()).toBeVisible()
     await page
       .getByRole('button', { name: copy.savedDrafts, exact: true })
       .click()
@@ -482,11 +565,10 @@ for (const lang of ['en', 'zh-HK']) {
       ).toBeVisible()
     },
   )
-  test(
-    'C9c opens existing saved draft by id even when current evidence is limited in ' +
-      lang,
+  for (const sme of [false,true]) test(
+    `C9c ${sme?'SME ':''}opens existing saved draft by id even when current evidence is limited in ${lang}`,
     async ({ page }) => {
-      const { copy, data, draft } = await fixture(page, lang)
+      const { copy, data, draft } = await fixture(page, lang, 'C9C', false, sme ? 'sme' : 'default')
       let posts = 0,
         reads = 0
       await page.route('**/api/clients/*/opportunities', (route) =>
@@ -523,10 +605,10 @@ for (const lang of ['en', 'zh-HK']) {
       expect(posts).toBe(0)
     },
   )
-  test(
-    'C9c late draft reads do not replace a later view selection in ' + lang,
+  for (const sme of [false,true]) test(
+    `C9c ${sme?'SME ':''}late draft reads do not replace a later view selection in ${lang}`,
     async ({ page }) => {
-      const { copy, draft } = await fixture(page, lang)
+      const { copy, draft } = await fixture(page, lang, 'C9C', false, sme ? 'sme' : 'default')
       await page.route('**/api/clients/*/work-items', (route) =>
         route.fulfill({ json: { items: [draft], nextCursor: null } }),
       )
@@ -553,17 +635,17 @@ for (const lang of ['en', 'zh-HK']) {
       await expect(
         page.getByRole('button', { name: copy.suggestions, exact: true }),
       ).toHaveAttribute('aria-pressed', 'true')
-      await expect(page.getByText(copy.pulseWhy, { exact: true })).toBeVisible()
+      await expect(page.getByText(copy.pulseWhy, { exact: true }).first()).toBeVisible()
     },
   )
-  for (const otherSaveStatus of [200, 503]) {
+  for (const otherSaveStatus of [200, 503]) for (const sme of [false,true]) {
     test(
-      'C9c two candidate evidence conflict survives other save ' +
+      `C9c ${sme?'SME ':''}two candidate evidence conflict survives other save ` +
         otherSaveStatus +
         ' in ' +
         lang,
       async ({ page }) => {
-        const { copy, data, draft } = await fixture(page, lang)
+        const { copy, data, draft } = await fixture(page, lang, 'C9C', false, sme ? 'sme' : 'default')
         const twoCandidates = {
           ...data.initial,
           suggestions: [data.initial.suggestions[0], scanSuggestion],
@@ -601,6 +683,7 @@ for (const lang of ['en', 'zh-HK']) {
         })
         await firstSave.click()
         await expect(firstSave).toBeDisabled()
+        if (sme) await page.getByText(copy.sme.moreSuggestions,{exact:true}).click()
         await second
           .getByRole('button', { name: copy.saveDraft, exact: true })
           .click()

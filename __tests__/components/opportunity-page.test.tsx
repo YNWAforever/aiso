@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   auth: vi.fn(),
   load: vi.fn(),
   owned: vi.fn(),
+  sme: vi.fn(),
   ServiceError: class extends Error {
     constructor(public code: string) {
       super(code)
@@ -15,6 +16,7 @@ const h = vi.hoisted(() => ({
   },
 }))
 vi.mock('@/lib/auth', () => ({ requireAuth: h.auth }))
+vi.mock('@/lib/flags', () => ({ isSmeCopilotUiEnabled: h.sme }))
 vi.mock('@/lib/work-items/store', () => ({ loadOwnedDraftClient: h.owned }))
 vi.mock('@/lib/opportunities/service', () => ({
   loadAuthenticatedOpportunities: h.load,
@@ -55,9 +57,22 @@ beforeEach(() => {
   h.auth.mockReset().mockResolvedValue({ account_id: 'account' })
   h.owned.mockReset().mockResolvedValue({ id: 'client' })
   h.load.mockReset()
+  h.sme.mockReset().mockReturnValue(false)
   testLang = 'zh-HK'
 })
 describe('opportunity page boundary', () => {
+  it.each([true, false])('passes the server SME flag %s for loaded and owned-unavailable sources', async sme => {
+    h.sme.mockReturnValue(sme)
+    for (const unavailable of [false, true]) {
+      if (unavailable) h.load.mockRejectedValue(new h.ServiceError('OPPORTUNITIES_UNAVAILABLE'))
+      else h.load.mockResolvedValue(initial)
+      const page = await Page({ params: Promise.resolve({ lang: 'zh-HK', clientId: 'client' }) })
+      expect(page.props.smeCopilot).toBe(sme)
+      const html = renderPage(page)
+      expect(html).toContain(sme ? zh.opportunities.sme.title : zh.opportunities.title)
+      if (unavailable) expect(html).toContain(zh.opportunities.initialLoadError)
+    }
+  })
   it('authenticates independently before reading sources', async () => {
     h.auth.mockRejectedValue(Error('login'))
     await expect(

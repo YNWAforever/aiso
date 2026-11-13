@@ -15,6 +15,7 @@ import {runtimePlatformsFor} from '@/lib/pulse/platforms'
 
 type Props = {
   scan: Scan
+  smeCopilot?: boolean
   features: import('@/lib/types').PlanFeatures
   recommendations: AgentRecommendation[]
   progress: AgentProgressType[]
@@ -43,10 +44,10 @@ function classifiedSamples(receipt:AgentGenerationReceipt|null,platforms:string[
     &&item.mentioned>=0&&item.mentioned<=item.classified)
 }
 
-export function ImproveStep({ scan, features, recommendations, progress, competitors }: Props) {
+export function ImproveStep({ scan, features, recommendations, progress, competitors, smeCopilot = false }: Props) {
   const t = useTranslations('dashboard')
   const generated=useTranslations('generatedWork')
-  const {clientId}=useParams<{clientId:string}>()
+  const {clientId,lang}=useParams<{clientId:string;lang:string}>()
   const router=useRouter()
   const key=`${clientId}:${scan.id}`
   const [attempts,setAttempts]=useState<Record<string,Attempt>>({})
@@ -94,8 +95,12 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
 
   return (
     <div className="space-y-4">
+      {smeCopilot && typeof clientId === 'string' && <section className="space-y-3 rounded-xl border border-border bg-card p-5">
+        <p className="text-sm text-muted-foreground">{generated('draftEvidenceNotice')}</p>
+        <a className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2" href={`/${lang === 'zh-HK' ? 'zh-HK' : 'en'}/dashboard/${encodeURIComponent(clientId)}/opportunities`}>{generated('reviewDraftEvidence')}</a>
+      </section>}
       {features.agent_recs&&typeof clientId==='string'?<div className="rounded-xl border border-dash-border bg-dash-surface p-5" aria-busy={loading}>
-        <button type="button" onClick={generate} disabled={loading} className="min-h-11 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">
+        <button type="button" onClick={generate} disabled={loading} className={smeCopilot ? 'min-h-11 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60' : 'min-h-11 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60'}>
           {loading?generated(attempt?.checking?'checkingStatus':'generating'):status==='complete'?generated('refreshStatus'):checkStatus?generated('checkStatus'):status==='error'?generated('retry'):generated('generateImprove')}
         </button>
         <p className="mt-2 text-xs text-dash-muted">{generated('improveActionNotice')}</p>

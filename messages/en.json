@@ -2617,6 +2617,8 @@
     "method": "Invented for illustration: no website was scanned. A live report states the scan coverage, the pages collected and whether earlier scans were collected the same way."
   },
   "generatedWork": {
+    "reviewDraftEvidence": "Review evidence and start a private draft",
+    "draftEvidenceNotice": "Draft eligibility is checked separately against the latest saved monitoring and scan evidence, not these generated suggestions.",
     "title": "Generated work",
     "generateImprove": "Generate review suggestions",
     "checkStatus": "Check saved generation",
@@ -2853,6 +2855,14 @@
     "smeActivityUnknown": "Status unknown"
   },
   "opportunities": {
+    "sme": {
+      "title": "Start with one draft",
+      "intro": "Use saved evidence to prepare private work. Saving a draft does not publish or approve it.",
+      "evidence": "View the saved evidence",
+      "window": "Evidence window and source status",
+      "moreSuggestions": "Other individual findings",
+      "moreGroups": "Other grouped findings"
+    },
     "title": "Opportunities",
     "intro": "Review retained Pulse and website evidence, then save the findings you want to work on as private drafts.",
     "views": "Workspace views",

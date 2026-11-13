@@ -364,6 +364,7 @@ export default async function DashboardPage({
 
         {step === 'improve' && scan && (
           <ImproveStep
+            smeCopilot={smeCopilot}
             scan={scan}
             features={features}
             recommendations={agentRecs}
