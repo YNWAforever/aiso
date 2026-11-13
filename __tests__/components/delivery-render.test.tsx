@@ -9,7 +9,7 @@ import { VersionWorkspace } from '@/components/change-sets/VersionWorkspace'
 import { createDeliveryExport } from '@/lib/delivery/export'
 import { eventRow } from '../delivery/fixtures'
 import { deliveryEventDTO } from '@/lib/delivery/dto'
-import { fixtureProps, pendingProps, version, clientId } from './c9e-fixtures'
+import { fixtureProps, pendingProps, version, clientId, smeProps, smeV2Props, smeDeveloperProps, smeHistoricalProps, multiVersion, developerVersion } from './c9e-fixtures'
 import { writeC9cFixture } from './c9c-fixture-writer'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -18,6 +18,21 @@ import zh from '@/messages/zh-HK.json'
 vi.mock('server-only', () => ({}))
 const render = (node: React.ReactNode, lang: string) => renderToString(<NextIntlClientProvider locale={lang} messages={lang === 'en' ? en : zh} timeZone="UTC">{node}</NextIntlClientProvider>)
 describe('delivery rendering', () => {
+  it.each(['en', 'zh-HK'])('offers explicit retained manual/developer paths without competing with review %s', lang => {
+    const copy = (lang === 'en' ? en : zh).changeSets
+    for (const props of [smeProps, smeV2Props, smeDeveloperProps, smeHistoricalProps, { ...pendingProps, smeCopilot: true }]) {
+      const html = render(<VersionWorkspace {...props} />, lang)
+      expect(html).toContain(copy.sme.manualPath)
+      expect(html).toContain(copy.sme.developerPath)
+      expect(html.match(/name="[^"]+:delivery"/g)).toHaveLength(2)
+      expect(html).toContain((lang === 'en' ? en : zh).delivery.sme.manualLimitation)
+      expect(html.match(/<button[^>]*bg-primary[^>]*>/g)).toHaveLength(1)
+      if (!props.initialVersion.editSpec) expect(html).toContain(copy.sme.developerUnavailable)
+    }
+    const legacy = render(<VersionWorkspace {...fixtureProps} />, lang)
+    expect(legacy).not.toContain(copy.sme.manualPath)
+    expect(legacy).not.toContain(copy.sme.developerPath)
+  })
   it('keeps pending review list and detail consistent before approval refresh', () => {
     const summary = pendingProps.initial.versions.find(saved => saved.id === pendingProps.initialVersion.id)
     expect(summary?.decision).toBeNull()
@@ -46,12 +61,18 @@ describe('delivery rendering', () => {
     expect(html).toContain(lang === 'en' ? 'Server recorded time' : '伺服器記錄時間')
   })
 })
+const smeVariants = { sme: smeProps, smeV2: smeV2Props, smeDeveloper: smeDeveloperProps, smeHistorical: smeHistoricalProps }
 afterAll(async () => {
   await writeC9cFixture('C9E', 'VersionWorkspace', '@/components/change-sets/VersionWorkspace', fixtureProps,
     lang => render(<VersionWorkspace {...fixtureProps} />, lang),
-    { pending: { props: pendingProps, html: lang => render(<VersionWorkspace {...pendingProps} />, lang) } }, 'delivery')
+    { pending: { props: pendingProps, html: lang => render(<VersionWorkspace {...pendingProps} />, lang) },
+      ...Object.fromEntries(Object.entries(smeVariants).map(([name, props]) => [name, { props, html: (lang: string) => render(<VersionWorkspace {...props} />, lang) }])) }, 'delivery')
   const dir = process.env.C9E_HTML_DIR
-  if (dir) for (const format of ['json', 'text'] as const) writeFileSync(join(dir, `export-${format}.json`), JSON.stringify(createDeliveryExport(version, format)))
+  if (!dir) return
+  for (const [name, saved] of Object.entries({ '': version, multi: multiVersion, developer: developerVersion })) {
+    for (const format of ['json', 'text'] as const) writeFileSync(join(dir, `export${name ? '-' + name : ''}-${format}.json`), JSON.stringify(createDeliveryExport(saved, format)))
+  }
+  for (const [name, props] of Object.entries(smeVariants)) for (const lang of ['en', 'zh-HK']) writeFileSync(join(dir, `${lang}-${name}-data.json`), JSON.stringify(props))
 })
 
 it('does not claim empty history when an active attestation is outside the page', () => {

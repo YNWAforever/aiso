@@ -942,9 +942,9 @@ browser context (the original verifier did not aggregate denied reads across con
 No business write was attempted in any case, and audited GET exports were neither
 allowed nor invoked.
 [Durable release evidence](https://github.com/YNWAforever/aiso/pull/260#issuecomment-6857464466).
-The remaining four slices are not yet released.
+Subsequent slices are tracked below.
 
-## SME execution workflow — PR 2 candidate: review frozen work
+## SME execution workflow — PR 2 released: review frozen work
 
 The existing SME flag selects guided version review: explicit server-identified
 latest detail, saved-draft versus frozen revision, historical inspection, intentional
@@ -971,11 +971,72 @@ regression. An expanded diagnostic run passed **844/848**; its four failures wer
 new outage fixture reused without a saved draft, while the tested real page retains
 the successfully read draft. The SME-only fixture now retains that draft and has two
 additional bilingual SSR checks; legacy outage data and all browser assertions remain.
-The updated full candidate passes lint zero errors/warnings, typecheck, text audit,
+The full local gate passed lint zero errors/warnings, typecheck, text audit,
 **8,732 unit tests / 15 skipped** (671 files passed / 1 skipped), production build
 and **219 fixture tests**. The complete Chromium/mobile browser rerun passed
 **848/848** in 14.4 minutes, zero skipped/flaky/unexpected results. Selected
-bilingual desktop/mobile screenshots were inspected. Exact-head CI and canonical
-release acceptance remain pending.
+bilingual desktop/mobile screenshots were inspected. PR **#261** then passed exact-head
+CI run **43464140697**, including all six classes, four browser shards, disposable
+integration and aggregate `pr-gate`, at head **305a2337f2ec0cf852943f5eb4fae314b95eca19**.
+It merged at **2026-11-13T17:00:35Z** as **66eb30837f7ac117e56cf32ef4a1bc8941406993**;
+the merged source tree exactly matches that tested head.
+
+Canonical production resolves to Ready deployment **dpl_9dW15RstQHe9NQckrm5PE4BnpKWF**,
+`aiso-oxpfy7wvl-ynwaforevers-projects.vercel.app`, with exact merged commit metadata.
+Its main/66eb308 build confirms **all 107 shipped migrations recorded**; no migration
+was applied. Canonical safe-read acceptance passed **36/36**: the 32 entry matrix
+cases had zero axe, reflow or page errors; four owned-brand missing-item probes cover
+both locales and UUID casing. Each probe displays localized not-found, noindex and
+no review/decision/freeze UI. Next 16 streams these not-found views as HTTP 200;
+the initial status-only 32/36 report was retained, then the stronger UI/noindex
+assertions and complete matrix rerun passed. Four canonical screenshots were inspected.
+All 16 Tasks views remain empty; Opportunities retains scan suggestions. These reads
+do not establish production save/review persistence or real V2 package usability.
+The explicit safe allowlist blocked **241 unrelated GET/auth/navigation prefetches
+across all contexts**, with **zero write requests attempted**.
+[Durable release evidence](https://github.com/YNWAforever/aiso/pull/261#issuecomment-6859854354).
 No production approval, audited export, delivery, handoff, live check or paid operation
 was executed.
+
+## SME execution workflow — PR 3 candidate: export and choose delivery
+
+The isolated delivery candidate retains the captured V1 JSON/text bytes and canonical
+JSON hashes. Its fixtures were captured once against the untouched c6e37e6 V1 renderer;
+raw-byte Git attributes prevent checkout conversion. V2 exports refreeze the complete
+saved multi-source package, preserving order and duplicate sources, with an explicit
+`delivery-export.v2` envelope. Both formats hash the canonical JSON, and the service
+must record the actual downloader, renderer and artifact receipt before returning bytes.
+Request scope, approval, tenant and entitlement gates retain their existing contracts.
+
+SME presentation offers explicit native manual/developer disclosures. Closing a path
+retains its mounted children, manual fields, request identity and withdrawal context.
+Text download is first, JSON is a secondary disclosure, and manual recording remains
+an explicit self-reported operation with UTC guidance. Actual event provenance remains
+visible; an active ID outside the current page receives neutral copy. Parent review,
+prepare and historical actions retain their visual priority. Legacy presentation
+stays unchanged with the SME flag off. V2 outcome fixtures reflect the current unsupported service instead
+of fabricating a V1 outcome projection.
+
+Focused export/service/DTO/golden and review/delivery SSR checks pass **375/375**,
+with typecheck, lint zero errors/warnings and clean text audit. Two initial fixture
+casts were replaced by complete real draft shapes without changing golden bytes.
+The first isolated build stopped because Turbopack disallows the shared dependency
+junction outside its root; that junction was replaced by an independent lockfile install,
+without dependency/configuration changes. The actual Turbopack build and **247 fixture
+tests** passed. The expanded review/delivery browser diagnostic passed **296/304**;
+eight new exact-request assertions omitted the existing required content hash. Those
+expectations now require the exact frozen hash as well, and the eight complete V1/V2
+manual-record/withdrawal flows passed their targeted rerun. All other existing and new
+cases passed, including explicit developer send, retained inputs, historical V2 export,
+revoked authority, and the 32-case measured 44px/reflow/axe matrix. Four bounded manual
+UI screenshots were inspected. The final complete local candidate gate then passed:
+lint zero errors/warnings, typecheck, clean text audit, **8,864 unit tests / 15 skipped**
+(673 files passed / 1 skipped), Turbopack production build, **247 fixture tests**, and
+**896/896 Chromium/mobile browser cases** in 14.1 minutes with zero skipped, flaky or
+unexpected results. The full browser run covers the retained home, monitoring, evidence,
+Studio, saved-draft, review and delivery scopes plus all 48 new delivery cases.
+An independent source review found no export/receipt compatibility blocker: the existing
+receipt renderer column accepts both tags without DDL, and the service waits for the
+actual downloader's bound receipt before returning either format. Receipt persistence
+was not tested by a production export; mandatory disposable integration, exact-head CI
+and canonical release verification remain pending.

@@ -31,7 +31,7 @@ function pageDTO(value: unknown, version: VersionDetail): DeliveryPage {
 function responseError(status: number) {
   return status === 401 ? 'unauthenticated' : status === 403 ? 'denied' : status === 409 ? 'conflict' : status === 400 || status === 413 || status === 422 ? 'invalid' : 'unavailable'
 }
-export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDeliveryChange, smeCopilot = false }: { clientId: string; version: VersionDetail; onDirtyChange: (dirty: boolean) => void; onDeliveryChange?: () => void; smeCopilot?: boolean }) {
+export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDeliveryChange, smeCopilot = false, emphasize = true }: { clientId: string; version: VersionDetail; onDirtyChange: (dirty: boolean) => void; onDeliveryChange?: () => void; smeCopilot?: boolean; emphasize?: boolean }) {
   const t = useTranslations('delivery'), id = useId()
   const [page, setPage] = useState<DeliveryPage | null>(null), [authority, setAuthority] = useState(false)
   const [authorityVersion, setAuthorityVersion] = useState<VersionDetail | null>(null)
@@ -113,7 +113,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     } finally { lock.current = false; setBusy(false) }
   }
   const button = 'min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50' + (smeCopilot ? ' focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring' : '')
-  return <section className="space-y-4 rounded-xl border border-border p-4" aria-label={t(smeCopilot ? 'sme.title' : 'title')} aria-busy={loading || busy}>
+  return <section className={smeCopilot ? 'min-w-0 space-y-4' : 'space-y-4 rounded-xl border border-border p-4'} aria-label={t(smeCopilot ? 'sme.title' : 'title')} aria-busy={loading || busy}>
     <h2 className="text-xl font-semibold">{t(smeCopilot ? 'sme.title' : 'title')}</h2>
     <p>{t(smeCopilot ? 'sme.downloadHelp' : 'limitation')}</p><p>{t('versionBound', { number: version.versionNumber })}</p>
     <div className="flex flex-wrap gap-2">
@@ -133,7 +133,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     {(loading || status) && <p role={status ? "status" : undefined} aria-live="polite" tabIndex={-1} ref={statusRef}>{loading ? t('loading') : t(status)}</p>}
     {!authorized && !loading && <p>{t('refreshRequired')}</p>}
     {authorized && page?.capabilities.attestReason && <p>{t(page.capabilities.attestReason)}</p>}
-    <DeliveryForm version={version} values={fields} busy={busy} canAttest={authorized && Boolean(page?.capabilities.canAttest)} onChange={changed} onSubmit={value => { void mutate('attest', value) }} smeCopilot={smeCopilot} />
+    <DeliveryForm version={version} values={fields} busy={busy} canAttest={authorized && Boolean(page?.capabilities.canAttest)} onChange={changed} onSubmit={value => { void mutate('attest', value) }} smeCopilot={smeCopilot} emphasize={emphasize} />
     {page && <DeliveryHistory events={page.events} activeAttestationId={page.activeAttestationId} nextCursor={page.nextCursor} busy={busy || loading} canWithdraw={authorized && page.capabilities.canWithdraw} onMore={() => load(page.nextCursor)} onWithdraw={value => { setTarget(value); markDirty(true); requestAnimationFrame(() => reasonRef.current?.focus()) }} smeCopilot={smeCopilot} />}
     {target && <form className="space-y-3" onSubmit={event => { event.preventDefault(); try { void mutate('withdraw', { reason: deliveryText(reason, 2000, true) }) } catch { setError('invalid'); reasonRef.current?.focus() } }}>
       <p>{t(smeCopilot ? 'sme.withdrawConfirm' : 'withdrawConfirm')}</p>

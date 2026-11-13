@@ -5,8 +5,8 @@ import type { VersionDetail } from '@/lib/change-sets/types'
 import { deliveryHash, deliveryText, deliveryTime } from '@/lib/delivery/input'
 import type { AttestInput } from '@/lib/delivery/types'
 export type DeliveryFields = { destination: string; deliveredAt: string; note: string }
-export function DeliveryForm({ version, values, canAttest, busy, onChange, onSubmit, smeCopilot = false }: {
-  version: VersionDetail; values: DeliveryFields; canAttest: boolean; busy: boolean; smeCopilot?: boolean
+export function DeliveryForm({ version, values, canAttest, busy, onChange, onSubmit, smeCopilot = false, emphasize = true }: {
+  version: VersionDetail; values: DeliveryFields; canAttest: boolean; busy: boolean; smeCopilot?: boolean; emphasize?: boolean
   onChange: (value: DeliveryFields) => void; onSubmit: (input: Omit<AttestInput, 'requestId'>) => void
 }) {
   const t = useTranslations('delivery'), id = useId(), focus = useRef<HTMLParagraphElement>(null)
@@ -34,6 +34,6 @@ export function DeliveryForm({ version, values, canAttest, busy, onChange, onSub
     <label className="block" htmlFor={id + 'note'}>{t('note')}</label>
     <textarea id={id + 'note'} className={field} required rows={3} value={values.note} readOnly={busy} onChange={e => onChange({ ...values, note: e.target.value })} />
     {error && <p role="alert" tabIndex={-1} ref={focus}>{t('invalid')}</p>}
-    <button type="submit" disabled={busy || !canAttest} className={'min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50' + (smeCopilot ? ' bg-primary text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring' : '')}>{t('record')}</button>
+    <button type="submit" disabled={busy || !canAttest} className={'min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50' + (smeCopilot ? (emphasize ? ' bg-primary text-primary-foreground' : '') + ' focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring' : '')}>{t('record')}</button>
   </form>
 }

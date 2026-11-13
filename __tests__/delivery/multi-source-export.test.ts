@@ -15,7 +15,8 @@ const sha256 = (value: string) => createHash('sha256').update(value, 'utf8').dig
 
 function refreeze(version: VersionDetail): VersionDetail {
   const item = { ...version, id: version.workItemId, revision: version.draftRevision }
-  const frozen = version.schemaVersion === 1 ? freezeReview(item as WorkItem)
+  const frozen = version.schemaVersion === 1 ? freezeReview({ ...version, id: version.workItemId, revision: version.draftRevision,
+    clientId: REQUEST_ID, status: 'draft', createdAt: version.submittedAt, updatedAt: version.submittedAt })
     : freezeMultiSourceReview(item, version.evidenceSnapshots)
   return { ...version, ...frozen.content, contentHash: frozen.contentHash, validation: frozen.validation } as VersionDetail
 }

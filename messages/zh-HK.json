@@ -3126,6 +3126,9 @@
       "savedDraft": "已保存草稿及重新載入",
       "history": "其他版本及重新載入",
       "downstream": "交付及已記錄結果",
+      "manualPath": "下載檔案，自行交付",
+      "developerPath": "將網站修改交畀開發團隊",
+      "developerUnavailable": "呢個版本冇已批准嘅網站修改可交由開發團隊處理。",
       "backToThisDraft": "返回呢份草稿",
       "unsaved": "未保存嘅審批或交付內容會遺失。確定離開呢個頁面？"
     }
