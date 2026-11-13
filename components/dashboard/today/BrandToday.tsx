@@ -194,7 +194,7 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
           </div>}
         </section>}
 
-        <RunProgress clientId={workspace.client.id} lang={lang} />
+        <RunProgress clientId={workspace.client.id} lang={lang} smeCopilot brandName={workspace.client.brand_name} />
 
         <nav aria-label={w('tools')}>
           <ul className="grid gap-2 sm:grid-cols-2">

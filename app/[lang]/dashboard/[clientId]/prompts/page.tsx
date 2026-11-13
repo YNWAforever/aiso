@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { QuestionBankSection } from '@/components/pulse/QuestionBankSection'
 import { requireAuth } from '@/lib/auth'
+import { isSmeCopilotUiEnabled } from '@/lib/flags'
 import { db } from '@/lib/db'
 import { MAX_PROMPTS } from '@/lib/pulse/limits'
 import { resolveCommercialEntitlement } from '@/lib/tier'
@@ -88,6 +89,7 @@ export default async function PromptsPage({
     limit ${MAX_PROMPTS}
   `
   const prompts = promptRows as unknown as PromptBankItem[]
+  const guided = isSmeCopilotUiEnabled() ? await getTranslations('runProgress.sme') : null
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
@@ -95,6 +97,7 @@ export default async function PromptsPage({
         <p className="text-sm font-medium text-primary">{client.brand_name}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('qb_title')}</h1>
       </div>
+      {guided && <div className="mb-5 space-y-2"><p className="text-sm text-muted-foreground">{guided('questionStep')}</p><Link className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold" href={`/${locale}/dashboard/${encodeURIComponent(clientId)}?step=monitor#first-monitoring`}>{guided('backToMonitoring')}</Link></div>}
       <QuestionBankSection clientId={clientId} initialPrompts={prompts} isFirstTime={false} contextDefaults={{ language: client.prompt_language, market: client.region }} />
     </main>
   )

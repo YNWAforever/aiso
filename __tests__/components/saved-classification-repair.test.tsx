@@ -17,7 +17,7 @@ beforeEach(()=>{
  vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({classified:1,unchanged:0,failed:0})})))
 })
 it('offers only saved classification repair while collection is paused and submits the same run evidence once',async()=>{
- const render=()=>{hooks.cursor=0;return RunProgress({clientId:runId,lang:'en'})}
+ const render=()=>{hooks.cursor=0;const keyed=RunProgress({clientId:runId,lang:'en'});return (keyed.type as (props:typeof keyed.props)=>ReactNode)(keyed.props)}
  const view=render();const repair=nodes(view).find(n=>n.type==='button'&&String(n.props.children)==='Repair saved classifications')
  expect(repair).toBeDefined();expect(repair?.props.disabled).toBeFalsy()
  const html=renderToStaticMarkup(view);expect(html).toContain('40/40');expect(html).not.toContain('Start monitoring')
