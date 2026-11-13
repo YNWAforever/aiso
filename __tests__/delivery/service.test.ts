@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { approvedVersion, attestInput, eventRow, ID, ACTOR_ID, VERSION_ID, REQUEST_ID } from './fixtures'
 import { deliveryEventDTO } from '@/lib/delivery/dto'
+import { createDeliveryExport } from '@/lib/delivery/export'
+import { approvedMultiSourceVersion } from './multi-source-fixtures'
 vi.mock('server-only', () => ({}))
 const mocks = vi.hoisted(() => ({profile:vi.fn(),readVersion:vi.fn(),read:vi.fn(),attest:vi.fn(),withdraw:vi.fn(),recordExport:vi.fn()}))
 vi.mock('@/lib/auth', () => ({getProfile:mocks.profile}))
@@ -78,6 +80,75 @@ it('unwraps list history and preserves precision without invoking mutations', as
   expect(mocks.read).toHaveBeenCalledWith(scope,{limit:10,cursor:null})
   expect(mocks.attest).not.toHaveBeenCalled(); expect(mocks.withdraw).not.toHaveBeenCalled()
 })
+describe.each([1, 2] as const)('schema %i actual-renderer receipt', schema => {
+  const build = () => schema === 1 ? approvedVersion() : approvedMultiSourceVersion()
+  it.each(['json', 'text'] as const)('awaits the %s receipt before resolving a response and attributes the actual downloader', async format => {
+    const version = build()
+    // A historical approved version remains exportable even when a newer version
+    // exists. No latest-only handoff rule is applied by the export service.
+    Object.assign(version, { latestVersionId: REQUEST_ID })
+    const downloaderId = '123e4567-e89b-42d3-a456-426614174009'
+    mocks.profile.mockResolvedValue({ id: downloaderId, account_id: accountId })
+    mocks.readVersion.mockResolvedValue({ kind: 'replayed', value: version })
+    let entered!: () => void, finish!: (value: boolean) => void
+    const recording = new Promise<void>(resolve => { entered = resolve })
+    mocks.recordExport.mockImplementationOnce(() => {
+      entered()
+      return new Promise<boolean>(resolve => { finish = resolve })
+    })
+    let returned = false
+    const pending = exportAuthenticatedDelivery(clientId, itemId, versionId, new URLSearchParams({ format }))
+      .then(response => { returned = true; return response })
+    await recording
+    await Promise.resolve()
+    expect(returned).toBe(false)
+    const artifact = createDeliveryExport(version, format)
+    expect(mocks.recordExport).toHaveBeenCalledExactlyOnceWith({ ...scope, actorId: downloaderId }, {
+      contentHash: version.contentHash, artifactHash: artifact.exportHash, format,
+      rendererVersion: artifact.rendererVersion,
+      actor: { profileId: downloaderId, displayName: null, role: 'account_member' },
+    })
+    expect(artifact.rendererVersion).toBe(`delivery-export.v${schema}`)
+    finish(true)
+    const response = await pending
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe(artifact.body)
+    expect(response.headers.get('x-aiso-export-sha256')).toBe(artifact.exportHash)
+    expect(response.headers.get('content-type')).toBe(artifact.contentType)
+    expect(response.headers.get('content-disposition')).toBe(`attachment; filename="${artifact.filename}"`)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+  })
+
+  it.each(['json', 'text'] as const)('returns no %s attachment when receipt conflicts or throws', async format => {
+    mocks.readVersion.mockResolvedValue({ kind: 'replayed', value: build() })
+    for (const failure of ['false', 'throw'] as const) {
+      if (failure === 'false') mocks.recordExport.mockResolvedValueOnce(false)
+      else mocks.recordExport.mockRejectedValueOnce(new Error('private SQL details'))
+      const response = await exportAuthenticatedDelivery(clientId, itemId, versionId, new URLSearchParams({ format }))
+      expect(response.headers.has('content-disposition')).toBe(false)
+      expect(response.headers.has('x-aiso-export-sha256')).toBe(false)
+      await error(response, failure === 'false' ? 409 : 503, failure === 'false' ? 'DELIVERY_CONFLICT' : 'DELIVERY_UNAVAILABLE')
+    }
+  })
+
+  it.each(['id', 'workItemId', 'contentHash'] as const)('rejects retained %s scope/hash mismatches before recording', async field => {
+    const version = build()
+    Object.assign(version, { [field]: field === 'contentHash' ? 'b'.repeat(64) : REQUEST_ID })
+    mocks.readVersion.mockResolvedValue({ kind: 'replayed', value: version })
+    await error(await exportAuthenticatedDelivery(clientId, itemId, versionId, new URLSearchParams()), 422, 'DELIVERY_VALIDATION_FAILED')
+    expect(mocks.recordExport).not.toHaveBeenCalled()
+  })
+
+  it.each([null, 'changes_requested'] as const)('records no receipt for unapproved retained decision %s', async decision => {
+    const version = build()
+    version.decision = decision === null ? null : { ...version.decision!, decision }
+    mocks.readVersion.mockResolvedValue({ kind: 'replayed', value: version })
+    await error(await exportAuthenticatedDelivery(clientId, itemId, versionId, new URLSearchParams()), 409, 'DELIVERY_NOT_APPROVED')
+    expect(mocks.recordExport).not.toHaveBeenCalled()
+  })
+})
+
 it('records an export receipt carrying both hashes before releasing the bytes', async () => {
   const response = await exportAuthenticatedDelivery(clientId, itemId, versionId, new URLSearchParams())
 

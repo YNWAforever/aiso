@@ -1,7 +1,7 @@
 import 'server-only'
 import { getProfile } from '@/lib/auth'
 import { readLimitedJson } from '@/lib/approvals/request'
-import { createDeliveryExport, EXPORT_RENDERER_VERSION } from './export'
+import { createDeliveryExport } from './export'
 import { deliveryId, parseAttest, parseDeliveryQuery, parseExportFormat, parseWithdraw } from './input'
 import { attestDelivery, readDelivery, readDeliveryVersion, recordExportEvent, withdrawDelivery } from './store'
 import type { DeliveryResult, DeliveryScope } from './types'
@@ -59,7 +59,10 @@ export async function exportAuthenticatedDelivery(clientId: string, itemId: stri
     const result = await readDeliveryVersion(scope)
     if (!('value' in result)) return failure(result)
     let artifact
-    try { artifact = createDeliveryExport(result.value, format) }
+    try {
+      if (result.value.id !== scope.versionId || result.value.workItemId !== scope.itemId) throw new Error('DELIVERY_VALIDATION_FAILED')
+      artifact = createDeliveryExport(result.value, format)
+    }
     catch (error) {
       throw new DeliveryServiceError(error instanceof Error && error.message === 'DELIVERY_NOT_APPROVED'
         ? 'DELIVERY_NOT_APPROVED' : 'DELIVERY_VALIDATION_FAILED')
@@ -75,7 +78,7 @@ export async function exportAuthenticatedDelivery(clientId: string, itemId: stri
         contentHash: result.value.contentHash,
         artifactHash: artifact.exportHash,
         format,
-        rendererVersion: EXPORT_RENDERER_VERSION,
+        rendererVersion: artifact.rendererVersion,
         // The DOWNLOADER, not the submitter. 045 ties actor->>'profileId' to
         // actor_id, so naming the submitter here would both misattribute the
         // download and fail the constraint whenever the two differ.

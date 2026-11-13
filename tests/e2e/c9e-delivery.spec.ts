@@ -1,20 +1,23 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
 import { outcome } from '../../__tests__/components/c9f-fixtures'
 import type { DeliveryEvent, DeliveryPage } from '../../lib/delivery/types'
 import type { VersionWorkspaceProps } from '../../components/change-sets/VersionWorkspace'
+import type { HandoffView } from '../../lib/site-edit/handoff-service'
 const errors = new WeakMap<Page, string[]>()
 async function fixture(page: Page, lang: string, variant = 'default') {
   const dir = process.env.C9E_HTML_DIR!, css = process.env.C9E_CSS_PATH!
   if (!dir || !css) throw Error('C9E fixtures required')
-  const props = JSON.parse(readFileSync(dir + '/' + lang + '-data.json', 'utf8')) as VersionWorkspaceProps
+  const props = JSON.parse(readFileSync(dir + '/' + lang + (variant.startsWith('sme') ? '-' + variant : '') + '-data.json', 'utf8')) as VersionWorkspaceProps
   const version = props.initialVersion!, c = (lang === 'en' ? en : zh).delivery
   const context = { events: [] as DeliveryEvent[], active: null as string | null, reads: 0, posts: [] as Record<string, unknown>[],
-    reason: (variant === 'pending' ? 'not_approved' : null) as DeliveryPage['capabilities']['attestReason'],
+    exports: [] as string[], handoffReads: 0, handoffPosts: [] as Record<string, unknown>[], checkPosts: 0,
+    handoff: { state: 'none', jobId: null, executorRef: null, lastEventAt: null, canSend: true, block: null, receipt: null, liveCheck: null, canCheck: false, checkBlock: 'not_open' } as HandoffView,
+    reason: (variant === 'pending' ? 'not_approved' : variant === 'smeHistorical' ? 'superseded' : null) as DeliveryPage['capabilities']['attestReason'],
     readHook: null as ((route: Route) => Promise<void>) | null,
     postHook: null as ((route: Route) => Promise<void>) | null,
     versionHook: null as ((route: Route) => Promise<void>) | null }
@@ -33,9 +36,23 @@ async function fixture(page: Page, lang: string, variant = 'default') {
   await page.route('**/*', route => route.abort())
   await page.route('**/api/clients/**', async route => {
     const url = new URL(route.request().url())
-    if (url.pathname.endsWith('/outcomes')) return route.fulfill({ json: outcome({ versionId: url.pathname.split('/').at(-2)!, anchorState: 'no-delivery', anchor: null }) })
+    if (url.pathname.endsWith('/outcomes')) return version.schemaVersion === 2
+      ? route.fulfill({ status: 503, json: { error: 'OUTCOMES_UNAVAILABLE' } })
+      : route.fulfill({ json: outcome({ versionId: url.pathname.split('/').at(-2)!, anchorState: 'no-delivery', anchor: null }) })
+    if (url.pathname.endsWith('/handoff/live-check')) { context.checkPosts++; return route.fulfill({ status: 409, json: { error: 'LIVE_CHECK_NOT_OPEN' } }) }
+    if (url.pathname.endsWith('/handoff')) {
+      if (route.request().method() === 'GET') context.handoffReads++
+      else {
+        const body = route.request().postDataJSON(); context.handoffPosts.push(body)
+        expect(body).toEqual({ contentHash: version.contentHash })
+        context.handoff = { ...context.handoff, state: 'sent', jobId: '123e4567-e89b-42d3-a456-426614174007', executorRef: 'Fixture executor acceptance', lastEventAt: '2026-09-07T00:00:00Z', canSend: false, block: 'already_sent', canCheck: true, checkBlock: null }
+      }
+      return route.fulfill({ json: { handoff: context.handoff } })
+    }
     if (url.pathname.endsWith('/export')) {
-      const artifact = JSON.parse(readFileSync(dir + '/export-' + url.searchParams.get('format') + '.json', 'utf8'))
+      context.exports.push(url.searchParams.get('format')!)
+      const prefix = variant === 'smeDeveloper' ? 'developer-' : ['smeV2','smeHistorical'].includes(variant) ? 'multi-' : ''
+      const artifact = JSON.parse(readFileSync(dir + '/export-' + prefix + url.searchParams.get('format') + '.json', 'utf8'))
       return route.fulfill({ body: artifact.body, headers: { 'Content-Type': artifact.contentType, 'Content-Disposition': `attachment; filename="${artifact.filename}"`, 'X-Aiso-Export-Sha256': artifact.exportHash } })
     }
     if (url.pathname.endsWith('/delivery') && route.request().method() === 'GET') {
@@ -50,7 +67,7 @@ async function fixture(page: Page, lang: string, variant = 'default') {
   await page.route(`https://delivery.fixture/${lang}`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>Delivery fixture</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${readFileSync(css, 'utf8')}</style></head><body>${readFileSync(dir + '/' + lang + '-' + variant + '.html', 'utf8')}<script>${readFileSync(dir + '/fixture.js', 'utf8')}</script></body></html>` }))
   await page.goto(`https://delivery.fixture/${lang}`)
   await page.waitForFunction(() => Boolean((window as Window & { c9cFixtureReady?: boolean }).c9cFixtureReady))
-  const section = page.getByRole('region', { name: c.title, exact: true })
+  const section = page.getByRole('region', { name: variant.startsWith('sme') ? c.sme.title : c.title, exact: true, includeHidden: variant.startsWith('sme') })
   await expect(section).toHaveAttribute('aria-busy', 'false')
   const fill = async (destination = ' Site ', time = '2026-09-07T00:00:00') => {
     await section.getByLabel(c.destination, { exact: true }).fill(destination)
@@ -278,3 +295,137 @@ for (const lang of ['en', 'zh-HK']) test(`C9e pending submission retains deliver
   await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue('')
   await expect(page.getByRole('button', { name: review.submitVersion, exact: true })).toBeEnabled()
 })
+
+for (const lang of ['en', 'zh-HK']) {
+  for (const variant of ['sme', 'smeV2']) test(`SME explicit delivery keeps ${variant} export bytes separate from manual records ${lang}`, async ({ page }) => {
+    const { section, c, version, context, fill } = await fixture(page, lang, variant)
+    const paths = (lang === 'en' ? en : zh).changeSets.sme
+    const manual = page.locator('summary').filter({ hasText: paths.manualPath })
+    const developer = page.locator('summary').filter({ hasText: paths.developerPath })
+    await expect(section).toBeHidden()
+    expect(context.posts).toEqual([]); expect(context.exports).toEqual([]); expect(context.handoffPosts).toEqual([])
+    await manual.focus(); await page.keyboard.press('Enter')
+    await expect(section).toBeVisible()
+    await fill('Delivered by the owner')
+    await expect(section.locator('button').filter({ hasText: c.exportJson })).toHaveCount(1)
+    await expect(section.getByRole('button', { name: c.exportJson, exact: true })).toHaveCount(0)
+    for (const format of ['text', 'json'] as const) {
+      if (format === 'json') {
+        await section.locator('summary').filter({ hasText: c.sme.technicalFormat }).focus()
+        await page.keyboard.press('Enter')
+      }
+      const pending = page.waitForEvent('download')
+      await section.getByRole('button', { name: format === 'text' ? c.exportText : c.exportJson, exact: true }).click()
+      const download = await pending
+      const artifact = JSON.parse(readFileSync(process.env.C9E_HTML_DIR! + '/export-' + (variant === 'smeV2' ? 'multi-' : '') + format + '.json', 'utf8'))
+      expect(download.suggestedFilename()).toBe(artifact.filename)
+      const bytes = readFileSync((await download.path())!)
+      expect(bytes).toEqual(Buffer.from(artifact.body, 'utf8'))
+      if (format === 'json') {
+        const envelope = JSON.parse(bytes.toString('utf8'))
+        expect(envelope.schemaVersion).toBe(`delivery-export.v${version.schemaVersion}`)
+        expect(envelope.contentHash).toBe(version.contentHash)
+        if (version.schemaVersion === 2) expect(envelope.content.evidenceSnapshots.map((saved: { evidence: { kind: string } }) => saved.evidence.kind)).toEqual(['scan-check', 'pulse-metric', 'scan-check'])
+      }
+      await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue('Delivered by the owner')
+      expect(context.posts).toEqual([])
+    }
+    expect(context.exports).toEqual(['text', 'json'])
+    await section.getByRole('button', { name: c.record, exact: true }).click()
+    await expect(section.getByText(c.recorded, { exact: true })).toBeFocused()
+    expect(context.posts).toHaveLength(1)
+    expect(context.posts[0]).toEqual({ contentHash: version.contentHash, destination: 'Delivered by the owner', deliveredAt: '2026-09-07T00:00:00.000Z', note: 'é\n交付', requestId: expect.any(String) })
+    await expect(section.getByText(c.selfReported, { exact: true })).toBeVisible()
+    await expect(section.getByText(c.verifiedLive, { exact: true })).toHaveCount(0)
+    const target = context.active
+    await section.getByRole('button', { name: c.sme.withdraw, exact: true }).click()
+    await section.getByLabel(c.withdrawReason, { exact: true }).fill('Correct this recorded delivery')
+    await developer.focus(); await page.keyboard.press('Enter')
+    await expect(section).toBeHidden()
+    await expect(page.getByText(paths.developerUnavailable, { exact: true })).toBeVisible()
+    await manual.focus(); await page.keyboard.press('Enter')
+    await expect(section.getByLabel(c.withdrawReason, { exact: true })).toHaveValue('Correct this recorded delivery')
+    await section.getByRole('button', { name: c.confirmWithdraw, exact: true }).click()
+    await expect(section.getByText(c.withdrawalRecorded, { exact: true })).toBeFocused()
+    expect(context.posts).toHaveLength(2)
+    expect(context.posts[1].requestId).not.toBe(context.posts[0].requestId)
+    expect(context.events[0]).toMatchObject({ kind: 'withdraw', targetAttestationId: target, reason: 'Correct this recorded delivery' })
+    expect(context.events[1]).toMatchObject({ kind: 'attest', provenance: 'self_reported' })
+    expect(context.handoffPosts).toEqual([]); expect(context.checkPosts).toBe(0)
+    expect(errors.get(page)).toEqual([])
+  })
+
+  test(`SME developer choice retains manual fields and requires its own explicit send ${lang}`, async ({ page }) => {
+    const { section, c, version, context, fill } = await fixture(page, lang, 'smeDeveloper')
+    const copy = lang === 'en' ? en : zh
+    const manual = page.locator('summary').filter({ hasText: copy.changeSets.sme.manualPath })
+    const developer = page.locator('summary').filter({ hasText: copy.changeSets.sme.developerPath })
+    await manual.focus(); await page.keyboard.press('Enter')
+    await fill('Retain this manual draft')
+    await section.getByLabel(c.timeUtc, { exact: true }).fill('2026-09-07T00:00:09')
+    await developer.focus(); await page.keyboard.press('Enter')
+    await expect(section).toBeHidden()
+    const handoff = page.getByRole('region', { name: copy.siteEditHandoff.title, exact: true })
+    await expect(handoff).toHaveAttribute('aria-busy', 'false')
+    expect(context.posts).toEqual([]); expect(context.exports).toEqual([]); expect(context.handoffPosts).toEqual([]); expect(context.checkPosts).toBe(0)
+    await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue('Retain this manual draft')
+    await expect(section.getByLabel(c.note, { exact: true })).toHaveValue(' e\u0301\n交付 ')
+    const reads = context.handoffReads
+    await handoff.getByRole('button', { name: copy.siteEditHandoff.send, exact: true }).click()
+    await expect(handoff.getByText(copy.siteEditHandoff.state.sent, { exact: false })).toBeVisible()
+    expect(context.handoffPosts).toEqual([{ contentHash: version.contentHash }])
+    expect(context.posts).toEqual([]); expect(context.checkPosts).toBe(0)
+    await manual.focus(); await page.keyboard.press('Enter')
+    await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue('Retain this manual draft')
+    await expect(section.getByLabel(c.timeUtc, { exact: true })).toHaveValue('2026-09-07T00:00:09')
+    await developer.focus(); await page.keyboard.press('Enter')
+    await expect(handoff.getByText(copy.siteEditHandoff.state.sent, { exact: false })).toBeVisible()
+    expect(context.handoffReads).toBe(reads); expect(context.handoffPosts).toHaveLength(1); expect(context.checkPosts).toBe(0)
+    expect(errors.get(page)).toEqual([])
+  })
+
+  test(`SME historical V2 export stays available while recording and revoked export authority fail closed ${lang}`, async ({ page }) => {
+    const { section, c, context, fill } = await fixture(page, lang, 'smeHistorical')
+    const paths = (lang === 'en' ? en : zh).changeSets.sme
+    await page.locator('summary').filter({ hasText: paths.manualPath }).click()
+    await expect(section.getByRole('button', { name: c.record, exact: true })).toBeDisabled()
+    await expect(section.getByText(c.superseded, { exact: true })).toBeVisible()
+    const pending = page.waitForEvent('download')
+    await section.getByRole('button', { name: c.exportText, exact: true }).click()
+    const download = await pending
+    const artifact = JSON.parse(readFileSync(process.env.C9E_HTML_DIR! + '/export-multi-text.json', 'utf8'))
+    expect(readFileSync((await download.path())!)).toEqual(Buffer.from(artifact.body, 'utf8'))
+    await fill('Keep historical input')
+    await page.route('**/export?format=text', route => route.fulfill({ status: 403, json: { error: 'DELIVERY_DENIED' } }))
+    await section.getByRole('button', { name: c.exportText, exact: true }).click()
+    await expect(section.getByRole('alert')).toHaveText(c.denied)
+    await expect(section.getByRole('button', { name: c.exportText, exact: true })).toBeDisabled()
+    await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue('Keep historical input')
+    await section.getByRole('button', { name: c.refresh, exact: true }).click()
+    await expect(section.getByRole('button', { name: c.exportText, exact: true })).toBeEnabled()
+    await expect(section.getByRole('button', { name: c.record, exact: true })).toBeDisabled()
+    await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue('Keep historical input')
+    expect(context.posts).toEqual([]); expect(context.handoffPosts).toEqual([]); expect(context.checkPosts).toBe(0)
+    expect(errors.get(page)).toEqual([])
+  })
+
+  for (const width of [320, 390, 768, 1440]) for (const dark of [false, true]) test(`SME manual V2 controls, disclosures and UTC reflow ${lang} ${width} ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { section, c, context } = await fixture(page, lang, 'smeV2')
+    await page.evaluate(value => document.documentElement.classList.toggle('dark', value), dark)
+    const paths = (lang === 'en' ? en : zh).changeSets.sme
+    await page.locator('summary').filter({ hasText: paths.manualPath }).focus(); await page.keyboard.press('Enter')
+    await section.locator('summary').filter({ hasText: c.sme.technicalFormat }).focus(); await page.keyboard.press('Enter')
+    await expect(section.getByRole('button', { name: c.exportJson, exact: true })).toBeVisible()
+    await expect(section.getByText(c.sme.timeHelp, { exact: true })).toBeVisible()
+    for (const control of await page.locator('button:visible,input:visible,textarea:visible,summary:visible').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(43.5)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    if ((lang === 'en' && width === 1440 && !dark) || (lang === 'zh-HK' && width === 390 && dark)) {
+      mkdirSync('artifacts/ux', { recursive: true })
+      await section.screenshot({ path: `artifacts/ux/sme-delivery-${lang}-${width}-${dark ? 'dark' : 'light'}-${test.info().project.name}.png` })
+    }
+    expect(context.posts).toEqual([]); expect(context.handoffPosts).toEqual([]); expect(context.checkPosts).toBe(0)
+    expect(errors.get(page)).toEqual([])
+  })
+}

@@ -1,0 +1,103 @@
+Approved review package
+Version ID: 123e4567-e89b-42d3-a456-426614174002
+Version number: 1
+Content hash: 74b05f44e24ae275fef0c11e97324256f886d084204c3b68e5d55cbb916051df
+Submitted at: 2026-09-06T00:00:00.123456Z
+Approved at: 2026-09-06T01:00:00.654321Z
+Export hash: e9e5afad954ce182861b64e8b221298f93fc19c4c5f84c66a0f07cdd3e49d3c0
+The export hash identifies the canonical JSON envelope, not these text bytes.
+delivery-export.v1: This is a retained approved review package. Export does not attest delivery, verify publication, or demonstrate measured impact.
+
+Complete canonical review envelope:
+{
+  "content": {
+    "action": "Review the recorded response.",
+    "draftRevision": 1,
+    "evidenceSnapshot": {
+      "actionKey": "review-question-coverage",
+      "args": {
+        "platform": "chatgpt",
+        "question": "Example?"
+      },
+      "evidence": {
+        "answerDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "brandMentioned": false,
+        "hasAnswer": true,
+        "id": "123e4567-e89b-42d3-a456-426614174000",
+        "kind": "pulse-metric",
+        "limitations": [
+          "unknown-answer-coverage"
+        ],
+        "platform": "chatgpt",
+        "promptId": null,
+        "provenance": "retained-pulse-metric",
+        "question": "Example?",
+        "recordedAt": null,
+        "result": "success",
+        "scanWeek": "2026-08-31"
+      },
+      "initialAction": "Review the recorded response.",
+      "initialTitle": "Review question coverage",
+      "limitations": [
+        "unknown-answer-coverage"
+      ],
+      "locale": "en",
+      "ruleVersion": "pulse-brand-absent.v1",
+      "schemaVersion": 1,
+      "source": {
+        "id": "123e4567-e89b-42d3-a456-426614174000",
+        "kind": "pulse-metric"
+      },
+      "titleKey": "review-question-coverage"
+    },
+    "locale": "en",
+    "notes": "保留證據 é",
+    "schemaVersion": 1,
+    "title": "Review question coverage",
+    "workItemId": "123e4567-e89b-42d3-a456-426614174000"
+  },
+  "contentHash": "74b05f44e24ae275fef0c11e97324256f886d084204c3b68e5d55cbb916051df",
+  "decision": {
+    "decidedAt": "2026-09-06T01:00:00.654321Z",
+    "decidedBy": {
+      "displayName": "Reviewer",
+      "profileId": "123e4567-e89b-42d3-a456-426614174000",
+      "role": "account_approver"
+    },
+    "decision": "approved",
+    "reason": "Reviewed\tcontent\r\nand evidence 保留 é 😀"
+  },
+  "id": "123e4567-e89b-42d3-a456-426614174002",
+  "limitations": [
+    "delivery-export.v1: This is a retained approved review package. Export does not attest delivery, verify publication, or demonstrate measured impact."
+  ],
+  "schemaVersion": "delivery-export.v1",
+  "submittedAt": "2026-09-06T00:00:00.123456Z",
+  "submittedBy": {
+    "displayName": null,
+    "profileId": "123e4567-e89b-42d3-a456-426614174001",
+    "role": "account_member"
+  },
+  "validation": {
+    "checks": [
+      {
+        "code": "text",
+        "status": "pass"
+      },
+      {
+        "code": "locale",
+        "status": "pass"
+      },
+      {
+        "code": "evidence",
+        "status": "pass"
+      },
+      {
+        "code": "content_size",
+        "status": "pass"
+      }
+    ],
+    "policyVersion": "change-set-review.v1"
+  },
+  "versionNumber": 1
+}

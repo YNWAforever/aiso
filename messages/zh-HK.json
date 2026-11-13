@@ -3126,6 +3126,9 @@
       "savedDraft": "已保存草稿及重新載入",
       "history": "其他版本及重新載入",
       "downstream": "交付及已記錄結果",
+      "manualPath": "下載檔案，自行交付",
+      "developerPath": "將網站修改交畀開發團隊",
+      "developerUnavailable": "呢個版本冇已批准嘅網站修改可交由開發團隊處理。",
       "backToThisDraft": "返回呢份草稿",
       "unsaved": "未保存嘅審批或交付內容會遺失。確定離開呢個頁面？"
     }
@@ -3202,7 +3205,18 @@
     "discard": "捨棄交付輸入",
     "discardConfirm": "捨棄尚未儲存的交付輸入？",
     "verifiedLive": "已在網頁上核實",
-    "selfReported": "自行申報"
+    "selfReported": "自行申報",
+    "sme": {
+      "title": "交付檔案及記錄",
+      "downloadHelp": "下載此已審批的凍結版本檔案作手動交付。下載不會記錄交付。",
+      "technicalFormat": "技術格式（JSON）",
+      "manualLimitation": "自行完成交付後，請使用此表格記錄。這是你自行申報的交付記錄，並不核實發佈或量度成效。",
+      "timeHelp": "請輸入 UTC 並包括秒數；此欄位不會轉換本地時間。交付時間不得早於審批或晚於現在。",
+      "active": "現有一項有效的交付記錄。",
+      "attested": "交付記錄",
+      "withdraw": "撤回有效記錄",
+      "withdrawConfirm": "請提供原因以撤回此記錄。原記錄會保留在歷史中；撤回並不表示交付從未發生。"
+    }
   },
   "siteEditHandoff": {
     "title": "交由開發團隊",
