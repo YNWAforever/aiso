@@ -31,7 +31,7 @@ function pageDTO(value: unknown, version: VersionDetail): DeliveryPage {
 function responseError(status: number) {
   return status === 401 ? 'unauthenticated' : status === 403 ? 'denied' : status === 409 ? 'conflict' : status === 400 || status === 413 || status === 422 ? 'invalid' : 'unavailable'
 }
-export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDeliveryChange }: { clientId: string; version: VersionDetail; onDirtyChange: (dirty: boolean) => void; onDeliveryChange?: () => void }) {
+export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDeliveryChange, smeCopilot = false }: { clientId: string; version: VersionDetail; onDirtyChange: (dirty: boolean) => void; onDeliveryChange?: () => void; smeCopilot?: boolean }) {
   const t = useTranslations('delivery'), id = useId()
   const [page, setPage] = useState<DeliveryPage | null>(null), [authority, setAuthority] = useState(false)
   const [authorityVersion, setAuthorityVersion] = useState<VersionDetail | null>(null)
@@ -112,25 +112,33 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
       setAuthority(false); setError(failure instanceof Error && ['unauthenticated', 'denied', 'conflict', 'invalid'].includes(failure.message) ? failure.message : 'unavailable')
     } finally { lock.current = false; setBusy(false) }
   }
-  const button = 'min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50'
-  return <section className="space-y-4 rounded-xl border border-border p-4" aria-label={t('title')} aria-busy={loading || busy}>
-    <h2 className="text-xl font-semibold">{t('title')}</h2>
-    <p>{t('limitation')}</p><p>{t('versionBound', { number: version.versionNumber })}</p>
+  const button = 'min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50' + (smeCopilot ? ' focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring' : '')
+  return <section className="space-y-4 rounded-xl border border-border p-4" aria-label={t(smeCopilot ? 'sme.title' : 'title')} aria-busy={loading || busy}>
+    <h2 className="text-xl font-semibold">{t(smeCopilot ? 'sme.title' : 'title')}</h2>
+    <p>{t(smeCopilot ? 'sme.downloadHelp' : 'limitation')}</p><p>{t('versionBound', { number: version.versionNumber })}</p>
     <div className="flex flex-wrap gap-2">
-      <button type="button" className={button} disabled={busy || !authorized || !page?.capabilities.canExport} onClick={() => download('json')}>{t('exportJson')}</button>
-      <button type="button" className={button} disabled={busy || !authorized || !page?.capabilities.canExport} onClick={() => download('text')}>{t('exportText')}</button>
+      {smeCopilot ? <>
+        <button type="button" className={button} disabled={busy || !authorized || !page?.capabilities.canExport} onClick={() => download('text')}>{t('exportText')}</button>
+        <details className="w-full">
+          <summary className="min-h-11 cursor-pointer content-center rounded px-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{t('sme.technicalFormat')}</summary>
+          <button type="button" className={button} disabled={busy || !authorized || !page?.capabilities.canExport} onClick={() => download('json')}>{t('exportJson')}</button>
+        </details>
+      </> : <>
+        <button type="button" className={button} disabled={busy || !authorized || !page?.capabilities.canExport} onClick={() => download('json')}>{t('exportJson')}</button>
+        <button type="button" className={button} disabled={busy || !authorized || !page?.capabilities.canExport} onClick={() => download('text')}>{t('exportText')}</button>
+      </>}
       <button type="button" className={button} disabled={busy || loading} onClick={() => load()}>{t('refresh')}</button>
     </div>
     {error && <p role="alert">{t(error)}</p>}
     {(loading || status) && <p role={status ? "status" : undefined} aria-live="polite" tabIndex={-1} ref={statusRef}>{loading ? t('loading') : t(status)}</p>}
     {!authorized && !loading && <p>{t('refreshRequired')}</p>}
     {authorized && page?.capabilities.attestReason && <p>{t(page.capabilities.attestReason)}</p>}
-    <DeliveryForm version={version} values={fields} busy={busy} canAttest={authorized && Boolean(page?.capabilities.canAttest)} onChange={changed} onSubmit={value => { void mutate('attest', value) }} />
-    {page && <DeliveryHistory events={page.events} activeAttestationId={page.activeAttestationId} nextCursor={page.nextCursor} busy={busy || loading} canWithdraw={authorized && page.capabilities.canWithdraw} onMore={() => load(page.nextCursor)} onWithdraw={value => { setTarget(value); markDirty(true); requestAnimationFrame(() => reasonRef.current?.focus()) }} />}
+    <DeliveryForm version={version} values={fields} busy={busy} canAttest={authorized && Boolean(page?.capabilities.canAttest)} onChange={changed} onSubmit={value => { void mutate('attest', value) }} smeCopilot={smeCopilot} />
+    {page && <DeliveryHistory events={page.events} activeAttestationId={page.activeAttestationId} nextCursor={page.nextCursor} busy={busy || loading} canWithdraw={authorized && page.capabilities.canWithdraw} onMore={() => load(page.nextCursor)} onWithdraw={value => { setTarget(value); markDirty(true); requestAnimationFrame(() => reasonRef.current?.focus()) }} smeCopilot={smeCopilot} />}
     {target && <form className="space-y-3" onSubmit={event => { event.preventDefault(); try { void mutate('withdraw', { reason: deliveryText(reason, 2000, true) }) } catch { setError('invalid'); reasonRef.current?.focus() } }}>
-      <p>{t('withdrawConfirm')}</p>
+      <p>{t(smeCopilot ? 'sme.withdrawConfirm' : 'withdrawConfirm')}</p>
       <label className="block" htmlFor={id + 'withdraw'}>{t('withdrawReason')}</label>
-      <textarea id={id + 'withdraw'} ref={reasonRef} required rows={3} className="w-full rounded border border-border bg-background p-3" value={reason} readOnly={busy} onChange={e => { setReason(e.target.value); markDirty(true) }} />
+      <textarea id={id + 'withdraw'} ref={reasonRef} required rows={3} className={'w-full rounded border border-border bg-background p-3' + (smeCopilot ? ' min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring' : '')} value={reason} readOnly={busy} onChange={e => { setReason(e.target.value); markDirty(true) }} />
       <button type="submit" className={button} disabled={busy || !authorized || !page?.capabilities.canWithdraw}>{t('confirmWithdraw')}</button>
     </form>}
     {(fields.destination || fields.deliveredAt || fields.note || target) && <button type="button" className={button} disabled={busy} onClick={() => { if (window.confirm(t('discardConfirm'))) { setFields(emptyFields); setReason(''); setTarget(null); operation.current = null; markDirty(false) } }}>{t('discard')}</button>}

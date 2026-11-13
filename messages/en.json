@@ -3177,7 +3177,18 @@
     "discard": "Discard delivery input",
     "discardConfirm": "Discard your unsaved delivery input?",
     "verifiedLive": "Verified on the live page",
-    "selfReported": "Self-reported"
+    "selfReported": "Self-reported",
+    "sme": {
+      "title": "Package and delivery records",
+      "downloadHelp": "Download this approved frozen package for manual delivery. Downloading does not record delivery.",
+      "technicalFormat": "Technical format (JSON)",
+      "manualLimitation": "Use this form after you deliver the package yourself. This records your self-reported delivery; it does not verify publication or measure impact.",
+      "timeHelp": "Enter UTC, including seconds; this field does not convert local time. Delivery must be on or after approval and not in the future.",
+      "active": "An active delivery record is retained.",
+      "attested": "Delivery record",
+      "withdraw": "Withdraw active record",
+      "withdrawConfirm": "Give a reason to withdraw this record. The original stays in history; withdrawal does not mean delivery never happened."
+    }
   },
   "siteEditHandoff": {
     "title": "Send to developer",

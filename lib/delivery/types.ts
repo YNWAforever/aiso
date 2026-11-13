@@ -18,4 +18,4 @@ export type DeliveryPage = {
 }
 export type DeliveryQuery = { limit: number; cursor: { recordedAt: string; id: string } | null }
 export type DeliveryResult<T> = StoreResult<T>
-export type ExportArtifact = { body: string; exportHash: string; contentType: string; filename: string }
+export type ExportArtifact = { body: string; exportHash: string; rendererVersion: 'delivery-export.v1' | 'delivery-export.v2'; contentType: string; filename: string }

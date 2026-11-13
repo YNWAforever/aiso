@@ -1,0 +1,4 @@
+# These compatibility fixtures are hashed as raw UTF-8 bytes on every platform.
+# Preserve captured line endings through Windows and Linux checkouts.
+*.json -text
+*.txt -text

@@ -1,6 +1,6 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
-import { freezeReview } from '@/lib/change-sets/validation'
+import { freezeMultiSourceReview, freezeReview } from '@/lib/change-sets/validation'
 import type { DecisionDTO, VersionDetail } from '@/lib/change-sets/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { fingerprintEvidence } from '@/lib/opportunities/fingerprint'
@@ -24,14 +24,24 @@ function canonical(value: unknown): unknown {
 export function createDeliveryExport(version: VersionDetail, format: 'json' | 'text'): ExportArtifact {
   let envelope: Record<string, unknown>
   let versionId: string
+  let rendererVersion: ExportArtifact['rendererVersion']
+  let limitation: string
   try {
     if (format !== 'json' && format !== 'text') invalid()
-    if (version.schemaVersion !== 1 || !Number.isSafeInteger(version.versionNumber) || version.versionNumber < 1) invalid()
+    if ((version.schemaVersion !== 1 && version.schemaVersion !== 2) || !Number.isSafeInteger(version.versionNumber) || version.versionNumber < 1) invalid()
     versionId = deliveryId(version.id)
     const itemId = deliveryId(version.workItemId)
     if (itemId !== version.workItemId) invalid()
-    const frozen = freezeReview({ id: itemId, revision: version.draftRevision, title: version.title, action: version.action,
-      notes: version.notes, locale: version.locale, evidenceSnapshot: version.evidenceSnapshot, editSpec: version.editSpec } as WorkItem)
+    const item = { id: itemId, revision: version.draftRevision, title: version.title, action: version.action,
+      notes: version.notes, locale: version.locale, editSpec: version.editSpec }
+    // Re-freeze the retained content, never look up today's live evidence. V2
+    // preserves every saved snapshot in its original order (including repeats).
+    const frozen = version.schemaVersion === 1
+      ? freezeReview({ ...item, evidenceSnapshot: version.evidenceSnapshot } as WorkItem)
+      : freezeMultiSourceReview(item, version.evidenceSnapshots)
+    rendererVersion = version.schemaVersion === 1 ? EXPORT_RENDERER_VERSION : 'delivery-export.v2'
+    limitation = version.schemaVersion === 1 ? LIMITATION
+      : 'delivery-export.v2: This is a retained approved review package. Export does not attest delivery, verify publication, or demonstrate measured impact.'
     if (deliveryHash(version.contentHash) !== frozen.contentHash || fingerprintEvidence(version.validation) !== fingerprintEvidence(frozen.validation)) invalid()
     const submittedBy = deliveryActor(version.submittedBy)
     const submittedAt = deliveryTime(version.submittedAt, 6)
@@ -46,9 +56,9 @@ export function createDeliveryExport(version: VersionDetail, format: 'json' | 't
       if (reason !== saved.reason) invalid()
       decision = { decision: saved.decision, reason, decidedBy, decidedAt: deliveryTime(saved.decidedAt, 6) }
     }
-    envelope = { schemaVersion: 'delivery-export.v1', id: versionId, versionNumber: version.versionNumber,
+    envelope = { schemaVersion: rendererVersion, id: versionId, versionNumber: version.versionNumber,
       contentHash: frozen.contentHash, content: frozen.content, validation: frozen.validation, submittedBy, submittedAt, decision,
-      limitations: [LIMITATION] }
+      limitations: [limitation] }
   } catch { invalid() }
   if ((envelope.decision as DecisionDTO | null)?.decision !== 'approved') throw new Error('DELIVERY_NOT_APPROVED')
   const sorted = canonical(envelope)
@@ -59,9 +69,9 @@ export function createDeliveryExport(version: VersionDetail, format: 'json' | 't
     'Approved review package', `Version ID: ${versionId}`, `Version number: ${envelope.versionNumber}`,
     `Content hash: ${envelope.contentHash}`, `Submitted at: ${envelope.submittedAt}`,
     `Approved at: ${decision.decidedAt}`, `Export hash: ${exportHash}`,
-    'The export hash identifies the canonical JSON envelope, not these text bytes.', LIMITATION,
+    'The export hash identifies the canonical JSON envelope, not these text bytes.', limitation,
     '', 'Complete canonical review envelope:', JSON.stringify(sorted, null, 2), '',
   ].join('\n')
-  return { body, exportHash, contentType: format === 'json' ? 'application/json; charset=utf-8' : 'text/plain; charset=utf-8',
+  return { body, exportHash, rendererVersion, contentType: format === 'json' ? 'application/json; charset=utf-8' : 'text/plain; charset=utf-8',
     filename: `delivery-${versionId}.${format === 'json' ? 'json' : 'txt'}` }
 }
