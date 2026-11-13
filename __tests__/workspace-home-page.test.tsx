@@ -120,6 +120,15 @@ it.each([
   expect(queries.some(query => query.includes('agent_competitors'))).toBe(false)
 })
 
+it.each(['0','1'])('uses a saved-answer heading only in SME monitoring mode %s', async flag => {
+  vi.stubEnv('FEATURE_SME_COPILOT_UI', flag)
+  mocks.pulse.mockResolvedValue({ client: { id: 'client-a', brand_name: 'Example' }, observations: { status: 'ok', data: [] }, missed: { status: 'ok', data: [] }, prompts: { status: 'ok', data: [] } })
+  const page = await render({ step: 'monitor' })
+  expect(page.props.children[0].props.children).toBe(flag === '1' ? 'step_monitor_sme_title' : 'step_monitor_title')
+  expect(mocks.pulse).toHaveBeenCalledWith({ clientId: 'client-a', profile, withSignals: true })
+  expect(mocks.sql).not.toHaveBeenCalled()
+})
+
 it('routes explicit monitor through the owned Pulse loader before legacy reads', async () => {
   await expect(render({step:'monitor'})).rejects.toThrow('NOT_FOUND')
   expect(mocks.pulse).toHaveBeenCalledWith({clientId:'client-a',profile,withSignals:true})

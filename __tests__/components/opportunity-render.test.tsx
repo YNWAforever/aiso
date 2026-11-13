@@ -139,6 +139,10 @@ afterAll(() =>
       smeUnavailable: { props: { clientId, initial: null, initialError: 'unavailable', smeCopilot: true }, html: lang => htmlFor(lang, null, true) },
       continuation:{props:{clientId,initial:{...initial,window:{...initial.window,nextCursor:'next-evidence'}}},html:lang=>htmlFor(lang,{...initial,window:{...initial.window,nextCursor:'next-evidence'}})},
       many: { props:{clientId,initial:manyCandidates},html:lang=>htmlFor(lang,manyCandidates) },
+      smeSaved: {
+        props: { clientId, smeCopilot: true, initial: { ...initial, suggestions: initial.suggestions.map(row => ({ ...row, savedDraftId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', savedState: 'saved' as const })) } },
+        html: lang => htmlFor(lang, { ...initial, suggestions: initial.suggestions.map(row => ({ ...row, savedDraftId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', savedState: 'saved' as const })) }, true),
+      },
       saved: {
         props: { clientId, initial: { ...initial, suggestions: initial.suggestions.map(row => ({ ...row, savedDraftId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', savedState: 'saved' as const })) } },
         html: (lang) => htmlFor(lang, { ...initial, suggestions: initial.suggestions.map(row => ({ ...row, savedDraftId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', savedState: 'saved' as const })) }),

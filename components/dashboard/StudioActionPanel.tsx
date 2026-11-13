@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { FilePenLine, FileText, ScanSearch } from 'lucide-react'
@@ -24,10 +24,21 @@ export function useStudioActions({ clientId, brandName, brandDomain, features, e
   const { setThreads, saveThread, saveTurn, allocateThreadId, allocateId } = useStudioSession()
   const [selected, setSelected] = useState<StudioActionId | null>(null)
   const [previewScope, setPreviewScope] = useState<ActionScope | null>(null)
+  const confirmationPanel = useRef<HTMLDivElement>(null)
+  const openingButtons = useRef<Partial<Record<StudioActionId, HTMLButtonElement | null>>>({})
+  const headings = useRef<Partial<Record<StudioActionId, HTMLHeadingElement | null>>>({})
+  const [focusRequest, setFocusRequest] = useState<{ kind: 'confirmation' | 'open' | 'heading'; id: StudioActionId } | null>(null)
+  useEffect(() => {
+    if (!focusRequest) return
+    const node = focusRequest.kind === 'confirmation' ? confirmationPanel.current : focusRequest.kind === 'open' ? openingButtons.current[focusRequest.id] : headings.current[focusRequest.id]
+    node?.focus()
+  }, [focusRequest])
+  function cancelAction(id: StudioActionId) { setSelected(null); setFocusRequest({ kind: 'open', id }) }
   function openAction(id: StudioActionId) {
     if (!clientId || writing.current) return
     setPreviewScope({ skillId: id, clientId, domain: brandDomain ?? undefined, scanId: id === 'improve_page' ? evidence.scan?.id : undefined, month: id === 'monthly_report' ? hongKongMonthKey(new Date()) : undefined })
     setSelected(id)
+    setFocusRequest({ kind: 'confirmation', id })
   }
   const [records, setRecords] = useState<Partial<Record<StudioActionId, RecordState>>>({})
   const [busy, setBusy] = useState(false)
@@ -45,6 +56,7 @@ export function useStudioActions({ clientId, brandName, brandDomain, features, e
   async function retrySave(id: StudioActionId, context: SaveContext) {
     if (writing.current) return
     writing.current = true; setBusy(true)
+    setFocusRequest({ kind: 'heading', id })
     try { await appendOnly(id, context) } finally { writing.current = false; setBusy(false) }
   }
   async function saveAction(outcome: ActionOutcome) {
@@ -73,6 +85,7 @@ export function useStudioActions({ clientId, brandName, brandDomain, features, e
     const blocker = studioActionBlocker({ skillId: id, brandDomain: scope.domain, latestScanId: scope.scanId, features })
     if (blocker) { setRecords(previous => ({ ...previous, [id]: { phase: 'rejected', scope, error: t(`skills.${id}.${blocker}`) } })); return }
     writing.current = true; setBusy(true)
+    setFocusRequest({ kind: 'heading', id })
     setRecords(previous => ({ ...previous, [id]: { phase: 'running', scope } }))
     trackFunnelEvent({ name: 'skill_action_confirmed', locale })
     try {
@@ -91,14 +104,14 @@ export function useStudioActions({ clientId, brandName, brandDomain, features, e
       const Icon = id === 'scan_brand' ? ScanSearch : id === 'monthly_report' ? FileText : FilePenLine
       const label = t(id === 'scan_brand' ? 'skills.scan_brand.label' : `skills.${id}.actionLabel`)
       return <div key={id} data-studio-action={id} className="as-template space-y-2">
-        <span className="flex items-start gap-2 font-semibold"><Icon className="as-blue mt-0.5 size-4 shrink-0" aria-hidden="true" />{label}</span>
+        <h3 ref={node => { headings.current[id] = node }} tabIndex={-1} className="flex items-start gap-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"><Icon className="as-blue mt-0.5 size-4 shrink-0" aria-hidden="true" />{label}</h3>
         <span className="as-muted as-small block">{t(`skills.${id}.outcome`)}</span>
-        {!open && (!state || state.phase === 'rejected') && <button type="button" className="as-button px-3 font-semibold" disabled={busy} onClick={() => openAction(id)}>{t('actions.open')}</button>}
-        {open && (!state || state.phase === 'rejected') && <div role="group" aria-label={label} className="space-y-2 rounded-lg border border-border p-3">
+        {!open && (!state || state.phase === 'rejected') && <button ref={node => { openingButtons.current[id] = node }} type="button" className="as-button px-3 font-semibold" disabled={busy} onClick={() => openAction(id)}>{t('actions.open')}</button>}
+        {open && (!state || state.phase === 'rejected') && <div ref={confirmationPanel} tabIndex={-1} role="group" aria-label={label} onKeyDown={event => { if (event.key === 'Escape' && !busy) { event.preventDefault(); cancelAction(id) } }} className="space-y-2 rounded-lg border border-border p-3 focus-visible:outline-2 focus-visible:outline-offset-2">
           <p className="font-semibold">{t(id === 'scan_brand' ? 'skills.scan_brand.confirmTitle' : `skills.${id}.actionConfirmTitle`)}</p>
           <p>{brandName}</p><p className="as-muted as-small">{id === 'scan_brand' ? t('skills.scan_brand.confirmBody', { domain: previewScope?.domain ?? '' }) : t(`skills.${id}.actionConfirmBody`)}</p>
           {(previewScope?.month || previewScope?.scanId) && <p className="as-muted as-small [overflow-wrap:anywhere]">{previewScope.month ? t('actions.scopeMonth', { month: previewScope.month }) : t('actions.scopeScan', { scanId: previewScope.scanId! })}</p>}
-          <div className="flex flex-wrap gap-2"><button type="button" className="as-button as-primary px-3 font-semibold" disabled={busy} onClick={() => void run(id)}>{t('actions.runNow')}</button><button type="button" className="as-button px-3" disabled={busy} onClick={() => setSelected(null)}>{t('actions.cancel')}</button></div>
+          <div className="flex flex-wrap gap-2"><button type="button" className="as-button as-primary px-3 font-semibold" disabled={busy} onClick={() => void run(id)}>{t('actions.runNow')}</button><button type="button" className="as-button px-3" disabled={busy} onClick={() => cancelAction(id)}>{t('actions.cancel')}</button></div>
         </div>}
         {state && <div className="space-y-2" aria-live="polite">
           <p role={state.phase === 'unknown' || state.phase === 'rejected' ? 'alert' : 'status'} className="as-note">{state.phase === 'unknown' ? t('actions.unknown') : state.phase === 'rejected' ? state.error : state.phase === 'running' ? t(`skills.${id}.running`) : state.phase === 'pending' ? t('actions.pending') : t(`skills.${id}.done`)}</p>

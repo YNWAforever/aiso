@@ -10,8 +10,8 @@ vi.mock('server-only', () => ({}))
 // getTranslations('ns') follows the request (dashboard) locale, here en; getTranslations({ locale, namespace }) follows the argument.
 vi.mock('next-intl/server', () => ({
   getTranslations: async (arg: string | { locale: string; namespace: string }) => typeof arg === 'string'
-    ? createTranslator({ locale: 'en', messages: en, namespace: arg as never })
-    : createTranslator({ locale: arg.locale, messages: arg.locale === 'zh-HK' ? zh : en, namespace: arg.namespace as never }),
+    ? createTranslator({ locale: 'en', messages: en, namespace: arg as never, onError(error) { throw error } })
+    : createTranslator({ locale: arg.locale, messages: arg.locale === 'zh-HK' ? zh : en, namespace: arg.namespace as never, onError(error) { throw error } }),
 }))
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND') }, useRouter: () => ({ refresh: () => {} }) }))
 vi.mock('@/lib/auth', () => ({ requireAuth: async () => ({ account_id: 'acc', accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } }) }))
@@ -38,11 +38,20 @@ const snapshot = (locale: 'en' | 'zh-HK', summary: string) => ({
   executiveSummary: summary, builtAt: 'x',
 })
 const render = async (m = '2026-11') => renderToStaticMarkup(
-  <NextIntlClientProvider locale="en" messages={en}>{await MonthlyReportPage({ params: Promise.resolve({ lang: 'en', clientId: CLIENT }), searchParams: Promise.resolve({ m }) })}</NextIntlClientProvider>)
+  <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">{await MonthlyReportPage({ params: Promise.resolve({ lang: 'en', clientId: CLIENT }), searchParams: Promise.resolve({ m }) })}</NextIntlClientProvider>)
 
 beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-12-05T00:00:00Z')); h.report = null; h.recorded = ['opening', 'closing'] })
 
 describe('monthly report page', () => {
+  it.each(['en','zh-HK'] as const)('renders the frozen visibility threshold in the report locale without an ICU fallback %s', async locale => {
+    h.report = { reportId: 'r1', status: 'draft', versionId: 'v2', versionNumber: 2, snapshot: { ...snapshot(locale, 'Recorded report'), visibility: { state: 'recorded', rule: 'fixture-frozen-rule', minAnswersPerWeek: 17, minDelta: 0.01, platforms: [] } } }
+    const html = await render()
+    const note = (locale === 'en' ? en : zh).monthlyReport.visibility_rule_note.replace('{answers}', '17')
+    expect(html).toContain(note)
+    expect(html).not.toContain('{answers}')
+    expect(html).not.toContain('monthlyReport.visibility_rule_note')
+    expect(html).toContain('Draft · version 2')
+  })
   it('renders a zh-HK report in zh-HK from the English dashboard, with the page chrome in English', async () => {
     h.report = { reportId: 'r1', status: 'draft', versionId: 'v2', versionNumber: 2, snapshot: snapshot('zh-HK', '十一月摘要。') }
     const html = await render()
