@@ -3103,7 +3103,32 @@
     "editSpecPageTitle": "Page title",
     "editSpecDescription": "Meta description",
     "editSpecUnchanged": "Unchanged",
-    "editSpecLlmsTxtTitle": "Site edit: llms.txt"
+    "editSpecLlmsTxtTitle": "Site edit: llms.txt",
+    "sme": {
+      "title": "Review saved work",
+      "chooseDecision": "Choose a review decision",
+      "discardReview": "Discard review edits",
+      "finishReview": "Your review choice and any reason are retained. Finish or explicitly discard these edits before switching versions.",
+      "independentReview": "The server checks review access and separation from the content's authors when you submit. Approval is not delivery or verification.",
+      "frozenSources": "Evidence frozen with this version",
+      "sourceNumber": "Saved source {number}",
+      "frozenTechnical": "Complete saved source record",
+      "packageRecord": "Version recording and package checks",
+      "english": "English",
+      "chinese": "Traditional Chinese (Hong Kong)",
+      "prepare": "Create a review version",
+      "review": "Review this frozen version",
+      "wait": "Await an independent reviewer",
+      "approved": "Approval recorded",
+      "revise": "Read the feedback and revise",
+      "historical": "Inspecting an earlier version",
+      "newerDraft": "The saved draft has newer edits. They are not included in this frozen version.",
+      "savedDraft": "Saved draft and reload",
+      "history": "Other versions and reload",
+      "downstream": "Delivery and recorded results",
+      "backToThisDraft": "Return to this draft",
+      "unsaved": "Your unsaved review or delivery details will be lost. Leave this page?"
+    }
   },
   "approverAccess": {
     "title": "Account approvers",
