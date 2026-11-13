@@ -675,3 +675,10 @@ bilingual paused/model/quota read-only refresh and empty-answer status-link/axe
 checks. The final Today priority-preservation adjustment was rechecked with all
 10 Today unit tests and typecheck. CI integration and deployed acceptance remain
 separate gates; local fixtures do not prove live providers.
+
+CI on the initial PR #255 head found two older `audit-final-edges` cases still
+asserted the deliberately removed configured-paused question-review link (both
+locales, desktop/mobile). These assertions now require read-only saved-status
+refresh and no misleading review link; recovery still asserts a second GET and
+zero POSTs. All **8/8** focused browser cases pass locally. No production action
+was invoked and no failing gate was bypassed; the updated PR head must pass CI.
