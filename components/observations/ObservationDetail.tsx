@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from 'react'
 import type {ObservationDetailDto} from '@/lib/observations/types'
 import type {ObservationCopy} from './copy'
 
-export function ObservationDetailContent({observation:d,copy:c}:{observation:ObservationDetailDto;copy:ObservationCopy}){
+export function ObservationDetailContent({observation:d,copy:c,smeCopilot=false}:{observation:ObservationDetailDto;copy:ObservationCopy;smeCopilot?:boolean}){
   const status={classified:c.classified,fallback:c.fallback,failed:c.failed,legacy_unknown:c.legacyUnknown}[d.classification.status]
   const sentiment={positive:c.positive,neutral:c.neutral,negative:c.negative,unknown:c.unknown}[d.classification.sentiment]
   const fields=[
@@ -14,12 +14,7 @@ export function ObservationDetailContent({observation:d,copy:c}:{observation:Obs
     [c.searchExecution,d.searchEvidence?.execution==='confirmed'?c.searchConfirmed:c.searchUnknown],
     [c.grounding,d.grounding==='web'?c.groundingWeb:d.grounding==='native'?c.groundingNative:d.grounding==='none'?c.groundingNone:c.unknown],
   ]
-  return <div className="space-y-4">
-    <p>{c.apiSample}</p>
-    <section><h3 className="font-semibold">{c.promptSnapshot}</h3><p>{d.promptSnapshot?.question??d.question}</p>
-      <p>{c.snapshotLanguage}: {d.promptSnapshot?.language??c.unknown}</p>
-      <p>{c.brandSnapshot}: {d.brandSnapshot?.name??c.unknown}</p></section>
-    <section><h3 className="font-semibold">{c.rawAnswer}</h3>{d.rawAnswer?<pre className="whitespace-pre-wrap break-words font-sans">{d.rawAnswer}</pre>:<p>{c.noAnswer}</p>}</section>
+  const technical=<>
     <dl className="grid gap-2 sm:grid-cols-2">{fields.map(([label,value])=><div key={label}><dt className="text-sm text-muted-foreground">{label}</dt><dd className="break-words">{value??c.unknown}</dd></div>)}</dl>
     <p>{d.classification.brandMentioned===null?c.classificationUnknown:d.classification.brandMentioned?c.brandMentioned:c.brandNotMentioned}</p>
     {!!d.classification.matchedText.length&&<section><h3 className="font-semibold">{c.matchedText}</h3><ul>{d.classification.matchedText.map((text,i)=><li key={i}>{text}</li>)}</ul></section>}
@@ -35,9 +30,39 @@ export function ObservationDetailContent({observation:d,copy:c}:{observation:Obs
       {!d.model&&<li>{c.unknownModel}</li>}{!d.market&&<li>{c.unknownMarket}</li>}{!d.collectedAt&&<li>{c.unknownCollectionTime}</li>}
       {d.classification.status!=='classified'&&<li>{c.classificationUnknown}</li>}
     </ul></section>}
+  </>
+  if(smeCopilot) return <div className="space-y-5">
+    <section className="space-y-1">
+      <h3 className="text-sm font-semibold text-muted-foreground">{c.question}</h3>
+      <p className="break-words text-base">{d.promptSnapshot?.question??d.question}</p>
+    </section>
+    <section className="space-y-2">
+      <h3 className="font-semibold">{c.smeKeyPoints}</h3>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 font-medium">{d.platform}</span>
+        <span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 font-medium">{d.scanWeek}</span>
+        <span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 font-medium">{d.brandMentioned===null?c.smeMentionUnknown:d.brandMentioned?c.smeMentioned:c.smeNotMentioned}</span>
+      </div>
+    </section>
+    <section className="space-y-2">
+      <h3 className="font-semibold">{c.rawAnswer}</h3>
+      {d.rawAnswer?<p className="whitespace-pre-wrap break-words">{d.rawAnswer}</p>:<p>{c.noAnswer}</p>}
+    </section>
+    <details className="rounded-lg border border-border p-3">
+      <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">{c.smeTechnical}</summary>
+      <div className="mt-3 space-y-4">{technical}</div>
+    </details>
+  </div>
+  return <div className="space-y-4">
+    <p>{c.apiSample}</p>
+    <section><h3 className="font-semibold">{c.promptSnapshot}</h3><p>{d.promptSnapshot?.question??d.question}</p>
+      <p>{c.snapshotLanguage}: {d.promptSnapshot?.language??c.unknown}</p>
+      <p>{c.brandSnapshot}: {d.brandSnapshot?.name??c.unknown}</p></section>
+    <section><h3 className="font-semibold">{c.rawAnswer}</h3>{d.rawAnswer?<pre className="whitespace-pre-wrap break-words font-sans">{d.rawAnswer}</pre>:<p>{c.noAnswer}</p>}</section>
+    {technical}
   </div>
 }
-export function ObservationDetail({clientId,observationId,copy,onClose}:{clientId:string;observationId:string;copy:ObservationCopy;onClose:()=>void}){
+export function ObservationDetail({clientId,observationId,copy,onClose,smeCopilot=false}:{clientId:string;observationId:string;copy:ObservationCopy;onClose:()=>void;smeCopilot?:boolean}){
   const dialog=useRef<HTMLDialogElement>(null),closeButton=useRef<HTMLButtonElement>(null)
   const [observation,setObservation]=useState<ObservationDetailDto|null>(null),[error,setError]=useState(false),[retry,setRetry]=useState(0)
   useEffect(()=>{
@@ -66,6 +91,6 @@ export function ObservationDetail({clientId,observationId,copy,onClose}:{clientI
     <header className="mb-4 flex items-start justify-between gap-4"><h2 id="observation-detail-title" className="text-xl font-semibold">{copy.detailTitle}</h2>
       <button ref={closeButton} type="button" className="min-h-11 shrink-0 rounded-lg border px-3" onClick={onClose}>{copy.closeDetail}</button></header>
     {error?<p role="alert">{copy.detailError} <button className="min-h-11 underline" type="button" onClick={()=>setRetry(n=>n+1)}>{copy.retry}</button></p>
-      :observation?<ObservationDetailContent observation={observation} copy={copy}/>:<p role="status">{copy.detailLoading}</p>}
+      :observation?<ObservationDetailContent observation={observation} copy={copy} smeCopilot={smeCopilot}/>:<p role="status">{copy.detailLoading}</p>}
   </dialog>
 }

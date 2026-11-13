@@ -8,6 +8,7 @@ import {
   type ObservationCopy,
 } from '@/components/observations/copy'
 import { requireAuth } from '@/lib/auth'
+import { isSmeCopilotUiEnabled } from '@/lib/flags'
 import {
   loadAuthenticatedObservations,
   ObservationServiceError,
@@ -71,6 +72,7 @@ export default async function ObservationsPage({
   ) as ObservationCopy
   return (
     <ObservationWorkspace
+      smeCopilot={isSmeCopilotUiEnabled()}
       initialObservationId={typeof raw.observation==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(raw.observation)?raw.observation:undefined}
       clientId={clientId}
       initial={initial}
