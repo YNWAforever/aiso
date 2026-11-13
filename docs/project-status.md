@@ -682,3 +682,35 @@ locales, desktop/mobile). These assertions now require read-only saved-status
 refresh and no misleading review link; recovery still asserts a second GET and
 zero POSTs. All **8/8** focused browser cases pass locally. No production action
 was invoked and no failing gate was bypassed; the updated PR head must pass CI.
+
+## SME daily workflow — PR 2: guided monitoring — 2026-11-13
+
+- The existing server-controlled SME flag selects a focused monitoring card on
+  Today and the Monitor step. Saved charts/questions, alerts and extra tools stay
+  available in disclosures; the flag-off layout remains available.
+- The card separates expected answers, saved answers and completed brand checks.
+  A paused collector does not erase saved records or prevent existing run-backed
+  classification repair. No provider/customer AI-interface completeness is claimed.
+- Start, collection repair, separate retest and saved-answer classification ask
+  for confirmation with brand, frozen/current workload, allowance and possible
+  model cost. Cancel/Escape starts nothing. Changed settings invalidate the
+  confirmation; summary-only finalization retains its no-model existing path.
+- The shared controller retains intent keys, duplicate-write lock, backoff and
+  cancellation. It validates remote counts and acknowledgements, fails unknown
+  reads closed, times out a GET after 15 seconds, and remounts per brand/locale.
+  Pending leased work keeps polling even when no new item is retryable.
+- Current canonical monitoring is selected ahead of a newer retest unless an
+  explicit saved-run link was requested. Result links preserve run/week and the
+  latest-record link does not overwrite that selection. Question editing remains
+  on the existing editor with an SME-only return-to-monitoring link.
+
+Local verification on Node 24.22.2: lint 0 errors/warnings, typecheck/text audit,
+production build, **8,552 unit tests passed / 15 skipped** (668 passed files /
+1 skipped), **204/204** fixture-generation tests, and **144/144** Chromium/mobile
+browser cases with zero skips/flakes/unexpected failures. The guided matrix covers
+en/zh-HK, 320/390/768/1440px, light/dark, keyboard focus/cancel, axe, lost-write-reply
+GET recovery without rerunning collection, access/plan/outage/invalid reads,
+paused saved-classification repair, and canonical/explicit-run scope versus a
+newer retest. Existing first-monitoring and observations browser coverage also ran.
+CI integration and canonical deployed verification are still separate release
+gates. No production monitoring, paid generation or repair was invoked.

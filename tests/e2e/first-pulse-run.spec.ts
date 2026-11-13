@@ -27,7 +27,7 @@ for(const lang of ['en','zh-HK']){
   await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  })
  test(`leaving the page stops pending polling in ${lang}`,async({page})=>{
-  await fixture(page,lang);let reads=0;await page.route(`**/api/dashboard/clients/${clientId}/pulse-runs`,route=>{reads++;return route.fulfill({json:{prompts:1,variants:5,expected:5,remaining:5,contextConfirmed:true,week:'2026-10-05',latest:{id:runId,week:'2026-10-05',coverage:coverage(),reasons:[],retryable:true},legacyObservationIds:[],search:{requested:'off'},enabled:true}})});await page.goto(`https://first-pulse.fixture/${lang}`);await expect(page.getByText(lang==='en'?'Queued':'已排隊',{exact:true})).toBeVisible();await page.goto('about:blank');const count=reads;await page.waitForTimeout(2300);expect(reads).toBe(count)
+  await fixture(page,lang);let reads=0;await page.route(`**/api/dashboard/clients/${clientId}/pulse-runs`,route=>{reads++;return route.fulfill({json:{prompts:1,variants:5,expected:5,remaining:5,contextConfirmed:true,week:'2026-10-05',latest:{id:runId,week:'2026-10-05',purpose:'canonical',coverage:coverage(),reasons:[],retryable:true},legacyObservationIds:[],search:{requested:'off'},enabled:true}})});await page.goto(`https://first-pulse.fixture/${lang}`);await expect(page.getByText(lang==='en'?'Queued':'已排隊',{exact:true})).toBeVisible();await page.goto('about:blank');const count=reads;await page.waitForTimeout(2300);expect(reads).toBe(count)
  })
 }
 

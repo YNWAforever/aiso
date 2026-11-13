@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { OutcomePreview } from '@/components/integrations/OutcomePreview'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isFeatureEnabled, isSmeCopilotUiEnabled } from '@/lib/flags'
 import {useTranslations} from 'next-intl'
 import {ObservedPulseView} from '@/components/pulse/ObservedPulseView'
 import {MonitorSignals} from '@/components/pulse/MonitorSignals'
@@ -14,13 +14,15 @@ import zhHK from '@/messages/zh-HK.json'
 type Props={features:PlanFeatures;lang: string;clientId:string;view:PulseView;now:Date}
 export function MonitorStep({features,lang,clientId,view,now}:Props){
  const t=useTranslations('dashboard');const tp=useTranslations('pulse');const copy=(lang==='zh-HK'?zhHK:en).pulseView
- return <div className="min-w-0 space-y-5">
+ const sme=isSmeCopilotUiEnabled()
+ const secondary=<>
   <nav className="flex flex-wrap gap-3"><Link href={`/${lang}/dashboard/${clientId}/prompts`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline">{tp('nav_questions')}</Link><Link href={`/${lang}/pulse/${clientId}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline">{copy.full}</Link></nav>
   {isFeatureEnabled('outcome_integrations') && features.outcome_integrations && <OutcomePreview clientId={clientId} lang={lang}/>}
   {isFeatureEnabled('closed_loop_visibility') && <Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}/visibility`}>{(lang==='zh-HK'?zhHK:en).closedLoopVisibility.nav}</Link>}
   {isFeatureEnabled('enterprise_os') && features.enterprise_workflows && <Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}/enterprise`}>{(lang==='zh-HK'?zhHK:en).enterpriseOS.nav}</Link>}
   <MonitorSignals view={view} lang={lang} now={now}/>
-  <ObservedPulseView view={view} lang={lang}/>
+  {!sme&&<ObservedPulseView view={view} lang={lang}/>}
   {features.alerts?<section className="rounded-xl border border-border bg-card p-5"><AlertsTab clientId={clientId}/></section>:<LockedFeature feature={t('feature_alerts')} requiredPlan="Pro" price={`$${PLAN_CATALOG.pro.monthlyPriceUsd}/month`}/>}
- </div>
+ </>
+ return <div className="min-w-0 space-y-5">{sme?<><ObservedPulseView view={view} lang={lang} smeCopilot/><details><summary className="min-h-11 cursor-pointer py-3 text-sm">{(lang==='zh-HK'?zhHK:en).runProgress.sme.otherTools}</summary><div className="space-y-5 pt-3">{secondary}</div></details></>:secondary}</div>
 }
