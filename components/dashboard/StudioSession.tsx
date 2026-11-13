@@ -163,8 +163,10 @@ function useSessionState(clientId?: string, initialDraft = '') {
 
   async function saveThread(localId: string, input: StudioThreadCreateInput): Promise<string | null> {
     if (!clientId) return null
+    const existing = pendingCreates.current.get(localId)
+    if (existing) return existing
     const creation = createStudioThread(clientId, input).then(result => {
-      if (!result.ok) {
+      if (!result.ok || !result.data?.thread || typeof result.data.thread.id !== 'string' || !result.data.thread.id || result.data.thread.id.startsWith('local-')) {
         setThreads(previous => previous.map(thread => thread.id === localId ? { ...thread, saveState: 'failed' } : thread))
         return null
       }
@@ -177,7 +179,11 @@ function useSessionState(clientId?: string, initialDraft = '') {
       setNavigation(previous => previous.activeId === localId ? { ...previous, activeId: record.id } : previous)
       setFeedback(previous => previous && previous.threadId === localId ? { ...previous, threadId: record.id } : previous)
       return record.id
+    }).catch(() => {
+      setThreads(previous => previous.map(thread => thread.id === localId ? { ...thread, saveState: 'failed' } : thread))
+      return null
     })
+    // Retain even an unacknowledged create: the server may already have inserted it.
     pendingCreates.current.set(localId, creation)
     return creation
   }

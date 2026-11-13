@@ -22,9 +22,8 @@ import { extractTurnUrl } from '@/lib/conversation-studio/firecrawl-url'
 import { buildExecutionPreview } from '@/lib/conversation-studio/execution-preview'
 import { STUDIO_PROMPT_LIMIT, type StudioAttachCandidate, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
-import { skillForTask, studioSkill, STUDIO_ACTION_SKILLS, type StudioSkillId } from '@/lib/conversation-studio/skills'
-import { hongKongMonthKey, scanUrlFor, studioActionBlocker } from '@/lib/conversation-studio/skill-actions'
-import { trackFunnelEvent } from '@/lib/funnel-client'
+import { skillForTask } from '@/lib/conversation-studio/skills'
+import { useStudioActions } from '@/components/dashboard/StudioActionPanel'
 import type { PlanFeatures } from '@/lib/plans/catalog'
 import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type StudioThread, type StudioTurn } from '@/components/dashboard/StudioSession'
 import Link from 'next/link'
@@ -49,7 +48,7 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
   const t = useTranslations('conversationStudio')
   return <header className="space-y-3">
     <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
-    <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></div>
+    <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : thread.saveState === 'failed' ? 'saveUnknownLabel' : 'temporaryLabel')}</span></div>
     <h1 className="[overflow-wrap:anywhere]">{thread.title}</h1>
     {thread.branchOf && (originTitle && onOpenOrigin
       ? <button type="button" onClick={onOpenOrigin} className="as-button inline-flex min-h-11 items-center gap-2 px-3 text-sm">{t('branchedFrom', { title: originTitle })}</button>
@@ -100,13 +99,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const draft = current?.draft ?? newDraft
   const home = !current
   const basePath = clientId ? `/${language}/dashboard/${encodeURIComponent(clientId)}` : null
-  // Slice 4: an action needs one explicit confirm before it runs an existing job.
-  const [actionSkill, setActionSkill] = useState<StudioSkillId | null>(null)
-  const [actionPhase, setActionPhase] = useState<'confirm' | 'running' | 'done' | 'failed'>('confirm')
-  const [actionError, setActionError] = useState<string | null>(null)
-  const actionRunning = useRef(false)
-  const [actionPending, setActionPending] = useState(false)
-  const funnelLocale = language === 'zh-HK' ? 'zh-HK' : 'en'
+  const actionPanel = useStudioActions({ clientId, brandName, brandDomain, features, evidence, enabled: smeCopilot && !staffView })
 
   useLayoutEffect(() => {
     if (previousNavigation.current !== navigationVersion || activeId !== null) {
@@ -288,78 +281,6 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     void submitTurn(t(`templates.${key}.prompt`), key, { allowLive: false })
   }
 
-  /** Runs the skill's existing write path only after the inline confirm is accepted. */
-  async function runStudioAction(skillId: StudioSkillId) {
-    const skill = studioSkill(skillId)
-    const action = skill?.action
-    if (!action || !clientId || actionRunning.current) return
-    const blocker = studioActionBlocker({ skillId, brandDomain, latestScanId: evidence.scan?.id ?? null, features })
-    if (blocker) {
-      setActionPhase('failed')
-      setActionError(t(`skills.${skillId}.${blocker}`))
-      trackFunnelEvent({ name: 'skill_action_failed', locale: funnelLocale })
-      return
-    }
-    actionRunning.current = true
-    if (!actionRunning.current) actionRunning.current = true
-    setActionPhase('running')
-    setActionError(null)
-    setActionPending(false)
-    trackFunnelEvent({ name: 'skill_action_confirmed', locale: funnelLocale })
-    try {
-      if (action.id === 'scan') {
-        const response = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: scanUrlFor(brandDomain ?? ''), clientId }) })
-        if (response.status === 403) throw Object.assign(new Error('plan'), { plan: true })
-        if (!response.ok) throw new Error('scan')
-      } else if (action.id === 'improve') {
-        const scanId = evidence.scan?.id
-        if (!scanId) throw new Error('scan')
-        const response = await fetch(`/api/clients/${encodeURIComponent(clientId)}/agents/generate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scanId }) })
-        if (response.status === 403) throw Object.assign(new Error('plan'), { plan: true })
-        // 202 means another generation is already leased; it is not a finished suggestion.
-        if (response.status === 202) { setActionPending(true); setActionPhase('done'); return }
-        if (!response.ok) throw new Error('improve')
-      } else {
-        const response = await fetch(`/api/clients/${encodeURIComponent(clientId)}/months/${hongKongMonthKey(new Date())}`, { method: 'POST' })
-        if (response.status === 403) throw Object.assign(new Error('plan'), { plan: true })
-        if (!response.ok) throw new Error('report')
-      }
-      setActionPhase('done')
-      trackFunnelEvent({ name: 'skill_action_completed', locale: funnelLocale })
-      void saveActionTurn(skillId)
-    } catch (error) {
-      setActionPhase('failed')
-      const planKey = skill?.action?.planFeature ? `skills.${skillId}.planRequired` : null
-      setActionError(error instanceof Error && (error as Error & { plan?: boolean }).plan && planKey ? t(planKey) : t(`skills.${skillId}.failed`))
-      trackFunnelEvent({ name: 'skill_action_failed', locale: funnelLocale })
-    } finally {
-      actionRunning.current = false
-    }
-  }
-
-  /**
-   * Slice 4: a completed action is recorded as a saved turn. The server composes the
-   * stored reply from the records the action just wrote, so the turn never claims a
-   * read that did not happen; the thread sits in Continue without stealing navigation.
-   */
-  async function saveActionTurn(skillId: StudioSkillId) {
-    const skill = studioSkill(skillId)
-    if (!skill || !clientId) return
-    const task: StudioHomeTemplate | null = skillId === 'monthly_report' ? 'report' : 'improve'
-    const label = skillId === 'scan_brand' ? t('skills.scan_brand.label') : t(`skills.${skillId}.actionLabel`)
-    const prompt = t(`skills.${skillId}.turnPrompt`)
-    const title = boundedTitle(label)
-    const threadId = allocateThreadId()
-    const turn: StudioTurn = { id: allocateId(), requestId: crypto.randomUUID(), prompt, task, reply: composeSavedReply(prompt, HOME_TASKS[task].capability, evidenceForHomeTask(evidence, task)) }
-    setThreads(previous => [{ id: threadId, title, goal: prompt, week: evidence.week, kind: 'research', turns: [turn], draft: '', template: null, saveState: 'unsaved', turnsLoaded: true, skill: skillId, visibility: 'private', pinned: false, archived: false, mine: true, branchOf: null }, ...previous])
-    await saveThread(threadId, { kind: 'research', title, goal: prompt, week: evidence.week, sourceTitle: null, skill: skillId })
-    const saved = await saveTurn(threadId, turn.id, { prompt, task, requestId: turn.requestId, language: language === 'zh-HK' ? 'zh-HK' : 'en' })
-    if (!saved.ok) {
-      // Do not leave an empty thread behind when the saved turn could not be written.
-      setThreads(previous => previous.filter(thread => thread.id !== threadId))
-    }
-  }
-
   const preview = buildExecutionPreview({ clientId, staffView, sourceStatus, prompt: draft, live: Boolean(live), platforms, liveExhausted })
   const previewReads = [preview.savesTurn && t('execution.readsSaved'), preview.readsSearchDemand && t('execution.readsSearchDemand'), preview.readsPublicPage && t('execution.readsPublicPage')].filter(Boolean).join(' · ')
   const executionPreview = t('execution.preview', { reads: previewReads || t('execution.readsNothing'), live: preview.liveAnswers })
@@ -488,32 +409,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             </div>
           </>}
         </section>
-        {smeCopilot && clientId && !staffView && <section aria-labelledby="studio-actions-title" className="space-y-3">
-          <div className="as-section-heading"><h2 id="studio-actions-title">{t('actions.title')}</h2><p className="as-muted as-small">{t('actions.note')}</p></div>
-          <div className="as-template-grid">
-            {STUDIO_ACTION_SKILLS.map(skill => {
-              const Icon = skill.id === 'scan_brand' ? ScanSearch : skill.id === 'monthly_report' ? FileText : FilePenLine
-              const label = skill.id === 'scan_brand' ? t('skills.scan_brand.label') : t(`skills.${skill.id}.actionLabel`)
-              const outcome = t(`skills.${skill.id}.outcome`)
-              const open = actionSkill === skill.id
-              return <div key={skill.id} className="as-template space-y-2">
-                <span className="flex items-start gap-2 font-semibold"><Icon className="as-blue mt-0.5 size-4 shrink-0" aria-hidden="true" /><span>{label}</span></span>
-                <span className="as-muted as-small block">{outcome}</span>
-                {!open && <button type="button" className="as-button px-3 font-semibold" onClick={() => { setActionSkill(skill.id); setActionPhase('confirm'); setActionError(null); setActionPending(false) }}>{t('actions.open')}</button>}
-                {open && <div role="group" aria-label={label} className="space-y-2 rounded-lg border border-border p-3">
-                  <p className="text-sm font-semibold">{t(skill.id === 'scan_brand' ? 'skills.scan_brand.confirmTitle' : `skills.${skill.id}.actionConfirmTitle`)}</p>
-                  <p className="as-muted as-small">{skill.id === 'scan_brand' ? t('skills.scan_brand.confirmBody', { domain: brandDomain ?? '' }) : t(`skills.${skill.id}.actionConfirmBody`)}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" className="as-button as-primary px-3 font-semibold disabled:opacity-50" disabled={actionPhase === 'running'} onClick={() => void runStudioAction(skill.id)}>{actionPhase === 'running' ? t(`skills.${skill.id}.running`) : t('actions.runNow')}</button>
-                    <button type="button" className="as-button px-3" disabled={actionPhase === 'running'} onClick={() => { setActionSkill(null); setActionPending(false) }}>{t('actions.cancel')}</button>
-                  </div>
-                  {actionPhase === 'failed' && <p role="alert" className="as-note">{actionError}</p>}
-                  {actionPhase === 'done' && <p role="status" className="as-note">{t(actionPending ? `skills.${skill.id}.pending` : `skills.${skill.id}.done`)}{basePath && <Link href={skill.id === 'scan_brand' ? `${basePath}?step=results` : skill.id === 'improve_page' ? `${basePath}?step=improve` : `${basePath}/month`} className="ml-1 underline">{t('actions.openResult')}</Link>}</p>}
-                </div>}
-              </div>
-            })}
-          </div>
-        </section>}
+        {actionPanel}
         <section aria-labelledby="studio-continue-title" className="space-y-3">
           <div className="as-section-heading"><h2 id="studio-continue-title">{t('continueTitle')}</h2>{embedded && basePath && <Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link>}</div>
           {readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : threads.length === 0 ? <div className="space-y-3">

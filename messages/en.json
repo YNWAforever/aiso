@@ -469,7 +469,8 @@
     "recentThreadsEmpty": "This brand has no saved discussions yet",
     "temporaryLabel": "Not saved",
     "loadingThreads": "Loading saved discussions…",
-    "saveFailed": "This change could not be saved. It will disappear when you refresh.",
+    "saveUnknownLabel": "Save not confirmed",
+    "saveFailed": "Saving this change was not confirmed. Keep this page open to retain your local draft, and check saved history before creating it again.",
     "backToDashboard": "Back to brand overview",
     "readUnavailable": "Pending verification: saved records are unavailable. Reload to try again.",
     "planRequired": "Plan upgrade required",
@@ -640,11 +641,11 @@
       },
       "improve_page": {
         "actionLabel": "Generate suggestions",
-        "actionConfirmTitle": "Generate from the latest scan?",
-        "actionConfirmBody": "Uses the latest complete scan to write up to three suggestions and save them as drafts. It uses your plan’s AI generation allowance.",
+        "actionConfirmTitle": "Generate from this saved scan?",
+        "actionConfirmBody": "Uses the selected saved scan to write up to three suggestions as drafts. It uses your plan’s AI generation allowance.",
         "run": "Generate",
         "running": "Generating…",
-        "done": "Suggestions generated — open Improve.",
+        "done": "Generation finished — review the saved Improve status.",
         "failed": "Generation did not start. Try again.",
         "needsScan": "No complete scan yet. Scan the brand first.",
         "planRequired": "This action needs the Pro plan or above.",
@@ -655,10 +656,10 @@
       "monthly_report": {
         "actionLabel": "Record this month",
         "actionConfirmTitle": "What will be recorded?",
-        "actionConfirmBody": "Records this month’s saved scores, work and monitoring numbers into the month record. Recording the same month again is safe and updates it.",
+        "actionConfirmBody": "Records due, missing snapshots of the selected month’s saved scores, work and monitoring numbers. Existing snapshots are not overwritten.",
         "run": "Record this month",
         "running": "Recording…",
-        "done": "This month is recorded — open Monthly report.",
+        "done": "Month recording acknowledged — open the monthly record.",
         "failed": "Could not record this month. Try again.",
         "planRequired": "This action needs the Pro plan or above.",
         "turnPrompt": "Summarise this month’s saved numbers.",
@@ -671,7 +672,22 @@
       "open": "Start",
       "runNow": "Confirm and run",
       "cancel": "Cancel",
-      "openResult": "Open result"
+      "openResult": "Open result",
+      "unknown": "We could not confirm the outcome. The action may already have run. Check saved records before starting anything again.",
+      "pending": "The request is still pending. Check its saved record; no completed conversation has been saved for it.",
+      "notAllowed": "This action is not allowed by your current access or plan.",
+      "checkRecords": "Check saved records",
+      "scopeScan": "Scan record: {scanId}",
+      "scopeMonth": "Hong Kong calendar month: {month}",
+      "summaryScope": "The conversation is a separate summary of saved evidence loaded when it is saved. It may use newer records and is not proof of this exact action’s result.",
+      "retrySave": "Retry saving conversation only",
+      "reloadHistory": "Reload saved conversation history",
+      "save": {
+        "saving": "Action finished. Saving the conversation…",
+        "saved": "Conversation saved separately. The action has not been repeated.",
+        "retry": "Action finished, but the conversation save was not confirmed. Retry only its original save request; do not rerun the action.",
+        "unknown": "Action finished, but creating the conversation was not confirmed. It may already exist. Reload history; do not create it again."
+      }
     }
   },
   "seo": {

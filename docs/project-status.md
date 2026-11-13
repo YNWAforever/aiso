@@ -714,3 +714,44 @@ paused saved-classification repair, and canonical/explicit-run scope versus a
 newer retest. Existing first-monitoring and observations browser coverage also ran.
 CI integration and canonical deployed verification are still separate release
 gates. No production monitoring, paid generation or repair was invoked.
+
+Release update (2026-11-13 09:02 UTC): PR #255 passed every job class plus the
+aggregate gate at exact head `44d36980` and merged as `3431e7d7`. PR #256 was
+retargeted to main after that merge; its gate and canonical acceptance remain
+required. A merge alone is not evidence of a successful production deployment.
+
+## SME daily workflow — PR 3: action outcome versus conversation save — 2026-11-13
+
+- SME Studio actions now retain independent per-skill outcomes behind the same
+  existing flag. A shared synchronous write lock prevents another action from
+  stealing an in-flight result or starting a duplicate request.
+- Confirmation freezes scan/domain/Hong Kong month identity. A successful scan
+  links to its returned scan ID, Improve keeps the submitted scan ID, and monthly
+  recording keeps the confirmed month even across a calendar rollover.
+- A 202 response remains pending and creates no completed conversation. Lost
+  transport replies, failed responses and malformed success bodies remain
+  unconfirmed, with record-checking links rather than a safe-to-rerun claim.
+- Action completion and conversation persistence have distinct status messages.
+  An acknowledged server thread permits append-only retry using the identical
+  request body and request ID. A lost create acknowledgement cannot recreate the
+  thread or append to a local ID; it asks the user to check saved history instead.
+  Local recovery state is retained. This is not durable exactly-once execution.
+- The conversation is explicitly a separate summary of evidence loaded by the
+  existing composer; it may read newer records. The frozen action scope in prompt
+  text does not pretend to select a structured scan/month source for that composer.
+- Confirmation/result copy no longer claims month snapshots are overwritten,
+  that completed generation necessarily produced suggestions, or that a failed
+  save acknowledgement proves no server record exists. No API/schema, tenant,
+  entitlement, MCP, generation provider or server composition contract changed.
+
+Local verification on Node 24.22.2: lint 0 errors/warnings, typecheck/text audit,
+production build, **8,561 unit tests passed / 15 skipped** (669 passed files /
+1 skipped), **204/204** fixture-generation tests, and **184/184** Chromium/mobile
+browser cases, zero skips/flakes/unexpected failures. This includes 24 new bilingual
+action outcome cases and existing Studio conversation/shell regressions. Tests
+cover exact result scope, deferred cross-card locking, identical append retry,
+lost create acknowledgement, pending generation, HKT rollover, lost paid-action
+reply and malformed success bodies. They use intercepted offline transports, not
+production paid actions. CI integration and canonical deployed acceptance are
+still required before release; final phase-wide accessibility adds the explicit
+320/390/768/1440px action-panel matrix and keyboard focus verification.

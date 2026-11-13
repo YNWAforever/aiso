@@ -469,7 +469,8 @@
     "recentThreadsEmpty": "這個品牌未有已儲存討論",
     "temporaryLabel": "未儲存",
     "loadingThreads": "正在載入已儲存討論…",
-    "saveFailed": "未能儲存此變更，重新整理後會消失。",
+    "saveUnknownLabel": "未確認保存",
+    "saveFailed": "未能確認呢次修改有冇保存。請保持呢頁開啟以保留本地草稿，重新建立之前先查看已保存記錄。",
     "backToDashboard": "返回品牌概覽",
     "readUnavailable": "待核實：目前無法讀取已儲存紀錄，請重新載入再試。",
     "planRequired": "需要升級方案",
@@ -640,11 +641,11 @@
       },
       "improve_page": {
         "actionLabel": "生成優化建議",
-        "actionConfirmTitle": "用最新掃描生成建議？",
-        "actionConfirmBody": "會用最新一次完整掃描，生成最多三個優化建議並保存為草稿，會用你方案嘅 AI 生成額度。",
+        "actionConfirmTitle": "用呢份已保存掃描生成建議？",
+        "actionConfirmBody": "會用所選已保存掃描，生成最多三個優化建議並保存為草稿，會用你方案嘅 AI 生成額度。",
         "run": "開始生成",
         "running": "生成中…",
-        "done": "建議已生成 — 去優化建議睇。",
+        "done": "生成工作已完成，請查看已保存嘅優化狀態。",
         "failed": "未能開始生成，請再試。",
         "needsScan": "仲未有完整掃描，請先掃描品牌。",
         "planRequired": "呢個動作需要 Pro 或以上方案。",
@@ -655,10 +656,10 @@
       "monthly_report": {
         "actionLabel": "記錄本月數字",
         "actionConfirmTitle": "會記錄咩？",
-        "actionConfirmBody": "會將本月已保存嘅分數、工作同監測數字寫入月度記錄；同一個月再記錄會安全更新。",
+        "actionConfirmBody": "會將所選月份已保存嘅分數、工作同監測數字，補成已到期但未記錄嘅快照，唔會覆寫已有快照。",
         "run": "記錄本月",
         "running": "記錄中…",
-        "done": "本月數字已記錄 — 去月度報告睇。",
+        "done": "月度記錄請求已確認，請查看月度記錄。",
         "failed": "未能記錄本月，請再試。",
         "planRequired": "呢個動作需要 Pro 或以上方案。",
         "turnPrompt": "本月已記錄，整理最新嘅已保存數字。",
@@ -671,7 +672,22 @@
       "open": "開始",
       "runNow": "確認執行",
       "cancel": "取消",
-      "openResult": "睇結果"
+      "openResult": "睇結果",
+      "unknown": "未能確認操作結果，工作可能已經執行。請先查看已保存記錄，再決定下一步，唔好直接重做。",
+      "pending": "請求仍在處理中，請查看相關記錄；今次未有保存任何已完成嘅對話。",
+      "notAllowed": "目前權限或方案未允許呢個操作。",
+      "checkRecords": "查看已保存記錄",
+      "scopeScan": "掃描記錄：{scanId}",
+      "scopeMonth": "香港曆月：{month}",
+      "summaryScope": "對話係保存時另外讀取已保存證據而寫嘅摘要，可能用到較新記錄，唔係今次操作結果嘅證明。",
+      "retrySave": "只重試保存對話",
+      "reloadHistory": "重新載入已保存對話記錄",
+      "save": {
+        "saving": "操作已完成，正在保存對話…",
+        "saved": "對話已另外保存，冇重做操作。",
+        "retry": "操作已完成，但未能確認對話有冇保存。只重試原本嘅保存請求，唔好重做操作。",
+        "unknown": "操作已完成，但未能確認對話有冇建立，佢可能已經存在。請重新載入記錄，唔好再建立一次。"
+      }
     }
   },
   "seo": {
