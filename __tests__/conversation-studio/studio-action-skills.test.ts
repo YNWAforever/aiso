@@ -12,7 +12,8 @@ function read(path: string): string {
  * silent success — without booting a browser.
  */
 describe('Studio action skills slice 4', () => {
-  const studio = read('components/dashboard/ConversationStudio.tsx')
+  const studio = read('components/dashboard/StudioActionPanel.tsx')
+  const transport = read('lib/conversation-studio/action-outcomes.ts')
   const page = read('app/[lang]/dashboard/[clientId]/studio/page.tsx')
 
   it('reuses existing write paths and never invents an endpoint', () => {
@@ -20,15 +21,16 @@ describe('Studio action skills slice 4', () => {
       expect(skill.action).toBeTruthy()
       expect(skill.action!.endpoint.startsWith('/api/')).toBe(true)
     }
-    expect(studio).toContain("fetch('/api/scan'")
-    expect(studio).toContain('/agents/generate')
-    expect(studio).toContain('/months/${hongKongMonthKey(new Date())}')
+    expect(transport).toContain("request('/api/scan'")
+    expect(transport).toContain('/agents/generate')
+    expect(transport).toContain('/months/${encodeURIComponent(scope.month')
   })
 
   it('opens an inline confirm before running and blocks double submits', () => {
     expect(studio).toContain('studio-actions-title')
     expect(studio).toContain("role=\"group\"")
-    expect(studio).toContain("actionPhase === 'running'")
+    expect(studio).toContain('writing.current = true')
+    expect(studio).toContain('disabled={busy}')
     expect(studio).toContain('actions.runNow')
     expect(studio).toContain('actions.cancel')
     // The confirm copy names what will be written; the generic note says a tap alone runs nothing.
@@ -36,9 +38,9 @@ describe('Studio action skills slice 4', () => {
   })
 
   it('fails honestly instead of claiming success', () => {
-    expect(studio).toContain("setActionPhase('failed')")
-    expect(studio).toContain('role=\"alert\"')
-    expect(studio).toContain('skills.${skillId}.${blocker}')
+    expect(transport).toContain("phase: 'unknown'")
+    expect(studio).toContain("state.phase === 'unknown' ? t('actions.unknown')")
+    expect(studio).toContain('skills.${id}.${blocker}')
     expect(studio).toContain("trackFunnelEvent({ name: 'skill_action_failed'")
   })
 
@@ -49,14 +51,14 @@ describe('Studio action skills slice 4', () => {
   })
 
   it('records a completed action as a saved turn composed by the server', () => {
-    expect(studio).toContain('async function saveActionTurn')
+    expect(studio).toContain('async function saveAction')
     expect(studio).toContain('requestId: crypto.randomUUID()')
-    expect(studio).toContain('void saveActionTurn(skillId)')
+    expect(studio).toContain('await saveAction(outcome)')
     expect(studio).toContain('turnPrompt')
     expect(studio).toContain('saveThread(threadId')
   })
 
   it('never renders actions for a staff view', () => {
-    expect(studio).toContain('smeCopilot && clientId && !staffView')
+    expect(read('components/dashboard/ConversationStudio.tsx')).toContain('enabled: smeCopilot && !staffView')
   })
 })
