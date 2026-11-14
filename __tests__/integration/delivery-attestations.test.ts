@@ -637,6 +637,8 @@ describe.skipIf(!optedIn)('delivery constraints on an exact disposable target', 
 
   it('actual outcome SQL excludes matching foreign-account and sibling-client rows and denies crossed scopes', async () => {
     const fixture = await outcomeFixture(), sibling = randomUUID(), foreign = randomUUID()
+    // A live Pro trial legitimately permits the original and sibling brands; keep the quota trigger active.
+    await owner`update accounts set plan='pro',status='trialing',trial_ends_at=clock_timestamp()+interval '7 days' where id=${account}`
     await owner`insert into clients (id,account_id,brand_name) values (${sibling},${account},'Sibling fixture'),(${foreign},${otherAccount},'Foreign fixture')`
     const forbidden = [await retainedScan(outcomeScan(fixture.clock.observed, 'pass'), fixture.clock.observed, sibling),
       await retainedScan(outcomeScan(fixture.clock.observed, 'pass'), fixture.clock.observed, foreign, otherAccount),
