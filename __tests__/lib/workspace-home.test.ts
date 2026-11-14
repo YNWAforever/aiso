@@ -2,7 +2,7 @@ import { buildScanEvidence } from '@/lib/scan-evidence'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CommercialAccount } from '@/lib/tier'
 
-const state = vi.hoisted(() => ({ calls: [] as { text: string; values: unknown[] }[], missing: false, failed: '', selectedMissing: false, dateRows: false, scanResults: {} as Record<string, unknown>, pulse: [] as Record<string, unknown>[], agents: [{ platform: 'gemini', recommendation: 'Draft', created_at: '2026-09-01' }, { platform: 'gpt4o', recommendation: 'Paid draft', created_at: '2026-09-01' }] }))
+const state = vi.hoisted(() => ({ calls: [] as { text: string; values: unknown[] }[], missing: false, failed: '', selectedMissing: false, dateRows: false, scanResults: {} as Record<string, unknown>, pulse: [] as Record<string, unknown>[], savedRows: [] as Record<string, unknown>[], agents: [{ platform: 'gemini', recommendation: 'Draft', created_at: '2026-09-01' }, { platform: 'gpt4o', recommendation: 'Paid draft', created_at: '2026-09-01' }] }))
 vi.mock('server-only', () => ({}))
 const monitoringMock=vi.hoisted(()=>vi.fn())
 vi.mock('@/lib/pulse/runs/user-dispatch',()=>({readUserPulseOptions:monitoringMock}))
@@ -11,6 +11,8 @@ vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...
   state.calls.push({ text, values })
   if (state.failed && text.includes(state.failed)) throw new Error('Database incident')
   if (text.includes('from clients') && !text.includes('join')) return state.missing || !values.includes('account-a') || !values.includes('client-a') ? [] : [{ id: 'client-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active' }]
+  if (text.includes('select w.id, w.title, w.check_key,')) return state.savedRows
+  if (text.includes('select count(*)::int as n from evidence_work_items')) return [{ n: 0 }]
   if (text.includes('select r.id as run_id')) return []
   if (text.includes('from prompt_bank')) return [{language:'en',market:'HK'}]
   if (text.includes('agent_')) return state.agents
@@ -32,7 +34,7 @@ const paid: CommercialAccount = { plan: 'enterprise', status: 'active', stripe_s
 const load = (account: CommercialAccount = paid, scanId?: string) => loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'account-a', accounts: account }, scanId })
 const pulseRow = (week: string, total: unknown = 2, successful: unknown = 2) => ({ scan_week: week, platform: null, total_queries: total, brand_mentions: 0, sov_score: 0, successful_queries: successful, observed_queries: 2, collected_queries: 2, observed_brand_mentions: 0, successful_platform_count: 1 })
 
-beforeEach(() => { monitoringMock.mockReset().mockRejectedValue(new Error('Synthetic monitoring unknown')); state.calls = []; state.missing = false; state.failed = ''; state.selectedMissing = false; state.dateRows = false; state.scanResults = {}; state.pulse = [] })
+beforeEach(() => { monitoringMock.mockReset().mockRejectedValue(new Error('Synthetic monitoring unknown')); state.calls = []; state.missing = false; state.failed = ''; state.selectedMissing = false; state.dateRows = false; state.scanResults = {}; state.pulse = []; state.savedRows = [] })
 
 describe('owned workspace loader', () => {
   it('normalizes Neon numeric strings and preserves unknown nullable agent values',async()=>{
@@ -63,6 +65,50 @@ describe('owned workspace loader', () => {
     expect(await loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'other-account', accounts: paid } })).toBeNull()
     expect(state.calls).toHaveLength(1)
     expect(state.calls[0].values).toEqual(['client-a', 'other-account'])
+  })
+  it('does not load or serialize saved work by default or for the legacy checklist count', async () => {
+    for (const withTaskCount of [false, true]) {
+      state.calls = []
+      const workspace = (await loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'account-a', accounts: paid }, withTaskCount }))!
+      expect(workspace).not.toHaveProperty('savedWork')
+      expect(buildWorkspaceHome(workspace)).not.toHaveProperty('savedWork')
+      expect(state.calls.filter(call => call.text.includes('select w.id, w.title, w.check_key,'))).toHaveLength(0)
+      expect(state.calls.filter(call => call.text.includes('select count(*)::int as n from evidence_work_items'))).toHaveLength(withTaskCount ? 1 : 0)
+    }
+  })
+  it('loads the existing bounded task statement once after ownership and keeps public overview unchanged', async () => {
+    const originalKeys = Object.keys(workspaceOverview((await load())!)).sort()
+    state.calls = []
+    state.savedRows = [{ id: 'work-a', title: 'Saved repair', check_key: 'c3_bot_access', version_id: 'version-a', version_number: 2, decision: 'approved', delivered: true, updated_at: '2026-11-14T00:00:00Z' }]
+    const workspace = (await loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'account-a', accounts: paid }, withSavedWork: true }))!
+    const savedQueries = state.calls.filter(call => call.text.includes('select w.id, w.title, w.check_key,'))
+    expect(savedQueries).toHaveLength(1)
+    expect(state.calls[0].text).toContain('from clients')
+    expect(savedQueries[0].values).toEqual(['account-a', 'client-a', 200])
+    expect(savedQueries[0].text).not.toMatch(/\b(insert|update|delete)\b/i)
+    expect(workspace.savedWork).toEqual({ status: 'ok', data: [{ id: 'work-a', title: 'Saved repair', checkKey: 'c3_bot_access', status: 'delivered', versionNumber: 2, updatedAt: '2026-11-14T00:00:00Z' }] })
+    expect(buildWorkspaceHome(workspace).savedWork).toBe(workspace.savedWork)
+    expect(Object.keys(workspaceOverview(workspace)).sort()).toEqual(originalKeys)
+    expect(workspaceOverview(workspace)).not.toHaveProperty('savedWork')
+  })
+  it('never starts saved-work reads on a foreign brand or an ownership lookup failure', async () => {
+    expect(await loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'other-account', accounts: paid }, withSavedWork: true })).toBeNull()
+    expect(state.calls).toHaveLength(1)
+    state.calls = []
+    state.failed = 'from clients'
+    await expect(loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'account-a', accounts: paid }, withSavedWork: true })).rejects.toThrow('Database incident')
+    expect(state.calls).toHaveLength(1)
+  })
+  it('keeps an actual empty saved list distinct from an isolated failed read', async () => {
+    const input = { clientId: 'client-a', profile: { account_id: 'account-a', accounts: paid }, withSavedWork: true }
+    const empty = (await loadOwnedWorkspace(input))!
+    expect(empty.savedWork).toEqual({ status: 'ok', data: [] })
+    state.failed = 'select w.id, w.title, w.check_key,'
+    const failed = (await loadOwnedWorkspace(input))!
+    expect(failed.savedWork).toEqual({ status: 'error', data: [] })
+    expect(buildWorkspaceHome(failed).savedWork?.status).toBe('error')
+    expect(failed.scan.status).toBe('ok')
+    expect(() => workspaceOverview(failed)).not.toThrow()
   })
   it('binds every dependent read to both tenant and client and never writes', async () => {
     await load()

@@ -5404,7 +5404,21 @@
     "noScan": "仲未有已保存嘅掃描。",
     "loadError": "未能開啟此品牌",
     "loadErrorBody": "未能讀取品牌記錄，請由品牌組合再試。",
-    "oneBrandEyebrow": "你嘅品牌"
+    "oneBrandEyebrow": "你嘅品牌",
+    "savedWork": {
+      "continue": "繼續處理：{title}",
+      "recorded": "查看交付記錄：{title}",
+      "open": "開啟工作",
+      "unavailable": "未能讀取已儲存工作。",
+      "viewTasks": "查看工作",
+      "status": {
+        "draft": "已儲存草稿",
+        "in_review": "等待獨立審批",
+        "changes_requested": "需要修改",
+        "approved": "已批准",
+        "delivered": "已記錄交付"
+      }
+    }
   },
   "smeTabs": {
     "whatAiSays": "AI 這樣說",

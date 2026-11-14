@@ -1,5 +1,7 @@
 import type { WorkspaceHome } from './workspace-home'
 import type { IllustrationName } from '@/components/ui/illustration'
+import { taskHref } from '@/lib/tasks/navigation'
+import type { TaskStatus } from '@/lib/tasks/status'
 
 /**
  * The brand Today projection: one recommended action, at most three numbers, the
@@ -12,6 +14,12 @@ export type TodayAction =
   | { kind: 'fix'; href: string; checkKey: string; points: number }
   | { kind: 'next'; href: string; labelKey: NextStepKey; reasonKey?: NonNullable<WorkspaceHome['nextStep']>['reasonKey'] }
   | { kind: 'none'; href: string }
+  | { kind: 'saved_work'; href: string; title: string; status: TaskStatus }
+
+export type TodaySavedWork =
+  | { state: 'empty' }
+  | { state: 'unavailable'; href: string }
+  | { state: 'ready'; href: string; title: string; status: TaskStatus }
 
 export type NextStepKey = keyof {
   configure: string; start: string; repair: string; results: string; opportunities: string
@@ -32,6 +40,8 @@ export interface TodayView {
   brandName: string
   domain: string | null
   action: TodayAction
+  /** null means not requested; empty and unavailable are separate read outcomes. */
+  savedWork: TodaySavedWork | null
   illustration: IllustrationName
   /** At most three: AI visibility, scan score, this month's report. */
   metrics: TodayMetric[]
@@ -46,6 +56,17 @@ export interface TodayView {
     scan: string
     roi: string
   }
+}
+
+function projectSavedWork(workspace: WorkspaceHome, lang: string): TodaySavedWork | null {
+  const read = workspace.savedWork
+  if (!read) return null
+  if (read.status !== 'ok') return { state: 'unavailable', href: `/${lang}/dashboard/${encodeURIComponent(workspace.client.id)}/tasks` }
+  // First unfinished in the returned activity order; never sort statuses or
+  // infer that this capped cohort represents every saved task.
+  const task = read.data.find(row => row.status !== 'delivered') ?? read.data[0]
+  if (!task) return { state: 'empty' }
+  return { state: 'ready', href: taskHref(lang, workspace.client.id, task), title: task.title, status: task.status }
 }
 
 export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; client_reports_online?: boolean }): TodayView {
@@ -72,6 +93,19 @@ export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; 
   } else {
     action = { kind: 'none', href: `${brand}?step=scan` }
     illustration = 'scan'
+  }
+
+  const savedWork = projectSavedWork(workspace, input.lang)
+  // Only these typed, exact, unscoped fallback destinations may yield to saved
+  // work. Setup/start, scoped runs/source/drafts, blockers and site fixes retain
+  // their existing action and illustration, regardless of task status.
+  const genericFallback = step && step.reasonKey === undefined && action.kind === 'next' && (
+    (step.kind === 'review_results' && action.href === `${brand}/observations`) ||
+    (step.kind === 'review_opportunity' && action.href === `${brand}/opportunities`)
+  )
+  if (!top && genericFallback && savedWork?.state === 'ready' && savedWork.status !== 'delivered') {
+    action = { kind: 'saved_work', href: savedWork.href, title: savedWork.title, status: savedWork.status }
+    illustration = 'tasks'
   }
 
   const metrics: TodayMetric[] = [
@@ -103,6 +137,7 @@ export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; 
     brandName: workspace.client.brand_name,
     domain: workspace.client.domain,
     action,
+    savedWork,
     illustration,
     metrics,
     setup,

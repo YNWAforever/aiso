@@ -5404,7 +5404,21 @@
     "noScan": "No saved scan yet.",
     "loadError": "Could not open this brand",
     "loadErrorBody": "The brand records could not be read. Try again from your portfolio.",
-    "oneBrandEyebrow": "Your brand"
+    "oneBrandEyebrow": "Your brand",
+    "savedWork": {
+      "continue": "Continue: {title}",
+      "recorded": "Open delivery record: {title}",
+      "open": "Open task",
+      "unavailable": "Could not read saved work.",
+      "viewTasks": "View tasks",
+      "status": {
+        "draft": "Saved draft",
+        "in_review": "Awaiting independent review",
+        "changes_requested": "Changes requested",
+        "approved": "Approved",
+        "delivered": "Delivery recorded"
+      }
+    }
   },
   "smeTabs": {
     "whatAiSays": "What AI says",

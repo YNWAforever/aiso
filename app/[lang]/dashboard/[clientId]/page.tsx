@@ -118,7 +118,7 @@ export default async function DashboardPage({
   if (step === 'home') {
     let owned
     try {
-      owned = await loadOwnedWorkspace({ clientId, profile, scanId, withTaskCount: true })
+      owned = await loadOwnedWorkspace({ clientId, profile, scanId, withTaskCount: true, ...(smeCopilot ? { withSavedWork: true } : {}) })
     } catch {
       return <div className="flex-1 px-6 py-16 text-center">
         <h1 className="mb-2 text-lg font-bold text-dash-text">{t('workspace_load_error_title')}</h1>
