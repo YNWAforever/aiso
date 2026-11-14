@@ -17,10 +17,20 @@ import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import type { ReactElement } from 'react'
 import Page from '@/app/[lang]/dashboard/[clientId]/page'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
+import { BrandToday } from '@/components/dashboard/today/BrandToday'
 afterEach(() => vi.unstubAllEnvs())
 const profile = { account_id: 'account-a', accounts: { plan: 'free' } }
 const render = (search = {}) => Page({ params: Promise.resolve({ lang: 'en', clientId: 'client-a' }), searchParams: Promise.resolve(search) })
 beforeEach(() => { vi.clearAllMocks(); vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '0'); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null) })
+it.each(['0', '1'])('opts in to saved work only for authenticated SME home flag %s', async flag => {
+  vi.stubEnv('FEATURE_SME_COPILOT_UI', flag)
+  const page = await render({ step: 'home', scanId: 'selected-scan' })
+  expect(page.type).toBe(flag === '1' ? BrandToday : WorkspaceHome)
+  expect(mocks.load).toHaveBeenCalledExactlyOnceWith({ clientId: 'client-a', profile, scanId: 'selected-scan', withTaskCount: true, ...(flag === '1' ? { withSavedWork: true } : {}) })
+  expect(mocks.auth.mock.invocationCallOrder[0]).toBeLessThan(mocks.load.mock.invocationCallOrder[0]!)
+  expect(mocks.sql).not.toHaveBeenCalled()
+  expect(mocks.roi).not.toHaveBeenCalled()
+})
 it('keeps explicit home on WorkspaceHome when the flag is off', async () => {
   expect((await render({ step: 'home' })).type).toBe(WorkspaceHome)
 })

@@ -33,13 +33,16 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
   const explanations = getCheckExplanations(lang)
 
   const action = view.action
-  const actionSentence = action.kind === 'fix'
+  const actionSentence = action.kind === 'saved_work'
+    ? t('savedWork.continue', { title: action.title })
+    : action.kind === 'fix'
     ? t('fixSentence', { check: explanations[action.checkKey]?.question ?? action.checkKey })
     : action.kind === 'next'
       ? w(`nextStep.${action.labelKey}`)
       : t('actionNone')
   const actionDetail = action.kind === 'fix' ? t('fixDetail', { n: String(action.points) }) : undefined
-  const actionReason = action.kind === 'next' && action.reasonKey && action.reasonKey !== 'unknown'
+  const actionReason = action.kind === 'saved_work' ? t(`savedWork.status.${action.status}`)
+    : action.kind === 'next' && action.reasonKey && action.reasonKey !== 'unknown'
     ? reasons(action.reasonKey)
     : action.kind === 'next' && action.reasonKey === 'unknown' ? w('daily.unknown') : null
 
@@ -77,12 +80,24 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
         </div>
         {action.kind !== 'none' && <Link
           href={action.href}
+          prefetch={action.kind === 'saved_work' ? false : undefined}
           className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          {action.kind === 'fix' ? w('nextAction.fixCta') : w(`nextStep.${action.labelKey}`)}
+          {action.kind === 'saved_work' ? t('savedWork.open') : action.kind === 'fix' ? w('nextAction.fixCta') : w(`nextStep.${action.labelKey}`)}
           <ArrowRight aria-hidden="true" className="size-4" />
         </Link>}
       </div>
+      {view.savedWork?.state === 'ready' && action.kind !== 'saved_work' && (
+        view.savedWork.href === action.href
+          ? <p className="mt-3 text-sm text-muted-foreground">{view.savedWork.title} · {t(`savedWork.status.${view.savedWork.status}`)}</p>
+          : <Link href={view.savedWork.href} prefetch={false} className="mt-3 flex min-h-11 min-w-0 items-center justify-between gap-3 border-t border-primary/20 pt-3 text-sm font-semibold text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            <span className="min-w-0 break-words">{t(view.savedWork.status === 'delivered' ? 'savedWork.recorded' : 'savedWork.continue', { title: view.savedWork.title })} <span className="font-normal text-muted-foreground">· {t(`savedWork.status.${view.savedWork.status}`)}</span></span>
+            <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+          </Link>
+      )}
+      {view.savedWork?.state === 'unavailable' && <p className="mt-3 text-sm text-muted-foreground">
+        {t('savedWork.unavailable')} <Link href={view.savedWork.href} prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('savedWork.viewTasks')}</Link>
+      </p>}
     </section>
 
     {chatEnabled && <TodayAsk

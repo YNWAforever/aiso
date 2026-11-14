@@ -11,6 +11,8 @@ import type { AgentCompetitor, AgentProgress, AgentRecommendation, Client, Clien
 import { loadMaintenanceSnapshot,type MaintenanceSnapshot } from './maintenance'
 import {normalizeAgentNumbers} from './agent-numbers'
 import type { TrendScan } from '@/lib/view-models/overview-stats'
+import { listTasks } from '@/lib/tasks/list'
+import type { TaskRow } from '@/lib/tasks/status'
 
 export type WorkspaceRead<T> = { status: 'ok' | 'error' | 'locked'; data: T }
 export type WorkspaceClient = Pick<Client, 'id' | 'brand_name' | 'domain' | 'industry' | 'status'>
@@ -30,6 +32,8 @@ export type OwnedWorkspace = {
   trend?: WorkspaceRead<TrendScan[]>
   /** How many tasks (work items) this brand has ever saved. */
   tasks?: WorkspaceRead<number>
+  /** Today only, explicitly opted in after ownership. Absent means not requested. */
+  savedWork?: WorkspaceRead<TaskRow[]>
 }
 type HistoryRow = { id: string; domain: string; score: number | null; grade: string | null; created_at: string; evidence: unknown }
 
@@ -57,12 +61,14 @@ function scanRow<T extends { score: unknown; created_at: unknown }>(row: T) {
 }
 
 /** Call only after the route/page authenticates. Ownership failure is null; lookup outage throws. */
-export async function loadOwnedWorkspace({ clientId, profile, scanId, withTaskCount = false }: {
+export async function loadOwnedWorkspace({ clientId, profile, scanId, withTaskCount = false, withSavedWork = false }: {
   clientId: string
   profile: { account_id: string; accounts?: CommercialAccount }
   scanId?: string
   /** Overview's checklist only; the overview API does not read it. */
   withTaskCount?: boolean
+  /** Flag-enabled Today only; independent of the legacy checklist count. */
+  withSavedWork?: boolean
 }): Promise<OwnedWorkspace | null> {
   const sql = db()
   const accountId = profile.account_id
@@ -73,7 +79,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId, withTaskCo
   if (!clientRows[0]) return null
   const client = clientRows[0] as WorkspaceClient
   const { features } = resolveCommercialEntitlement(profile.accounts)
-  const [scan, historyRows, pulse, missed,setup,maintenance,monitoring,tasks] = await Promise.all([
+  const [scan, historyRows, pulse, missed,setup,maintenance,monitoring,tasks,savedWork] = await Promise.all([
     read('scan', async () => {
       const rows = scanId !== undefined
         ? await sql`select * from scans where id = ${scanId} and client_id = ${clientId} and account_id = ${accountId} limit 1`
@@ -129,6 +135,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId, withTaskCo
       const rows = await sql`select count(*)::int as n from evidence_work_items where account_id = ${accountId} and client_id = ${clientId}`
       return Number(rows[0]?.n ?? 0)
     }, 0) : undefined,
+    withSavedWork ? read('saved work', () => listTasks(accountId, clientId), [] as TaskRow[]) : undefined,
   ])
   // One read, two projections: the overview API's history keeps its shape, and
   // the trend keeps the evidence it needs to decide whether two scans compare.
@@ -163,7 +170,9 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId, withTaskCo
         order by a.mention_rate desc
     ` as AgentCompetitor[]),
   ])
-  return { client, scan, history, trend, tasks, pulse, missed, recommendations, progress, competitors,maintenance,setup,monitoring }
+  return { client, scan, history, trend, tasks, pulse, missed, recommendations, progress, competitors,maintenance,setup,monitoring,
+    ...(savedWork ? { savedWork } : {}),
+  }
 }
 
 /** Existing API shape remains stable; unlike home it must not return partial success. */

@@ -8,6 +8,7 @@ import type { AgentRecommendation, ClientOverview } from '@/lib/types'
 import { buildDailyWorkSummary,type DailyWorkSummary } from './daily-work'
 import { buildOverviewStats, type OverviewStats } from './overview-stats'
 import { buildGettingStarted, type GettingStarted } from './getting-started'
+import type { TaskRow } from '@/lib/tasks/status'
 
 export type WorkspaceSection<T> = {
   state: 'ready' | 'locked' | PulseDisplayState
@@ -33,6 +34,8 @@ export type WorkspaceHome = {
   priorities: OwnerPriorities
   nextStep?:PrimaryNextStep
   dailyWork?:DailyWorkSummary
+  /** Optional internal Today read; never part of the public overview response. */
+  savedWork?: WorkspaceRead<TaskRow[]>
   siteHealth: WorkspaceSection<{ scanId: string; domain: string; score: number | null; displayState?: import('@/lib/view-models/scan-status').ScanDisplayState; grade: string | null; pillarScores: PillarScoreSnapshot | null }>
   history: WorkspaceSection<ClientOverview['scanHistory']>
   visibility: WorkspaceSection<NonNullable<ClientOverview['pulseKpi']>>
@@ -61,6 +64,7 @@ export function buildWorkspaceHome(workspace: OwnedWorkspace, monthlyReport: Mon
   const display = projectScanStatus({ score: row?.score ?? null, grade: row?.grade ?? null, evidence: row?.results?.evidence })
   return {
     client: workspace.client,
+    ...(workspace.savedWork ? { savedWork: workspace.savedWork } : {}),
     // From the evidence envelope, not the score: an unobservable check must not
     // become a priority. buildOwnerPriorities returns 'unavailable' for a scan
     // that predates evidence recording rather than falling back to raw verdicts.

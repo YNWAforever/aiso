@@ -4,6 +4,35 @@ Notes that used to open the README (moved in UX Phase 8). Each dated line is
 only as fresh as its date: re-verify before relying on it. The architecture
 document is [`CLAUDE.md`](../CLAUDE.md).
 
+## SME activation: Today candidate (2026-11-14)
+
+The approved next milestone is three ordered PRs: Today resumes saved work,
+truthful review/delivery blocker guidance, then a continuous journey regression
+and controlled SME preview. Scope and acceptance are in
+[`ux/sme-activation-workflow.md`](ux/sme-activation-workflow.md).
+
+The first candidate adds one opt-in existing bounded Tasks read after ownership,
+only for SME Today (brand home and the existing one-brand account branch). It
+continues the first unfinished task in returned activity order, or offers the
+first recorded delivery as secondary when that cohort has no unfinished task.
+Setup, scoped actions and observed website fixes retain priority. Public overview
+and flag-off/default reads stay unchanged; no schema, write inputs, statuses,
+roles, entitlement, billing, provider or schedule changes.
+
+Local evidence: lint/type/text clean, production build passed, **9,091 unit tests
+passed / 15 existing Windows skips**, **297 fixture tests passed across 28 files**,
+and **1,212 browser cases passed / zero skipped, flaky or unexpected**. The new
+Today matrix uses nine actual server-component states, en/zh-HK, both themes and
+320/390/768/1440px; four controlled screenshots were inspected. These are static
+component fixtures plus build CSS, not authenticated navigation, persistence,
+provider execution or human usability evidence. Independent source and test
+credibility reviews found no blocker.
+
+Exact-head CI, matched-head merge, canonical Ready/schema proof and guarded live
+read-only evidence are **pending** for this candidate. No production business
+actions were performed. Human SME usability remains **pending**; four of five
+participants is a proposed acceptance target, not an observed result.
+
 ## Database and migration
 
 **The Supabase → Neon migration is complete.** `db()` from `@/lib/db` is the only database

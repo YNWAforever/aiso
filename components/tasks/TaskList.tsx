@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from 'next-intl'
 import { EmptyState } from '@/components/ui/empty-state'
 import { cn } from '@/lib/utils'
 import { TASK_STATUSES, type TaskRow, type TaskStatus } from '@/lib/tasks/status'
+import { taskHref } from '@/lib/tasks/navigation'
 
 const STATUS_STYLE: Record<TaskStatus, { icon: LucideIcon; className: string }> = {
   draft: { icon: CircleDashed, className: 'bg-neutral-3 text-foreground' },
@@ -79,7 +80,7 @@ export function TaskList({ lang, clientId, tasks, limited, smeCopilot = false }:
             {visible.map(task => {
               const style = STATUS_STYLE[task.status]
               const Icon = style.icon
-              const href = task.status === 'draft' ? `${base}/opportunities?draft=${encodeURIComponent(task.id)}` : `${base}/work-items/${task.id}/versions`
+              const href = taskHref(lang, clientId, task)
               const updated = task.updatedAt ? format.dateTime(new Date(task.updatedAt), { dateStyle: 'medium' }) : null
               return (
                 <li key={task.id}>

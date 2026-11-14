@@ -59,7 +59,7 @@ export default async function DashboardPage({params}: {params:Promise<{lang:stri
     const todayT = await getTranslations({ locale: lang, namespace: 'today' })
     let workspace: ReturnType<typeof buildWorkspaceHome> | null = null
     try {
-      const owned = await loadOwnedWorkspace({ clientId: client.id, profile, scanId: undefined, withTaskCount: true })
+      const owned = await loadOwnedWorkspace({ clientId: client.id, profile, scanId: undefined, withTaskCount: true, withSavedWork: true })
       if (owned) {
         let monthlyReport: MonthlyReportHomeEntry | null = null
         if (entitlement.features.client_reports_online) {
