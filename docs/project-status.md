@@ -6,15 +6,32 @@ document is [`CLAUDE.md`](../CLAUDE.md).
 
 ## SME outcome milestone: approved sequence and source audit (2026-11-14)
 
-The next [approved three-PR milestone](ux/sme-outcome-workflow.md) starts from
-actual main `73e97904550eff953ef70bf0ed74c62ea4b3eab3`: dated capability/readiness
-and trial preparation, bounded V2 multi-source stored outcomes, then per-source
-owner UI and continuous acceptance. PR1 is documentation-only; backend/UI release
-and new human observations are not claimed here. The current outcome projector
-still rejects V2, although review/export support it.
+The [approved three-PR milestone](ux/sme-outcome-workflow.md) began at actual main
+`73e97904550eff953ef70bf0ed74c62ea4b3eab3`: dated capability/readiness and trial
+preparation, bounded V2 multi-source stored outcomes, then per-source owner UI and
+continuous acceptance. At that baseline the outcome projector rejected V2 while
+review/export supported it.
 
-The [capability ledger](ux/sme-capability-readiness.md) distinguishes current
-source behavior from controlled tests, dated canonical reads and runtime unknowns.
+Documentation-only PR1 [#268](https://github.com/YNWAforever/aiso/pull/268) is released
+at actual main `4db3dc3870a2fb530596d4774354235b9409b5c8`. Its
+[release receipt](https://github.com/YNWAforever/aiso/pull/268#issuecomment-6876748360)
+records ten successful exact-head CI jobs (**9,219 unit, 432 combined integration,
+2,618 browser**, zero CI skips/flaky/unexpected), equal candidate/CI/actual trees,
+exact canonical Ready deployment `dpl_CR8MSWfDBVDyuphvrgXxUxF1hfwr` and its production
+build's **107 shipped migrations**. Guarded reads at **2026-11-14T11:39:44.259Z** passed
+52/52 views and 48 axe/reflow checks, with six inspected screenshots and a stable
+alias. All 16 Tasks views were empty; prefetch and renewal/Pulse background stayed
+aborted. These are PR1's dated observations, not new runtime checks for PR2.
+
+PR2 implements the separate [V2 read contract and decoder](../lib/outcomes/multi-source.ts)
+with frozen source order/duplicates, shared read limits, per-source policy and V1
+compatibility. Existing clients still reject unsupported V2 results until PR3 adds
+owner presentation and the multi-source sample. Implementation/tests alone do not
+establish the current production deployment or human acceptance; each release keeps
+its exact CI/merge/deployment receipt.
+
+The [capability ledger](ux/sme-capability-readiness.md) distinguishes its dated
+source snapshot from controlled tests, dated canonical reads and runtime unknowns.
 A successful build/configuration check is not provider execution. Even a saved
 Studio skill can dispatch separately gated external reads; scans, repair, reports,
 exports and delivery each have different costs or writes. No service was activated

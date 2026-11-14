@@ -7,6 +7,8 @@ vi.mock('@/lib/auth', () => ({ getProfile: mocks.profile }))
 vi.mock('@/lib/outcomes/store', () => ({ readOutcomeInput: mocks.read }))
 
 import { getOutcomes } from '@/lib/outcomes/service'
+import type { MultiSourceOutcomeInput } from '@/lib/outcomes/multi-source'
+import { parseOutcomeResponse } from '@/lib/outcomes/dto'
 
 const accountId = '123e4567-e89b-42d3-a456-426614174004'
 const actorId = '123e4567-e89b-42d3-a456-426614174005'
@@ -128,6 +130,48 @@ test('rejects malformed server-generated output as unavailable rather than calle
   mocks.read.mockResolvedValue({ kind: 'ok', value: { ...outcomeInput(), contentHash: 'malformed' } })
   await expectError(await getOutcomes(request(), params), 503, 'OUTCOMES_UNAVAILABLE')
   expect(console.error).toHaveBeenCalledWith({ event: 'outcomes_unavailable', category: 'projection' })
+})
+
+function multiSourceInput(): MultiSourceOutcomeInput {
+  const value = outcomeInput()
+  return { schemaVersion: 2, clientId, itemId, versionId, contentHash: value.contentHash,
+    evaluatedAt: value.evaluatedAt, anchorState: value.anchorState, anchor: value.anchor,
+    sources: [0, 1].map(sourceIndex => ({ sourceIndex, baseline: value.baseline,
+      candidates: [], sourceState: 'ok', truncated: false })),
+  }
+}
+
+test('returns separately decoded V2 with original duplicate indices; the old V1 decoder still fails closed', async () => {
+  mocks.read.mockResolvedValue({ kind: 'ok', value: multiSourceInput() })
+  const response = await getOutcomes(request(), params)
+  expect(response.status).toBe(200)
+  expect(response.headers.get('cache-control')).toBe('private, no-store')
+  const value = await response.json()
+  expect(value).toMatchObject({ schemaVersion: 2, policyVersion: 'stored-outcomes.v2', clientId, itemId, versionId,
+    sources: [{ sourceIndex: 0 }, { sourceIndex: 1 }] })
+  expect(value).not.toHaveProperty('baseline')
+  expect(value).not.toHaveProperty('comparison')
+  expect(() => parseOutcomeResponse(value)).toThrow()
+  expect(mocks.read).toHaveBeenCalledWith(scope)
+})
+
+test.each(['clientId', 'itemId', 'versionId'] as const)('rejects crossed V2 %s before returning a response', async field => {
+  mocks.read.mockResolvedValue({ kind: 'ok', value: { ...multiSourceInput(), [field]: '123e4567-e89b-42d3-a456-426614174099' } })
+  await expectError(await getOutcomes(request(), params), 503, 'OUTCOMES_UNAVAILABLE')
+})
+
+test.each(['schema', 'hash', 'index', 'anchor', 'clock'] as const)('does not fall back to V1 after malformed V2 %s', mutation => {
+  const value = multiSourceInput()
+  if (mutation === 'schema') Object.assign(value, { schemaVersion: 3 })
+  else if (mutation === 'hash') value.contentHash = 'malformed'
+  else if (mutation === 'index') value.sources[1].sourceIndex = 0
+  else if (mutation === 'anchor') value.anchor = null
+  else value.evaluatedAt = '2026-02-30T00:00:00Z'
+  mocks.read.mockResolvedValue({ kind: 'ok', value })
+  return getOutcomes(request(), params).then(async response => {
+    await expectError(response, 503, 'OUTCOMES_UNAVAILABLE')
+    expect(console.error).toHaveBeenCalledWith({ event: 'outcomes_unavailable', category: 'projection' })
+  })
 })
 
 test.each([

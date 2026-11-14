@@ -1,22 +1,26 @@
 # SME multi-source outcomes — approved development milestone
 
-Approved 2026-11-14 after the three SME activation releases. Engineering starts
-from actual main `73e97904550eff953ef70bf0ed74c62ea4b3eab3`; the
-[activation receipt](https://github.com/YNWAforever/aiso/pull/267#issuecomment-6874734189)
-is the release baseline. This document is a plan, not a claim that V2 outcomes or
-human acceptance have shipped.
+Approved 2026-11-14 after the three SME activation releases. The engineering
+baseline was actual main `73e97904550eff953ef70bf0ed74c62ea4b3eab3`, recorded in the
+[activation receipt](https://github.com/YNWAforever/aiso/pull/267#issuecomment-6874734189).
+PR1 is released at actual main `4db3dc3870a2fb530596d4774354235b9409b5c8`; its
+[readiness and trial-preparation receipt](https://github.com/YNWAforever/aiso/pull/268#issuecomment-6876748360)
+keeps human usability pending. PR2 implements the read-only backend contract below;
+PR3 owner presentation and the multi-source sample remain follow-on work. Code and
+tests do not replace the exact deployment receipt or actual participant observations.
 
 The owner should be able to finish a work item and explain what evidence exists,
-what is missing and what to do next. The confirmed gap is that V2 frozen work can
-be reviewed and exported, while the stored-outcome projector accepts only V1.
-The current [projector](../../lib/outcomes/sources.ts) and
-[response types](../../lib/outcomes/types.ts) are the implementation witnesses.
+what is missing and what to do next. At the baseline, frozen V2 work could be
+reviewed and exported but the stored-outcome projector accepted only V1. The
+[owned projector](../../lib/outcomes/sources.ts) now dispatches frozen V1/V2;
+[V1 types](../../lib/outcomes/types.ts) and the separate
+[V2 policy/decoder](../../lib/outcomes/multi-source.ts) preserve that distinction.
 
 ## Ordered releases
 
 | PR | Deliverable | Completion evidence |
 | --- | --- | --- |
-| 1: baseline | Synchronize #267 release facts; dated capability/readiness ledger; blank trial observations and issue triage | Source/callee audit, distinct dated release evidence and explicit runtime unknowns; independent review and release gates |
+| 1: baseline — released #268 | Synchronize #267 release facts; dated capability/readiness ledger; blank trial observations and issue triage | Source/callee audit, two closed independent reviews, exact CI/merged tree/Ready schema log and 52 guarded canonical views; human records remain blank |
 | 2: backend | Read-only V2 stored outcomes, one result per frozen source, bounded reads and V1 compatibility | Contract/policy tests and disposable SQL integration; no production business write |
 | 3: owner journey | Per-source V2 outcome presentation, actual-component offline sample and continuous V2 regression | Both locales/themes, independent actor views, errors/reload/withdrawal, inspected layouts and release evidence |
 
@@ -62,6 +66,33 @@ Project baselines from immutable frozen snapshots. Reuse the existing comparison
 and microsecond window policy for each source. Pulse collection success remains a
 collection state; missing collection time or provenance does not become comparable
 business improvement. A new website read must never replace the frozen baseline.
+
+### Exact wire and acceptance boundaries
+
+The top-level keys are `schemaVersion`, `policyVersion`, `clientId`, `itemId`,
+`versionId`, `contentHash`, `evaluatedAt`, `anchorState`, `anchor` and `sources`.
+Each source has exactly `sourceIndex`, `baseline`, `windows`, `diagnostics`,
+`truncated` and `reasons`. Evidence, window and comparison fields retain the existing
+closed V1 vocabulary; `diagnostic-limit-exceeded` is a V2-only source/window reason.
+There is no aggregate score or package-wide movement field.
+
+The separate decoder requires trusted client/item/version/hash and ordered frozen
+source references. It checks the count, contiguous ordinal and baseline
+`kind`/`id`/`checkKey` at each position; it never derives expected identity from the reply. Historical
+baseline IDs remain normalized opaque strings of at most 36 Unicode code points.
+The V1 decoder and its grammar stay unchanged. Before PR3, the existing client
+continues to show an unavailable V2 outcome instead of accepting a partial V1 view.
+
+Allocate diagnostics by position and then frozen source index, round-robin, with
+**400 serialized occurrences total**, including repeated occurrences under duplicate
+sources. An entry losing diagnostics becomes conservatively limited, with no selected
+observation and the V2 diagnostic-limit reason. SQL overflow keeps its distinct
+`candidate-limit-exceeded` reason. A decoder checks necessary shared invariants as
+well as each entry's policy: visible diagnostic/selected IDs count once per kind and
+raw ID across check keys, and a visible union above 200 requires consistent kind
+limitation. The minimum original diagnostic lengths (retained count plus one for
+entries that lost diagnostics) must reproduce the wire allocation under the same
+round-robin rule.
 
 ### Bounded data and failures
 

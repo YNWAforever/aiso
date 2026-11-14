@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assertApprovedTarget } from './approved-target'
@@ -11,6 +11,13 @@ import type { WorkItem } from '@/lib/work-items/schema'
 import { approvedMultiSourceVersion } from '../delivery/multi-source-fixtures'
 import { submitVersion } from '@/lib/change-sets/store'
 import type { AttestInput, DeliveryScope } from '@/lib/delivery/types'
+import { buildScanEvidence, CHECK_VERSIONS } from '@/lib/scan-evidence'
+import { deriveSuggestions } from '@/lib/opportunities/rules'
+import { buildInitialDraftSnapshot } from '@/lib/work-items/snapshot'
+import { readOutcomeInput } from '@/lib/outcomes/store'
+import { evaluateOutcomes } from '@/lib/outcomes/evaluate'
+import { parseOutcomeResponse } from '@/lib/outcomes/dto'
+import { evaluateMultiSourceOutcomes, multiSourceOutcomeContext, parseMultiSourceOutcomeResponse, type MultiSourceOutcomeInput } from '@/lib/outcomes/multi-source'
 const storeConnection = vi.hoisted(() => ({ sql: null as NeonQueryFunction<false, false> | null }))
 vi.mock('@/lib/db', () => ({ db: () => {
   if (!storeConnection.sql) throw new Error('C9E_TARGET_NOT_VERIFIED')
@@ -56,8 +63,9 @@ describe.skipIf(!optedIn)('delivery constraints on an exact disposable target', 
     // Verify both in-band identities and roles BEFORE allowing any fixture write.
     for (const [sql, isApp] of [[owner, false], [app, true]] as const) {
       const [identity] = await sql`select current_setting('neon.project_id',true) project, current_setting('neon.branch_id',true) branch, current_database() database, current_user role,
-        (select pg_get_userbyid(relowner)=current_user from pg_class where oid='public.work_item_delivery_events'::regclass) owns_delivery`
-      if (identity.project !== project || identity.branch !== branch || identity.database !== expectedDatabase || (isApp ? identity.role !== 'aeo_app' : !identity.owns_delivery || identity.role === 'aeo_app')) throw new Error('Disposable C9e identity/schema mismatch')
+        (select pg_get_userbyid(relowner)=current_user from pg_class where oid='public.work_item_delivery_events'::regclass) owns_delivery,
+        (select rolbypassrls from pg_roles where rolname=current_user) bypass_rls`
+      if (identity.project !== project || identity.branch !== branch || identity.database !== expectedDatabase || (isApp ? identity.role !== 'aeo_app' || identity.bypass_rls !== true : !identity.owns_delivery || identity.role === 'aeo_app')) throw new Error('Disposable C9e identity/schema mismatch')
     }
     verified = true
   })
@@ -82,11 +90,11 @@ describe.skipIf(!optedIn)('delivery constraints on an exact disposable target', 
     deliveredAt=clock.time
   })
 
-  async function createVersion(number: number, decision: 'approved' | 'changes_requested' | null, decidedAt: string | null = null, workItemId = item, sources?: WorkItem['evidenceSnapshot'][]) {
+  async function createVersion(number: number, decision: 'approved' | 'changes_requested' | null, decidedAt: string | null = null, workItemId = item, sources?: WorkItem['evidenceSnapshot'][], submittedAt: string | null = null) {
     const value = { ...draft(), id: workItemId, clientId: client, revision: number }
     const frozen = sources ? freezeMultiSourceReview(value, sources) : freezeReview(value)
     const version=randomUUID(), approval=randomUUID()
-    await owner`insert into work_item_versions (id,account_id,client_id,work_item_id,version_number,draft_revision,content,content_hash,validation,submitter) values (${version},${account},${client},${workItemId},${number},${number},${JSON.stringify(frozen.content)}::jsonb,${frozen.contentHash},${JSON.stringify(frozen.validation)}::jsonb,${JSON.stringify(actor(author))}::jsonb)`
+    await owner`insert into work_item_versions (id,account_id,client_id,work_item_id,version_number,draft_revision,content,content_hash,validation,submitter,submitted_at) values (${version},${account},${client},${workItemId},${number},${number},${JSON.stringify(frozen.content)}::jsonb,${frozen.contentHash},${JSON.stringify(frozen.validation)}::jsonb,${JSON.stringify(actor(author))}::jsonb,COALESCE(${submittedAt}::timestamptz,now()))`
     if (decision !== null) await owner`insert into work_item_decisions (id,account_id,client_id,work_item_id,version_id,content_hash,decision,reason,actor_id,actor,grant_revision,grant_event_id,request_id,decided_at) values (${approval},${account},${client},${workItemId},${version},${frozen.contentHash},${decision},'Fixture review',${reviewer},${JSON.stringify(actor(reviewer,'account_approver'))}::jsonb,1,${grant},${randomUUID()},COALESCE(${decidedAt}::timestamptz,clock_timestamp()))`
     return {version,hash:frozen.contentHash,approval}
   }
@@ -470,4 +478,324 @@ describe.skipIf(!optedIn)('delivery constraints on an exact disposable target', 
     expect(await readDeliveryVersion(scope)).toEqual({ kind: 'validation_failed' })
     expect(await attestDelivery(scope, deliveryInput({ contentHash: mismatchedHash }))).toEqual({ kind: 'validation_failed' })
     expect(await eventCount()).toBe(0)
-  })})
+  })
+
+  // V2 witnesses use the same verified disposable transports. No mocked query
+  // results, auth SDK requests, clock injection, DDL, role changes or constraint bypass.
+  type OutcomeClock = { baseline: string; submitted: string; approved: string; delivered: string; recorded: string; observed: string }
+  type Snapshot = WorkItem['evidenceSnapshot']
+  type OutcomeRows = { evaluated_at: string; scans: { id: string }[]; pulse: { id: string; question: string; platform: string; prompt_id: string | null }[]; events: { id: string }[] }
+  type SourceFactory = (base: { scan: Snapshot; pulse: Snapshot; clock: OutcomeClock; prompt: string; otherPrompt: string }) => Snapshot[]
+
+  function pulseSnapshot(at: string, overrides: { id?: string; promptId?: string | null; question?: string; platform?: string } = {}): Snapshot {
+    const value = draft().evidenceSnapshot
+    if (value.evidence.kind !== 'pulse-metric') throw new Error('Expected canonical Pulse fixture')
+    const id = overrides.id ?? randomUUID(), question = overrides.question ?? 'Stored outcome question?', platform = overrides.platform ?? 'chatgpt'
+    const monday = new Date(at); monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7)
+    return { ...value, source: { kind: 'pulse-metric', id }, args: { question, platform },
+      evidence: { ...value.evidence, id, question, platform, promptId: overrides.promptId ?? null, recordedAt: at,
+        scanWeek: monday.toISOString().slice(0, 10), answerDigest: createHash('sha256').update('PRIVATE_RAW_OUTCOME_FIXTURE').digest('hex') } }
+  }
+  function outcomeScan(at: string, assessment: 'fail' | 'pass' = 'fail') {
+    return buildScanEvidence({ requestedUrl: 'https://outcomes.example/', evaluatedUrl: 'https://outcomes.example/',
+      industry: 'general_b2b', region: 'HK', sitemapSource: 'fetched', collectedAt: at,
+      checks: Object.fromEntries(Object.keys(CHECK_VERSIONS).map(key => [key, { assessment, collection: 'complete' }])),
+      observations: [{ check: 'page', observedAt: at, collection: 'complete', httpStatus: 200,
+        target: { origin: 'https://outcomes.example', pathRedacted: false, queryRedacted: false, fragmentRedacted: false, originNormalized: false } }] })
+  }
+  async function retainedScan(envelope: unknown, at: string, targetClient = client, targetAccount = account, id = randomUUID()) {
+    await owner`insert into scans (id,account_id,client_id,url,domain,results,created_at)
+      values (${id},${targetAccount},${targetClient},'https://outcomes.example/','outcomes.example',${JSON.stringify({ evidence: envelope })}::jsonb,${at}::timestamptz)`
+    return id
+  }
+  async function retainedPulse(at: string, options: { id?: string; promptId?: string | null; question?: string; platform?: string; targetClient?: string; answer?: string | null } = {}) {
+    const id = options.id ?? randomUUID()
+    await owner`insert into pulse_metrics (id,client_id,prompt_id,question,platform,scan_week,raw_answer,brand_mentioned,created_at)
+      values (${id},${options.targetClient ?? client},${options.promptId ?? null},${options.question ?? 'Stored outcome question?'},${options.platform ?? 'chatgpt'},
+        date_trunc('week',${at}::timestamptz at time zone 'UTC')::date,${options.answer === undefined ? 'PRIVATE_RAW_OUTCOME_FIXTURE' : options.answer},false,${at}::timestamptz)`
+    return id
+  }
+  async function outcomeFixture(sourceFactory?: SourceFactory) {
+    const [times] = await owner`select
+      to_char(statement_timestamp()-interval '20 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') baseline,
+      to_char(statement_timestamp()-interval '19 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') submitted,
+      to_char(statement_timestamp()-interval '18 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') approved,
+      to_char(statement_timestamp()-interval '17 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') delivered,
+      to_char(statement_timestamp()-interval '16 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') recorded,
+      to_char(statement_timestamp()-interval '9 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') observed`
+    const clock = times as OutcomeClock, scanId = randomUUID(), prompt = randomUUID(), otherPrompt = randomUUID()
+    await owner`insert into prompt_bank (id,client_id,question) values (${prompt},${client},'Stored outcome question?'),(${otherPrompt},${client},'Stored outcome question?')`
+    const envelope = outcomeScan(clock.baseline), source = { kind: 'scan-check' as const, scanId, recordedAt: clock.baseline, envelope }
+    const suggestion = deriveSuggestions(source).find(candidate => candidate.source.checkKey === 'c1_robots')
+    if (!suggestion) throw new Error('Expected genuine retained scan suggestion')
+    const scan = buildInitialDraftSnapshot(suggestion, source, 'en'), pulse = pulseSnapshot(clock.baseline)
+    const sources = sourceFactory ? sourceFactory({ scan, pulse, clock, prompt, otherPrompt }) : [scan, pulse, structuredClone(scan)]
+    await retainedScan(envelope, clock.baseline, client, account, scanId)
+    const pulseSources = new Map(sources.filter(snapshot => snapshot.evidence.kind === 'pulse-metric').map(snapshot => [snapshot.source.id, snapshot]))
+    // A malformed frozen calendar test still seeds legal raw timestamptz data.
+    for (const snapshot of pulseSources.values()) if (snapshot.evidence.kind === 'pulse-metric') {
+      await retainedPulse(clock.baseline, { id: snapshot.evidence.id, question: snapshot.evidence.question, platform: snapshot.evidence.platform, promptId: snapshot.evidence.promptId })
+    }
+    item = randomUUID()
+    const value = { ...draft(), id: item, clientId: client, evidenceSnapshot: pulse }
+    await owner`insert into evidence_work_items (id,account_id,client_id,opportunity_key,source_kind,source_id,rule_version,evidence_fingerprint,evidence_snapshot,title,action,notes,locale,created_at)
+      values (${item},${account},${client},${randomUUID()},'pulse-metric',${pulse.source.id},'pulse-brand-absent.v1',${'a'.repeat(64)},${JSON.stringify(pulse)}::jsonb,${value.title},${value.action},${value.notes},'en',${clock.baseline}::timestamptz)`
+    // A historical frozen package may retain duplicate snapshots. Live source
+    // uniqueness remains enforced: only distinct sources are attached here.
+    const live = new Map(sources.map(snapshot => [snapshot.source.kind + ':' + snapshot.source.id, snapshot]))
+    for (const snapshot of live.values()) await owner`insert into work_item_sources
+      (account_id,client_id,work_item_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,attached_by)
+      values (${account},${client},${item},${randomUUID()},${snapshot.source.kind},${snapshot.source.id},${snapshot.ruleVersion},${snapshot.source.checkKey ?? null},${'a'.repeat(64)},${JSON.stringify(snapshot)}::jsonb,${author})`
+    const created = await createVersion(1, 'approved', clock.approved, item, sources, clock.submitted)
+    version = created.version; hash = created.hash; approval = created.approval; deliveredAt = clock.delivered
+    const eventId = randomUUID()
+    await app`insert into work_item_delivery_events
+      (id,account_id,client_id,work_item_id,version_id,content_hash,approval_decision_id,approval_decision,kind,actor_id,actor,request_id,recorded_at,destination,delivered_at,note)
+      values (${eventId},${account},${client},${item},${version},${hash},${approval},'approved','attest',${author},${JSON.stringify(actor(author))}::jsonb,${randomUUID()},${clock.recorded}::timestamptz,'Historical sample CMS',${clock.delivered}::timestamptz,'Historical self report')`
+    return { clock, sources, eventId, prompt, otherPrompt, scope: deliveryScope() }
+  }
+
+  async function observeOutcome(scope = deliveryScope()) {
+    const envelopes: OutcomeRows[] = []
+    // This observer forwards the exact real app result. It neither creates nor
+    // edits envelopes and is deliberately separate from projector/evaluator assertions.
+    const observing = ((strings: TemplateStringsArray, ...params: unknown[]) => app(strings, ...params).then(rows => {
+      envelopes.push(...structuredClone(rows) as OutcomeRows[])
+      return rows
+    })) as unknown as NeonQueryFunction<false, false>
+    storeConnection.sql = observing
+    try {
+      const result = await readOutcomeInput(scope)
+      expect(envelopes).toHaveLength(1)
+      return { result, raw: envelopes[0] }
+    } finally { storeConnection.sql = app }
+  }
+  async function readMultiOutcome(scope = deliveryScope()) {
+    const { result, raw } = await observeOutcome(scope)
+    if (result.kind !== 'ok' || !('schemaVersion' in result.value) || result.value.schemaVersion !== 2) throw new Error('Expected actual V2 SQL projection')
+    const input: MultiSourceOutcomeInput = result.value
+    const response = parseMultiSourceOutcomeResponse(evaluateMultiSourceOutcomes(input), multiSourceOutcomeContext(input))
+    return { input, response, raw }
+  }
+  async function bulkCandidates(kind: 'scan' | 'pulse', count: number, at: string, question = 'Stored outcome question?', promptId: string | null = null) {
+    if (kind === 'scan') await owner`insert into scans (account_id,client_id,url,domain,results,created_at)
+      select ${account}::uuid,${client}::uuid,'https://outcomes.example/','outcomes.example',${JSON.stringify({ evidence: outcomeScan(at, 'pass') })}::jsonb,${at}::timestamptz
+      from generate_series(1,${count}::int)`
+    else await owner`insert into pulse_metrics (client_id,prompt_id,question,platform,scan_week,raw_answer,brand_mentioned,created_at)
+      select ${client}::uuid,${promptId}::uuid,${question},'chatgpt',date_trunc('week',${at}::timestamptz at time zone 'UTC')::date,'PRIVATE_RAW_OUTCOME_FIXTURE',false,${at}::timestamptz
+      from generate_series(1,${count}::int)`
+  }
+  async function outcomeWriteCounts() {
+    const [counts] = await app`select
+      (select count(*)::int from evidence_work_items where account_id=${account} and client_id=${client} and id=${item}) drafts,
+      (select count(*)::int from work_item_sources where account_id=${account} and client_id=${client} and work_item_id=${item}) sources,
+      (select count(*)::int from work_item_versions where account_id=${account} and client_id=${client} and work_item_id=${item}) versions,
+      (select count(*)::int from work_item_decisions where account_id=${account} and client_id=${client} and work_item_id=${item}) decisions,
+      (select count(*)::int from work_item_delivery_events where account_id=${account} and client_id=${client} and work_item_id=${item}) delivery,
+      (select count(*)::int from work_item_export_events where account_id=${account} and client_id=${client} and work_item_id=${item}) exports`
+    return counts
+  }
+
+  it('actual outcome SQL preserves V1 and genuine frozen V2 mixed/duplicate identities under one statement clock', async () => {
+    const legacy = await readOutcomeInput(deliveryScope())
+    if (legacy.kind !== 'ok' || 'schemaVersion' in legacy.value) throw new Error('Expected unchanged V1 input')
+    expect(parseOutcomeResponse(evaluateOutcomes(legacy.value)).schemaVersion).toBe(1)
+    const fixture = await outcomeFixture(), retained = await readDeliveryVersion(fixture.scope)
+    if (!('value' in retained) || retained.value.schemaVersion !== 2) throw new Error('Expected actual retained V2 package')
+    const { input, response, raw } = await readMultiOutcome(fixture.scope)
+    expect(retained.value.evidenceSnapshots).toEqual(fixture.sources)
+    expect(response.contentHash).toBe(retained.value.contentHash)
+    expect(response.sources.map(source => source.sourceIndex)).toEqual([0, 1, 2])
+    expect(response.sources.map(source => source.baseline?.source.id)).toEqual(fixture.sources.map(source => source.source.id))
+    expect(response.sources[0].baseline).toEqual(response.sources[2].baseline)
+    expect(response.evaluatedAt).toBe(raw.evaluated_at)
+    expect(response.evaluatedAt).toMatch(/\.\d{6}Z$/)
+    expect(response.anchor?.id).toBe(fixture.eventId)
+    expect(input.sources.every(source => source.sourceState === 'ok')).toBe(true)
+    expect(JSON.stringify(response)).not.toMatch(/PRIVATE_RAW_OUTCOME_FIXTURE|raw_answer|envelope|account_id/)
+  })
+
+  it('actual matured scan outcomes keep frozen baselines after mutable evidence changes and never rank Pulse success', async () => {
+    const fixture = await outcomeFixture(), selectedId = await retainedScan(outcomeScan(fixture.clock.observed, 'pass'), fixture.clock.observed)
+    await retainedPulse(fixture.clock.observed)
+    const before = await readMultiOutcome()
+    const window = before.response.sources[0].windows.find(value => value.day === 7)!
+    expect(window).toMatchObject({ evidenceState: 'available', provisional: false, selected: { source: { id: selectedId } },
+      comparison: { status: 'partially_comparable', outcome: 'improved', baselineVerdict: 'fail', observedVerdict: 'pass' } })
+    expect(before.response.sources[0].windows.filter(value => value.day !== 7).map(value => value.timeState)).toEqual(['not-due', 'not-due'])
+    for (const value of before.response.sources[1].windows) expect(value.comparison).toMatchObject({ status: 'not_comparable', outcome: 'cannot_determine' })
+    const changed = pulseSnapshot(fixture.clock.observed)
+    await owner`update evidence_work_items set evidence_snapshot=${JSON.stringify(changed)}::jsonb,source_id=${changed.source.id},revision=2
+      where account_id=${account} and client_id=${client} and id=${item}`
+    await owner`update work_item_sources set withdrawn_at=clock_timestamp(),withdrawn_by=${author}
+      where account_id=${account} and client_id=${client} and work_item_id=${item} and source_kind='scan-check'`
+    const after = await readMultiOutcome()
+    expect(after.response.sources.map(source => source.baseline)).toEqual(before.response.sources.map(source => source.baseline))
+    expect(after.response.sources[0].windows[0].selected?.source.id).toBe(selectedId)
+    expect(after.response.contentHash).toBe(before.response.contentHash)
+  })
+
+  it('actual outcome SQL excludes matching foreign-account and sibling-client rows and denies crossed scopes', async () => {
+    const fixture = await outcomeFixture(), sibling = randomUUID(), foreign = randomUUID()
+    await owner`insert into clients (id,account_id,brand_name) values (${sibling},${account},'Sibling fixture'),(${foreign},${otherAccount},'Foreign fixture')`
+    const forbidden = [await retainedScan(outcomeScan(fixture.clock.observed, 'pass'), fixture.clock.observed, sibling),
+      await retainedScan(outcomeScan(fixture.clock.observed, 'pass'), fixture.clock.observed, foreign, otherAccount),
+      await retainedPulse(fixture.clock.observed, { targetClient: sibling }), await retainedPulse(fixture.clock.observed, { targetClient: foreign })]
+    const valid = await retainedScan(outcomeScan(fixture.clock.observed, 'pass'), fixture.clock.observed)
+    const { raw, response } = await readMultiOutcome()
+    const ids = [...raw.scans, ...raw.pulse].map(row => row.id)
+    for (const id of forbidden) { expect(ids).not.toContain(id); expect(JSON.stringify(response)).not.toContain(id) }
+    expect(response.sources[0].windows[0].selected?.source.id).toBe(valid)
+    expect((await readOutcomeInput({ ...fixture.scope, accountId: otherAccount })).kind).toBe('denied')
+    expect((await readOutcomeInput({ ...fixture.scope, actorId: randomUUID() })).kind).toBe('denied')
+    for (const patch of [{ clientId: sibling }, { clientId: foreign }, { itemId: randomUUID() }, { versionId: randomUUID() }]) {
+      expect((await readOutcomeInput({ ...fixture.scope, ...patch })).kind).toBe('not_found')
+    }
+  })
+
+  it('actual Pulse union filters question/platform/prompt before LIMIT and deduplicates wildcard/exact overlaps', async () => {
+    const fixture = await outcomeFixture(({ scan, pulse, clock, prompt }) => [scan, pulse,
+      pulseSnapshot(clock.baseline, { promptId: prompt }), pulseSnapshot(clock.baseline, { question: 'Second stored question?' }), structuredClone(pulse)])
+    await bulkCandidates('pulse', 205, new Date(Date.parse(fixture.clock.observed) + 1000).toISOString(), 'Unrelated newer question?')
+    const matching = await retainedPulse(fixture.clock.observed, { promptId: fixture.prompt })
+    const otherPrompt = await retainedPulse(fixture.clock.observed, { promptId: fixture.otherPrompt })
+    const second = await retainedPulse(fixture.clock.observed, { question: 'Second stored question?' })
+    const wrongPlatform = await retainedPulse(fixture.clock.observed, { platform: 'gemini' })
+    const { input, raw } = await readMultiOutcome()
+    expect(raw.pulse).toHaveLength(6)
+    expect(new Set(raw.pulse.map(row => row.id)).size).toBe(raw.pulse.length)
+    expect(raw.pulse.map(row => row.id)).toEqual(expect.arrayContaining([matching, otherPrompt, second]))
+    expect(raw.pulse.map(row => row.id)).not.toContain(wrongPlatform)
+    expect(raw.pulse.every(row => row.question !== 'Unrelated newer question?')).toBe(true)
+    const candidates = input.sources.map(source => source.candidates.map(candidate => candidate.source.id))
+    expect(candidates[1]).toEqual(expect.arrayContaining([matching, otherPrompt]))
+    expect(candidates[2]).toContain(matching); expect(candidates[2]).not.toContain(otherPrompt); expect(candidates[2]).not.toContain(second)
+    expect(candidates[3]).toContain(second); expect(candidates[3]).not.toContain(matching)
+    expect(candidates[4]).toEqual(candidates[1])
+  })
+
+  it('actual many-source SQL returns at most 201 unique raw rows per kind rather than per source', async () => {
+    const fixture = await outcomeFixture(({ scan, pulse, clock, prompt }) => [scan, pulse, structuredClone(scan), structuredClone(pulse),
+      pulseSnapshot(clock.baseline, { promptId: prompt }), pulseSnapshot(clock.baseline, { question: 'Starved stored question?' }),
+      structuredClone(scan), structuredClone(pulse), structuredClone(scan)])
+    await bulkCandidates('scan', 205, fixture.clock.observed)
+    await bulkCandidates('pulse', 205, fixture.clock.observed)
+    const { input, raw, response } = await readMultiOutcome()
+    for (const rows of [raw.scans, raw.pulse]) { expect(rows).toHaveLength(201); expect(new Set(rows.map(row => row.id)).size).toBe(201) }
+    for (const source of input.sources) { expect(source.candidates.length).toBeLessThanOrEqual(200); expect(source.truncated).toBe(true) }
+    expect(input.sources[5].candidates).toEqual([])
+    for (const source of response.sources) {
+      expect(source.reasons).toContain('candidate-limit-exceeded')
+      expect(source.windows.every(window => window.evidenceState === 'evidence-limited' && window.selected === null)).toBe(true)
+    }
+    const second = await readMultiOutcome()
+    expect(second.raw.scans.map(row => row.id)).toEqual(raw.scans.map(row => row.id))
+    expect(second.raw.pulse.map(row => row.id)).toEqual(raw.pulse.map(row => row.id))
+  })
+
+  it('actual exactly-200 SQL rows do not claim overflow for either kind', async () => {
+    const fixture = await outcomeFixture()
+    await bulkCandidates('scan', 199, fixture.clock.observed)
+    await bulkCandidates('pulse', 199, fixture.clock.observed)
+    const { raw, input, response } = await readMultiOutcome()
+    expect(raw.scans).toHaveLength(200); expect(raw.pulse).toHaveLength(200)
+    expect(input.sources.every(source => !source.truncated)).toBe(true)
+    for (const source of response.sources) expect(source.reasons).not.toContain('candidate-limit-exceeded')
+    expect(response.sources[0].windows[0].selected).not.toBeNull()
+  })
+
+  it('actual legal malformed observation JSON isolates Scan unavailability without hiding valid Pulse subjects', async () => {
+    const fixture = await outcomeFixture()
+    const bad = await retainedScan({ collectedAt: 'not-a-calendar', PRIVATE_OBSERVATION: 'must not leak' }, fixture.clock.observed)
+    await retainedScan({ ...outcomeScan(fixture.clock.observed), collectedAt: '2026-02-30T00:00:00.000000Z' }, fixture.clock.observed)
+    const good = await retainedPulse(fixture.clock.observed)
+    const { input, response, raw } = await readMultiOutcome()
+    expect(raw.scans.map(row => row.id)).toContain(bad)
+    expect(input.sources.map(source => source.sourceState)).toEqual(['unavailable', 'ok', 'unavailable'])
+    expect(input.sources[1].candidates.map(candidate => candidate.source.id)).toContain(good)
+    for (const index of [0, 2]) expect(response.sources[index].windows.every(window => window.evidenceState === 'unavailable' && window.selected === null)).toBe(true)
+    expect(response.sources[1].reasons).not.toContain('source-unavailable')
+    expect(response.sources[1].windows.every(window => window.comparison.outcome === 'cannot_determine')).toBe(true)
+    expect(JSON.stringify(response)).not.toMatch(/PRIVATE_OBSERVATION|must not leak|PRIVATE_RAW_OUTCOME_FIXTURE/)
+  })
+
+  it('actual outcome read retains full 203-event history and the exact historical-version anchor after supersession', async () => {
+    const fixture = await outcomeFixture()
+    const records: { id: string; request_id: string; recorded_at: string; kind: 'attest' | 'withdraw'; target: string | null }[] = []
+    let active = fixture.eventId
+    for (let index = 0; index < 101; index++) {
+      const recordedAt = new Date(Date.parse(fixture.clock.recorded) + (index + 1) * 1000).toISOString(), next = randomUUID()
+      records.push({ id: randomUUID(), request_id: randomUUID(), recorded_at: recordedAt, kind: 'withdraw', target: active },
+        { id: next, request_id: randomUUID(), recorded_at: recordedAt, kind: 'attest', target: null })
+      active = next
+    }
+    await app`insert into work_item_delivery_events
+      (id,account_id,client_id,work_item_id,version_id,content_hash,approval_decision_id,approval_decision,kind,actor_id,actor,request_id,recorded_at,destination,delivered_at,note,target_attestation_id,target_kind,reason)
+      select r.id,${account}::uuid,${client}::uuid,${item}::uuid,${version}::uuid,${hash},
+        case when r.kind='attest' then ${approval}::uuid else null end,case when r.kind='attest' then 'approved' else null end,
+        r.kind,${author}::uuid,${JSON.stringify(actor(author))}::jsonb,r.request_id,r.recorded_at,
+        case when r.kind='attest' then 'Corrected historical CMS' else null end,case when r.kind='attest' then ${fixture.clock.delivered}::timestamptz else null end,
+        case when r.kind='attest' then 'Historical self report' else null end,r.target,case when r.kind='withdraw' then 'attest' else null end,
+        case when r.kind='withdraw' then 'Historical correction' else null end
+      from jsonb_to_recordset(${JSON.stringify(records)}::jsonb) r(id uuid,request_id uuid,recorded_at timestamptz,kind text,target uuid)`
+    const retained = await readMultiOutcome()
+    expect(retained.raw.events).toHaveLength(203)
+    expect(retained.response.anchor?.id).toBe(active)
+    await prepareNextDraft(); await createVersion(2, 'approved', null, item, fixture.sources)
+    const historical = await readMultiOutcome(fixture.scope)
+    expect(historical.response.versionId).toBe(fixture.scope.versionId)
+    expect(historical.response.contentHash).toBe(hash)
+    expect(historical.response.anchor?.id).toBe(active)
+    expect((await readDelivery(fixture.scope, { limit: 1, cursor: null }))).toMatchObject({ value: { activeAttestationId: active } })
+    expect((await withdrawDelivery(fixture.scope, active, { reason: 'Withdraw historical declaration', requestId: randomUUID() })).kind).toBe('created')
+    const withdrawn = await readMultiOutcome(fixture.scope)
+    expect(withdrawn.response.anchorState).toBe('withdrawn'); expect(withdrawn.response.anchor).toBeNull()
+    expect(withdrawn.response.sources.every(source => source.windows.length === 0 && source.reasons.includes('anchor-withdrawn'))).toBe(true)
+  })
+
+  it('actual canonical V2 content with an invalid frozen calendar fails the whole read', async () => {
+    const fixture = await outcomeFixture(({ scan, pulse }) => {
+      if (pulse.evidence.kind !== 'pulse-metric') throw new Error('Expected Pulse fixture')
+      return [scan, { ...pulse, evidence: { ...pulse.evidence, recordedAt: '2026-02-30T00:00:00.000000Z' } }, structuredClone(scan)]
+    })
+    // The Node freezer and SQL constraints admitted normalized string JSON; the
+    // stored-outcome primary calendar adapter must independently refuse it.
+    const retained = await readDeliveryVersion(fixture.scope)
+    expect(retained.kind).toBe('replayed')
+    expect((await observeOutcome(fixture.scope)).result).toEqual({ kind: 'unavailable' })
+  })
+
+  it('actual stored V2 hash/content mismatch is unavailable rather than a partial-source success', async () => {
+    const fixture = await outcomeFixture(), corrupted = randomUUID(), frozen = freezeMultiSourceReview({ ...draft(), id: item, revision: 2 }, fixture.sources)
+    const wrongHash = frozen.contentHash === 'f'.repeat(64) ? 'e'.repeat(64) : 'f'.repeat(64)
+    await owner`insert into work_item_versions (id,account_id,client_id,work_item_id,version_number,draft_revision,content,content_hash,validation,submitter)
+      values (${corrupted},${account},${client},${item},2,2,${JSON.stringify(frozen.content)}::jsonb,${wrongHash},${JSON.stringify(frozen.validation)}::jsonb,${JSON.stringify(actor(author))}::jsonb)`
+    expect((await observeOutcome({ ...fixture.scope, versionId: corrupted })).result).toEqual({ kind: 'unavailable' })
+    expect((await readMultiOutcome(fixture.scope)).response.contentHash).toBe(hash)
+  })
+
+  it('actual V2 diagnostic occurrences share one round-robin 400 budget and repeated reads create no business receipts', async () => {
+    const fixture = await outcomeFixture(({ scan, pulse }) => [scan, pulse, structuredClone(pulse), structuredClone(pulse)])
+    await bulkCandidates('pulse', 199, fixture.clock.observed)
+    const selected = await retainedScan(outcomeScan(fixture.clock.observed, 'pass'), fixture.clock.observed), counts = await outcomeWriteCounts()
+    let retainedDiagnostics: string[][] | undefined
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { response, raw } = await readMultiOutcome()
+      expect(raw.pulse).toHaveLength(200)
+      expect(response.sources.reduce((total, source) => total + source.diagnostics.length, 0)).toBe(400)
+      expect(response.sources.map(source => source.diagnostics.length)).toEqual([0, 134, 133, 133])
+      expect(response.sources[0].windows[0].selected?.source.id).toBe(selected)
+      expect(response.sources[0].reasons).not.toContain('diagnostic-limit-exceeded')
+      for (const source of response.sources.slice(1)) {
+        expect(source.reasons).toContain('diagnostic-limit-exceeded')
+        expect(source.reasons).not.toContain('candidate-limit-exceeded')
+        expect(source.windows.every(window => window.evidenceState === 'evidence-limited' && window.selected === null)).toBe(true)
+      }
+      const ids = response.sources.map(source => source.diagnostics.map(row => row.source.id))
+      if (retainedDiagnostics) expect(ids).toEqual(retainedDiagnostics)
+      retainedDiagnostics = ids
+    }
+    expect(await outcomeWriteCounts()).toEqual(counts)
+    expect(fixture.sources).toHaveLength(4)
+  })
+})
