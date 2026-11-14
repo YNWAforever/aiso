@@ -2,7 +2,7 @@
 
 This sample connects actual Today, draft, review, manual-delivery and stored-outcome components around fictitious Harbour Tea data. It supports inspecting work, submitting an exact sample revision, switching the sample reviewer view, recording a decision, and declaring one manual delivery. It does not authenticate users, grant permissions, persist business records, verify a website, contact providers or collect new outcome evidence. Package downloads and other application destinations are outside the sample and report that limitation explicitly.
 
-The short participant tasks and blank observation table are in [the SME trial script](sme-activation-usability.md). **Human usability remains pending** until actual participant observations exist.
+The short participant tasks and blank observation table are in [the SME trial script](sme-activation-usability.md). The [observation template](sme-activation-observations.md) adds consistent scoring, actual cohort denominators and issue triage. **Human usability remains pending** until actual participant observations exist.
 
 ## Reproduce
 

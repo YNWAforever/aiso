@@ -1,12 +1,20 @@
 # Studio MCP — internal read-only surface
 
-Status: **internal preview, OFF by default.** Phase M2. No write tools, no
-scheduled reads, no provider calls.
+Status: **internal preview, OFF by default in code.** Source reviewed 2026-11-14
+at `73e97904550eff953ef70bf0ed74c62ea4b3eab3`; deployed flags, credentials and
+bearer-only tool usability were not probed for that review. No business-write
+tools, scheduled reads or provider calls are implemented by this transport.
 
-The transport is a JSON-RPC-over-HTTP endpoint at `POST /api/mcp/studio`. It
-serves the six read-only tools in `lib/conversation-studio/mcp/registry.ts`
-against the brand's **saved** AISO records. It never calls Google, DataForSEO,
-Firecrawl or a model, and it cannot save anything.
+The JSON-RPC-over-HTTP endpoint at `POST /api/mcp/studio` registers six tools in
+[the registry](../../lib/conversation-studio/mcp/registry.ts) against the brand's
+**saved** AISO records. It never calls Google, DataForSEO, Firecrawl or a model,
+and does not save drafts or delivery. It **does append call-audit rows** before
+returning tool results. Registration alone does not prove each loader works from
+an external bearer-only client; see the session-dependent opportunity caveat below.
+
+Enabling, token minting and transport examples below are operator procedures,
+not authorization to execute them during a source-only readiness review. The
+[dated capability ledger](../ux/sme-capability-readiness.md) records that boundary.
 
 ## What is served
 
@@ -19,9 +27,12 @@ Firecrawl or a model, and it cannot save anything.
 | `work_item_drafts` | draft work items (no bodies or evidence snapshots) |
 | `search_console_status` | saved connection/binding/sync state (no Google call) |
 
-Every call is written to `studio_mcp_calls` **before** the result is returned; if
-that insert fails the request fails with `503 {"error":"AUDIT_UNAVAILABLE"}`
-rather than serving an unlogged read. The table is insert-only for `aeo_app`.
+A recognized `tools/call` result is written to `studio_mcp_calls` **before** its
+data is returned; if that insert fails, the request fails with
+`503 {"error":"AUDIT_UNAVAILABLE"}` rather than serving an unlogged tool result.
+Unknown-tool calls are also audited, before the rate-count branch. Initialize,
+ping, tool listing and notifications return without call-audit writes; a failed
+count returns 503 without an audit row. The table is insert-only for `aeo_app`.
 
 ## Enabling (all four are required)
 
@@ -58,10 +69,12 @@ Response:
 { "token": "v1.<payload>.<signature>", "expiresAt": 1762..., "endpoint": "/api/mcp/studio" }
 ```
 
-The token is valid for one hour, names one member and one brand, and carries no
-permissions — the transport re-reads the profile, brand access, staff grant and
-plan on every call. A removed member, a transferred brand or a downgrade stops
-the token immediately.
+The token is valid for one hour and names one member and one brand; it is not a
+frozen permission grant. The transport re-reads the profile, active brand access,
+staff grant and owning account's plan on each request. Membership/access loss,
+a transferred or inactive brand, or loss of a required staff grant ends access.
+A downgrade updates entitlement-bound tool availability (currently Search Console)
+rather than invalidating all token access to the other registered reads.
 
 ## Client configuration
 
@@ -105,24 +118,41 @@ the account/brand pair keeps its composite tenant FK.
   carries source text, and the server never treats it as a command.
 - Available/unavailable states are explicit: `unavailable`, `no_scan`, `unbound`,
   `empty`. A database incident cannot read as "the brand has nothing".
-- This is an internal surface: it is not documented in the product UI, and no
-  customer-facing endpoint exposes MCP details.
+- This remains an internal surface, but the current gated Studio Tools page
+  includes a [Connect Assistant card](../../components/dashboard/StudioConnectAssistant.tsx)
+  that can mint/copy a token when the MCP flag and secret checks pass. UI presence
+  is not evidence that a deployment is enabled or externally usable.
+- `content_opportunities` currently calls the normal browser-session-authenticated
+  [opportunity service](../../lib/opportunities/service.ts) through its Studio
+  loader. The executor's bearer principal does not replace that downstream session.
+  Without a member session the loader maps unauthenticated access to unavailable;
+  bearer-only success is not established by the registry or mocked executor tests.
+  This is a source finding, not an executed production failure or a code fix.
 
 ## Rate limit (slice 3)
 
-Every `tools/call` first counts this principal's rows in `studio_mcp_calls` for the
-last 60 seconds. At **30 or more** the call is refused with JSON-RPC
-`-32000 "Rate limit exceeded"`, recorded as `denied` / `RATE_LIMITED`, and no tool
-executes. The count includes denied and failed calls, so asking for an unknown tool
-does not buy a fresh budget. If the count cannot be read (a database incident) the
-transport fails closed with 503 `AUDIT_UNAVAILABLE` rather than serving an unbounded
-read. There is no new table or counter: the audit ledger already holds the data, and
-`STUDIO_MCP_CALLS_PER_MINUTE` in `lib/conversation-studio/mcp/audit.ts` is the bound.
+A `tools/call` for a **recognized** tool counts this principal's rows in
+`studio_mcp_calls` for the last 60 seconds. At **30 or more** the call is refused
+with JSON-RPC `-32000 "Rate limit exceeded"`, recorded as `denied` /
+`RATE_LIMITED`, and no tool executes. Unknown-tool calls audit and return before
+this count branch; their rows still contribute to a later recognized-tool count,
+as do failed and denied calls. This is a count-then-execute guard, not an atomic
+concurrent reservation or a rate gate on every RPC method.
+
+If the count cannot be read, the transport returns 503 `AUDIT_UNAVAILABLE` without
+an audit row or tool execution. There is no new table or counter: the existing
+ledger holds the data and
+[`STUDIO_MCP_CALLS_PER_MINUTE`](../../lib/conversation-studio/mcp/audit.ts) is the bound.
 
 ## Skill map (slice 3)
 
-The in-product one-tap skills and this transport describe the same reads; the
-registry is `lib/conversation-studio/skills.ts` and is shared, not copied.
+The in-product skill vocabulary maps to registered read tools in the shared
+[skill registry](../../lib/conversation-studio/skills.ts). This map is not an
+execution trace: current skill taps use the saved composer and side endpoints,
+not the MCP transport. Context taps suppress LIVE answers, but separately gated
+Google/DataForSEO/Firecrawl requests may still run. They also save Studio turns.
+The confirmed scan/Improve/report action panel is already wired to existing
+application endpoints; older slice labels describing it as future work are historical.
 
 | Skill id | Reads (MCP tools) |
 | --- | --- |
@@ -133,7 +163,7 @@ registry is `lib/conversation-studio/skills.ts` and is shared, not copied.
 | `compare_competitors` | `brand_evidence` |
 | `draft_brief` | `content_opportunities`, `brand_sources` |
 | `monthly_report` | `brand_evidence`, `scan_checks`, `work_item_drafts`, `search_console_status` |
-| `scan_brand` | `scan_checks` (action skill; runnable in slice 4, read-only tools unchanged) |
+| `scan_brand` | `scan_checks` (confirmed action is wired; gates apply, MCP read tools unchanged) |
 | `explain_drop` | `brand_evidence` |
 
 Threads persist the skill they started from (migration `109`, nullable, closed

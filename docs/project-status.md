@@ -4,44 +4,71 @@ Notes that used to open the README (moved in UX Phase 8). Each dated line is
 only as fresh as its date: re-verify before relying on it. The architecture
 document is [`CLAUDE.md`](../CLAUDE.md).
 
-## SME activation: two releases verified; journey acceptance in progress (2026-11-14)
+## SME outcome milestone: approved sequence and source audit (2026-11-14)
 
-Today continuation [#265](https://github.com/YNWAforever/aiso/pull/265) and review/help
-recovery [#266](https://github.com/YNWAforever/aiso/pull/266) are released. The
-[PR266 receipt](https://github.com/YNWAforever/aiso/pull/266#issuecomment-6873270862)
-records all ten exact-head checks: **9,166 unit, 432 combined integration assertions
-(247 regular + 185 exact-target), and 2,574 browser cases**, zero CI skips/flaky or
-unexpected cases. The corrected keyboard test also passed 80 repeated flows and
-the full 1,340-case local regression after independent trace review.
+The next [approved three-PR milestone](ux/sme-outcome-workflow.md) starts from
+actual main `73e97904550eff953ef70bf0ed74c62ea4b3eab3`: dated capability/readiness
+and trial preparation, bounded V2 multi-source stored outcomes, then per-source
+owner UI and continuous acceptance. PR1 is documentation-only; backend/UI release
+and new human observations are not claimed here. The current outcome projector
+still rejects V2, although review/export support it.
 
-Matched merge `c7a4995800270b79f08451ad9a8b2d14f4b9c3e1` has the same candidate/CI
-tree. Canonical Ready deployment `dpl_BHx3Us7BXbLzW7aaY9QD3MZZ7svB` carries that exact
-full SHA and logged all **107 shipped migrations recorded**. Guarded verification
-passed 52/52 views, 48 axe/reflow checks and zero page errors; six screenshots were
-inspected, with the same canonical alias before/after. Session-renewal/Pulse
-background requests and prefetches stayed blocked. The actual Tasks cohort was
-empty; no populated production review/delivery, normal renewal/polling, provider
-execution or business write is inferred.
+The [capability ledger](ux/sme-capability-readiness.md) distinguishes current
+source behavior from controlled tests, dated canonical reads and runtime unknowns.
+A successful build/configuration check is not provider execution. Even a saved
+Studio skill can dispatch separately gated external reads; scans, repair, reports,
+exports and delivery each have different costs or writes. No service was activated
+to fill a readiness row. The [observation template](ux/sme-activation-observations.md)
+keeps participant attempts, assistance and source-only findings separate. The owner
+arranges actual participants; missing feedback does not block the confirmed V2 gap.
 
-The third acceptance candidate now implements a continuous actual-component
-journey and reproducible offline sample from that verified main. The Node factory
-uses genuine suggestion/snapshot/freezer functions; two browser contexts share the
-actual edited draft and frozen hash. Local verification passed lint/type/text,
-full build, **9,204 unit tests** (15 existing Windows skips), **307 actual fixtures
-across 29 renderers**, and **44 desktop/mobile journey cases** with zero
-skip/flaky/unexpected. Cases require the correct active outcome anchor/hash and
-three honest not-due windows after delivery and reload; the final six controlled
-screenshots were inspected. Exact-head CI, merge and canonical release remain
-pending for this candidate.
+## SME activation: all three engineering releases verified (2026-11-14)
+
+Today continuation [#265](https://github.com/YNWAforever/aiso/pull/265), review/help
+recovery [#266](https://github.com/YNWAforever/aiso/pull/266), and continuous journey
+acceptance [#267](https://github.com/YNWAforever/aiso/pull/267) are released. The
+[PR267 receipt](https://github.com/YNWAforever/aiso/pull/267#issuecomment-6874734189)
+records all ten exact-head CI jobs: **9,219 unit, 432 combined integration cases
+(247 regular + 185 exact-target), and 2,618 browser cases**, zero CI skips/flaky or
+unexpected cases. Each browser case passed in one attempt. These are that release's
+results, not new executions for the outcome milestone.
+
+Actual matched merge `73e97904550eff953ef70bf0ed74c62ea4b3eab3` at
+**2026-11-14T08:37:45Z** has the same tree as its candidate and tested CI merge.
+Canonical Ready production deployment `dpl_HegKnr7E6i99Sh8RPduJWaDBWpUN` carries
+that full SHA. Its build logged **all 107 shipped migrations recorded** at
+**08:37:56.928Z**, then completed at **08:38:15.092Z** on the same UTC date.
+
+Guarded canonical verification at **2026-11-14T08:42:30.993Z** passed **52/52**
+views, 48 axe/reflow checks and zero page errors/read failures/redirects. Six new
+screenshots were inspected with no layout blocker observed, and the alias remained
+on the same deployment before/after. All 16 Tasks views were empty; Today retained
+the higher-priority website fix. Four localized noindex missing-review views used
+streamed HTTP 200, with no review/submit controls. **375 prefetch and 68
+session-renewal/Pulse background requests were deliberately aborted.** This is not
+normal renewal/polling, populated production review/delivery, provider execution or
+business-write evidence.
+
+The continuous actual-component journey uses a genuine Node suggestion/snapshot/
+freezer and two controlled actor contexts sharing the actual edited draft/hash.
+Local verification passed lint/type/text, full build, **9,204 unit tests + 15 existing
+Windows skips**, **307 actual fixtures across 29 renderers**, and **44 desktop/mobile
+journey cases** with zero skip/flaky/unexpected. Cases require the exact active
+outcome anchor/version/hash and three immediate not-due windows after delivery and
+reload. Six final controlled screenshots were inspected. All 21 committed preview
+artifact hashes and source hashes matched the final browser-tested packets; the
+candidate's tree is proven equal to the actual merged deployment.
 
 The [preview guide](ux/sme-activation-preview.md) records reproduction and bounds;
 the [SME script](ux/sme-activation-usability.md) contains tasks and a blank observer
 record. Standalone freezing accepts only exact supplied Node-frozen revisions;
-server-only crypto stays in Node. Downloads/providers are explicitly outside the
-sample. These materials are engineering evidence; **human SME usability is
-pending**, and four of five participants remains a proposed target. No production
-authority, API/write DTO, schema, billing/provider or schedule contract changes are
-authorized by the preview.
+server-only crypto stays in Node. Downloads/providers are outside the sample and
+the omitted font layout uses local Arial/platform CJK, not exact Inter typography.
+**Human SME usability is pending**, and four of five participants remains a target.
+No production business write, audited export/ROI snapshot, invitation/message,
+grant/config/token/provider/schedule change, handoff/live check or paid workload
+was performed for #267. Historical candidate sections below retain their dated
+provenance; they do not override this released snapshot.
 
 ## Earlier guidance candidate evidence — superseded by the release above (2026-11-14)
 

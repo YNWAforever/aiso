@@ -1,9 +1,16 @@
-# SME activation — approved next milestone
+# SME activation — completed engineering milestone
 
 Approved through plan review on 2026-11-14 after the five execution releases
 [#260](https://github.com/YNWAforever/aiso/pull/260)–[#264](https://github.com/YNWAforever/aiso/pull/264).
 Deliver three ordered, independently reviewed and released PRs. Preserve the five
 SME destinations and `FEATURE_SME_COPILOT_UI` rollback.
+
+**Engineering released in #265, #266 and #267.** The
+[final release receipt](https://github.com/YNWAforever/aiso/pull/267#issuecomment-6874734189)
+records exact-head checks, matched trees, canonical Ready/schema gate and bounded
+reads. Human usability remains pending. The contracts below describe these completed
+activation releases; the separately approved read-only V2 response extension is in
+the [next outcome milestone](sme-outcome-workflow.md).
 
 ## Outcome
 
@@ -120,6 +127,9 @@ role/configuration changes and paid workloads require separate approval naming t
 brand, action and workload. Do not manufacture production data for screenshots or
 claim provider execution/business impact from controlled fixtures.
 
-Future work: design V2 multi-source outcome semantics before changing contracts;
-recheck operational readiness without activating services; prioritize Chat/MCP
-changes from actual SME feedback.
+The [next approved milestone](sme-outcome-workflow.md) defines V2 multi-source
+outcome semantics before implementation, records
+[capability/readiness evidence](sme-capability-readiness.md) without activating
+services and prepares [consistent human observations](sme-activation-observations.md).
+Further Chat/MCP priorities depend on actual feedback and separately triaged source
+findings, not invented participant outcomes.
