@@ -392,7 +392,10 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(section.getByText(c.verifiedLive, { exact: true })).toHaveCount(0)
     const target = context.active
     await section.getByRole('button', { name: c.sme.withdraw, exact: true }).click()
-    await section.getByLabel(c.withdrawReason, { exact: true }).fill('Correct this recorded delivery')
+    const withdrawReason = section.getByLabel(c.withdrawReason, { exact: true })
+    // Complete the form's scheduled focus handoff before moving to another pane.
+    await expect(withdrawReason).toBeFocused()
+    await withdrawReason.fill('Correct this recorded delivery')
     await developer.focus(); await page.keyboard.press('Enter')
     await expect(section).toBeHidden()
     await expect(page.getByText(paths.developerUnavailable, { exact: true })).toBeVisible()
