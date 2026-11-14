@@ -42,10 +42,15 @@ unit checks do not prove that runtime Auth, DB, billing or providers are healthy
 Both `auth()` and `db()` are lazy, including the Auth catch-all route; neither
 requires constructing a live client during module import.
 
-### Observed build validation gap
+### Historical build validation gap at base `096fa041`
 
-On this docs/tests branch (base `096fa041`), a webpack production build compiles
-but fails Next.js route export validation. Reproduce with:
+The observations below describe that earlier docs/tests branch, not the current
+release's build status. [PR267's dated release receipt](https://github.com/YNWAforever/aiso/pull/267#issuecomment-6874734189)
+records its successful full default production build and exact canonical Ready
+SHA/schema log. It does not establish a new webpack run for the old reproducer.
+
+On that docs/tests branch (base `096fa041`), a webpack production build compiled
+but failed Next.js route export validation. Its reproducer was:
 
 ```bash
 npm run build -- --webpack
