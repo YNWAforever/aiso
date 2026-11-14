@@ -44,7 +44,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   m.sme = false
   m.version.mockResolvedValue(Response.json({ version }))
-  m.auth.mockResolvedValue({ account_id: clientId })
+  m.auth.mockResolvedValue({ id: 'abcdefab-cdef-4abc-8def-abcdefabcdef', account_id: clientId })
   m.admin.mockResolvedValue({})
   m.draft.mockResolvedValue({ item: draft })
   m.versions.mockResolvedValue(Response.json(initial))
@@ -52,6 +52,14 @@ beforeEach(() => {
 })
 const page = (lang = 'en', itemId = draft.id) => VersionsPage({ params: Promise.resolve({ lang, clientId, workItemId: itemId }) })
 describe('review page guards', () => {
+  it.each([false, true])('passes only the existing authenticated viewer ID to SME review help, flag=%s', async sme => {
+    m.sme = sme
+    const result = await page()
+    expect(m.auth).toHaveBeenCalledExactlyOnceWith('en')
+    if (sme) expect(result.props.viewerProfileId).toBe('abcdefab-cdef-4abc-8def-abcdefabcdef')
+    else expect(result.props).not.toHaveProperty('viewerProfileId')
+    expect(result.props).not.toHaveProperty('profile')
+  })
   it.each(['en', 'zh-HK'])('SME selects the independently identified latest, not first row, in %s', async lang => {
     m.sme = true
     const latest = { ...version, id: '77777777-7777-4777-8777-777777777777', versionNumber: 7 }

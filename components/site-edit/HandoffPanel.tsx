@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import { handoffRecovery } from '@/lib/site-edit/handoff-guidance'
 import type { VersionDetail } from '@/lib/change-sets/types'
 import {
   acceptHandoffMutation, acceptHandoffRead, beginHandoffMutation, beginHandoffRead, decodeHandoff,
@@ -29,10 +30,11 @@ type HandoffPanelProps = {
    * This is not a promise that a receipt's after-response check has finished.
    */
   onRecordedChange?: () => void
+  onViewManualOptions?: () => void
 }
 
 /** Server capabilities authorize actions; receipts remain developer claims. */
-export function HandoffPanel({ clientId, version, smeCopilot = false, emphasize = true, onRecordedChange }: HandoffPanelProps) {
+export function HandoffPanel({ clientId, version, smeCopilot = false, emphasize = true, onRecordedChange, onViewManualOptions }: HandoffPanelProps) {
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(version.workItemId)}/versions/${encodeURIComponent(version.id)}/handoff`
   const decisionKey = JSON.stringify(version.decision)
   const scope = useMemo(() => ({ endpoint, contentHash: version.contentHash, decisionKey }), [endpoint, version.contentHash, decisionKey])
@@ -126,7 +128,7 @@ export function HandoffPanel({ clientId, version, smeCopilot = false, emphasize 
     if (reconcile && current(session)) await load()
   }
 
-  return <HandoffPanelView version={version} state={state} smeCopilot={smeCopilot} emphasize={emphasize} onSend={() => { void post('send') }} onCheck={() => { void post('check') }} onRefresh={() => { void load(true) }} />
+  return <HandoffPanelView version={version} state={state} smeCopilot={smeCopilot} emphasize={emphasize} onSend={() => { void post('send') }} onCheck={() => { void post('check') }} onRefresh={() => { void load(true) }} onViewManualOptions={onViewManualOptions} />
 }
 
 type HandoffPanelViewProps = {
@@ -137,10 +139,12 @@ type HandoffPanelViewProps = {
   onSend: () => void
   onCheck: () => void
   onRefresh: () => void
+  onViewManualOptions?: () => void
 }
 /** Presentation export also permits SSR contract tests without mocking hooks. */
-export function HandoffPanelView({ version, state, smeCopilot = false, emphasize = true, onSend, onCheck, onRefresh }: HandoffPanelViewProps) {
-  const t = useTranslations('siteEditHandoff')
+export function HandoffPanelView({ version, state, smeCopilot = false, emphasize = true, onSend, onCheck, onRefresh, onViewManualOptions }: HandoffPanelViewProps) {
+  const t = useTranslations('siteEditHandoff'), lang = useLocale()
+  const recovery = smeCopilot ? handoffRecovery(state) : null
   const handoff = state.handoff, busy = state.busy !== null
   const removal = version.editSpec?.kind === 'jsonld_remove'
   const primary = handoffPrimaryAction(state, removal)
@@ -212,6 +216,8 @@ export function HandoffPanelView({ version, state, smeCopilot = false, emphasize
           {state.busy === 'check' ? t('live.checking') : t('live.check')}
         </button>}
         <button type="button" onClick={onRefresh} disabled={busy || state.loading} className={actionClass('refresh')}>{t('sme.refresh')}</button>
+        {recovery === 'plan' && <a className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/settings#settings-plan`}>{t('sme.viewPlan')}</a>}
+        {recovery === 'manual' && onViewManualOptions && <button type="button" onClick={onViewManualOptions} className={smeButton + ' underline'}>{t('sme.viewManualOptions')}</button>}
       </div>
     </section>
   )

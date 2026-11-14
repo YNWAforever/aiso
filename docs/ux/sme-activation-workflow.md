@@ -43,6 +43,35 @@ check and saved outcomes. Do not require internal MCP/run/classifier vocabulary.
    reflow. Keep controlled UI, actual disposable SQL and canonical evidence
    separate. Supply a reproducible controlled preview and short SME script.
 
+## Review and delivery guidance contract
+
+Review help is a disclosure beside the existing SME step, shown only for the
+selected, independently identified latest pending version when its server
+`canDecide` is false. A newer saved draft does not erase that frozen version.
+Opening or retrying the disclosure reads the existing session-owned
+`GET /api/account/members`; closed, flag-off and other version states add no read.
+The returned self must match the authenticated viewer, with an active self row,
+unique canonical UUIDs and real active/approver booleans. Invalid or unavailable
+reads remain unknown. The summary excludes both viewer and submitter, uses no
+names or count metric, and describes account-role information only. It never
+enables a decision or claims that another member can review this brand/version.
+
+Client scope includes brand, item, version, content hash and viewer. Close, retry
+and scope changes invalidate older completions; reopening performs a fresh read.
+The member-settings anchor uses the existing `settings#members` section and honors
+unsaved navigation guards. Existing decision fields, reasons and retry identities
+remain mounted throughout help reads.
+
+Handoff recovery uses only the accepted current read state. Confirmed entitlement
+blocks can link to `settings#settings-plan`; disconnected or capped handoffs can
+open the existing manual-delivery disclosure. Opening that pane preserves its
+forms and independently gated export/record authority; it starts no export or
+handoff. `not_approver` means the member who actually approved this version, so
+member-role changes are not offered as a solution. Loading, busy, unknown,
+unconfirmed or stale authority adds no recovery advice. Existing independently
+authorized live-check behavior remains intact; an unknown outcome never becomes
+resend authority.
+
 ## Contracts and release gates
 
 No new public API/write inputs, schema/migrations, task statuses, role grants,

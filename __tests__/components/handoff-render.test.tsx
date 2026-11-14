@@ -283,3 +283,53 @@ describe.each(['en', 'zh-HK'])('handoff SSR contract (%s)', lang => {
     expect(html).not.toContain('dark:') // Shared theme tokens, no hardcoded theme override.
   })
 })
+
+describe.each(['en', 'zh-HK'])('SME recovery navigation in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).siteEditHandoff
+  const panel = (state: HandoffReadState, smeCopilot = true, onViewManualOptions?: () => void) => render(
+    <HandoffPanelView version={version} state={state} smeCopilot={smeCopilot} onSend={noop} onCheck={noop} onRefresh={noop} onViewManualOptions={onViewManualOptions} />, lang,
+  )
+  it('links the authoritative entitlement block to the actual plan section without fetching or enabling send', () => {
+    const html = panel(ready(view({ canSend: false, block: 'not_entitled' })))
+    expect(html).toContain(`href="/${lang}/dashboard/settings#settings-plan"`)
+    expect(html).toContain(copy.sme.viewPlan)
+    expect(controls(html).find(button => button.includes(copy.send))).toContain('disabled=""')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+  it('offers only viewing an existing manual pane, and never invokes it while rendering', () => {
+    const onViewManualOptions = vi.fn()
+    const state = ready(view({ canSend: false, block: 'not_connected' }))
+    const html = panel(state, true, onViewManualOptions)
+    const recovery = controls(html).find(button => button.includes(copy.sme.viewManualOptions))
+    expect(recovery).toContain('min-h-11')
+    expect(recovery).not.toContain('bg-primary')
+    expect(onViewManualOptions).not.toHaveBeenCalled()
+    expect(panel(state)).not.toContain(copy.sme.viewManualOptions)
+    expect(fetch).not.toHaveBeenCalled()
+  })
+  it('does not frame another account role as a remedy for the recorded approving-actor restriction', () => {
+    const html = panel(ready(view({ canSend: false, block: 'not_approver' })), true, noop)
+    expect(html).toContain(copy.block.not_approver)
+    expect(html).not.toContain(copy.sme.viewPlan)
+    expect(html).not.toContain(copy.sme.viewManualOptions)
+    expect(html).not.toContain('settings#members')
+  })
+  it('hides a retained entitlement block recovery after read authority is invalidated', () => {
+    const state = ready(view({ canSend: false, block: 'not_entitled' }))
+    const html = panel({ ...state, authority: false, reconcileRequired: true }, true, noop)
+    expect(html).not.toContain(copy.sme.viewPlan)
+    expect(html).not.toContain(copy.sme.viewManualOptions)
+    expect(html).toContain(copy.sme.refresh)
+  })
+  it('preserves an independently authorized live check for an unknown outcome while suppressing recovery', () => {
+    const html = panel(ready(sent({ state: 'unknown', canSend: true, block: null })), true, noop)
+    expect(controls(html).find(button => button.includes(copy.live.check))).not.toContain('disabled=""')
+    expect(html).not.toContain(copy.sme.viewManualOptions)
+    expect(html).not.toContain(copy.sme.viewPlan)
+  })
+  it('adds no recovery controls to legacy rendering', () => {
+    const html = panel(ready(view({ canSend: false, block: 'not_entitled' })), false, noop)
+    expect(html).not.toContain(copy.sme.viewPlan)
+    expect(html).not.toContain(copy.sme.viewManualOptions)
+  })
+})

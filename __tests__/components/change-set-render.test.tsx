@@ -180,6 +180,11 @@ const revokedProps = {
   initialVersion: { ...version, capabilities: { canDecide: false } },
 }
 const smeProps = { ...fixtureProps, smeCopilot: true }
+const guidanceViewer = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
+const blockedReview = { ...version, capabilities: { canDecide: false } }
+const guidanceProps = { ...smeProps, viewerProfileId: guidanceViewer, initialVersion: blockedReview, initial: { ...initial, versions: [blockedReview] } }
+const guidanceCapableProps = { ...smeProps, viewerProfileId: guidanceViewer }
+const guidanceNewerProps = { ...guidanceProps, initialDraft: { ...draft, revision: 2 } }
 const smeUnavailableProps = { ...unavailableProps, initialDraft: draft, smeCopilot: true }
 function terminalProps(decision: 'approved' | 'changes_requested') {
   return { ...smeProps, initialVersion: { ...version, decision: { decision, reason: 'Fresh terminal detail', decidedAt: '2026-09-07T00:00:00.123456Z', decidedBy: { profileId: '88888888-8888-4888-8888-888888888888', displayName: 'Independent reviewer', role: 'account_approver' as const } }, capabilities: { canDecide: false } } }
@@ -211,6 +216,7 @@ const v2Version: VersionDetail = {
   submittedBy: version.submittedBy, submittedAt: '2026-09-06T00:00:00.123456Z', decision: null, capabilities: { canDecide: true },
 }
 const smeV2Props = { ...smeProps, initialDraft: v2Draft, initialVersion: v2Version, initial: { versions: [version, v2Version], nextCursor: null, latestVersionId: v2Version.id } }
+const guidanceV2Props = { ...smeV2Props, viewerProfileId: guidanceViewer, initialVersion: { ...v2Version, capabilities: { canDecide: false } }, initial: { ...smeV2Props.initial, versions: smeV2Props.initial.versions.map(value => ({ ...value, capabilities: { canDecide: false } })) } }
 afterAll(() =>
   writeC9cFixture(
     'C9D',
@@ -232,6 +238,10 @@ afterAll(() =>
         props: revokedProps,
         html: (lang) => render(<VersionWorkspace {...revokedProps} />, lang),
       },
+      guidance: { props: guidanceProps, html: lang => render(<VersionWorkspace {...guidanceProps} />, lang) },
+      guidanceCapable: { props: guidanceCapableProps, html: lang => render(<VersionWorkspace {...guidanceCapableProps} />, lang) },
+      guidanceNewer: { props: guidanceNewerProps, html: lang => render(<VersionWorkspace {...guidanceNewerProps} />, lang) },
+      guidanceV2: { props: guidanceV2Props, html: lang => render(<VersionWorkspace {...guidanceV2Props} />, lang) },
       sme: { props: smeProps, html: lang => render(<VersionWorkspace {...smeProps} />, lang) },
       smeTerminal: { props: smeTerminalProps, html: lang => render(<VersionWorkspace {...smeTerminalProps} />, lang) },
       smeChanges: { props: smeChangesProps, html: lang => render(<VersionWorkspace {...smeChangesProps} />, lang) },

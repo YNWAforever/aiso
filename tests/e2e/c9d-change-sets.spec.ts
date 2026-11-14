@@ -839,3 +839,212 @@ for (const lang of ['en','zh-HK']) {
     })
   }
 }
+
+const helpViewer = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
+const helpOther = '33333333-3333-4333-8333-333333333333'
+function memberRead(viewer = helpViewer, other = false) {
+  return { self: viewer, members: [
+    { profileId: viewer, active: true, approver: true, displayName: 'Private viewer name' },
+    { profileId: version.submittedBy.profileId, active: true, approver: true },
+    ...(other ? [{ profileId: helpOther, active: true, approver: true, email: 'private@example.invalid' }] : []),
+  ] }
+}
+async function uncancellableMembers(page: Page) {
+  await page.addInitScript(() => {
+    const base = window.fetch.bind(window)
+    window.fetch = (input, init) => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof Request ? input.url : input.href, location.href)
+      if (url.pathname !== '/api/account/members') return base(input, init)
+      const options = { ...init }; delete options.signal
+      return base(input, options)
+    }
+  })
+}
+async function settleMemberResponse(page: Page) {
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+}
+for (const lang of ['en', 'zh-HK']) {
+  test(`Review help reads only after keyboard open and never grants version authority ${lang}`, async ({ page }) => {
+    let reads = 0
+    page.on('request', request => { if (new URL(request.url()).pathname === '/api/account/members') { reads++; expect(request.method()).toBe('GET') } })
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'guidance')
+    const help = page.locator('summary').filter({ hasText: c.reviewHelp.title })
+    await expect(help).toBeVisible(); expect(reads).toBe(0)
+    await page.route('**/api/account/members', route => route.fulfill({ json: memberRead(helpViewer.toUpperCase(), true) }))
+    await help.focus(); await page.keyboard.press('Enter')
+    await expect(page.getByText(c.reviewHelp.other, { exact: true })).toBeVisible()
+    expect(reads).toBe(1)
+    await expect(page.getByRole('link', { name: c.reviewHelp.members, exact: true })).toHaveAttribute('href', `/${lang}/dashboard/settings#members`)
+    await expect(page.getByRole('button', { name: c.recordDecision, exact: true })).toHaveCount(0)
+    await expect(page.getByText('Private viewer name', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('private@example.invalid', { exact: true })).toHaveCount(0)
+  })
+  for (const failure of ['401', '403', '500', '503', 'json', 'self', 'duplicate', 'inactive']) {
+    test(`Review help ${failure} stays unknown rather than an empty approver pool ${lang}`, async ({ page }) => {
+      const { changeSets: c } = await fixture(page, lang, 'C9D', 'guidance')
+      await page.route('**/api/account/members', route => {
+        if (/^\d+$/.test(failure)) return route.fulfill({ status: Number(failure), json: {} })
+        if (failure === 'json') return route.fulfill({ contentType: 'application/json', body: '{' })
+        const data = memberRead()
+        if (failure === 'self') data.self = helpOther
+        if (failure === 'duplicate') data.members.push({ ...data.members[0], profileId: helpViewer.toUpperCase() })
+        if (failure === 'inactive') data.members[0].active = false
+        return route.fulfill({ json: data })
+      })
+      await page.locator('summary').filter({ hasText: c.reviewHelp.title }).click()
+      await expect(page.getByText(c.reviewHelp.unknown, { exact: true })).toBeVisible()
+      await expect(page.getByText(c.reviewHelp.none, { exact: true })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: c.reviewHelp.retry, exact: true })).toBeEnabled()
+      await expect(page.getByRole('button', { name: c.recordDecision, exact: true })).toHaveCount(0)
+    })
+  }
+  for (const entry of ['open', 'retry']) {
+    test(`Review help ignores an uncancellable old ${entry} response after close and fresh reopen ${lang}`, async ({ page }) => {
+      await uncancellableMembers(page)
+      const { changeSets: c } = await fixture(page, lang, 'C9D', 'guidance')
+      let release!: () => void, reads = 0
+      const gate = new Promise<void>(resolve => { release = resolve }), oldIndex = entry === 'retry' ? 2 : 1
+      await page.route('**/api/account/members', async route => {
+        const index = ++reads
+        if (entry === 'retry' && index === 1) return route.fulfill({ status: 503, json: {} })
+        if (index === oldIndex) { await gate; return route.fulfill({ headers: { 'x-member-read': 'old' }, json: memberRead(helpViewer, true) }) }
+        return route.fulfill({ json: memberRead() })
+      })
+      const summary = page.locator('summary').filter({ hasText: c.reviewHelp.title }), details = summary.locator('..')
+      await summary.click()
+      if (entry === 'retry') { await expect(page.getByText(c.reviewHelp.unknown, { exact: true })).toBeVisible(); await page.getByRole('button', { name: c.reviewHelp.retry, exact: true }).click() }
+      await expect.poll(() => reads).toBe(oldIndex)
+      const oldResponse = page.waitForResponse(response => response.headers()['x-member-read'] === 'old')
+      try {
+        await summary.click(); await expect(details).toHaveJSProperty('open', false)
+        await summary.click(); await expect(details).toHaveJSProperty('open', true)
+        await expect(page.getByText(c.reviewHelp.none, { exact: true })).toBeVisible()
+        expect(reads).toBe(oldIndex + 1)
+      } finally { release() }
+      await oldResponse; await settleMemberResponse(page)
+      await expect(page.getByText(c.reviewHelp.none, { exact: true })).toBeVisible()
+      await expect(page.getByText(c.reviewHelp.other, { exact: true })).toHaveCount(0)
+    })
+  }
+  for (const scope of ['actor', 'brand']) {
+    test(`Review help resets before an uncancellable old ${scope} member response arrives ${lang}`, async ({ page }) => {
+      await uncancellableMembers(page)
+      const { changeSets: c } = await fixture(page, lang, 'C9D', 'guidance')
+      const props = await reviewProps(page), nextActor = 'fedcbafe-dcba-4fed-8cba-fedcbafedcba', nextBrand = '99999999-9999-4999-8999-999999999999'
+      let release!: () => void, reads = 0
+      const gate = new Promise<void>(resolve => { release = resolve })
+      await page.route('**/api/account/members', async route => {
+        if (++reads === 1) { await gate; return route.fulfill({ headers: { 'x-member-read': 'old' }, json: memberRead(helpViewer, true) }) }
+        return route.fulfill({ json: memberRead(scope === 'actor' ? nextActor : helpViewer) })
+      })
+      const summary = page.locator('summary').filter({ hasText: c.reviewHelp.title })
+      await summary.click(); await expect.poll(() => reads).toBe(1)
+      if (scope === 'actor') {
+        await page.evaluate(value => window.dispatchEvent(new CustomEvent('fixture-review-scope', { detail: value })), { ...props, viewerProfileId: helpViewer.toUpperCase() })
+        await expect(summary.locator('..')).toHaveJSProperty('open', true); expect(reads).toBe(1)
+      }
+      const next = scope === 'actor' ? { ...props, viewerProfileId: nextActor } : { ...props, clientId: nextBrand, initialDraft: { ...props.initialDraft!, clientId: nextBrand } }
+      const oldResponse = page.waitForResponse(response => response.headers()['x-member-read'] === 'old')
+      try {
+        await page.evaluate(value => window.dispatchEvent(new CustomEvent('fixture-review-scope', { detail: value })), next)
+        await expect(summary.locator('..')).toHaveJSProperty('open', false)
+        await expect(page.getByText(c.reviewHelp.loading, { exact: true })).toHaveCount(0)
+        if (scope === 'brand') await expect(page.getByRole('link', { name: c.backToDrafts, exact: true })).toHaveAttribute('href', `/${lang}/dashboard/${nextBrand}/opportunities`)
+        await summary.click(); await expect(page.getByText(c.reviewHelp.none, { exact: true })).toBeVisible()
+      } finally { release() }
+      await oldResponse; await settleMemberResponse(page)
+      await expect(page.getByText(c.reviewHelp.none, { exact: true })).toBeVisible()
+      await expect(page.getByText(c.reviewHelp.other, { exact: true })).toHaveCount(0)
+      expect(reads).toBe(2)
+    })
+  }
+  test(`Review help invalidates a pending member response through actual historical and latest selection ${lang}`, async ({ page }) => {
+    await uncancellableMembers(page)
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'guidanceV2')
+    const props = await reviewProps(page), latest = props.initialVersion!
+    let release!: () => void, reads = 0
+    const gate = new Promise<void>(resolve => { release = resolve })
+    await page.route('**/versions/' + version.id, route => route.fulfill({ json: { version: { ...version, capabilities: { canDecide: false } } } }))
+    await page.route('**/versions/' + latest.id, route => route.fulfill({ json: { version: latest } }))
+    await page.route('**/api/account/members', async route => {
+      if (++reads === 1) { await gate; return route.fulfill({ headers: { 'x-member-read': 'old' }, json: memberRead(helpViewer, true) }) }
+      return route.fulfill({ json: memberRead() })
+    })
+    const summary = page.locator('summary').filter({ hasText: c.reviewHelp.title })
+    await summary.click(); await expect.poll(() => reads).toBe(1)
+    const oldResponse = page.waitForResponse(response => response.headers()['x-member-read'] === 'old')
+    try {
+      await page.getByRole('button', { name: c.versionNumber.replace('{number}', '1') + ' · ' + c.pending, exact: true }).click()
+      await expect(page.getByRole('heading', { name: c.sme.historical, exact: true })).toBeVisible()
+      await expect(summary).toHaveCount(0)
+      await page.getByRole('button', { name: c.sme.review + ' · ' + c.versionNumber.replace('{number}', String(latest.versionNumber)), exact: true }).click()
+      await expect(summary.locator('..')).toHaveJSProperty('open', false)
+      await summary.click(); await expect(page.getByText(c.reviewHelp.none, { exact: true })).toBeVisible()
+    } finally { release() }
+    await oldResponse; await settleMemberResponse(page)
+    await expect(page.getByText(c.reviewHelp.other, { exact: true })).toHaveCount(0)
+    expect(reads).toBe(2)
+  })
+  test(`Review help preserves mounted decision edits, cancelled navigation and normalized retry identity ${lang}`, async ({ page }) => {
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'guidanceCapable')
+    const bodies: unknown[] = []; let capable = false, memberReads = 0
+    await page.route('**/versions/*/decision', route => { bodies.push(route.request().postDataJSON()); return route.fulfill({ status: 503, json: {} }) })
+    await page.route('**/work-items/*/versions', route => route.fulfill({ json: { ...initial, versions: [{ ...version, capabilities: { canDecide: capable } }] } }))
+    await page.route('**/api/account/members', route => ++memberReads === 1 ? route.fulfill({ status: 503, json: {} }) : route.fulfill({ json: memberRead(helpViewer, true) }))
+    const choice = page.getByLabel(c.decision, { exact: true }), reason = page.getByLabel(c.reason, { exact: true }), record = page.getByRole('button', { name: c.recordDecision, exact: true })
+    await choice.selectOption('changes_requested'); await reason.fill('  Cafe\u0301  '); await record.click()
+    await expect(page.getByRole('alert')).toHaveText(c.unavailable)
+    const originalReason = await reason.elementHandle()
+    await page.getByRole('button', { name: c.reloadHistory, exact: true }).click()
+    await expect(record).toBeDisabled()
+    const summary = page.locator('summary').filter({ hasText: c.reviewHelp.title })
+    await summary.click(); await expect(page.getByText(c.reviewHelp.unknown, { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: c.reviewHelp.retry, exact: true }).click()
+    await expect(page.getByText(c.reviewHelp.other, { exact: true })).toBeVisible()
+    page.once('dialog', async dialog => { expect(dialog.message()).toBe(c.sme.unsaved); await dialog.dismiss() })
+    await page.getByRole('link', { name: c.reviewHelp.members, exact: true }).click()
+    await expect(page).toHaveURL(`https://review.fixture/${lang}`)
+    await summary.click(); await expect(summary.locator('..')).toHaveJSProperty('open', false)
+    await summary.click(); await expect(page.getByText(c.reviewHelp.other, { exact: true })).toBeVisible()
+    await expect(choice).toHaveValue('changes_requested'); await expect(reason).toHaveValue('  Cafe\u0301  ')
+    expect(await reason.evaluate((node, prior) => node === prior, originalReason)).toBe(true)
+    expect(bodies).toHaveLength(1)
+    capable = true; await page.getByRole('button', { name: c.reloadHistory, exact: true }).click()
+    await expect(record).toBeEnabled(); await expect(summary).toHaveCount(0)
+    await reason.fill('Café'); await record.click()
+    await expect(page.getByRole('alert')).toHaveText(c.unavailable)
+    expect(bodies).toHaveLength(2); expect(bodies[1]).toEqual(bodies[0])
+  })
+  for (const variant of ['smeRevoked', 'guidanceCapable', 'smeTerminal', 'smeHistorical', 'legacy']) {
+    test(`Review help does not read members outside the pending blocked SME scope: ${variant} ${lang}`, async ({ page }) => {
+      let reads = 0
+      page.on('request', request => { if (new URL(request.url()).pathname === '/api/account/members') reads++ })
+      const { changeSets: c } = await fixture(page, lang, 'C9D', variant === 'legacy' ? 'guidance' : variant)
+      if (['smeTerminal', 'smeHistorical', 'legacy'].includes(variant)) {
+        const props = await reviewProps(page)
+        await page.evaluate(value => window.dispatchEvent(new CustomEvent('fixture-review-scope', { detail: value })), { ...props, viewerProfileId: helpViewer, ...(variant === 'legacy' ? { smeCopilot: false } : {}) })
+      }
+      await expect(page.locator('summary').filter({ hasText: c.reviewHelp.title })).toHaveCount(0)
+      expect(reads).toBe(0)
+    })
+  }
+  for (const width of [320, 390, 768, 1440]) for (const theme of ['light', 'dark']) {
+    test(`Review help is readable, keyboard reachable and truthful with a newer draft ${lang} ${width} ${theme}`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 })
+      const { changeSets: c } = await fixture(page, lang, 'C9D', 'guidanceNewer')
+      await page.evaluate(value => document.documentElement.classList.toggle('dark', value === 'dark'), theme)
+      await page.route('**/api/account/members', route => route.fulfill({ json: memberRead() }))
+      const summary = page.locator('summary').filter({ hasText: c.reviewHelp.title })
+      await expect(page.getByRole('heading', { name: c.sme.prepare, exact: true })).toBeVisible()
+      await summary.focus(); await page.keyboard.press('Enter')
+      await expect(page.getByText(c.reviewHelp.none, { exact: true })).toBeVisible()
+      const link = page.getByRole('link', { name: c.reviewHelp.members, exact: true })
+      await page.keyboard.press('Tab'); await expect(link).toBeFocused()
+      expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+      expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+      if ((lang === 'en' && width === 1440 && theme === 'light') || (lang === 'zh-HK' && width === 390 && theme === 'dark')) await page.screenshot({ path: `artifacts/ux/activation2-review-help-${lang}-${width}-${theme}-${testInfo.project.name}.png`, fullPage: true })
+    })
+  }
+}
