@@ -1,10 +1,11 @@
 import 'server-only'
 import { db } from '@/lib/db'
 import { validIds } from '@/lib/change-sets/store'
-import { projectOutcomeSnapshot } from './sources'
-import type { OutcomeInput, OutcomeScope } from './types'
+import { projectStoredOutcomeSnapshot } from './sources'
+import type { OutcomeScope } from './types'
+import type { StoredOutcomeInput } from './multi-source'
 
-export async function readOutcomeInput(scope: OutcomeScope): Promise<{kind:'ok';value:OutcomeInput}|{kind:'not_found'|'denied'|'unavailable'}> {
+export async function readOutcomeInput(scope: OutcomeScope): Promise<{kind:'ok';value:StoredOutcomeInput}|{kind:'not_found'|'denied'|'unavailable'}> {
  try {
   if (!validIds(scope.accountId, scope.actorId, scope.clientId, scope.itemId, scope.versionId)) return {kind:'unavailable'}
   const [accountId,actorId,clientId,itemId,versionId] = [scope.accountId,scope.actorId,scope.clientId,scope.itemId,scope.versionId].map(id=>id.toLowerCase())
@@ -23,6 +24,15 @@ export async function readOutcomeInput(scope: OutcomeScope): Promise<{kind:'ok';
       AND r.work_item_id = v.work_item_id AND r.version_id = v.id AND r.content_hash = v.content_hash
     WHERE v.account_id = ${accountId}::uuid AND v.client_id = ${clientId}::uuid AND v.work_item_id = ${itemId}::uuid
       AND v.id = ${versionId}::uuid AND EXISTS (SELECT 1 FROM owned)
+  ), frozen_sources AS MATERIALIZED (
+    SELECT f.snapshot FROM version v
+    CROSS JOIN LATERAL jsonb_array_elements(CASE
+      WHEN v.content -> 'schemaVersion' = '2'::jsonb
+        AND jsonb_typeof(v.content -> 'evidenceSnapshots') = 'array' THEN v.content -> 'evidenceSnapshots'
+      WHEN v.content -> 'schemaVersion' = '1'::jsonb THEN jsonb_build_array(v.content -> 'evidenceSnapshot')
+      ELSE '[]'::jsonb END) AS f(snapshot)
+    -- Query subjects may overlap; EXISTS below prevents duplicate candidate rows.
+    -- The projector validates the complete frozen package and retains original indices.
   ), history AS MATERIALIZED (
     SELECT e.* FROM work_item_delivery_events e JOIN version v ON e.account_id = v.account_id AND e.client_id = v.client_id
       AND e.work_item_id = v.work_item_id AND e.version_id = v.id AND e.content_hash = v.content_hash
@@ -31,20 +41,21 @@ export async function readOutcomeInput(scope: OutcomeScope): Promise<{kind:'ok';
     SELECT s.id,s.created_at,s.results -> 'evidence' AS envelope FROM scans s
     JOIN version v ON s.account_id = v.account_id AND s.client_id = v.client_id
     JOIN clients c ON c.id = s.client_id AND c.account_id = s.account_id
-    WHERE v.content #>> '{evidenceSnapshot,source,kind}' = 'scan-check'
-    -- All envelopes may contain the original check. Do not cast untrusted JSON time or discard malformed envelopes.
-    -- A 201st historical row prevents an exhaustive window claim, even if the first 200 are outside the intervals.
+    WHERE EXISTS (SELECT 1 FROM frozen_sources f WHERE f.snapshot #>> '{source,kind}' = 'scan-check')
+    -- All envelopes may contain an original check. Never cast JSON time or discard malformed envelopes.
+    -- One pool per kind, not per frozen source; the 201st row only witnesses truncation.
     ORDER BY s.created_at DESC NULLS LAST,s.id DESC LIMIT 201
   ), pulse_candidates AS MATERIALIZED (
     SELECT m.id,m.question,m.platform,m.prompt_id,m.created_at,m.brand_mentioned,
       coalesce(m.raw_answer ~ '[^[:space:]]',false) AS has_answer
     FROM pulse_metrics m JOIN version v ON m.client_id = v.client_id
     JOIN clients c ON c.id = m.client_id AND c.account_id = v.account_id
-    WHERE v.content #>> '{evidenceSnapshot,source,kind}' = 'pulse-metric'
-      AND m.question = v.content #>> '{evidenceSnapshot,evidence,question}'
-      AND m.platform = v.content #>> '{evidenceSnapshot,evidence,platform}'
-      AND ((v.content #>> '{evidenceSnapshot,evidence,promptId}') IS NULL
-        OR m.prompt_id::text = v.content #>> '{evidenceSnapshot,evidence,promptId}')
+    WHERE EXISTS (SELECT 1 FROM frozen_sources f
+      WHERE f.snapshot #>> '{source,kind}' = 'pulse-metric'
+        AND m.question = f.snapshot #>> '{evidence,question}'
+        AND m.platform = f.snapshot #>> '{evidence,platform}'
+        AND ((f.snapshot #>> '{evidence,promptId}') IS NULL
+          OR m.prompt_id::text = f.snapshot #>> '{evidence,promptId}'))
     ORDER BY m.created_at DESC NULLS LAST,m.id DESC LIMIT 201
   ) SELECT EXISTS (SELECT 1 FROM member) AS member,EXISTS (SELECT 1 FROM owned) AS owned,
     to_char(statement_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS evaluated_at,
@@ -67,6 +78,6 @@ export async function readOutcomeInput(scope: OutcomeScope): Promise<{kind:'ok';
   if (!row.owned || row.version === null) return {kind:'not_found'}
   if (row.version.account_id !== accountId || row.version.client_id !== clientId ||
       row.version.work_item_id !== itemId || row.version.id !== versionId) return {kind:'unavailable'}
-  return {kind:'ok',value:projectOutcomeSnapshot(row)}
+  return {kind:'ok',value:projectStoredOutcomeSnapshot(row)}
  } catch { return {kind:'unavailable'} }
 }

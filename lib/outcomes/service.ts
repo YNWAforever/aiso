@@ -4,6 +4,7 @@ import { getProfile } from '@/lib/auth'
 import { deliveryId } from '@/lib/delivery/input'
 import { parseOutcomeResponse } from './dto'
 import { evaluateOutcomes } from './evaluate'
+import { evaluateMultiSourceOutcomes, multiSourceOutcomeContext, parseMultiSourceOutcomeResponse } from './multi-source'
 import { readOutcomeInput } from './store'
 import type { OutcomeScope } from './types'
 
@@ -91,6 +92,10 @@ export async function getOutcomes(
       throw unavailable('projection')
     }
     try {
+      if ('schemaVersion' in value) {
+        if (value.schemaVersion !== 2) throw new TypeError('Invalid stored outcome schema')
+        return json(parseMultiSourceOutcomeResponse(evaluateMultiSourceOutcomes(value), multiSourceOutcomeContext(value)))
+      }
       return json(parseOutcomeResponse(evaluateOutcomes(value)))
     } catch {
       throw unavailable('projection')

@@ -2,8 +2,9 @@ import 'server-only'
 import { validIds, versionDTO } from '@/lib/change-sets/store'
 import { deliveryEventDTO } from '@/lib/delivery/dto'
 import { compareScanEvidence, readScanEvidence } from '@/lib/scan-evidence'
-import type { ScanSuggestionEvidence } from '@/lib/opportunities/types'
+import type { DraftEvidence, ScanSuggestionEvidence } from '@/lib/opportunities/types'
 import type { OutcomeInput, SafeEvidence } from './types'
+import type { MultiSourceOutcomeInput, StoredOutcomeInput } from './multi-source'
 import { OUTCOME_CANDIDATE_LIMIT, OUTCOME_REASON_CODES } from './types'
 import { utcMicros } from './time'
 
@@ -22,26 +23,39 @@ function time(value: unknown): string {
  return value
 }
 function nullableTime(value: unknown): string | null { return value === null ? null : time(value) }
-function scanReasons(baseline: ScanSuggestionEvidence, envelope: NonNullable<ReturnType<typeof readScanEvidence>>): string[] {
+type RetainedScan = { envelope: NonNullable<ReturnType<typeof readScanEvidence>>; comparison: ReturnType<typeof compareScanEvidence> }
+type ScanCache = Map<unknown, RetainedScan | null>
+function retainedScan(value: unknown, cache: ScanCache): RetainedScan | null {
+ if (cache.has(value)) return cache.get(value) ?? null
+ const envelope = readScanEvidence(value)
+ const result = envelope ? { envelope, comparison: compareScanEvidence(envelope, envelope) } : null
+ cache.set(value, result)
+ return result
+}
+function scanReasons(baseline: ScanSuggestionEvidence, envelope: NonNullable<ReturnType<typeof readScanEvidence>>, comparison = compareScanEvidence(envelope, envelope)): string[] {
  // The frozen baseline contains one check, not a full envelope. Never reconstruct it.
  // Self-comparison delegates current schema-wide limitations to the existing contract.
- const comparison = compareScanEvidence(envelope, envelope)
  const reasons = [...envelope.limitations.filter(reason => (OUTCOME_REASON_CODES as readonly string[]).includes(reason))]
  if (comparison.reason) reasons.push(comparison.reason)
  if (baseline.comparisonSignature !== envelope.comparisonSignature) reasons.push('different-methods-or-scope')
  if (baseline.check.collection !== 'complete') reasons.push('incomplete-collection')
  return [...new Set(reasons)]
 }
-/** Private SQL envelope -> safe policy input. Malformed primary state throws; malformed sources remain unavailable. */
-export function projectOutcomeSnapshot(value: unknown): OutcomeInput {
+
+/** Validate primary state once, independently of observation availability or source count. */
+function primary(value: unknown) {
  const row = record(value), rawVersion = record(row.version)
  if (row.member !== true || row.owned !== true) invalid()
  const version = versionDTO(rawVersion)
- // Multi-source versions (051, schemaVersion 2) are not yet supported here --
- // mirrors lib/delivery/export.ts's own `schemaVersion !== 1` guard, and for
- // the same reason: refuse explicitly rather than crash on
- // version.evidenceSnapshot being undefined once a v2 row can exist.
- if (version.schemaVersion !== 1) invalid()
+ // V2 primary calendars remain strict even when no delivery event references them.
+ // Leave the historical V1 decoder behavior unchanged.
+ if (version.schemaVersion === 2) {
+  time(version.submittedAt)
+  if (version.decision) {
+   time(version.decision.decidedAt)
+   id(record(rawVersion.decision_record).id)
+  }
+ }
  const accountId = id(rawVersion.account_id), clientId = id(rawVersion.client_id)
  const evaluatedAt = time(row.evaluated_at), now = utcMicros(evaluatedAt)
  if (!Array.isArray(row.events)) invalid()
@@ -67,19 +81,25 @@ export function projectOutcomeSnapshot(value: unknown): OutcomeInput {
  }
  const active = attestations.filter(e => !withdrawn.has(e.eventId))
  if (active.length > 1) invalid()
- const snapshot = version.evidenceSnapshot.evidence
- const baseline: SafeEvidence = snapshot.kind === 'pulse-metric'
+ const common: Pick<OutcomeInput, 'clientId' | 'itemId' | 'versionId' | 'contentHash' | 'evaluatedAt' | 'anchorState' | 'anchor'> = {
+  clientId, itemId: version.workItemId, versionId: version.id, contentHash: version.contentHash, evaluatedAt,
+  anchorState: active.length ? 'active' : attestations.length ? 'withdrawn' : 'no-delivery',
+  anchor: active[0] ? {id:active[0].eventId,deliveredAt:active[0].deliveredAt,recordedAt:active[0].recordedAt} : null,
+ }
+ return { row, version, common }
+}
+
+/** A frozen baseline is primary data: failures here must never become observation unavailability. */
+function frozenBaseline(snapshot: DraftEvidence): SafeEvidence {
+ return snapshot.kind === 'pulse-metric'
   ? { source: { kind: snapshot.kind, id: snapshot.id, checkKey: null }, recordedAt: nullableTime(snapshot.recordedAt), collectedAt: null,
       verdict: snapshot.result, reasons: ['collection-time-unknown','pulse-provenance-incomplete'] }
   : { source: { kind: snapshot.kind, id: snapshot.scanId, checkKey: snapshot.checkKey }, recordedAt: nullableTime(snapshot.recordedAt),
       collectedAt: nullableTime(snapshot.collectedAt), verdict: snapshot.check.assessment, reasons: [...new Set(['final-path-identity-withheld', ...snapshot.limitations.filter(reason => (OUTCOME_REASON_CODES as readonly string[]).includes(reason))])] }
- const result: OutcomeInput = {
-  clientId, itemId: version.workItemId, versionId: version.id, contentHash: version.contentHash, evaluatedAt,
-  anchorState: active.length ? 'active' : attestations.length ? 'withdrawn' : 'no-delivery',
-  anchor: active[0] ? {id:active[0].eventId,deliveredAt:active[0].deliveredAt,recordedAt:active[0].recordedAt} : null,
-  baseline, candidates: [], sourceState: 'ok', truncated: false,
- }
- const sources = snapshot.kind === 'pulse-metric' ? row.pulse : row.scans
+}
+
+function observations(snapshot: DraftEvidence, baseline: SafeEvidence, sources: unknown, scanCache?: ScanCache): Pick<OutcomeInput, 'candidates' | 'sourceState' | 'truncated'> {
+ const result: Pick<OutcomeInput, 'candidates' | 'sourceState' | 'truncated'> = { candidates: [], sourceState: 'ok', truncated: false }
  if (!Array.isArray(sources)) { result.sourceState = 'unavailable'; return result }
  result.truncated = sources.length > OUTCOME_CANDIDATE_LIMIT
  for (const raw of sources.slice(0, OUTCOME_CANDIDATE_LIMIT)) {
@@ -97,11 +117,12 @@ export function projectOutcomeSnapshot(value: unknown): OutcomeInput {
     safe.verdict = candidate.has_answer && typeof candidate.brand_mentioned === 'boolean' ? 'success' : 'incomplete'
     safe.reasons = ['collection-time-unknown','pulse-provenance-incomplete']
    } else {
-    const envelope = readScanEvidence(candidate.envelope)
+    const cached = scanCache ? retainedScan(candidate.envelope, scanCache) : null
+    const envelope = scanCache ? cached?.envelope : readScanEvidence(candidate.envelope)
     if (!envelope) invalid()
     safe.collectedAt = nullableTime(envelope.collectedAt)
     safe.verdict = envelope.checks[snapshot.checkKey].assessment
-    safe.reasons = scanReasons(snapshot, envelope)
+    safe.reasons = scanReasons(snapshot, envelope, cached?.comparison)
    }
   } catch {
    result.sourceState = 'unavailable'
@@ -110,4 +131,76 @@ export function projectOutcomeSnapshot(value: unknown): OutcomeInput {
   if (safe) result.candidates.push(safe)
  }
  return result
+}
+
+function singleSource(input: ReturnType<typeof primary>): OutcomeInput {
+ const { row, version, common } = input
+ // This legacy entrypoint stays narrow; only the stored dispatcher admits V2.
+ if (version.schemaVersion !== 1) invalid()
+ const snapshot = version.evidenceSnapshot.evidence
+ const baseline = frozenBaseline(snapshot)
+ return { ...common, baseline, ...observations(snapshot, baseline, snapshot.kind === 'pulse-metric' ? row.pulse : row.scans) }
+}
+
+/** Partition the shared bounded union before sameOutcomeSubject can see any Pulse row. */
+function pulsePartitions(snapshots: DraftEvidence[], sources: unknown) {
+ const rows: unknown[][] = snapshots.map(() => [])
+ let unavailable = !Array.isArray(sources)
+ const truncated = Array.isArray(sources) && sources.length > OUTCOME_CANDIDATE_LIMIT
+ if (Array.isArray(sources)) for (const raw of sources.slice(0, OUTCOME_CANDIDATE_LIMIT)) {
+  try {
+   const candidate = record(raw)
+   if (typeof candidate.question !== 'string' || typeof candidate.platform !== 'string' ||
+       (candidate.prompt_id !== null && typeof candidate.prompt_id !== 'string')) invalid()
+   let matched = false
+   snapshots.forEach((snapshot, index) => {
+    if (snapshot.kind === 'pulse-metric' && candidate.question === snapshot.question && candidate.platform === snapshot.platform &&
+        (snapshot.promptId === null || candidate.prompt_id === snapshot.promptId)) {
+     rows[index].push(raw)
+     matched = true
+    }
+   })
+   // A SQL union row with no addressable frozen subject cannot justify empty success.
+   if (!matched) unavailable = true
+  } catch { unavailable = true }
+ }
+ return { rows, unavailable, truncated }
+}
+
+function multiSource(input: ReturnType<typeof primary>): MultiSourceOutcomeInput {
+ const { row, version, common } = input
+ if (version.schemaVersion !== 2) invalid()
+ const snapshots = version.evidenceSnapshots.map(snapshot => snapshot.evidence)
+ // The whole package (including baseline calendars) must validate before local candidate catches.
+ const baselines = snapshots.map(frozenBaseline)
+ const pulse = pulsePartitions(snapshots, row.pulse)
+ // V2-only, read-local: reuse envelope validation, never a source-specific verdict/reason.
+ const scanCache: ScanCache = new Map()
+ return {
+  ...common, schemaVersion: 2,
+  sources: snapshots.map((snapshot, sourceIndex) => {
+   const baseline = baselines[sourceIndex]
+   const projected = observations(snapshot, baseline, snapshot.kind === 'pulse-metric' ? pulse.rows[sourceIndex] : row.scans, scanCache)
+   if (snapshot.kind === 'pulse-metric') {
+    projected.truncated = pulse.truncated
+    if (pulse.unavailable) projected.sourceState = 'unavailable'
+   }
+   return { sourceIndex, baseline, ...projected }
+  }),
+ }
+}
+
+/** Legacy private SQL envelope -> V1 policy input. Never silently projects V2 to V1. */
+export function projectOutcomeSnapshot(value: unknown): OutcomeInput {
+ return singleSource(primary(value))
+}
+
+export function projectMultiSourceOutcomeSnapshot(value: unknown): MultiSourceOutcomeInput {
+ return multiSource(primary(value))
+}
+
+/** One validated primary snapshot, then an explicit frozen-schema dispatch. */
+export function projectStoredOutcomeSnapshot(value: unknown): StoredOutcomeInput {
+ const input = primary(value)
+ return input.version.schemaVersion === 1 ? singleSource(input) : multiSource(input)
 }
