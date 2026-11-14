@@ -16,7 +16,7 @@ export async function prepareComponentFixtures(root, environment = process.env, 
   await mkdir(output,{recursive:true})
   await writeFile(join(output,'build.css'),(await Promise.all(cssFiles.map(file=>readFile(join(chunks,file),'utf8')))).join('\n'))
   const env = {...environment}
-  const slices = ['C8A','C8B','C8C','C8G','C9A','C9B','C9C','C9C_DRAFT','C9D','C9D_APPROVERS','C9E','C9F','AISO_SOURCES','AISO_ONBOARDING','AISO_ADMIN','AISO_PRIORITY','PROMPT_BANK','AUTH_RETURN','AISO_FIRST_PULSE','AISO_AUDIT_LOOP','AISO_SHELL','AISO_REPORT','AISO_SCAN_UX','STUDIO']
+  const slices = ['C8A','C8B','C8C','C8G','C9A','C9B','C9C','C9C_DRAFT','C9D','C9D_APPROVERS','C9E','C9F','C9J','AISO_SOURCES','AISO_ONBOARDING','AISO_ADMIN','AISO_PRIORITY','PROMPT_BANK','AUTH_RETURN','AISO_FIRST_PULSE','AISO_AUDIT_LOOP','AISO_SHELL','AISO_REPORT','AISO_SCAN_UX','STUDIO']
   for(const slice of slices) {
     env[`${slice}_HTML_DIR`] = join(output,slice)
     env[`${slice}_CSS_PATH`] = join(output,'build.css')
@@ -30,6 +30,7 @@ export async function prepareComponentFixtures(root, environment = process.env, 
   files.push('__tests__/components/conversation-studio.test.tsx')
   files.push('__tests__/components/studio-shell-fixture.test.tsx')
   files.push('__tests__/components/today-saved-work-render.test.tsx')
+  files.push('__tests__/components/journey-render.test.tsx')
   const result = run(process.execPath,[join(root,'node_modules/vitest/vitest.mjs'),'run',...files,'--maxWorkers=1'],{cwd:root,env,stdio:'inherit'})
   if(result.error || result.status !== 0) throw new Error('Component fixture renderer failed')
 }

@@ -260,6 +260,8 @@ jobs:
           C9E_CSS_PATH: .next/component-fixtures/build.css
           C9F_HTML_DIR: .next/component-fixtures/C9F
           C9F_CSS_PATH: .next/component-fixtures/build.css
+          C9J_HTML_DIR: .next/component-fixtures/C9J
+          C9J_CSS_PATH: .next/component-fixtures/build.css
           AISO_SOURCES_HTML_DIR: .next/component-fixtures/AISO_SOURCES
           AISO_SOURCES_CSS_PATH: .next/component-fixtures/build.css
           AISO_ONBOARDING_HTML_DIR: .next/component-fixtures/AISO_ONBOARDING
