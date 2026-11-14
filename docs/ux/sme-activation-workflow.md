@@ -72,6 +72,23 @@ unconfirmed or stale authority adds no recovery advice. Existing independently
 authorized live-check behavior remains intact; an unknown outcome never becomes
 resend authority.
 
+## Controlled journey implementation
+
+The acceptance work reuses actual components behind a closed sample transport.
+Its Node factory derives a genuine scan suggestion and canonical draft snapshot,
+then freezes the actual saved draft with the existing review freezer. Two browser
+contexts operate on the same draft/version/hash and different sample actors;
+this is controlled UI evidence, not real authentication or grants. Outcome reads
+must visibly match the active delivery anchor/version/hash after recording and
+reload, with all three immediate windows not due and no selected observation.
+
+The standalone files embed actual CSS/runtime/messages and finite exact Node-frozen
+sample revisions. Unsupported edits do not acquire a sample hash, and unsupported
+routes/downloads/providers report their limits. Node crypto remains outside the
+client graph. Reproduction, provenance and omitted layout context are in the
+[preview guide](sme-activation-preview.md); participant tasks and blank observations
+are in the [SME script](sme-activation-usability.md). Human acceptance is pending.
+
 ## Contracts and release gates
 
 No new public API/write inputs, schema/migrations, task statuses, role grants,
