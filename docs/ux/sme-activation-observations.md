@@ -35,7 +35,9 @@ Give one task at a time. Record the prompt used, elapsed time and exact actions
 before inferring why something happened. Do not point to a button or explain its
 technical meaning during an independent attempt. Help is permitted after recording
 the unaided outcome; record the exact hint and subsequent assisted outcome.
-The source's fixed 2026-11-14 UTC delivery time is sample data, not the trial date.
+The supported UTC delivery instant printed in the particular sample is fictional
+sample data, not the trial date. The main V2 sample uses 2026-10-24; explicitly
+prefixed legacy V1 samples retain 2026-11-14.
 
 The main scenario requires task 2 to submit the review and task 4 to approve the
 supplied acceptable content before manual tasks 5/6. These are scenario conditions,

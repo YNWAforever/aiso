@@ -12,6 +12,7 @@ import { DraftEditor } from '@/components/work-items/DraftEditor'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { draft, clientId, version, initial } from './c9d-fixtures'
+const outcomeViewerKey = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
 const render = (node: React.ReactNode, lang = 'en') =>
   renderToString(
     <NextIntlClientProvider
@@ -25,7 +26,7 @@ const render = (node: React.ReactNode, lang = 'en') =>
 describe('change set rendering', () => {
   it.each(['en', 'zh-HK'])('SME starts with no selected decision and keeps the full source accessible in %s', lang => {
     const copy = (lang === 'en' ? en : zh).changeSets
-    const html = render(<VersionWorkspace clientId={clientId} workItemId={draft.id} initialDraft={draft} initial={initial} initialVersion={version} smeCopilot />, lang)
+    const html = render(<VersionWorkspace outcomeViewerKey={outcomeViewerKey} clientId={clientId} workItemId={draft.id} initialDraft={draft} initial={initial} initialVersion={version} smeCopilot />, lang)
     expect(html).toContain('value="" selected=""')
     expect(html).toContain(copy.sme.chooseDecision)
     expect(html).toMatch(new RegExp(`<button[^>]*disabled=""[^>]*>${copy.recordDecision}</button>`))
@@ -35,7 +36,7 @@ describe('change set rendering', () => {
     const snapshot = version.schemaVersion === 1 ? version.evidenceSnapshot : version.evidenceSnapshots[0]
     expect(html).toContain(snapshot.evidence.kind === 'pulse-metric' ? snapshot.evidence.answerDigest : snapshot.evidence.comparisonSignature)
     expect(html).not.toContain('<script>')
-    const legacy = render(<VersionWorkspace clientId={clientId} workItemId={draft.id} initialDraft={draft} initial={initial} initialVersion={version} />, lang)
+    const legacy = render(<VersionWorkspace outcomeViewerKey={outcomeViewerKey} clientId={clientId} workItemId={draft.id} initialDraft={draft} initial={initial} initialVersion={version} />, lang)
     expect(legacy).toContain('value="approved" selected=""')
     expect(legacy).not.toContain(copy.sme.chooseDecision)
   })
@@ -85,7 +86,7 @@ describe('change set rendering', () => {
     'shows persisted draft submission and immutable package separately in %s',
     (lang) => {
       const html = render(
-        <VersionWorkspace
+        <VersionWorkspace outcomeViewerKey={outcomeViewerKey}
           clientId={clientId}
           workItemId={draft.id}
           initialDraft={draft}
@@ -105,7 +106,7 @@ describe('change set rendering', () => {
   )
   it('never offers submission without a persisted draft', () => {
     const html = render(
-      <VersionWorkspace
+      <VersionWorkspace outcomeViewerKey={outcomeViewerKey}
         clientId={clientId}
         workItemId={draft.id}
         initialDraft={null}
@@ -147,7 +148,7 @@ describe('change set rendering', () => {
 import { afterAll } from 'vitest'
 import { writeC9cFixture } from './c9c-fixture-writer'
 const fixtureProps = {
-  clientId,
+  clientId, outcomeViewerKey,
   workItemId: draft.id,
   initialDraft: draft,
   initial,

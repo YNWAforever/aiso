@@ -5,9 +5,13 @@ baseline was actual main `73e97904550eff953ef70bf0ed74c62ea4b3eab3`, recorded in
 [activation receipt](https://github.com/YNWAforever/aiso/pull/267#issuecomment-6874734189).
 PR1 is released at actual main `4db3dc3870a2fb530596d4774354235b9409b5c8`; its
 [readiness and trial-preparation receipt](https://github.com/YNWAforever/aiso/pull/268#issuecomment-6876748360)
-keeps human usability pending. PR2 implements the read-only backend contract below;
-PR3 owner presentation and the multi-source sample remain follow-on work. Code and
-tests do not replace the exact deployment receipt or actual participant observations.
+keeps human usability pending. Backend PR2 is released at actual main
+`23f5c1c88f34f3ea923256bd84be3f82bf05995d`; its
+[read-only V2 release receipt](https://github.com/YNWAforever/aiso/pull/269#issuecomment-6879134223)
+records the exact CI/merged tree/Ready production schema and guarded-read evidence.
+PR3 starts from that actual main and implements owner presentation and the
+[genuine multi-source sample](sme-outcome-preview.md). Code and tests do not replace
+the particular release receipt or actual participant observations.
 
 The owner should be able to finish a work item and explain what evidence exists,
 what is missing and what to do next. At the baseline, frozen V2 work could be
@@ -21,7 +25,7 @@ reviewed and exported but the stored-outcome projector accepted only V1. The
 | PR | Deliverable | Completion evidence |
 | --- | --- | --- |
 | 1: baseline — released #268 | Synchronize #267 release facts; dated capability/readiness ledger; blank trial observations and issue triage | Source/callee audit, two closed independent reviews, exact CI/merged tree/Ready schema log and 52 guarded canonical views; human records remain blank |
-| 2: backend | Read-only V2 stored outcomes, one result per frozen source, bounded reads and V1 compatibility | Contract/policy tests and disposable SQL integration; no production business write |
+| 2: backend — released #269 | Read-only V2 stored outcomes, one result per frozen source, bounded reads and V1 compatibility | 9,330 unit, 443 combined integration and 2,618 browser CI cases without skips; equal candidate/tested/actual trees, exact Ready schema107, 52 guarded views and six inspected screenshots; no production business write |
 | 3: owner journey | Per-source V2 outcome presentation, actual-component offline sample and continuous V2 regression | Both locales/themes, independent actor views, errors/reload/withdrawal, inspected layouts and release evidence |
 
 Each PR starts from the preceding actual merged main in an isolated worktree.
@@ -130,6 +134,36 @@ multi-source draft, independent review, self-reported delivery, per-source outco
 reload and withdrawal. Cover mixed kinds, duplicate sources, unavailable data,
 truncation, old callbacks and read errors. The offline actor selector is still a
 demonstration control, not authentication or permission proof.
+
+The [selected-context client](../../lib/outcomes/client-context.ts) derives expected
+source references from the parsed selected frozen evidence, preserving order and
+duplicates. A local read key includes client/item/version/hash/schema, every
+ordered reference, the server-known viewer identity and refresh/retry counters.
+That viewer key is not sent as a URL parameter or authority header. Rendering hides
+the former context before effect cleanup; scheduled reads, abort and request
+generation guard late completion. V1 keeps its narrow decoder and admitted
+null-baseline states; V2 uses the required-context decoder before any source renders.
+A malformed whole response clears all outcome results, while a valid per-source
+unavailable state retains valid siblings.
+
+The [V2 owner view](../../components/outcomes/MultiSourceOutcomeWindows.tsx) uses
+frozen friendly titles, unique ordinal labels and a shared neutral comparison
+limitation. It does not promise the same comparison method for a Pulse or
+unavailable package. Invalid baseline, unavailable/limited evidence, uncertain
+timing and provisional state precede movement; inadmissible raw improvement stays
+in audit details. Pulse remains unranked. The existing V1 renderer and its exact
+reason vocabulary stay unchanged.
+
+The [V2 preview guide](sme-outcome-preview.md) separates three explicit cases:
+mixed/duplicate V2, one-source V2 and legacy V1. Portable inputs are genuinely
+Node-projected and bind full frozen content/hash/submission/scope/schema/clock/profile;
+current delivery state comes from the actual local history. The standalone sample
+supports two alternative first submissions, one prepared version, the canonical
+declared delivery instant and two attestations with their withdrawals. A separate
+Node callback path supports genuine edited later versions for history witnesses.
+Neither the supplied sources nor controlled actor selector proves source attachment
+UX, production membership or permissions. Clock/profile controls change local
+sample state; the owner uses the existing outcomes GET Refresh to read it.
 
 ## Verification and release
 

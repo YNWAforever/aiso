@@ -7,18 +7,20 @@ import type { VersionDetail } from '@/lib/change-sets/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 export const version = approvedVersion()
 export const clientId = '123e4567-e89b-42d3-a456-426614174004'
+// Known controlled reader identity; this is neither an authenticated session nor a submitter-derived capability.
+export const outcomeViewerKey = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
 export const draft: WorkItem = { id: version.workItemId, clientId, status: 'draft', revision: 1,
   title: version.title, action: version.action, notes: version.notes, locale: version.locale,
   evidenceSnapshot: version.evidenceSnapshot, createdAt: version.submittedAt, updatedAt: version.submittedAt }
 export const older = { ...version, id: '123e4567-e89b-42d3-a456-426614174005' }
-export const fixtureProps = { clientId, workItemId: draft.id, initialDraft: draft,
+export const fixtureProps = { clientId, outcomeViewerKey, workItemId: draft.id, initialDraft: draft,
   initial: { versions: [version, older], latestVersionId: version.id, nextCursor: null }, initialVersion: version }
 const pendingVersion = { ...version, decision: null, capabilities: { canDecide: true } }
 export const pendingProps = { ...fixtureProps,
   initial: { ...fixtureProps.initial, versions: [pendingVersion, older] }, initialVersion: pendingVersion }
 
 function smeDeliveryProps(saved: VersionDetail, brandId = clientId): VersionWorkspaceProps {
-  return { clientId: brandId, workItemId: saved.workItemId,
+  return { clientId: brandId, outcomeViewerKey, workItemId: saved.workItemId,
     initialDraft: { ...draft, clientId: brandId, id: saved.workItemId, title: saved.title, action: saved.action, notes: saved.notes, locale: saved.locale, revision: saved.draftRevision, editSpec: saved.editSpec },
     initial: { versions: [saved], latestVersionId: saved.id, nextCursor: null }, initialVersion: saved, smeCopilot: true }
 }

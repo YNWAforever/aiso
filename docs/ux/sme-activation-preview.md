@@ -1,6 +1,13 @@
 # Controlled SME journey preview
 
-This sample connects actual Today, draft, review, manual-delivery and stored-outcome components around fictitious Harbour Tea data. It supports inspecting work, submitting an exact sample revision, switching the sample reviewer view, recording a decision, and declaring one manual delivery. It does not authenticate users, grant permissions, persist business records, verify a website, contact providers or collect new outcome evidence. Package downloads and other application destinations are outside the sample and report that limitation explicitly.
+The original activation journey was released as V1 in #267. The current generator
+uses the mixed/duplicate V2 example as its main English/zh-HK entry and also emits
+explicit one-source V2 and legacy V1 files. See the
+[V2 preview guide](sme-outcome-preview.md) for their filenames, supported fictional
+UTC timeline, record choices and correction bounds. The layers below describe the
+shared controlled journey; dated #267 results remain that release's evidence.
+
+This sample connects actual Today, draft, review, manual-delivery and stored-outcome components around fictitious Harbour Tea data. It supports inspecting work, submitting an exact sample revision, switching the sample reviewer view, recording a decision, and declaring a manual delivery with a bounded withdrawal/replacement exercise. It does not authenticate users, grant permissions, persist business records, verify a website, contact providers or collect new outcome evidence. Package downloads and other application destinations are outside the sample and report that limitation explicitly.
 
 The short participant tasks and blank observation table are in [the SME trial script](sme-activation-usability.md). The [observation template](sme-activation-observations.md) adds consistent scoring, actual cohort denominators and issue triage. **Human usability remains pending** until actual participant observations exist.
 
@@ -52,6 +59,11 @@ The environment-prefix example uses a POSIX shell; set the same variables with `
 
 The manifest records artifact hashes, checkout SHA, package-lock hash, source hashes, client module-graph exclusions, genuine Node freezer witnesses, omitted Today peripherals and reproduction commands. Final release artifacts must be generated from the verified release checkout; a development artifact's base SHA alone does not establish the bytes of uncommitted edits.
 
-Today is actual server-rendered BrandToday markup with the established translation seam. The omitted next/font layout variable uses local Arial, retaining the existing platform CJK fallback stack without external font requests; this is not exact Inter typography evidence. Peripheral ask/report/stats/chart/progress children are omitted from this bounded preview. The browser bundle rejects server-only, Node crypto, database and scenario-factory modules. A separate Node-only freezer bundle retains real crypto and uses a throwing database stub, so future accidental database calls fail closed. No production source or auth boundary is changed.
+Today is actual server-rendered BrandToday markup with the established translation seam. The omitted next/font layout variable uses local Arial and the existing platform CJK fallback stack. Standalone HTML omits production font-face declarations from its embedded CSS so the unchanged font-blocking CSP causes no font-load attempts; the manifest retains the production CSS hash, embedded CSS hash and omitted-font-face count. This is not exact Inter typography evidence. Peripheral ask/report/stats/chart/progress children are omitted from this bounded preview. The browser bundle rejects server-only, Node crypto, database and scenario-factory modules. A separate Node-only freezer bundle retains real crypto and uses a throwing database stub, so future accidental database calls fail closed. Those fixture guards do not modify production source or authentication boundaries.
 
-The sample clock follows submission, approval and declared delivery. A new declaration stays `self_reported`; its immediate outcome windows are not due and contain no later observation. It does not imply publication verification, a seven-day result or causal improvement.
+The early sample clock follows submission, approval and declared delivery. A new
+declaration stays `self_reported`; its immediate windows are not due. V2 also has an
+explicit later fictional clock: the owner refreshes stored outcomes to read the
+retained D7 Scan observation, keeping partial comparability and unranked Pulse.
+Clock/profile controls do not remount review forms or automatically fetch. This
+does not imply publication verification, new collection or causal improvement.

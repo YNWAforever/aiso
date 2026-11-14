@@ -25,6 +25,8 @@ export type VersionWorkspaceProps = {
   initialError?: string
   smeCopilot?: boolean
   viewerProfileId?: string
+  /** Local outcome read identity; independent of SME review-help presentation and never sent as authority. */
+  outcomeViewerKey: string
 }
 
 function sameVersion(left: VersionSummary, right: VersionSummary): boolean {
@@ -73,7 +75,7 @@ export function VersionWorkspace(props: VersionWorkspaceProps) {
 }
 function ScopedVersionWorkspace({
   clientId, workItemId, initialDraft, initial, initialVersion = null,
-  initialError = '', smeCopilot = false, viewerProfileId,
+  initialError = '', smeCopilot = false, viewerProfileId, outcomeViewerKey,
 }: VersionWorkspaceProps) {
   const t = useTranslations('changeSets'), lang = useLocale()
   const [seed] = useState(() => {
@@ -378,7 +380,7 @@ function ScopedVersionWorkspace({
         </div>}
       </details>
     </div> : <>{handoff}{manualDelivery}</>}
-    <OutcomeWorkspace clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} smeCopilot={smeCopilot} versionSchema={selected.schemaVersion} />
+    <OutcomeWorkspace clientId={clientId} itemId={workItemId} version={selected} viewerKey={outcomeViewerKey} refreshKey={outcomeRefresh} smeCopilot={smeCopilot} />
   </>
   const stage = !historyAvailable ? 'unavailable' : canFreeze ? 'sme.prepare' : historical ? 'sme.historical'
     : latest?.decision?.decision === 'approved' ? 'sme.approved' : latest?.decision?.decision === 'changes_requested' ? 'sme.revise'

@@ -11,10 +11,10 @@ import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import type { WorkspaceHome } from '@/lib/view-models/workspace-home'
 import { taskStatus } from '@/lib/tasks/status'
-import { JourneyFixture, journeyDestination, type JourneyFixtureProps } from '../sme-journey/JourneyFixture'
+import { JourneyFixture, journeyCopy, journeyDestination, type JourneyFixtureProps } from '../sme-journey/JourneyFixture'
 import { JourneyMemory } from '../sme-journey/transport'
-import { createJourneyScenario } from '../sme-journey/scenario.node'
-import type { JourneyActor, JourneyScenario, JourneyStage } from '../sme-journey/types'
+import { createJourneyCallbacks, createJourneyScenario, projectJourneyInput, projectJourneyOutcomes } from '../sme-journey/scenario.node'
+import type { JourneyActor, JourneyKind, JourneyScenario, JourneyStage } from '../sme-journey/types'
 
 const copy = vi.hoisted(() => ({ lang: 'en' as 'en' | 'zh-HK' }))
 vi.mock('server-only', () => ({}))
@@ -62,7 +62,8 @@ async function todayStates(scenario: JourneyScenario): Promise<Record<JourneySta
 
 function reviewProps(scenario: JourneyScenario, actor: JourneyActor, stage: JourneyStage): JourneyFixtureProps {
   // R1/R2 are alternative first submissions, not version-number history.
-  const memory = new JourneyMemory({ ...scenario, draft: scenario.canonicalDrafts[1] })
+  const selectedScenario = { ...scenario, draft: scenario.canonicalDrafts[1] }
+  const memory = new JourneyMemory(selectedScenario, createJourneyCallbacks(selectedScenario))
   const base = `/api/clients/${scenario.ids.clientId}/work-items/${scenario.ids.itemId}/versions`
   if (stage !== 'draft') {
     expect(memory.request({ actor: 'owner', method: 'POST', path: base, body: { expectedRevision: scenario.canonicalDrafts[1].revision } }).status).toBeLessThan(300)
@@ -91,9 +92,40 @@ async function packets(scenario: JourneyScenario) {
   }
 }
 
-describe.each(['en', 'zh-HK'] as const)('controlled journey rendering %s', lang => {
+type NodeJourneyFactory = Pick<typeof import('../sme-journey/scenario.node'), 'createJourneyScenario' | 'freezeJourneyDraft' | 'createJourneyCallbacks' | 'projectJourneyInput' | 'projectJourneyOutcomes'>
+function verifyEmittedNodeProjection(factory: NodeJourneyFactory, scenario: JourneyScenario): number {
+  const source = createJourneyCallbacks(scenario), emitted = factory.createJourneyCallbacks(scenario)
+  expect(emitted.freeze!(scenario.canonicalDrafts[1], 1, scenario.review, scenario.timeline.submittedAt)).toEqual(scenario.canonicalVersions[1])
+  const selected = { ...scenario, draft: scenario.canonicalDrafts[1] }, memory = new JourneyMemory(selected, source)
+  const base = `/api/clients/${scenario.ids.clientId}/work-items/${scenario.ids.itemId}/versions`
+  expect(memory.request({ actor: 'owner', method: 'POST', path: base, body: { expectedRevision: memory.draft.revision } }).status).toBe(201)
+  const path = `${base}/${memory.versions[0].id}`
+  expect(memory.request({ actor: 'reviewer', method: 'POST', path: path + '/decision', body: {
+    decision: 'approved', reason: 'Controlled CJS projection witness', requestId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  } }).status).toBe(201)
+  expect(memory.request({ actor: 'owner', method: 'POST', path: path + '/delivery', body: {
+    contentHash: memory.versions[0].contentHash, destination: 'Controlled sample', deliveredAt: scenario.deliveredAt,
+    note: 'Controlled Node projection only', requestId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  } }).status).toBe(201)
+  let checked = 0
+  for (const clock of ['early', 'mature-d7'] as const) {
+    memory.setClock(clock)
+    for (const profile of ['stored', 'unavailable-scan', 'limited-scan', 'diagnostic-heavy'] as const) {
+      memory.setObservationProfile(profile)
+      const snapshot = memory.outcomeSnapshot(memory.versions[0].id)
+      expect(factory.projectJourneyInput(scenario, snapshot)).toEqual(projectJourneyInput(scenario, snapshot))
+      expect(factory.projectJourneyOutcomes(scenario, snapshot)).toEqual(projectJourneyOutcomes(scenario, snapshot))
+      expect(emitted.outcomes!(snapshot)).toEqual(source.outcomes!(snapshot))
+      checked++
+    }
+  }
+  return checked
+}
+
+const journeyKinds: readonly JourneyKind[] = ['v1-scan', 'v2-mixed', 'v2-one-scan']
+describe.each(journeyKinds.flatMap(kind => (['en', 'zh-HK'] as const).map(lang => ({ kind, lang }))))('controlled journey rendering $kind $lang', ({ kind, lang }) => {
   it('accepts only exact sample destinations and never discards an unsupported query', () => {
-    const scenario = createJourneyScenario(lang), base = `/${lang}/dashboard/${scenario.ids.clientId}`
+    const scenario = createJourneyScenario(lang, kind), base = `/${lang}/dashboard/${scenario.ids.clientId}`
     expect(journeyDestination(base, scenario)).toBe('today')
     expect(journeyDestination(`${base}/opportunities`, scenario)).toBe('draft')
     expect(journeyDestination(`${base}/opportunities?draft=${scenario.ids.itemId}`, scenario)).toBe('draft')
@@ -108,14 +140,14 @@ describe.each(['en', 'zh-HK'] as const)('controlled journey rendering %s', lang 
     ]) expect(journeyDestination(href, scenario)).toBeNull()
   })
   it('renders actual Today and draft runtime with friendly sample data and exact native destinations', async () => {
-    const scenario = createJourneyScenario(lang), all = await packets(scenario)
+    const scenario = createJourneyScenario(lang, kind), all = await packets(scenario)
     expect(render(all.today)).toContain(scenario.brandName)
     expect(render(all.today)).toContain(`/${lang}/dashboard/${scenario.ids.clientId}/opportunities?draft=${scenario.ids.itemId}`)
     expect(render(all.draft)).toContain(messages(lang).opportunities.sme.title)
     expect(render(all.today)).not.toMatch(/<script>|alert\(1\)|verified_live/)
   })
   it('starts the edited canonical draft with no frozen version and preserves actual actor-specific review gates', async () => {
-    const all = await packets(createJourneyScenario(lang))
+    const all = await packets(createJourneyScenario(lang, kind))
     expect(all['owner-prepare'].versionProps?.initialVersion).toBeNull()
     expect(all['owner-prepare'].versionProps?.initial?.versions).toEqual([])
     expect(render(all['owner-prepare'])).toContain(messages(lang).changeSets.submitVersion)
@@ -127,7 +159,7 @@ describe.each(['en', 'zh-HK'] as const)('controlled journey rendering %s', lang 
     expect(render(all['owner-delivered'])).toContain(messages(lang).outcomes.title)
   })
   it('renders the standalone sample honestly with exact supported alternative draft text', async () => {
-    const scenario = createJourneyScenario(lang), all = await packets(scenario)
+    const scenario = createJourneyScenario(lang, kind), all = await packets(scenario)
     const html = render(all.preview)
     expect(html).toContain(scenario.canonicalDrafts[1].title)
     expect(html).toContain(scenario.deliveredAt)
@@ -142,6 +174,12 @@ afterAll(async () => {
   const cssPath = process.env.C9J_CSS_PATH
   if (!cssPath) throw new Error('C9J_CSS_PATH must identify actual final build CSS')
   const css = readFileSync(cssPath, 'utf8')
+  // The standalone omits next/font's layout classes and uses local fallback fonts.
+  // Keep the production CSS artifact intact; omit its font-face declarations only
+  // from the embedded offline stylesheet rather than weakening font-src 'none'.
+  const fontFaces = css.match(/@font-face\s*\{[^{}]*\}/g) ?? []
+  const standaloneCss = css.replace(/@font-face\s*\{[^{}]*\}/g, '')
+  if (/@font-face\b/.test(standaloneCss)) throw new Error('A font-face rule remains in the offline stylesheet')
   mkdirSync(directory, { recursive: true })
   const result = await build({
     configFile: false, envDir: false, logLevel: 'warn', oxc: { jsx: { development: false } },
@@ -155,7 +193,7 @@ afterAll(async () => {
   const outputs = Array.isArray(result) ? result : [result]
   const chunk = outputs.flatMap(output => 'output' in output ? output.output : []).find(output => output.type === 'chunk')
   if (!chunk || chunk.type !== 'chunk') throw new Error('Actual journey runtime bundle was not generated')
-  const forbiddenClientModules = chunk.moduleIds.filter(id => /(?:node:|server-only|\/lib\/db\.|\/scenario\.node\.)/.test(id.replaceAll('\\', '/')))
+  const forbiddenClientModules = chunk.moduleIds.filter(id => /(?:node:|server-only|browser-external|\/lib\/db\.|\/scenario\.node\.|\/projection\.node\.)/.test(id.replaceAll('\\', '/')))
   if (forbiddenClientModules.length) throw new Error(`Server modules reached the client bundle: ${forbiddenClientModules.join(', ')}`)
   if (chunk.moduleIds.some(id => id.includes('jsx-dev-runtime'))) throw new Error('Development JSX runtime reached the production client bundle')
   const bundle = chunk.code
@@ -181,26 +219,34 @@ afterAll(async () => {
   if (!nodeChunk || nodeChunk.type !== 'chunk') throw new Error('Actual Node scenario freezer bundle was not generated')
   const nodeBundlePath = join(resolve(directory), 'scenario-freezer.cjs')
   writeFileSync(nodeBundlePath, nodeChunk.code)
-  const nodeFactory = createRequire(import.meta.url)(nodeBundlePath) as { createJourneyScenario: typeof createJourneyScenario; freezeJourneyDraft: (draft: JourneyScenario['draft']) => JourneyScenario['canonicalVersions'][number] }
+  const nodeFactory = createRequire(import.meta.url)(nodeBundlePath) as NodeJourneyFactory
   const artifacts: Record<string, string> = { 'fixture.js': sha(bundle), 'scenario-freezer.cjs': sha(nodeChunk.code), 'build.css': sha(css) }
-  for (const lang of ['en', 'zh-HK'] as const) {
-    const scenario = createJourneyScenario(lang), all = await packets(scenario)
-    expect(nodeFactory.createJourneyScenario(lang)).toEqual(scenario)
-    expect(nodeFactory.freezeJourneyDraft(scenario.canonicalDrafts[1])).toEqual(scenario.canonicalVersions[1])
+  let projectedSnapshotsChecked = 0
+  for (const lang of ['en', 'zh-HK'] as const) for (const kind of journeyKinds) {
+    const prefix = kind === 'v2-mixed' ? lang : `${lang}-${kind}`
+    const sampleCopy = safeJson(journeyCopy[lang])
+    writeFileSync(join(directory, `${lang}-journey-copy.json`), sampleCopy)
+    artifacts[`${lang}-journey-copy.json`] = sha(sampleCopy)
+    const scenario = createJourneyScenario(lang, kind), all = await packets(scenario)
+    expect(nodeFactory.createJourneyScenario(lang, kind)).toEqual(scenario)
+    if (kind === 'v1-scan') expect(nodeFactory.freezeJourneyDraft(scenario.canonicalDrafts[1])).toEqual(scenario.canonicalVersions[1])
+    projectedSnapshotsChecked += verifyEmittedNodeProjection(nodeFactory, scenario)
     const scenarioJson = safeJson(scenario)
-    writeFileSync(join(directory, `${lang}-scenario.json`), scenarioJson)
-    artifacts[`${lang}-scenario.json`] = sha(scenarioJson)
+    writeFileSync(join(directory, `${prefix}-scenario.json`), scenarioJson)
+    artifacts[`${prefix}-scenario.json`] = sha(scenarioJson)
     for (const [name, props] of Object.entries(all)) {
       const payload = `<div id="root">${render(props)}</div><script id="fixture-props" type="application/json">${safeJson({ props, messages: messages(lang) })}</script>`
-      const html = name !== 'preview' ? payload : `<!doctype html><html lang="${lang}" class="light" style="--font-inter:Arial"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>${lang === 'en' ? 'Controlled SME sample' : '受控中小企示例'}</title><style>${css.replace(/<\/style/gi, '<\\/style')}</style></head><body>${payload}<script>${bundle.replace(/<\/script/gi, '<\\/script')}</script></body></html>`
-      writeFileSync(join(directory, `${lang}-${name}.html`), html)
-      artifacts[`${lang}-${name}.html`] = sha(html)
+      const html = name !== 'preview' ? payload : `<!doctype html><html lang="${lang}" class="light" style="--font-inter:Arial"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>${lang === 'en' ? 'Controlled SME sample' : '受控中小企示例'}</title><style>${standaloneCss.replace(/<\/style/gi, '<\\/style')}</style></head><body>${payload}<script>${bundle.replace(/<\/script/gi, '<\\/script')}</script></body></html>`
+      writeFileSync(join(directory, `${prefix}-${name}.html`), html)
+      artifacts[`${prefix}-${name}.html`] = sha(html)
     }
   }
-  writeFileSync(join(directory, 'manifest.json'), JSON.stringify({ schemaVersion: 1, artifacts, locales: ['en', 'zh-HK'],
-    bounds: ['Actual client components hydrate with local sample transport.', 'Today is actual server-rendered markup; Next Link is rendered as an ordinary anchor.', 'The sample supplies local Arial for the omitted next/font layout variable; CJK uses the existing platform fallback stack. Exact Inter typography is not established.', 'No real auth, role grants, provider calls, website edits, database persistence or SME acceptance are established.', 'Only exact Node-frozen canonical saved revisions may be prepared offline.', 'Package downloads and provider actions are not supported or verified by this sample.'],
-    clientGraph: { checked: true, forbidden: ['node:*', 'server-only', 'lib/db', 'scenario.node'] },
-    nodeFactory: { runtime: 'node24', crypto: 'real node:crypto', database: 'throwing fixture guard', serverOnlySentinel: 'empty in this Node build' },
+  expect(projectedSnapshotsChecked).toBe(48)
+  writeFileSync(join(directory, 'manifest.json'), JSON.stringify({ schemaVersion: 1, artifacts, locales: ['en', 'zh-HK'], primaryKind: 'v2-mixed', kinds: journeyKinds,
+    bounds: ['Actual client components hydrate with local sample transport.', 'Today is actual server-rendered markup; Next Link is rendered as an ordinary anchor.', 'The sample supplies local Arial for the omitted next/font layout variable; CJK uses the existing platform fallback stack. Exact Inter typography is not established.', 'No real auth, role grants, provider calls, website edits, database persistence or SME acceptance are established.', 'Offline supports two alternative first submissions, one prepared version, the canonical declared delivery instant and at most two attestations with their withdrawals; replays do not consume events.', 'The supplied sources are preseeded. This does not demonstrate source attachment UI. Mature Scan observations remain partially comparable and Pulse stays unranked.', 'Package downloads and provider actions are not supported or verified by this sample.'],
+    clientGraph: { checked: true, forbidden: ['node:*', 'server-only', 'browser-external', 'lib/db', 'scenario.node', 'projection.node'] },
+    nodeFactory: { runtime: 'node24', crypto: 'real node:crypto', database: 'throwing fixture guard', serverOnlySentinel: 'empty in this Node build', projectedSnapshotsChecked },
+    standaloneCss: { productionArtifact: 'build.css', productionSha256: sha(css), embeddedSha256: sha(standaloneCss), fontFacesOmitted: fontFaces.length, scope: 'Production font-face rules omitted only from self-contained HTML; local Arial and platform CJK fallbacks remain. CSP is unchanged.' },
     omittedTodayComponents: ['TodayAsk', 'MonthlyReportEntry', 'OverviewStats', 'ScoreTrend', 'PillarScoreCards', 'RunProgress'],
   }, null, 2))
 })

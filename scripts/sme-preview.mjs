@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const options = { output: resolve(root, 'artifacts/sme-preview'), css: '' }
 const args = process.argv.slice(2)
 if (args.includes('--help')) {
-  process.stdout.write('Usage: node scripts/sme-preview.mjs [--output DIRECTORY] [--css BUILD_CSS]\nRun npm run build first. Open en-preview.html or zh-HK-preview.html locally; no server or credentials are needed.\n')
+  process.stdout.write('Usage: node scripts/sme-preview.mjs [--output DIRECTORY] [--css BUILD_CSS]\nRun npm run build first. Open en-preview.html or zh-HK-preview.html for the mixed/duplicate V2 sample. Files with v2-one-scan and v1-scan prefixes provide genuine one-source V2 and legacy V1 samples. All run locally without a server or credentials.\n')
 } else {
   try {
     if (Number(process.versions.node.split('.')[0]) !== 24) throw new Error('Use the repository-required Node 24 runtime')
@@ -41,13 +41,17 @@ if (args.includes('--help')) {
     const manifestPath = join(options.output, 'manifest.json')
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
     const sourceFiles = [
-      '__tests__/sme-journey/types.ts', '__tests__/sme-journey/scenario.node.ts', '__tests__/sme-journey/transport.ts',
+      '__tests__/sme-journey/types.ts', '__tests__/sme-journey/scenario.node.ts', '__tests__/sme-journey/projection.node.ts', '__tests__/sme-journey/transport.ts',
       '__tests__/sme-journey/JourneyFixture.tsx', '__tests__/components/journey-render.test.tsx', 'scripts/sme-preview.mjs',
       'components/dashboard/today/BrandToday.tsx', 'lib/view-models/today.ts', 'components/opportunities/OpportunityWorkspace.tsx',
       'components/work-items/DraftEditor.tsx', 'components/change-sets/VersionWorkspace.tsx', 'components/change-sets/DecisionForm.tsx',
       'components/change-sets/ReviewHelp.tsx', 'components/delivery/DeliveryWorkspace.tsx', 'components/delivery/DeliveryForm.tsx',
       'components/delivery/DeliveryHistory.tsx', 'components/outcomes/OutcomeWorkspace.tsx', 'components/outcomes/OutcomeWindows.tsx',
-      'lib/change-sets/validation.ts', 'lib/opportunities/fingerprint.ts', 'messages/en.json', 'messages/zh-HK.json',
+      'components/outcomes/MultiSourceOutcomeWindows.tsx', 'lib/outcomes/client-context.ts', 'lib/outcomes/multi-source.ts',
+      'lib/outcomes/sources.ts', 'lib/outcomes/evaluate.ts', 'lib/outcomes/dto.ts', 'lib/outcomes/types.ts',
+      'lib/change-sets/validation.ts', 'lib/change-sets/store.ts', 'lib/change-sets/read-view.ts',
+      'lib/opportunities/fingerprint.ts', 'lib/opportunities/rules.ts', 'lib/work-items/snapshot.ts',
+      'lib/scan-evidence.ts', 'lib/observations/schema.ts', 'messages/en.json', 'messages/zh-HK.json',
     ]
     const hash = value => createHash('sha256').update(value).digest('hex')
     const sources = Object.fromEntries(sourceFiles.map(file => [file, hash(readFileSync(join(root, file)))]))
