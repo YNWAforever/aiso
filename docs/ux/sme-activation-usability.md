@@ -16,7 +16,22 @@ Give one task at a time. Ask the participant to describe what they expect and wh
 | 6 | 解釋畫面記錄咗乜：有冇核實網站已修改？有冇足夠觀察資料話成效改善？ | Explain what was recorded: was a website change verified, and is there enough observation evidence to claim improvement? |
 | 7 | 觀察者設定一次讀取失敗或遺失交付回覆後，繼續處理，留意輸入同記錄有冇保留。 | After the observer arms one read failure or lost delivery reply, recover and check whether input and records were preserved. |
 
-The sample suggests **2026-11-14 00:10:00 UTC**, inside its explicit sample timeline. An immediate delivery record has no later observation: outcome windows remain not due. It does not create a seven-day result, verify publication, collect new evidence or demonstrate causal business improvement.
+Use the supported UTC instant printed in the particular sample. The main mixed V2
+and one-source V2 files use **2026-10-24 00:10:00 UTC**; explicitly prefixed legacy V1
+files retain **2026-11-14 00:10:00 UTC**. The early clock has no later observation in
+the immediate windows. Advancing the V2 sample clock and refreshing Saved outcomes
+reads fictional retained records: D7 can show a **partial** Scan warn-to-pass
+comparison, while Pulse remains unranked. It does not verify publication, collect
+new evidence or demonstrate causal business improvement.
+
+For task 6 with the V2 sample, also record whether the participant can explain why
+the repeated Scan is a third frozen entry, why the later Scan comparison is still
+partial, and why Pulse collection success is not an improvement rank. These are
+additional observations, not invented participant scores or a changed denominator.
+The [V2 preview guide](sme-outcome-preview.md) records the finite clock, record-choice
+and correction bounds. A lost delivery acknowledgement may follow an actual local
+commit; observe whether the participant reconciles delivery history rather than
+assuming Outcome refresh restores write authority.
 
 ## Observer record
 

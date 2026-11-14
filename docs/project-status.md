@@ -23,12 +23,29 @@ build's **107 shipped migrations**. Guarded reads at **2026-11-14T11:39:44.259Z*
 alias. All 16 Tasks views were empty; prefetch and renewal/Pulse background stayed
 aborted. These are PR1's dated observations, not new runtime checks for PR2.
 
-PR2 implements the separate [V2 read contract and decoder](../lib/outcomes/multi-source.ts)
-with frozen source order/duplicates, shared read limits, per-source policy and V1
-compatibility. Existing clients still reject unsupported V2 results until PR3 adds
-owner presentation and the multi-source sample. Implementation/tests alone do not
-establish the current production deployment or human acceptance; each release keeps
-its exact CI/merge/deployment receipt.
+Backend PR2 [#269](https://github.com/YNWAforever/aiso/pull/269) is released at actual
+main `23f5c1c88f34f3ea923256bd84be3f82bf05995d`. Its
+[release receipt](https://github.com/YNWAforever/aiso/pull/269#issuecomment-6879134223)
+records ten successful exact-head CI jobs: **9,330 unit, 443 combined integration
+(247 regular + 196 exact-target, including 86 delivery cases), and 2,618 browser
+cases**, with zero CI skips/flaky/unexpected. Candidate, tested and actual trees
+match. Canonical Ready deployment `dpl_23QZT1CRpYBTjPG79uS5uDz5rPD4` carries that full
+SHA; its production build logged **all 107 shipped migrations recorded** at
+**2026-11-14T14:43:30.473Z**. Guarded verification at **14:46:51.136Z** on the same UTC
+date passed **52/52** views and 48 axe/reflow checks, with six actually inspected
+screenshots and a stable alias. All 16 Tasks views were empty; 376 prefetch and 68
+renewal/Pulse background requests were deliberately aborted. These are PR2's dated
+reads, not populated V2 owner-UI, provider or participant observations.
+
+The separate [V2 read contract and decoder](../lib/outcomes/multi-source.ts) retain
+frozen source order/duplicates, shared read limits, per-source policy and V1
+compatibility. PR3 starts from that actual merged main and adds selected-version
+context validation, owner-readable per-source results and the
+[genuine V2 sample](ux/sme-outcome-preview.md). Read retries stay GET-only and keep
+review/delivery state. The owner sample has explicit finite bounds; its Node and
+portable paths are distinct from authenticated production execution. Each release
+retains its own exact CI/merge/deployment receipt; engineering checks do not become
+human acceptance.
 
 The [capability ledger](ux/sme-capability-readiness.md) distinguishes its dated
 source snapshot from controlled tests, dated canonical reads and runtime unknowns.

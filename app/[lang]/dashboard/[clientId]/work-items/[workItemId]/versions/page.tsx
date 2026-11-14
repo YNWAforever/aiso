@@ -58,6 +58,6 @@ export default async function VersionsPage({ params }: {
     } catch { initialError = 'unavailable' }
   }
   return <VersionWorkspace key={`${clientId}:${workItemId}`} clientId={clientId} workItemId={workItemId}
-    initialDraft={draft} initial={initial} initialVersion={initialVersion} initialError={initialError} smeCopilot={smeCopilot}
+    initialDraft={draft} initial={initial} initialVersion={initialVersion} initialError={initialError} smeCopilot={smeCopilot} outcomeViewerKey={profile.id}
     {...(smeCopilot ? { viewerProfileId: profile.id } : {})} />
 }

@@ -3331,6 +3331,19 @@
     }
   },
   "outcomes": {
+    "v2": {
+      "utcSuffix": "(UTC)",
+      "sourceNumber": "Source {number}",
+      "sourceWindow": "Source {number} · D{day} evidence window",
+      "frozenSource": "Frozen source",
+      "readDetails": "Timing, version and evaluation details",
+      "windowDetails": "Window dates and retained evidence",
+      "retainedReferences": "Retained references ({count})",
+      "diagnosticBudget": "This read retains at most 400 reference occurrences across all source entries. Duplicate entries also consume this budget.",
+      "reasons": {
+        "diagnostic-limit-exceeded": "Not all retained references fit in this read; selection certainty for this source is suppressed."
+      }
+    },
     "sme": {
       "context": "Saved comparison context",
       "anchorState": "Recorded delivery anchor",
@@ -3351,7 +3364,7 @@
       "pathLimitation": "Final-path identity was not retained. The two runs cannot be proven to have checked the same page; a partial comparison is indicative only.",
       "pulseUnranked": "Pulse results describe collection completion and are not ranked as improvement or regression.",
       "noSelectedEvidence": "No stored observation is selected for this window; this is not a zero result.",
-      "multiSourceUnavailable": "Comparisons are not currently supported for this saved package.",
+      "multiSourceUnavailable": "Stored comparisons could not be read. Retry this read.",
       "sourceDetails": "Source identifier",
       "technicalDetails": "Version and evaluation details",
       "schema": "Outcome schema version",

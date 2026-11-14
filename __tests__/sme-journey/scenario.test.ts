@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript'
-import { freezeReview } from '@/lib/change-sets/validation'
+import { freezeMultiSourceReview, freezeReview } from '@/lib/change-sets/validation'
 import { parseVersionDetail, parseVersionPage } from '@/lib/change-sets/read-view'
 import { fingerprintEvidence, serializeDraftSnapshot } from '@/lib/opportunities/fingerprint'
 import { parseCreateDraft } from '@/lib/work-items/schema'
@@ -11,7 +11,7 @@ import { parseDraftEdit } from '@/lib/work-items/edit-input'
 import { evaluateOutcomes } from '@/lib/outcomes/evaluate'
 import { parseOutcomeResponse } from '@/lib/outcomes/dto'
 import { db } from '@/lib/db'
-import { createJourneyScenario, freezeJourneyDraft } from './scenario.node'
+import { createJourneyScenario, createJourneyCallbacks, freezeJourneyDraft } from './scenario.node'
 
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({ db: vi.fn(() => { throw new Error('Scenario must not open a database') }) }))
@@ -147,3 +147,38 @@ it('keeps the packet contract type-only at the browser boundary, without importi
   expect(emitted).toBe('export {};')
   expect(emitted).not.toMatch(/scenario\.node|node:crypto|freezeReview|server-only/)
 })
+
+for (const lang of ['en', 'zh-HK'] as const) for (const kind of ['v2-mixed', 'v2-one-scan'] as const) {
+  it(`freezes genuine ${kind} sources and every finite input kernel (${lang})`, () => {
+    const scenario = createJourneyScenario(lang, kind), review = scenario.review
+    if (review.schemaVersion !== 2) throw Error('Expected V2 review package')
+    expect(review.evidenceSnapshots).toHaveLength(kind === 'v2-mixed' ? 3 : 1)
+    expect(scenario.opportunities.suggestions.filter(row => row.source.kind === 'scan-check')).toHaveLength(1)
+    if (kind === 'v2-mixed') {
+      expect(review.evidenceSnapshots[2]).toEqual(review.evidenceSnapshots[0])
+      expect(review.evidenceSnapshots[2]).not.toBe(review.evidenceSnapshots[0])
+      expect(scenario.opportunities.suggestions[1]).toMatchObject({ evidence: { kind: 'pulse-metric', result: 'success', brandMentioned: false } })
+    }
+    scenario.canonicalDrafts.forEach((draft, index) => {
+      const frozen = freezeMultiSourceReview(draft, review.evidenceSnapshots), version = scenario.canonicalVersions[index]
+      expect(version.schemaVersion).toBe(2)
+      expect(version.contentHash).toBe(createHash('sha256').update(JSON.stringify(canonical(frozen.content))).digest('hex'))
+      expect(version.contentHash).toBe(frozen.contentHash)
+      expect(version.validation).toEqual(frozen.validation)
+      const kernels = scenario.kernels.filter(kernel => kernel.versionKey.includes(version.contentHash))
+      expect(kernels).toHaveLength(8)
+      expect(kernels.every(kernel => kernel.schemaVersion === 2 && kernel.sources.map(source => source.sourceIndex).join(',') === review.evidenceSnapshots.map((_, ordinal) => ordinal).join(','))).toBe(true)
+    })
+    expect(scenario.canonicalVersions[0].id).toBe(scenario.canonicalVersions[1].id)
+    expect(scenario.canonicalVersions[0].contentHash).not.toBe(scenario.canonicalVersions[1].contentHash)
+    expect(scenario.kernels).toHaveLength(16)
+    expect(JSON.stringify(scenario)).not.toMatch(/raw_answer|Compare the tea ingredients|可以先比較茶葉|"envelope"|"comparison"\s*:\s*\{"status"/)
+    const callbacks = createJourneyCallbacks(scenario)
+    expect(() => callbacks.freeze!(scenario.draft, 1, { schemaVersion: 2, evidenceSnapshots: Array.from({ length: 256 }, () => review.evidenceSnapshots[0]) })).toThrow()
+    if (kind === 'v2-mixed') {
+      const changed = [review.evidenceSnapshots[1], review.evidenceSnapshots[0], review.evidenceSnapshots[2]]
+      expect(callbacks.freeze!(scenario.draft, 1, { schemaVersion: 2, evidenceSnapshots: changed }).contentHash).not.toBe(scenario.canonicalVersions[0].contentHash)
+      expect(callbacks.freeze!(scenario.draft, 1, { schemaVersion: 2, evidenceSnapshots: review.evidenceSnapshots.slice(0, 2) }).contentHash).not.toBe(scenario.canonicalVersions[0].contentHash)
+    }
+  })
+}

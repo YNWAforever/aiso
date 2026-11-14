@@ -3331,6 +3331,19 @@
     }
   },
   "outcomes": {
+    "v2": {
+      "utcSuffix": "(UTC)",
+      "sourceNumber": "來源 {number}",
+      "sourceWindow": "來源 {number} · D{day} 證據時段",
+      "frozenSource": "凍結來源",
+      "readDetails": "時段、版本及評估詳情",
+      "windowDetails": "時段日期及保留證據",
+      "retainedReferences": "保留參考（{count}）",
+      "diagnosticBudget": "本次讀取於所有來源位置合計最多保留 400 項參考，重複來源亦會計入此上限。",
+      "reasons": {
+        "diagnostic-limit-exceeded": "本次讀取未能包含所有保留參考，無法確定此來源的選取結果。"
+      }
+    },
     "sme": {
       "context": "已儲存的比較脈絡",
       "anchorState": "已記錄的交付基準",
@@ -3351,7 +3364,7 @@
       "pathLimitation": "未保留最終路徑識別，無法證實兩次檢查的是同一頁；部分可比較結果僅供參考。",
       "pulseUnranked": "Pulse 結果描述收集是否完成，不會排列為改善或倒退。",
       "noSelectedEvidence": "此時段未選取任何儲存觀察，並不代表結果為零。",
-      "multiSourceUnavailable": "此已儲存套件目前未支援成效比較。",
+      "multiSourceUnavailable": "暫時無法讀取儲存比較，請重試讀取。",
       "sourceDetails": "來源識別碼",
       "technicalDetails": "版本及評估詳情",
       "schema": "成效結構版本",

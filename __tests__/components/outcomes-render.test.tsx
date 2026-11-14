@@ -8,6 +8,8 @@ import { parseOutcomeResponse } from '@/lib/outcomes/dto'
 import { outcome, outcomes, smeComparisonCases, smeOutcomes } from './c9f-fixtures'
 import { fixtureProps, smeProps, smeV2Props, smeSingleV2Props } from './c9e-fixtures'
 import { C9EVersionWorkspaceFixture } from './c9e-workspace-fixture'
+import { journeyOutcomeFixture } from './c9f-journey-fixtures.node'
+import { parseSelectedOutcome, selectedOutcomeExpectation } from '@/lib/outcomes/client-context'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeC9cFixture } from './c9c-fixture-writer'
@@ -62,10 +64,10 @@ describe('SME stored comparison presentation', () => {
         expect(html).not.toContain('<details')
         expect(html).toContain(value.windows.length ? copy.comparisonLimitation : copy.baselineProvenance)
       }
-      const props = { clientId: outcomes.scan.clientId, itemId: outcomes.scan.itemId, versionId: outcomes.scan.versionId, refreshKey: 0 }
+      const props = { clientId: outcomes.scan.clientId, itemId: outcomes.scan.itemId, version: fixtureProps.initialVersion, viewerKey: fixtureProps.outcomeViewerKey, refreshKey: 0 }
       const legacy = render(<OutcomeWorkspace {...props} />, lang)
-      expect(render(<OutcomeWorkspace {...props} smeCopilot={false} versionSchema={2} />, lang)).toBe(legacy)
-      const sme = render(<OutcomeWorkspace {...props} smeCopilot versionSchema={2} />, lang)
+      expect(render(<OutcomeWorkspace {...props} smeCopilot={false} />, lang)).toBe(legacy)
+      const sme = render(<OutcomeWorkspace {...props} version={smeV2Props.initialVersion!} smeCopilot />, lang)
       expect(sme).toContain(copy.loading)
       expect(sme).not.toContain(copy.sme.multiSourceUnavailable)
       expect(sme).toContain('min-h-11')
@@ -168,11 +170,71 @@ it.each(smeComparisonCases)('validates mounted outcome fixture $name against the
   expect(parseOutcomeResponse(value)).toEqual(value)
   expect(value.windows[0].comparison).toMatchObject({ status: example.status, outcome: example.change })
 })
+describe('Node-produced C9F selected-version packets', () => {
+  for (const lang of ['en', 'zh-HK'] as const) {
+    it.each(['v2-mixed', 'v2-one-scan'] as const)('retains actual commits and projected source states for %s in ' + lang, kind => {
+      const packet = journeyOutcomeFixture(lang, kind), stored = packet.values['mature-d7'].stored
+      expect(packet.props.initialVersion!.schemaVersion).toBe(2)
+      if (stored.schemaVersion !== 2) throw Error('Expected actual V2 projection')
+      expect(stored.sources).toHaveLength(kind === 'v2-mixed' ? 3 : 1)
+      expect(stored.sources[0].windows[0]).toMatchObject({ provisional: false, comparison: { status: 'partially_comparable', outcome: 'improved' } })
+      for (const states of Object.values(packet.values)) for (const value of Object.values(states)) {
+        expect(value.anchor?.id).toBe(stored.anchor!.id)
+        expect(value.contentHash).toBe(packet.props.initialVersion!.contentHash)
+      }
+      const unavailable = packet.values['mature-d7']['unavailable-scan']
+      if (unavailable.schemaVersion !== 2) throw Error('Expected actual V2 projection')
+      expect(unavailable.sources[0].windows[0].evidenceState).toBe('unavailable')
+      if (kind === 'v2-mixed') {
+        expect(unavailable.sources[1].baseline!.source.kind).toBe('pulse-metric')
+        const diagnostics = packet.values['mature-d7']['diagnostic-heavy']
+        if (diagnostics.schemaVersion !== 2) throw Error('Expected actual V2 projection')
+        expect(diagnostics.sources.reduce((count, source) => count + source.diagnostics.length, 0)).toBe(400)
+      }
+    })
+    it('keeps two genuine first-submission alternatives distinct from history in ' + lang, () => {
+      const original = journeyOutcomeFixture(lang, 'v2-mixed'), alternative = journeyOutcomeFixture(lang, 'v2-mixed', true)
+      expect(original.props.initial!.versions).toHaveLength(1)
+      expect(alternative.props.initial!.versions).toHaveLength(1)
+      expect(original.props.initialVersion!.id).toBe(alternative.props.initialVersion!.id)
+      expect(original.props.initialVersion!.contentHash).not.toBe(alternative.props.initialVersion!.contentHash)
+      expect(() => parseSelectedOutcome(alternative.values['mature-d7'].stored,
+        selectedOutcomeExpectation(original.props.clientId, original.props.workItemId, original.props.initialVersion!))).toThrow()
+    })
+    it('provides genuine schema alternatives for direct child-context fencing in ' + lang, () => {
+      const original = journeyOutcomeFixture(lang, 'v2-mixed'), legacy = journeyOutcomeFixture(lang, 'v1-scan')
+      expect(original.props.initialVersion!.id).toBe(legacy.props.initialVersion!.id)
+      expect(legacy.values['mature-d7'].stored.schemaVersion).toBe(1)
+      expect(() => parseSelectedOutcome(legacy.values['mature-d7'].stored,
+        selectedOutcomeExpectation(original.props.clientId, original.props.workItemId, original.props.initialVersion!))).toThrow()
+    })
+  }
+})
+
 const mountedVariants = { sme: smeProps, smeV2: smeV2Props, smeSingleV2: smeSingleV2Props }
 afterAll(async () => {
   await writeC9cFixture('C9F', 'C9EVersionWorkspaceFixture', '@/__tests__/components/c9e-workspace-fixture', fixtureProps,
     lang => render(<C9EVersionWorkspaceFixture {...fixtureProps} />, lang),
     Object.fromEntries(Object.entries(mountedVariants).map(([name, props]) => [name, { props, html: (lang: string) => render(<C9EVersionWorkspaceFixture {...props} />, lang) }])), 'outcomes')
   const dir = process.env.C9F_HTML_DIR
-  if (dir) for (const [name, props] of Object.entries(mountedVariants)) for (const lang of ['en', 'zh-HK']) writeFileSync(join(dir, `${lang}-${name}-data.json`), JSON.stringify(props))
+  if (!dir) return
+  for (const [name, props] of Object.entries(mountedVariants)) for (const lang of ['en', 'zh-HK']) writeFileSync(join(dir, `${lang}-${name}-data.json`), JSON.stringify(props))
+  // This remains the single C9F fixture writer. Node-only producers yield paired
+  // actual props/DTOs; the existing emitted client entry receives JSON only.
+  for (const lang of ['en', 'zh-HK'] as const) {
+    const mixed = journeyOutcomeFixture(lang, 'v2-mixed'), single = journeyOutcomeFixture(lang, 'v2-one-scan')
+    const alternative = journeyOutcomeFixture(lang, 'v2-mixed', true), legacy = journeyOutcomeFixture(lang, 'v1-scan')
+    const packets = {
+      v2Mixed: mixed, v2Single: single,
+      ctxV2: { ...mixed, props: { ...mixed.props, outcomeOnly: true } },
+      ctxV2Alt: { ...alternative, props: { ...alternative.props, outcomeOnly: true } },
+      ctxV1: { ...legacy, props: { ...legacy.props, outcomeOnly: true } },
+    }
+    for (const [name, packet] of Object.entries(packets)) {
+      const props = packet.props, messages = lang === 'en' ? en : zh
+      writeFileSync(join(dir, `${lang}-${name}-data.json`), JSON.stringify(props))
+      writeFileSync(join(dir, `${lang}-${name}-packet.json`), JSON.stringify(packet))
+      writeFileSync(join(dir, `${lang}-${name}.html`), `<div id="root">${render(<C9EVersionWorkspaceFixture {...props} />, lang)}</div><script id="fixture-props" type="application/json">${JSON.stringify({ props, messages, lang }).replace(/</g, '\\u003c')}</script>`)
+    }
+  }
 })
