@@ -3053,6 +3053,15 @@
     "editSpecLlmsTxtRules": "Replaces the whole file. The page URL must be https://your-domain/llms.txt. Up to 16 KB of plain text or Markdown. Approval covers exactly this text."
   },
   "changeSets": {
+    "reviewHelp": {
+      "title": "Review help",
+      "loading": "Reading member information…",
+      "unknown": "Member information could not be confirmed. Review access remains unconfirmed.",
+      "none": "Excluding you and this version's submitter, this read lists no active account approvers. Account roles alone do not confirm version access.",
+      "other": "This read lists active account approvers other than you and this version's submitter. Their access to this version still needs confirmation.",
+      "members": "View account members",
+      "retry": "Try again"
+    },
     "title": "Version review",
     "notDelivery": "Approval records a review decision only. It does not publish, deliver, or implement this draft.",
     "immutableNotice": "Versions retain the submitted content and original evidence limitations. Current draft changes do not alter previous versions.",
@@ -3225,6 +3234,8 @@
       "loading": "Reading handoff status…",
       "unconfirmed": "The latest operation has no confirmed result. Refresh status before another action.",
       "retrySend": "Retry developer handoff",
+      "viewPlan": "View plan",
+      "viewManualOptions": "View manual delivery options",
       "cooldown": "Please wait a minute between live checks. Status refresh only reads stored records.",
       "historical": "The records above are retained observations. Refresh status before another action.",
       "state": {

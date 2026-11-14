@@ -35,6 +35,17 @@ describe('delivery rendering', () => {
     expect(legacy).not.toContain(copy.sme.manualPath)
     expect(legacy).not.toContain(copy.sme.developerPath)
   })
+  it.each(['en', 'zh-HK'])('mounts both genuine website delivery paths without eager recovery authority %s', lang => {
+    const messages = lang === 'en' ? en : zh
+    const html = render(<C9EVersionWorkspaceFixture {...hydratedVariants.smeWebsite} />, lang)
+    expect(html).toContain(messages.delivery.sme.title)
+    expect(html).toContain(messages.siteEditHandoff.sme.title)
+    expect(html.match(/name="[^"]+:delivery"/g)).toHaveLength(2)
+    expect(html).toContain(messages.siteEditHandoff.sme.loading)
+    expect(html).not.toContain(messages.siteEditHandoff.sme.viewManualOptions)
+    expect(html).not.toContain(messages.siteEditHandoff.sme.viewPlan)
+    expect(html).toBe(render(<VersionWorkspace {...hydratedVariants.smeWebsite} />, lang))
+  })
   it('keeps pending review list and detail consistent before approval refresh', () => {
     const summary = pendingProps.initial.versions.find(saved => saved.id === pendingProps.initialVersion.id)
     expect(summary?.decision).toBeNull()

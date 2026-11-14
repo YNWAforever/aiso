@@ -4,34 +4,57 @@ Notes that used to open the README (moved in UX Phase 8). Each dated line is
 only as fresh as its date: re-verify before relying on it. The architecture
 document is [`CLAUDE.md`](../CLAUDE.md).
 
-## SME activation: Today candidate (2026-11-14)
+## SME activation: Today released; guidance candidate (2026-11-14)
 
-The approved next milestone is three ordered PRs: Today resumes saved work,
-truthful review/delivery blocker guidance, then a continuous journey regression
-and controlled SME preview. Scope and acceptance are in
+The approved milestone has three ordered PRs: Today resumes saved work,
+truthful review/delivery blocker guidance, then continuous journey regression
+and a controlled SME preview. Scope and acceptance are in
 [`ux/sme-activation-workflow.md`](ux/sme-activation-workflow.md).
 
-The first candidate adds one opt-in existing bounded Tasks read after ownership,
-only for SME Today (brand home and the existing one-brand account branch). It
-continues the first unfinished task in returned activity order, or offers the
-first recorded delivery as secondary when that cohort has no unfinished task.
-Setup, scoped actions and observed website fixes retain priority. Public overview
-and flag-off/default reads stay unchanged; no schema, write inputs, statuses,
-roles, entitlement, billing, provider or schedule changes.
+**Today released in [#265](https://github.com/YNWAforever/aiso/pull/265).** Its
+opt-in bounded Tasks read follows ownership and applies only to SME Today and the
+existing one-brand account branch. It continues the first unfinished task in
+returned activity order; recorded deliveries stay secondary. Setup, scoped
+instructions and observed website fixes retain priority. Default/flag-off reads,
+public overview, write inputs and authority contracts stay unchanged.
 
-Local evidence: lint/type/text clean, production build passed, **9,091 unit tests
-passed / 15 existing Windows skips**, **297 fixture tests passed across 28 files**,
-and **1,212 browser cases passed / zero skipped, flaky or unexpected**. The new
-Today matrix uses nine actual server-component states, en/zh-HK, both themes and
-320/390/768/1440px; four controlled screenshots were inspected. These are static
-component fixtures plus build CSS, not authenticated navigation, persistence,
-provider execution or human usability evidence. Independent source and test
-credibility reviews found no blocker.
+[Release evidence](https://github.com/YNWAforever/aiso/pull/265#issuecomment-6871678804):
+all ten exact-head CI jobs passed, with **9,106 unit, 432 integration and 2,446
+browser cases**, zero CI skips/flaky/unexpected browser cases. Candidate, CI merge
+and actual matched-head merge `e994f8f63ccd460b67d3bd0d657e8d3e7b370c78` have identical
+trees. Canonical Ready deployment `dpl_FHcGcEWacdHxQdNqH6dL7kbf5N7K` carries that full
+merged SHA; its build recorded all **107 shipped migrations**. Guarded canonical
+verification passed **52/52 views**, with zero page errors, 48 axe checks clear,
+no reflow failures and six inspected screenshots. Session-renewal/Pulse background
+requests and prefetches were deliberately blocked; normal renewal/polling was not
+verified. The actual production Tasks cohort was empty, so this smoke does not
+prove populated continuation, review, delivery or provider execution.
 
-Exact-head CI, matched-head merge, canonical Ready/schema proof and guarded live
-read-only evidence are **pending** for this candidate. No production business
-actions were performed. Human SME usability remains **pending**; four of five
-participants is a proposed acceptance target, not an observed result.
+**The second candidate is in validation.** Review help lazily reads the existing
+session-owned member route for the latest pending blocked review, checks viewer
+identity and reports unknown/none/other account-role information without granting
+version access. Scope changes, close and retries reject older completions; fields
+and retry identities remain mounted. Fresh confirmed handoff blocks can view the
+existing plan or manual pane without exporting, recording or sending anything.
+Unknown or stale authority adds no recovery, and only the recorded approving
+member may send that version. No schema, role, billing, provider or schedule
+contract changes.
+
+Current candidate evidence: lint zero errors/warnings, text audit and expanded
+TypeScript passed; **9,151 full unit tests passed / 15 existing Windows skips**,
+production build passed, and **299 fixture tests passed across 28 actual renderers**.
+All **128 added desktop/mobile browser cases passed**; four controlled screenshots
+were inspected. They cover lazy reads, malformed/error responses, uncancellable
+old completions, actual version/actor changes, normalized decision retry identity,
+cancelled navigation and mounted manual fields/authority. Independent source review
+cleared after qualifying both viewer and submitter exclusions in the member copy.
+The complete **1,340-case relevant browser regression**, exact-head CI and release
+verification remain **pending** for this candidate. Fixtures prove UI/transport
+behavior, not production authentication, membership, SQL/provider persistence or
+human acceptance. The third journey/preview PR follows verified release.
+
+No production business actions were performed. Human SME usability remains
+**pending**; four of five participants is a proposed target, not an observed result.
 
 ## Database and migration
 

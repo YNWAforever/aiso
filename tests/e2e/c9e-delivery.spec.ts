@@ -500,6 +500,97 @@ async function developerPath(page: Page, lang: string, sme = true) {
 }
 
 for (const lang of ['en', 'zh-HK']) {
+  for (const block of ['not_connected', 'limit_reached'] as const) test(`PR2 ${block} manual recovery preserves mounted fields and ambiguous retry authority ${lang}`, async ({ page }) => {
+    const initial = { ...emptyHandoff(), canSend: false, block }
+    const f = await fixture(page, lang, 'smeWebsite', { handoff: initial }), { c, section, context } = f
+    const paths = (lang === 'en' ? en : zh).changeSets.sme
+    const manual = page.locator('summary').filter({ hasText: paths.manualPath })
+    const developer = page.locator('summary').filter({ hasText: paths.developerPath })
+    await manual.click(); await f.fill()
+    const fields = [section.getByLabel(c.destination, { exact: true }), section.getByLabel(c.timeUtc, { exact: true }), section.getByLabel(c.note, { exact: true })]
+    const nodes = await Promise.all(fields.map(field => field.elementHandle()))
+    context.postHook = route => route.abort()
+    await section.getByRole('button', { name: c.record, exact: true }).click()
+    await expect(section.getByRole('alert')).toHaveText(c.unavailable)
+    const original = context.posts[0]
+    expect(original).toEqual({ contentHash: f.version.contentHash, destination: 'Site', deliveredAt: '2026-09-07T00:00:00.000Z', note: 'é\n交付', requestId: expect.any(String) })
+    const reads = [context.reads, context.handoffReads, context.outcomeReads]
+    const { h, handoff } = await developerPath(page, lang)
+    await expect(section).toBeHidden()
+    await expect(handoff.getByRole('button', { name: h.send, exact: true })).toBeDisabled()
+    const recovery = handoff.getByRole('button', { name: h.sme.viewManualOptions, exact: true })
+    await recovery.focus(); await page.keyboard.press('Enter')
+    await expect(manual.locator('..')).toHaveJSProperty('open', true)
+    await expect(developer.locator('..')).toHaveJSProperty('open', false)
+    await expect(manual).toBeFocused(); await expect(section).toBeVisible()
+    for (const [index, field] of fields.entries()) expect(await field.evaluate((current, previous) => current === previous, nodes[index])).toBe(true)
+    await expect(fields[0]).toHaveValue(' Site ')
+    await expect(fields[1]).toHaveValue('2026-09-07T00:00')
+    await expect(fields[2]).toHaveValue(' e\u0301\n交付 ')
+    await expect(section.getByRole('alert')).toHaveText(c.unavailable)
+    await expect(section.getByRole('button', { name: c.exportText, exact: true })).toBeDisabled()
+    await expect(section.getByRole('button', { name: c.record, exact: true })).toBeDisabled()
+    await settle(page)
+    expect([context.reads, context.handoffReads, context.outcomeReads]).toEqual(reads)
+    expect(context.posts).toEqual([original]); expect(context.exports).toEqual([])
+    expect(context.handoffPosts).toEqual([]); expect(context.checkPosts).toBe(0)
+    const deliveryPath = `/api/clients/${f.props.clientId}/work-items/${f.version.workItemId}/versions/${f.version.id}/delivery`
+    expect(context.writeRequests).toEqual([deliveryPath])
+    // Only a fresh delivery capability read may restore this same operation.
+    await section.getByRole('button', { name: c.refresh, exact: true }).click()
+    await expect(section.getByRole('button', { name: c.record, exact: true })).toBeEnabled()
+    await fields[0].fill('Site')
+    context.postHook = null
+    await section.getByRole('button', { name: c.record, exact: true }).click()
+    await expect(section.getByText(c.recorded, { exact: true })).toBeVisible()
+    expect(context.posts).toEqual([original, original]); expect(context.writeRequests).toEqual([deliveryPath, deliveryPath])
+    expect(context.handoffReads).toBe(reads[1]); expect(context.handoffPosts).toEqual([])
+    expect(context.checkPosts).toBe(0); expect(context.exports).toEqual([])
+  })
+
+  test(`PR2 known plan recovery is a viewing link and disappears when status is unconfirmed ${lang}`, async ({ page }) => {
+    const { context } = await fixture(page, lang, 'smeWebsite', { handoff: { ...emptyHandoff(), canSend: false, block: 'not_entitled' } })
+    const { h, handoff, refresh } = await developerPath(page, lang)
+    const plan = handoff.getByRole('link', { name: h.sme.viewPlan, exact: true })
+    await expect(plan).toHaveAttribute('href', `/${lang}/dashboard/settings#settings-plan`)
+    await plan.focus(); await expect(plan).toBeFocused()
+    await expect(handoff.getByRole('button', { name: h.send, exact: true })).toBeDisabled()
+    await expect(handoff.getByRole('button', { name: h.sme.viewManualOptions, exact: true })).toHaveCount(0)
+    context.handoffReadHook = route => route.abort()
+    await refresh(); await expect(handoff.getByRole('alert')).toBeVisible()
+    await expect(plan).toHaveCount(0)
+    await expect(handoff.getByRole('button', { name: h.sme.viewManualOptions, exact: true })).toHaveCount(0)
+    expect(context.writeRequests).toEqual([]); expect(context.exports).toEqual([])
+  })
+
+  test(`PR2 stale known recovery cannot replace fresh unknown status or its check capability ${lang}`, async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-09-07T00:00:30Z') })
+    const old = sentHandoff({ canCheck: false, checkBlock: 'too_soon', liveCheck: { outcome: 'missing', checkedAt: '2026-09-07T00:00:00.123456Z', attested: false, structuredData: 'fail' } })
+    const { context } = await fixture(page, lang, 'smeWebsite', { handoff: old, uncancellable: true })
+    const { h, handoff, refresh } = await developerPath(page, lang)
+    let held!: Route, calls = 0
+    context.handoffReadHook = async route => {
+      if (++calls === 1) held = route
+      else await route.fulfill({ json: { handoff: sentHandoff({ state: 'unknown', canSend: true, block: null, canCheck: true, checkBlock: null }) } })
+    }
+    await refresh(); await expect.poll(() => Boolean(held)).toBe(true)
+    await page.clock.runFor(32_000)
+    await expect.poll(() => calls).toBe(2)
+    await expect(handoff.getByText(h.sme.state.unknown, { exact: true })).toBeVisible()
+    await expect(handoff.getByRole('button', { name: h.live.check, exact: true })).toBeEnabled()
+    const response = page.waitForResponse(value => value.headers()['x-fixture-stale-recovery'] === '1')
+    await held.fulfill({ headers: { 'X-Fixture-Stale-Recovery': '1' }, json: { handoff: { ...emptyHandoff(), canSend: false, block: 'not_connected' } } })
+    await response; await page.clock.runFor(50)
+    await expect(handoff.getByText(h.sme.state.unknown, { exact: true })).toBeVisible()
+    await expect(handoff.getByRole('button', { name: h.live.check, exact: true })).toBeEnabled()
+    await expect(handoff.getByRole('button', { name: h.sme.viewManualOptions, exact: true })).toHaveCount(0)
+    await expect(handoff.getByRole('link', { name: h.sme.viewPlan, exact: true })).toHaveCount(0)
+    await expect(handoff.getByRole('button', { name: h.send, exact: true })).toHaveCount(0)
+    await expect(handoff.getByRole('button', { name: h.sme.retrySend, exact: true })).toHaveCount(0)
+    expect(context.writeRequests).toEqual([]); expect(context.exports).toEqual([])
+    expect(context.handoffReads).toBe(3)
+  })
+
   for (const failure of ['network', 'malformed', 'unknown'] as const) test(`PR4 mounted ${failure} send reconciles without resending ${lang}`, async ({ page }) => {
     const f = await fixture(page, lang, 'smeWebsite'), { context } = f
     const { h, handoff, refresh } = await developerPath(page, lang)

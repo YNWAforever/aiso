@@ -15,7 +15,7 @@ export default async function VersionsPage({ params }: {
     // The existing owned-draft service validates UUIDs case-insensitively;
     // PostgreSQL returns their canonical lowercase representation.
     clientId = requestedClientId.toLowerCase(), workItemId = requestedWorkItemId.toLowerCase()
-  await requireAuth(lang)
+  const profile = await requireAuth(lang)
   const smeCopilot = isSmeCopilotUiEnabled()
   const t = await getTranslations({ locale: lang, namespace: 'changeSets' })
   let draft
@@ -58,5 +58,6 @@ export default async function VersionsPage({ params }: {
     } catch { initialError = 'unavailable' }
   }
   return <VersionWorkspace key={`${clientId}:${workItemId}`} clientId={clientId} workItemId={workItemId}
-    initialDraft={draft} initial={initial} initialVersion={initialVersion} initialError={initialError} smeCopilot={smeCopilot} />
+    initialDraft={draft} initial={initial} initialVersion={initialVersion} initialError={initialError} smeCopilot={smeCopilot}
+    {...(smeCopilot ? { viewerProfileId: profile.id } : {})} />
 }

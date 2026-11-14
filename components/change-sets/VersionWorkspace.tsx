@@ -7,6 +7,7 @@ import { parseVersionDetail, parseVersionPage } from '@/lib/change-sets/read-vie
 import { installReportNavigationBlocker } from '@/lib/reports/navigation-blocker'
 import { VersionDetails } from './VersionDetails'
 import { DecisionForm } from './DecisionForm'
+import { ReviewHelp } from '@/components/change-sets/ReviewHelp'
 import { DeliveryWorkspace } from '@/components/delivery/DeliveryWorkspace'
 import { HandoffPanel } from '@/components/site-edit/HandoffPanel'
 import { OutcomeWorkspace } from '@/components/outcomes/OutcomeWorkspace'
@@ -23,6 +24,7 @@ export type VersionWorkspaceProps = {
   initialVersion?: VersionDetail | null
   initialError?: string
   smeCopilot?: boolean
+  viewerProfileId?: string
 }
 
 function sameVersion(left: VersionSummary, right: VersionSummary): boolean {
@@ -71,7 +73,7 @@ export function VersionWorkspace(props: VersionWorkspaceProps) {
 }
 function ScopedVersionWorkspace({
   clientId, workItemId, initialDraft, initial, initialVersion = null,
-  initialError = '', smeCopilot = false,
+  initialError = '', smeCopilot = false, viewerProfileId,
 }: VersionWorkspaceProps) {
   const t = useTranslations('changeSets'), lang = useLocale()
   const [seed] = useState(() => {
@@ -112,6 +114,7 @@ function ScopedVersionWorkspace({
   ))
   const decisionDirtyRef = useRef(false), deliveryDirtyRef = useRef(false), dirtyRef = useRef(false)
   const statusRef = useRef<HTMLParagraphElement>(null)
+  const manualDetailsRef = useRef<HTMLDetailsElement>(null)
   const anyDirty = dirty || deliveryDirty
   useEffect(() => {
     alive.current = true
@@ -354,12 +357,16 @@ function ScopedVersionWorkspace({
     }}
   />
   const deliveryEmphasize = latestIsCurrent && !canFreeze && !historical && selected?.decision?.decision === 'approved'
-  const handoff = selected?.editSpec && <HandoffPanel key={'handoff' + selected.id + selected.contentHash + (selected.decision?.decision ?? 'pending')} clientId={clientId} version={selected} smeCopilot={smeCopilot} emphasize={deliveryEmphasize} onRecordedChange={handoffRecordedChange} />
+  const handoff = selected?.editSpec && <HandoffPanel key={'handoff' + selected.id + selected.contentHash + (selected.decision?.decision ?? 'pending')} clientId={clientId} version={selected} smeCopilot={smeCopilot} emphasize={deliveryEmphasize} onRecordedChange={handoffRecordedChange}
+    onViewManualOptions={smeCopilot ? () => {
+      const details = manualDetailsRef.current
+      if (details) { details.open = true; details.querySelector('summary')?.focus() }
+    } : undefined} />
   const manualDelivery = selected && <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} smeCopilot={smeCopilot} emphasize={deliveryEmphasize} refreshKey={deliveryRefresh} />
   const deliveryChoice = `${clientId}:${workItemId}:${selected?.id ?? ''}:delivery`
   const downstream = selected && <>
     {smeCopilot ? <div className="space-y-3">
-      <details name={deliveryChoice} className="min-w-0 space-y-3">
+      <details ref={manualDetailsRef} name={deliveryChoice} className="min-w-0 space-y-3">
         <summary className="min-h-11 cursor-pointer rounded-lg border border-border px-3 py-2 font-semibold">{t('sme.manualPath')}</summary>
         {manualDelivery}
       </details>
@@ -392,6 +399,9 @@ function ScopedVersionWorkspace({
         {!canFreeze && (!selected || historical) && latestIsCurrent && latest && <button className={primary} disabled={busy || anyDirty} onClick={() => select(latest.id)}>{t('sme.review')} · {t('versionNumber', { number: latest.versionNumber })}</button>}
         {latestIsCurrent && latest?.decision?.decision === 'changes_requested' && !canFreeze && <a className={(historical ? button : primary) + ' inline-flex items-center'} href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/opportunities?draft=${encodeURIComponent(workItemId)}`}>{t('sme.backToThisDraft')}</a>}
         {stage === 'sme.wait' && <p>{t('sme.independentReview')}</p>}
+        {viewerProfileId && latestIsCurrent && selected && selected.id === page?.latestVersionId && !selected.decision && !selected.capabilities.canDecide && <ReviewHelp
+          clientId={clientId} workItemId={workItemId} versionId={selected.id} contentHash={selected.contentHash}
+          viewerProfileId={viewerProfileId} submittedBy={selected.submittedBy.profileId} />}
       </section>
       <details className="space-y-3 rounded-xl border border-border p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">{t('sme.savedDraft')}</summary>{draftContents}</details>
       <details open className="space-y-3 rounded-xl border border-border p-4"><summary className="min-h-11 cursor-pointer py-2 font-semibold">{t('sme.history')}</summary>{historyContents}</details>
