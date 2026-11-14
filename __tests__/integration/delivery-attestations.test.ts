@@ -517,12 +517,12 @@ describe.skipIf(!optedIn)('delivery constraints on an exact disposable target', 
   }
   async function outcomeFixture(sourceFactory?: SourceFactory) {
     const [times] = await owner`select
-      to_char(statement_timestamp()-interval '20 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') baseline,
-      to_char(statement_timestamp()-interval '19 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') submitted,
-      to_char(statement_timestamp()-interval '18 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') approved,
-      to_char(statement_timestamp()-interval '17 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') delivered,
-      to_char(statement_timestamp()-interval '16 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') recorded,
-      to_char(statement_timestamp()-interval '9 days' at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') observed`
+      to_char((statement_timestamp()-interval '20 days') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') baseline,
+      to_char((statement_timestamp()-interval '19 days') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') submitted,
+      to_char((statement_timestamp()-interval '18 days') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') approved,
+      to_char((statement_timestamp()-interval '17 days') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') delivered,
+      to_char((statement_timestamp()-interval '16 days') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') recorded,
+      to_char((statement_timestamp()-interval '9 days') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') observed`
     const clock = times as OutcomeClock, scanId = randomUUID(), prompt = randomUUID(), otherPrompt = randomUUID()
     await owner`insert into prompt_bank (id,client_id,question) values (${prompt},${client},'Stored outcome question?'),(${otherPrompt},${client},'Stored outcome question?')`
     const envelope = outcomeScan(clock.baseline), source = { kind: 'scan-check' as const, scanId, recordedAt: clock.baseline, envelope }
