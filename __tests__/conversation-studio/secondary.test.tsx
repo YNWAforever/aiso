@@ -40,16 +40,21 @@ it('checks account ownership with a tagged query', async () => {
   expect(strings.join('?')).toMatch(/where id = \? and account_id = \?/)
   expect(values).toEqual([clientId, 'account-a'])
 })
-it('keys the temporary layout by account and brand and loads only account-owned brands', async () => {
+it('keys saved discussions by account, brand and viewer and loads only account-owned brands', async () => {
   const layout = await StudioLayout({ params, children: <p>content</p> })
-  expect(layout.key).toBe(`account-a:${clientId}`)
+  expect(layout.key).toBe(`account-a:${clientId}:profile-a`)
   expect(mocks.brands).toHaveBeenCalledWith('account-a')
   expect(layout.props.children.props.admin).toBe(false)
   const secondBrand = '22222222-2222-4222-8222-222222222222'
   mocks.sql.mockResolvedValueOnce([{ id: secondBrand, brand_name: 'Second Brand' }])
-  expect((await StudioLayout({ params: Promise.resolve({ lang: 'en', clientId: secondBrand }), children: null })).key).toBe(`account-a:${secondBrand}`)
-  mocks.auth.mockResolvedValue({ account_id: 'account-b', is_admin: true, accounts: { override_plan: 'pro' } })
-  expect((await StudioLayout({ params, children: null })).key).toBe(`account-b:${clientId}`)
+  expect((await StudioLayout({ params: Promise.resolve({ lang: 'en', clientId: secondBrand }), children: null })).key).toBe(`account-a:${secondBrand}:profile-a`)
+  // A second member of the same account must get a fresh private-thread provider.
+  mocks.auth.mockResolvedValue({ id: 'profile-b', account_id: 'account-a', accounts: { override_plan: 'pro' } })
+  const otherMember = await StudioLayout({ params, children: null })
+  expect(otherMember.key).toBe(`account-a:${clientId}:profile-b`)
+  expect(otherMember.key).not.toBe(layout.key)
+  mocks.auth.mockResolvedValue({ id: 'profile-c', account_id: 'account-b', is_admin: true, accounts: { override_plan: 'pro' } })
+  expect((await StudioLayout({ params, children: null })).key).toBe(`account-b:${clientId}:profile-c`)
 })
 it.each([ThreadsPage, DocumentsPage, ConnectionsPage, ToolsPage])('treats failed ownership reads as unavailable, with no secondary reads: %s', async Page => {
   mocks.sql.mockRejectedValueOnce(Error('DB_UNAVAILABLE'))

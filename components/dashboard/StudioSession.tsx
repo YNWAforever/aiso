@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { StudioReply } from '@/lib/conversation-studio/types'
 import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
@@ -31,6 +31,8 @@ export type StudioTurn = {
   firecrawl?: StudioFirecrawlRead
   /** Client idempotency key; the server composes and deduplicates this append. */
   requestId?: string
+  /** Server-owned answer state; a pending/unknown attempt must only be read back. */
+  answerState?: 'pending' | 'complete' | 'failed' | 'unknown'
   /** Server-composed provenance for this turn, once saved. */
   receipts?: StudioReceipt[] | null
   serverId?: string
@@ -94,6 +96,8 @@ function turnFromRecord(record: StudioTurnRecord, id: number): StudioTurn {
     task: record.task,
     attached: record.attached ?? undefined,
     live: record.live ?? undefined,
+    requestId: record.requestId ?? undefined,
+    answerState: record.answerState,
     receipts: record.receipts,
     serverId: record.id,
     position: record.position,
@@ -103,8 +107,6 @@ function turnFromRecord(record: StudioTurnRecord, id: number): StudioTurn {
 
 function useSessionState(clientId?: string, initialDraft = '') {
   const [threads, setThreads] = useState<StudioThread[]>([])
-  const threadsRef = useRef(threads)
-  useEffect(() => { threadsRef.current = threads }, [threads])
   const [navigation, setNavigation] = useState<{ activeId: string | null; version: number }>({ activeId: null, version: 0 })
   const [feedback, setFeedback] = useState<{ id: number; threadId: string; key: 'briefOpened' | 'branchOpened' | 'branchUnavailable' | 'followUpSent' } | null>(null)
   const [newDraft, setNewDraft] = useState(initialDraft)
@@ -112,12 +114,16 @@ function useSessionState(clientId?: string, initialDraft = '') {
   const [busy, setBusy] = useState(false)
   const [hydrated, setHydrated] = useState(!clientId)
   const [readFailed, setReadFailed] = useState(false)
+  const [refreshingThreadId, setRefreshingThreadId] = useState<string | null>(null)
+  const [readErrorId, setReadErrorId] = useState<string | null>(null)
+  const [locationReady, setLocationReady] = useState(!clientId)
+  const loadGenerations = useRef(new Map<string, number>())
   const inFlight = useRef(false)
   const nextTurnId = useRef(1)
   const nextThreadId = useRef(1)
   const loadedThreads = useRef(new Set<string>())
   const pendingCreates = useRef(new Map<string, Promise<string | null>>())
-  const allocateId = () => nextTurnId.current++
+  const allocateId = useCallback(() => nextTurnId.current++, [])
   const allocateThreadId = () => `local-${nextThreadId.current++}`
 
   useEffect(() => {
@@ -128,9 +134,9 @@ function useSessionState(clientId?: string, initialDraft = '') {
       if (!result.ok) { setReadFailed(true); setHydrated(true); return }
       const records = result.data.threads.map(fromRecord)
       setThreads(previous => {
-        const unsaved = previous.filter(thread => thread.saveState !== 'persisted')
+        // A late initial GET must not delete a thread created or edited while it ran.
         const existing = new Set(previous.map(thread => thread.id))
-        return [...unsaved, ...records.filter(thread => !existing.has(thread.id))]
+        return [...previous, ...records.filter(thread => !existing.has(thread.id))]
       })
       setReadFailed(false)
       setHydrated(true)
@@ -138,28 +144,79 @@ function useSessionState(clientId?: string, initialDraft = '') {
     return () => { cancelled = true }
   }, [clientId])
 
-  async function loadThread(id: string) {
-    if (!clientId || loadedThreads.current.has(id)) return
-    const thread = threadsRef.current.find(item => item.id === id)
-    if (!thread || thread.saveState !== 'persisted') return
+  const loadThread = useCallback(async (id: string, force = false) => {
+    if (!clientId || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id) || (!force && loadedThreads.current.has(id))) return
+    const generation = (loadGenerations.current.get(id) ?? 0) + 1
+    loadGenerations.current.set(id, generation)
     loadedThreads.current.add(id)
+    setRefreshingThreadId(id)
     const result = await fetchStudioThread(clientId, id)
+    if (loadGenerations.current.get(id) !== generation) return
+    setRefreshingThreadId(previous => previous === id ? null : previous)
     if (!result.ok) {
       loadedThreads.current.delete(id)
-      setThreads(previous => previous.map(item => item.id === id ? { ...item, turnsError: true } : item))
+      setReadErrorId(id)
+      setThreads(previous => ['UNAUTHENTICATED', 'NOT_FOUND'].includes(result.error)
+        ? previous.filter(item => item.id !== id)
+        : previous.map(item => item.id === id ? { ...item, turnsError: true } : item))
       return
     }
-    const turns = result.data.turns.map(record => turnFromRecord(record, allocateId()))
-    setThreads(previous => previous.map(item => item.id === id
-      ? { ...item, title: result.data.thread.title, goal: result.data.thread.goal, week: result.data.thread.week, sourceTitle: result.data.thread.sourceTitle ?? undefined, updatedAt: result.data.thread.updatedAt, skill: result.data.thread.skill ?? item.skill ?? null, visibility: result.data.thread.visibility, pinned: result.data.thread.pinned, archived: result.data.thread.archived, mine: result.data.thread.mine, branchOf: result.data.thread.branchOf ?? item.branchOf ?? null, turns, turnsLoaded: true, turnsError: false }
-      : item))
-  }
+    setReadErrorId(previous => previous === id ? null : previous)
+    setThreads(previous => {
+      const existing = previous.find(item => item.id === id)
+      const serverTurns = result.data.turns.map(record => {
+        const local = existing?.turns.find(turn => turn.serverId === record.id || Boolean(record.requestId && turn.requestId === record.requestId))
+        const saved = turnFromRecord(record, local?.id ?? allocateId())
+        // A GET snapshot may precede a response or append already acknowledged
+        // in this tab. An absent/older model state cannot erase that knowledge.
+        const keepLive = local?.live && (!saved.live || Boolean(local.live.reply && (record.answerState === 'pending' || record.answerState === 'unknown')))
+        return { ...local, ...saved, ...(keepLive ? { live: local.live, answerState: local.answerState } : {}) }
+      })
+      const savedIds = new Set(serverTurns.map(turn => turn.serverId))
+      const savedRequests = new Set(serverTurns.map(turn => turn.requestId).filter(Boolean))
+      // Turns are append-only. Keep even a newly ACKed turn missing from an
+      // older read; requestId deduplicates an append whose acknowledgement was lost.
+      const unsaved = existing?.turns.filter(turn => !savedIds.has(turn.serverId) && (!turn.requestId || !savedRequests.has(turn.requestId))) ?? []
+      const updated: StudioThread = { ...(existing ?? fromRecord(result.data.thread)), ...fromRecord(result.data.thread), draft: existing?.draft ?? '', template: existing?.template ?? null,
+        turns: [...serverTurns, ...unsaved], turnsLoaded: true, turnsError: false,
+        saveState: unsaved.some(turn => turn.saveState === 'failed') ? 'failed' : 'persisted' }
+      return existing ? previous.map(item => item.id === id ? updated : item) : [updated, ...previous]
+    })
+  }, [clientId, allocateId])
 
-  function selectThread(id: string) {
+  const selectThread = useCallback((id: string) => {
     setNavigation(previous => ({ activeId: id, version: previous.version + 1 }))
     setFeedback(null)
     void loadThread(id)
-  }
+  }, [loadThread])
+
+  // Keep a saved discussion addressable across refresh and browser Back/Forward.
+  // Other Studio destinations and offline embeds do not rewrite their route.
+  useEffect(() => {
+    if (!clientId) return
+    function restore(event?: PopStateEvent) {
+      const url = new URL(window.location.href)
+      if (!url.pathname.endsWith(`/dashboard/${encodeURIComponent(clientId!)}/studio`)) { setLocationReady(true); return }
+      const requested = url.searchParams.get('thread')
+      const id = requested && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(requested) ? requested : null
+      setNavigation(previous => !event && previous.version > 0 ? previous : { activeId: id, version: previous.version + 1 })
+      setLocationReady(true)
+      if (id) void loadThread(id)
+    }
+    const start = setTimeout(restore, 0)
+    window.addEventListener('popstate', restore)
+    return () => { clearTimeout(start); window.removeEventListener('popstate', restore) }
+  }, [clientId, loadThread])
+
+  useEffect(() => {
+    if (!clientId || !locationReady) return
+    const url = new URL(window.location.href)
+    if (!url.pathname.endsWith(`/dashboard/${encodeURIComponent(clientId)}/studio`)) return
+    const id = navigation.activeId
+    if (id && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id)) { url.searchParams.set('thread', id); url.searchParams.delete('ask') }
+    else url.searchParams.delete('thread')
+    if (url.href !== window.location.href) window.history.replaceState(null, '', url)
+  }, [clientId, locationReady, navigation.activeId])
 
   async function saveThread(localId: string, input: StudioThreadCreateInput): Promise<string | null> {
     if (!clientId) return null
@@ -249,7 +306,8 @@ function useSessionState(clientId?: string, initialDraft = '') {
   // Keep mutable refs private to their owning hook. Consumers use actions.
   return { threads, setThreads, activeId: navigation.activeId, navigationVersion: navigation.version,
     setActiveId: (activeId: string | null) => { setNavigation(previous => ({ activeId, version: previous.version + 1 })); setFeedback(null) },
-    selectThread, saveThread, saveTurn, saveLive, updateThread, hydrated, readFailed,
+    selectThread, refreshThread: (id: string) => loadThread(id, true), refreshingThreadId,
+    selectionError: readErrorId === navigation.activeId, saveThread, saveTurn, saveLive, updateThread, hydrated, readFailed,
     feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, busy,
     allocateId, allocateThreadId,
     isInFlight: () => inFlight.current,

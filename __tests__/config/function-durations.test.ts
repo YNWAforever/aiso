@@ -66,6 +66,10 @@ describe('Vercel function durations', () => {
     expect(config.functions?.[route]?.maxDuration).toBeTypeOf('number')
   })
 
+  it('leaves Studio time to authenticate, call its 30-second provider and commit the answer', () => {
+    expect(config.functions?.['app/api/dashboard/clients/[clientId]/studio/answer/route.ts']?.maxDuration).toBe(60)
+  })
+
   it('keeps every declared duration inside the Hobby ceiling', () => {
     // 60s is the Hobby maximum. Staying under it means the config needs no
     // assumption about which plan the project is on.

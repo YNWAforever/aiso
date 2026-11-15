@@ -22,5 +22,5 @@ export default async function StudioLayout({ children, params }: { children: Rea
   const content = smeCopilot
     ? <div id="aiso-studio">{children}</div>
     : <StudioShell clientId={clientId} brandName={brand.name} brands={brands} features={resolveCommercialEntitlement(profile.accounts).features} admin={Boolean(profile.is_admin)} staff={staff}>{children}</StudioShell>
-  return <StudioSessionProvider key={`${accountId}:${clientId}`} clientId={clientId}>{content}</StudioSessionProvider>
+  return <StudioSessionProvider key={`${accountId}:${clientId}:${profile.id}`} clientId={clientId}>{content}</StudioSessionProvider>
 }

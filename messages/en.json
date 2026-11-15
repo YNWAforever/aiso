@@ -35,7 +35,7 @@
     "youLabel": "You",
     "composerLabel": "Your work goal",
     "composerPlaceholder": "For example: What questions do Hong Kong customers still need answered before buying this kind of product?",
-    "composerHelp": "Enter adds a new line. Send reads the loaded snapshot; when Search Console is connected, it also reads this turn's Hong Kong snapshot.",
+    "composerHelp": "Enter to send, Shift+Enter for a new line. Up to 1,000 characters.",
     "send": "Start discussion",
     "loadError": "We could not load this brand’s saved evidence. Please try again.",
     "retry": "Try again",
@@ -176,19 +176,19 @@
       }
     },
     "live": {
-      "title": "Live answer",
+      "title": "AI reply",
       "unverified": "Live model output, not verified",
-      "notice": "Saved evidence stays in its own panel. Live models receive only this question and the brand name; saved records and conversation history are not sent. If you attach one approved brand source, its text is sent to every selected model as data and increases token use.",
+      "notice": "Models receive your question, brand name, recent saved messages and an available summary of this turn’s saved brand records. An attached approved document is also sent as data. Full saved evidence summaries are available separately.",
       "platforms": "Live platforms granted by your plan",
-      "disabled": "Live answers are off (cap 0 or LIVE feature off). Send still reads saved evidence only.",
-      "upgrade": "Your plan grants no live platforms. Send reads saved evidence only.",
+      "disabled": "AI replies are currently unavailable for this brand. Saved conversations remain readable.",
+      "upgrade": "Your plan does not currently grant AI models. Saved conversations remain readable.",
       "usesQuota": "Send also asks the selected models and uses {count} answer units. Any attached approved source text is sent to every selected model and increases token use. Weekly LIVE cap for this brand: {cap}.",
       "temporaryCap": "Weekly LIVE answers use your account quota for this brand. The count persists across restarts and instances.",
-      "composerHelp": "Enter adds a new line. Each live Send asks one question and continues this conversation: earlier messages in this thread are sent as context. One attached document may also be sent as data. When Search Console is connected, Send also asks for this turn's Hong Kong snapshot. Limit: 1,000 characters and 4 KB per request.",
+      "composerHelp": "Enter to send, Shift+Enter for a new line. Replies use this conversation's recent saved messages. Up to 1,000 characters.",
       "continuityNote": "Follow-ups continue this conversation and see earlier messages. Start a new conversation for a clean thread.",
       "pending": "Waiting for selected models…",
-      "exhausted": "This brand’s weekly LIVE quota is used up. Saved-evidence replies still work; LIVE stays off until the weekly reset.",
-      "unavailable": "The live request could not complete. The saved evidence reply is still available.",
+      "exhausted": "This brand has used its 10 AI replies for the week. Your conversation remains saved and the current draft stays in this tab for you to continue after the reset.",
+      "unavailable": "The AI reply could not be confirmed. Read the saved reply again without making another model request.",
       "remaining": "LIVE answers left this week for this brand: {count}. Failed or unknown provider attempts still use quota.",
       "coverage": "Live coverage",
       "status": {
@@ -217,10 +217,15 @@
       "budget": "The selected platforms exceed this request’s call or token budget. Select fewer platforms.",
       "invalid": "The live request was rejected. Use a question up to 1,000 characters and the granted platforms.",
       "selector": "Live platforms · {count}",
-      "unverifiedTitle": "Live model output · Unverified",
+      "unverifiedTitle": "AI reply · Unverified",
       "attachUnavailable": "This document is no longer approved or allowed for agent use. Nothing was sent to the models.",
       "attachIncluded": "Attached approved source sent to every selected model: {label} (v{version}).",
-      "attachTruncated": "Attached source sent partially because of the input limit: {included} of {total} entries. Token use still applies."
+      "attachTruncated": "Attached source sent partially because of the input limit: {included} of {total} entries. Token use still applies.",
+      "answerUnknown": "The result of this model request is unknown. You can read the saved reply again; it will not be sent automatically a second time.",
+      "answerConflict": "This message already has a different answer request. Read the saved reply again.",
+      "refreshReply": "Read saved reply again",
+      "refreshingReply": "Reading…",
+      "modelDetails": "Model and sources"
     },
     "heroTitle": "What would you like to accomplish for your brand today?",
     "chooseDocuments": "Choose documents",
@@ -598,15 +603,16 @@
     },
     "copilotEyebrow": "CHAT WITH YOUR BRAND",
     "copilotTitle": "What would you like AI to do for your brand today?",
-    "copilotDescription": "Pick a one-tap task, or ask in your own words. Answers use the brand's saved records; live answers stay labelled unverified.",
+    "copilotDescription": "Choose a task or ask in your own words. Send for an AI reply, then follow up in the same saved conversation.",
     "moreSkills": "More skills",
-    "oneTapHint": "One tap — sends now using saved records.",
+    "oneTapHint": "Fill in a question, edit it, then Send.",
     "execution": {
       "preview": "Will read: {reads}. Live answers: {live}.",
       "readsSaved": "saved records",
       "readsSearchDemand": "search demand",
       "readsPublicPage": "one public page",
-      "readsNothing": "nothing new"
+      "readsNothing": "nothing new",
+      "readsKeywordDemand": "keyword demand"
     },
     "chatMoreTitle": "More in Chat",
     "connectAssistant": {
@@ -688,7 +694,10 @@
         "retry": "Action finished, but the conversation save was not confirmed. Retry only its original save request; do not rerun the action.",
         "unknown": "Action finished, but creating the conversation was not confirmed. It may already exist. Reload history; do not create it again."
       }
-    }
+    },
+    "sending": "Replying…",
+    "savedContextDetails": "Saved-record summary",
+    "messageNotSent": "This message could not be confirmed as saved, so it was not sent to a model. Your question is kept above."
   },
   "seo": {
     "home": {

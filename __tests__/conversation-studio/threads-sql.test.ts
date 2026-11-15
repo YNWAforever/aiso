@@ -427,13 +427,13 @@ it('deduplicates one append per (thread, request id) and never composes a retry 
   expect((await state.pg!.query('select count(*)::int as n from studio_thread_turns')).rows).toEqual([{ n: 2 }])
 })
 
-it('fails closed when the server cannot compose, and keeps the legacy client-composed append honest', async () => {
+it('retains a durable chat prompt when saved context is unavailable without inventing receipts', async () => {
   state.compose = null
   const { data } = await create()
-  const failed = await append(brandA, data.thread.id, { prompt: 'Synthetic question', task: null, requestId })
-  expect(failed.status).toBe(503)
-  expect(await failed.json()).toEqual({ error: 'STUDIO_THREADS_UNAVAILABLE' })
-  expect((await state.pg!.query('select count(*)::int as n from studio_thread_turns')).rows).toEqual([{ n: 0 }])
+  const saved = await append(brandA, data.thread.id, { prompt: 'Synthetic question', task: null, requestId })
+  expect(saved.status).toBe(201)
+  expect((await saved.json()).turn).toMatchObject({ requestId, receipts: null, reply: { status: 'insufficient', observations: [], scan: null, researchSteps: [], coverage: { pulse: 'missing', scan: 'missing' } } })
+  expect((await state.pg!.query('select count(*)::int as n from studio_thread_turns')).rows).toEqual([{ n: 1 }])
 
   // No request id: the legacy path stores the supplied reply and no receipts.
   const legacy = await append(brandA, data.thread.id)
@@ -448,4 +448,54 @@ it('rejects a malformed request id instead of silently appending', async () => {
   for (const bad of ['not-a-uuid', 42, null]) {
     expect((await append(brandA, data.thread.id, { prompt: 'Question', task: null, requestId: bad })).status).toBe(400)
   }
+})
+
+it('rejects private server-managed envelope fields in legacy finalize input', async () => {
+  const { data } = await create()
+  await append(brandA, data.thread.id)
+  for (const answerState of ['pending', 'complete', 'failed', 'unknown']) {
+    const response = await finalizeTurn(request('/api/studio', 'PATCH', { position: 0, live: {
+      origin: 'studio-server.v1', signature: 'a'.repeat(64), token: requestId,
+      state: answerState, startedAt: '2026-11-15T02:00:00Z',
+    } }), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
+    expect(response.status).toBe(400)
+    expect((await state.pg!.query<{ live: unknown }>('select live from studio_thread_turns')).rows[0].live).toBeNull()
+  }
+})
+
+it('never accepts a browser-invented provider completion on an unclaimed turn', async () => {
+  const { data } = await create()
+  await append(brandA, data.thread.id)
+  const response = await finalizeTurn(request('/api/studio', 'PATCH', { position: 0, live: { reply: { answers: [], quota: { cap: 10, remaining: 9, scope: 'brand' } } } }), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
+  expect(response.status).toBe(409)
+  expect((await state.pg!.query<{ live: unknown }>('select live from studio_thread_turns')).rows[0].live).toBeNull()
+})
+it('executes the answer CAS, protects its completion, and only exposes request IDs to the owner', async () => {
+  const { db } = await import('@/lib/db')
+  const { readOwnedAnswerTurn, claimStudioAnswer, finishStudioAnswer, answerSignature } = await import('@/lib/conversation-studio/live-store')
+  const { data } = await create()
+  await append(brandA, data.thread.id, { prompt: 'Question', task: null, requestId })
+  const access = { accountId: accountA, clientId: brandA, profileId: profileA, staffGrantId: null, sql: db() }
+  const turn = (await readOwnedAnswerTurn(access, data.thread.id, 0))!
+  expect(await readOwnedAnswerTurn({ ...access, profileId: profileA2 }, data.thread.id, 0)).toBeNull()
+  const signature = answerSignature({ prompt: 'Question', platforms: ['gemini-flash'], language: 'en', attachedSourceId: null })
+  const attempts = await Promise.all([claimStudioAnswer(access, turn, signature), claimStudioAnswer(access, turn, signature)])
+  expect(attempts.filter(Boolean)).toHaveLength(1)
+  const claim = attempts.find(value => value !== null)!
+  const reply = { answers: [], quota: { cap: 10, remaining: 9, scope: 'brand' as const } }
+  await expect(finishStudioAnswer(access, turn.id, { ...claim, token: missing }, { state: 'complete', response: reply, status: 200 })).rejects.toThrow()
+  await finishStudioAnswer(access, turn.id, claim, { state: 'complete', response: reply, status: 200 })
+  const exact = await finalizeTurn(request('/api/studio', 'PATCH', { position: 0, live: { reply } }), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
+  expect(exact.status).toBe(200)
+  const forged = await finalizeTurn(request('/api/studio', 'PATCH', { position: 0, live: { error: 'Replace the provider result' } }), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
+  expect(forged.status).toBe(409)
+  const own = await getThread(request('/api/studio'), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
+  expect((await own.json()).turns[0]).toMatchObject({ requestId, answerState: 'complete', live: { reply } })
+  await updateThread(request('/api/studio', 'PATCH', { visibility: 'shared' }), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
+  asA2()
+  const shared = await getThread(request('/api/studio'), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
+  const sharedTurn = (await shared.json()).turns[0]
+  expect(sharedTurn).not.toHaveProperty('requestId')
+  expect(JSON.stringify(sharedTurn)).not.toContain(claim.token)
+  expect(sharedTurn.live).toEqual({ reply })
 })
