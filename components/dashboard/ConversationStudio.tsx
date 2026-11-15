@@ -107,7 +107,13 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
 
   const latestTurn = current?.turns.at(-1)
   useEffect(() => {
-    conversationEnd.current?.scrollIntoView({ block: 'nearest' })
+    const end = conversationEnd.current
+    if (!end) return
+    // The sibling composer sticks over the viewport; reserve its actual height
+    // so an end anchor inside the viewport cannot leave the latest reply covered.
+    const composerHeight = composer.current?.closest('form')?.getBoundingClientRect().height ?? 0
+    end.style.scrollMarginBottom = `${Math.ceil(composerHeight) + 16}px`
+    end.scrollIntoView({ block: 'nearest' })
   }, [latestTurn?.id, latestTurn?.live, latestTurn?.saveState])
   // A branch's origin may no longer be in this list (archived, or another member's
   // private thread that was unshared); then the origin is shown without a link.
