@@ -1,6 +1,6 @@
 'use client'
 
-import { useLayoutEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Activity, ArrowLeft, ArrowUpRight, FilePenLine, FileText, Globe2, Lock, NotebookPen, Paperclip, ScanSearch, Search, Send, Sparkles } from 'lucide-react'
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
@@ -19,7 +19,7 @@ import type { StudioGscRead } from '@/lib/conversation-studio/gsc-types'
 import type { StudioDfsRead } from '@/lib/conversation-studio/dfs-types'
 import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-types'
 import { extractTurnUrl } from '@/lib/conversation-studio/firecrawl-url'
-import { buildExecutionPreview } from '@/lib/conversation-studio/execution-preview'
+import { buildExecutionPreview, studioResearchReads } from '@/lib/conversation-studio/execution-preview'
 import { STUDIO_PROMPT_LIMIT, type StudioAttachCandidate, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
 import { skillForTask } from '@/lib/conversation-studio/skills'
@@ -78,25 +78,43 @@ export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
   return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft}><StudioConversation {...props} /></StudioSessionProvider>
 }
-function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features }: Props & { embedded?: boolean }) {
+function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features, initialDraft = '' }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
   const [liveExhausted, setLiveExhausted] = useState(false)
   const [attachment, setAttachment] = useState<StudioAttachCandidate | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, saveLive, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId, hydrated, readFailed } = useStudioSession()
+  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, refreshThread, refreshingThreadId, selectionError, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId, hydrated, readFailed } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
   const [inspection, setInspection] = useState<{ navigationVersion: number; turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
   const previousNavigation = useRef(navigationVersion)
   const focusBriefStart = useRef(false)
   const current = threads.find(thread => thread.id === activeId)
+  const conversationPending = Boolean(current?.turns.some(turn => turn.live?.pending || turn.answerState === 'pending'))
+  const carriedDraft = useRef('')
+  const conversationEnd = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!initialDraft || carriedDraft.current === initialDraft) return
+    const start = setTimeout(() => {
+      carriedDraft.current = initialDraft
+      if (activeId === null) setNewDraft(previous => previous || initialDraft)
+    }, 0)
+    return () => clearTimeout(start)
+  }, [initialDraft, activeId, setNewDraft])
+
+  const latestTurn = current?.turns.at(-1)
+  useEffect(() => {
+    conversationEnd.current?.scrollIntoView({ block: 'nearest' })
+  }, [latestTurn?.id, latestTurn?.live, latestTurn?.saveState])
   // A branch's origin may no longer be in this list (archived, or another member's
   // private thread that was unshared); then the origin is shown without a link.
   const branchOrigin = current?.branchOf ? threads.find(thread => thread.id === current.branchOf!.threadId) ?? null : null
   const inspectedTurn = inspection?.navigationVersion === navigationVersion ? current?.turns.find(turn => turn.id === inspection.turnId) : undefined
   const draft = current?.draft ?? newDraft
+  const sendBlocked = busy || conversationPending || Boolean(current && (!current.turnsLoaded || current.turnsError)) || Boolean(live && (liveExhausted || live.cap === 0 || !platforms.length))
   const home = !current
   const basePath = clientId ? `/${language}/dashboard/${encodeURIComponent(clientId)}` : null
   const actionPanel = useStudioActions({ clientId, brandName, brandDomain, features, evidence, enabled: smeCopilot && !staffView })
@@ -145,25 +163,24 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     else setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, draft: value, template } : thread))
   }
 
-  /**
-   * The one write path for a new turn. The composer calls it with the typed
-   * draft; a one-tap skill calls it with that skill's saved prompt and
-   * `allowLive:false` so a card never spends LIVE quota without an explicit Send.
-   */
-  async function submitTurn(prompt: string, taskHint: StudioHomeTemplate | null, options: { allowLive?: boolean } = {}) {
-    if (!prompt || isInFlight()) return
-    const askLive = Boolean(options.allowLive !== false && live && !staffView && live.cap > 0 && !liveExhausted && platforms.length && clientId)
-    if (prompt.length > STUDIO_PROMPT_LIMIT) return
+  /** Explicit Send is the only write/provider path; a selected task just fills the draft. */
+  async function submitTurn(prompt: string, taskHint: StudioHomeTemplate | null) {
+    if (!prompt || isInFlight() || sendBlocked || (current && !current.mine)) return
+    if (prompt.length > STUDIO_PROMPT_LIMIT || (live && (liveExhausted || live.cap === 0 || !platforms.length))) return
+    const askLive = Boolean(live && !staffView && live.cap > 0 && platforms.length && clientId)
+    // Lock synchronously, before thread creation or append can yield.
+    beginLive()
+    try {
     setFeedback(null)
     const id = current?.id ?? allocateThreadId()
     const task = taskHint
     const title = boundedTitle(task ? t(`templates.${task}.label`) : prompt)
     const kind = task === 'brief' ? 'brief' : 'research'
     // A staff view reads no provider or Google data: those routes bill and scope to the viewer's own account.
-    const wantsGsc = Boolean(clientId && !staffView && sourceStatus === 'bound')
-    const wantsDfs = Boolean(clientId && !staffView)
-    // One explicit public URL per turn; a turn without one never calls Firecrawl.
-    const scrapeUrl = clientId && !staffView ? extractTurnUrl(prompt) : null
+    const research = studioResearchReads(task)
+    const wantsGsc = Boolean(clientId && !staffView && research.searchConsole && sourceStatus === 'bound')
+    const wantsDfs = Boolean(clientId && !staffView && research.keywords)
+    const scrapeUrl = clientId && !staffView && research.publicPage ? extractTurnUrl(prompt) : null
     const turn: StudioTurn = { id: allocateId(), requestId: crypto.randomUUID(), prompt, task, reply: composeSavedReply(prompt, task ? HOME_TASKS[task].capability : null, evidenceForHomeTask(evidence, task), opportunities), ...(attachment ? { attached: { label: attachment.label, versionNumber: attachment.versionNumber } } : {}), ...(askLive ? { live: { pending: true } } : {}), ...(wantsGsc ? { gsc: { pending: true } } : {}), ...(wantsDfs ? { dfs: { pending: true } } : {}), ...(scrapeUrl ? { firecrawl: { pending: true } } : {}) }
     if (current) {
       setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, turns: [...thread.turns, turn], draft: '', template: null } : thread))
@@ -190,7 +207,14 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, firecrawl: next } : item) }
         : thread))
     }
-    // On-demand only: never on page load. Saved and LIVE turns both ask once.
+    // Persist the user turn before any provider or research request.
+    const saved = await saveTurn(id, turn.id, { prompt, task, reply: turn.reply, requestId: turn.requestId, language: language === 'zh-HK' ? 'zh-HK' : 'en', attached: turn.attached ?? null })
+    if (!saved.ok) {
+      setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id)
+        ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: undefined, gsc: undefined, dfs: undefined, firecrawl: undefined } : item) } : thread))
+      return
+    }
+    setFeedback({ id: turn.id, threadId: saved.threadId, key: 'followUpSent' })
     if (wantsGsc && clientId) {
       void (async () => {
         try {
@@ -232,22 +256,12 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         }
       })()
     }
-    const persist = saveTurn(id, turn.id, { prompt, task, reply: turn.reply, requestId: turn.requestId, language: language === 'zh-HK' ? 'zh-HK' : 'en', attached: turn.attached ?? null })
-      .then(result => {
-        if (result.ok) setFeedback({ id: turn.id, threadId: result.threadId, key: 'followUpSent' })
-        return result
-      })
-    // Persist the user turn first: LIVE needs the server-assigned thread id and
-    // position to load this conversation's history, and a failed save must not
-    // produce an orphan live answer that is never attached to a turn.
-    const saved = await persist
     if (askLive && saved.ok) {
-      beginLive()
       let result: NonNullable<StudioTurn['live']>
       try {
         const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId!)}/studio/answer`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
-          body: JSON.stringify({ prompt, platforms, language, threadId: saved.threadId, position: saved.position, ...(attachment ? { attachedSourceId: attachment.id } : {}) }), signal: AbortSignal.timeout(25_000),
+          body: JSON.stringify({ prompt, platforms, language, threadId: saved.threadId, position: saved.position, ...(attachment ? { attachedSourceId: attachment.id } : {}) }), signal: AbortSignal.timeout(45_000),
         })
         const data = await response.json()
         if (response.ok) {
@@ -255,14 +269,19 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           result = { reply }
           if (reply.quota.remaining === 0) setLiveExhausted(true)
         } else {
-          result = { error: data.error ?? 'STUDIO_UNAVAILABLE' }
+          result = data.error === 'STUDIO_ANSWER_PENDING' ? { pending: true } : { error: data.error ?? 'STUDIO_UNAVAILABLE' }
           if (data.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
         }
       } catch { result = { error: 'STUDIO_UNAVAILABLE' } }
-      setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id) ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: result } : item) } : thread))
-      await saveLive(saved.threadId, saved.position, result.reply ? { reply: result.reply } : { error: result.error ?? 'STUDIO_UNAVAILABLE' })
-      endLive()
+      const answerState: StudioTurn['answerState'] = result.pending ? 'pending'
+        : result.reply ? result.reply.answers.some(answer => answer.coverage === 'present') ? 'complete' : 'failed'
+          : result.error === 'STUDIO_ANSWER_UNKNOWN' ? 'unknown' : undefined
+      setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id) ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: result, answerState } : item) } : thread))
+      // The answer endpoint commits the assistant turn before it returns 200.
+      // On a lost response, GET the owned thread; never re-dispatch a paid answer.
+      if (result.error === 'STUDIO_UNAVAILABLE') await refreshThread(saved.threadId)
     }
+    } finally { endLive() }
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -272,17 +291,15 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     void submitTurn(prompt, current ? current.template : newTemplate)
   }
 
-  /**
-   * One-tap skill: sends the skill's own saved prompt immediately, composed from
-   * saved records only. LIVE spend still requires the user's explicit Send.
-   */
+  /** Review the task's question before explicitly sending it to the model. */
   function submitSkill(key: StudioHomeTemplate) {
     if (isInFlight()) return
-    void submitTurn(t(`templates.${key}.prompt`), key, { allowLive: false })
+    updateDraft(t(`templates.${key}.prompt`), key)
+    composer.current?.focus()
   }
 
-  const preview = buildExecutionPreview({ clientId, staffView, sourceStatus, prompt: draft, live: Boolean(live), platforms, liveExhausted })
-  const previewReads = [preview.savesTurn && t('execution.readsSaved'), preview.readsSearchDemand && t('execution.readsSearchDemand'), preview.readsPublicPage && t('execution.readsPublicPage')].filter(Boolean).join(' · ')
+  const preview = buildExecutionPreview({ clientId, staffView, sourceStatus, prompt: draft, task: current ? current.template : newTemplate, live: Boolean(live && live.cap > 0), platforms, liveExhausted })
+  const previewReads = [preview.savesTurn && t('execution.readsSaved'), preview.readsSearchDemand && t('execution.readsSearchDemand'), preview.readsKeywordDemand && t('execution.readsKeywordDemand'), preview.readsPublicPage && t('execution.readsPublicPage')].filter(Boolean).join(' · ')
   const executionPreview = t('execution.preview', { reads: previewReads || t('execution.readsNothing'), live: preview.liveAnswers })
 
   /** One-tap skill card: the tap sends, so it never needs a second Send. */
@@ -297,9 +314,11 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     </button>
   }
 
-  const composerForm = <form onSubmit={submit} className="as-composer space-y-3">
+  const composerForm = <form onSubmit={submit} className={`as-composer space-y-3${home ? '' : ' as-chat-composer'}`} aria-busy={busy}>
     <label htmlFor="studio-composer" className="as-muted as-small block font-semibold">{t(home ? 'composerLabel' : 'followUpLabel')}</label>
-    <textarea ref={composer} id="studio-composer" value={draft} maxLength={STUDIO_PROMPT_LIMIT} onChange={event => updateDraft(event.target.value)} rows={4} placeholder={t(home ? 'composerPlaceholder' : 'followUpPlaceholder')} aria-describedby="studio-composer-help" className="block w-full min-w-0 resize-y" />
+    <textarea ref={composer} id="studio-composer" value={draft} maxLength={STUDIO_PROMPT_LIMIT} onChange={event => updateDraft(event.target.value, current ? current.template : newTemplate)} onKeyDown={event => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); event.currentTarget.form?.requestSubmit() }
+    }} rows={home ? 4 : 2} placeholder={t(home ? 'composerPlaceholder' : 'followUpPlaceholder')} aria-describedby="studio-composer-help" className="block w-full min-w-0 resize-y" />
     <div className="as-composer-footer">
       <div className="as-composer-tools">
         {(current ? current.template : newTemplate) && <>
@@ -322,8 +341,8 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           </fieldset>
         </details>}
       </div>
-      <button type="submit" disabled={!draft.trim() || busy || Boolean(live && live.cap > 0 && live.platforms.length && !platforms.length)} className="as-button as-primary inline-flex items-center justify-center gap-2 px-4 font-semibold disabled:opacity-50">
-        <Send className="size-4" aria-hidden="true" />{t(home ? 'send' : 'followUpSend')}
+      <button type="submit" disabled={!draft.trim() || sendBlocked} className="as-button as-primary inline-flex items-center justify-center gap-2 px-4 font-semibold disabled:opacity-50">
+        <Send className="size-4" aria-hidden="true" />{t(busy ? 'sending' : home ? 'send' : 'followUpSend')}
       </button>
     </div>
     {pickerOpen && <div id="studio-attach-picker" role="group" aria-label={t('attach.pickerLabel')} className="as-note space-y-2">
@@ -339,6 +358,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           </li>)}</ul>}
     </div>}
     {!live && attachment && <p className="as-muted as-small">{t('attach.savedNote')}</p>}
+    {smeCopilot && live && (liveExhausted || live.cap === 0 || !live.platforms.length) && <p role="status" className="as-note">{t(liveExhausted ? 'live.exhausted' : !live.platforms.length ? 'live.upgrade' : 'live.disabled')}</p>}
     {smeCopilot
       ? <p className="as-muted as-small">{executionPreview}</p>
       : <>
@@ -366,7 +386,12 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         <p className="as-breadcrumb"><span>{brandName}</span><span aria-hidden="true">/</span><span>{t(home ? 'title' : 'discussionTitle')}</span></p>
         <span className="as-locale"><Globe2 className="size-3.5 shrink-0" aria-hidden="true" />{t('localeLabel')}</span>
       </div>}
-      {home ? <div id="studio-home" className="as-home space-y-6">
+      {home && activeId ? <section className="as-empty space-y-3" aria-busy={!selectionError}>
+        <h1>{t('discussionTitle')}</h1>
+        <p role={selectionError ? 'alert' : 'status'}>{t(selectionError ? 'readUnavailable' : 'loadingThreads')}</p>
+        {selectionError && <button type="button" className="as-button px-4" onClick={() => void refreshThread(activeId)}>{t('retry')}</button>}
+        <button type="button" className="as-button px-4" onClick={openHome}>{t('newThread')}</button>
+      </section> : home ? <div id="studio-home" className="as-home space-y-6">
         <header className="space-y-3">
           <p className="as-eyebrow">{t(smeCopilot ? 'copilotEyebrow' : 'heroEyebrow')}</p>
           <h1>{t(smeCopilot ? 'copilotTitle' : 'heroTitle')}</h1>
@@ -451,7 +476,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         <div className="as-discussion-grid">
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
           {!current.turnsLoaded && !current.turnsError && <p className="as-muted as-small">{t('loadingThreads')}</p>}
-          {current.turnsError && <p className="as-note">{t('readUnavailable')}</p>}
+          {current.turnsError && <p role="alert" className="as-note">{t('readUnavailable')} <button type="button" className="as-button px-3" onClick={() => void refreshThread(current.id)}>{t('retry')}</button></p>}
           {current.turns.map(({ id, prompt, reply, task, live: liveTurn, gsc, dfs, firecrawl, attached, receipts, saveState: turnSaveState, position }, index) => <div key={id} className="space-y-5">
             <div className="as-question p-4">
               <p className="as-muted as-small mb-2 font-semibold">{t('youLabel')}</p>
@@ -466,17 +491,22 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               <p>{t(`templates.${task}.limit`)}</p>
             </div>}
             <div className="min-w-0 space-y-4">
+              {turnSaveState === 'failed' && <p role="alert" className="as-note">{t('messageNotSent')}</p>}
+              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} refreshing={busy || refreshingThreadId === current.id} onRefresh={current.mine ? () => void refreshThread(current.id) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />}
+              {turnSaveState !== 'failed' && <details className="as-note as-saved-context" open={!liveTurn}>
+                <summary>{t('savedContextDetails')}</summary>
               <StudioReplyView clientId={clientId} readOnly={staffView || !current.mine} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={turnSaveState === 'saved' ? () => branchThread(current, current.turns[index]) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
-              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />}
+              {/* This existing export saves the stored summary, not the model reply. */}
+              {clientId && current.mine && !staffView && current.saveState === 'persisted' && turnSaveState === 'saved' && position !== undefined
+                && <StudioSaveToDocs clientId={clientId} threadId={current.id} position={position} />}
+              </details>}
               <StudioGscSnapshotView gsc={gsc} />
               <StudioDfsSnapshotView dfs={dfs} />
               <StudioFirecrawlSnapshotView firecrawl={firecrawl} />
-              {/* Only a turn saved to the member's own thread can be saved to their Drive. */}
-              {clientId && current.saveState === 'persisted' && turnSaveState === 'saved' && position !== undefined
-                && <StudioSaveToDocs clientId={clientId} threadId={current.id} position={position} />}
             </div>
             </div>
           </div>)}
+          <div ref={conversationEnd} aria-hidden="true" />
         </div>
         {inspection && inspectedTurn && <StudioEvidenceInspector reply={inspectedTurn.reply} evidence={evidenceForHomeTask(evidence, inspectedTurn.task)} liveReply={inspectedTurn.live?.reply} liveEnabled={Boolean(live)} gsc={inspectedTurn.gsc} dfs={inspectedTurn.dfs} firecrawl={inspectedTurn.firecrawl} reads={inspector} sourceStatus={sourceStatus} prompt={inspectedTurn.prompt} target={inspection.target} trigger={inspection.trigger} onClose={() => setInspection(null)} />}
         </div>

@@ -37,13 +37,17 @@ export type StudioThreadRecord = {
 
 export type StudioTurnRecord = {
   id: string
+  /** Owner-only append correlation; never an authorization capability. */
+  requestId?: string | null
+  /** Safe projection of the server claim; its signature/token are not exposed. */
+  answerState?: 'pending' | 'complete' | 'failed' | 'unknown'
   position: number
   prompt: string
   task: StudioHomeTemplate | null
   reply: StudioReply
   attached: { label: string; versionNumber: number } | null
   live: { reply: StudioLiveReply } | { error: string } | null
-  /** Server-composed receipts. Null means the turn predates server composition. */
+  /** Server-composed receipts. Null means legacy composition or unavailable saved context. */
   receipts: StudioReceipt[] | null
   createdAt: string
 }
@@ -89,4 +93,4 @@ export type StudioThreadUpdateInput = {
   visibility?: StudioThreadVisibility
 }
 
-export type StudioThreadsError = 'UNAUTHENTICATED' | 'NOT_FOUND' | 'INVALID_STUDIO_THREAD' | 'STUDIO_THREAD_FULL' | 'STUDIO_THREADS_UNAVAILABLE'
+export type StudioThreadsError = 'UNAUTHENTICATED' | 'NOT_FOUND' | 'INVALID_STUDIO_THREAD' | 'STUDIO_THREAD_FULL' | 'STUDIO_THREADS_UNAVAILABLE' | 'STUDIO_ANSWER_CONFLICT'

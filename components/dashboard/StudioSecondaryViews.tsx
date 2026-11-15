@@ -71,7 +71,7 @@ export function StudioThreads({ clientId }: { clientId: string }) {
           const when = relativeTime(thread.updatedAt, now, lang)
           return <li key={thread.id}>
             <div className="flex flex-wrap items-start gap-2">
-              <button className="as-thread flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => { session.selectThread(thread.id); router.push(base) }}>
+              <button className="as-thread flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => { session.selectThread(thread.id); router.push(`${base}?thread=${encodeURIComponent(thread.id)}`) }}>
                 <MessageSquare className="size-5 shrink-0 as-blue" aria-hidden="true" />
                 <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span>{thread.saveState === 'failed' && <span className="as-muted as-small block">{t('saveFailed')}</span>}</span>
                 {/* A skill-started thread is titled with the skill; repeating it as a tag adds nothing. */}

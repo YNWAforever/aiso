@@ -1,5 +1,5 @@
 import { extractTurnUrl } from './firecrawl-url'
-import type { StudioSourceStatus } from './home'
+import type { StudioHomeTemplate, StudioSourceStatus } from './home'
 
 /**
  * What one Send (or one skill tap) will read, derived from the same conditions
@@ -16,13 +16,24 @@ export interface ExecutionPreviewInput {
   live: boolean
   platforms: string[]
   liveExhausted?: boolean
+  task?: StudioHomeTemplate | null
 }
 
 export interface ExecutionPreview {
   savesTurn: boolean
   readsSearchDemand: boolean
+  readsKeywordDemand: boolean
   readsPublicPage: boolean
   liveAnswers: number
+}
+
+/** Research providers run only for an explicitly selected research task. */
+export function studioResearchReads(task?: StudioHomeTemplate | null) {
+  return {
+    searchConsole: task === 'opportunity' || task === 'pulse' || task === 'report',
+    keywords: task === 'opportunity' || task === 'competitors',
+    publicPage: task === 'improve' || task === 'opportunity' || task === 'competitors',
+  }
 }
 
 export function buildExecutionPreview(input: ExecutionPreviewInput): ExecutionPreview {
@@ -30,10 +41,12 @@ export function buildExecutionPreview(input: ExecutionPreviewInput): ExecutionPr
   // to the viewer's own account.
   const allowed = Boolean(input.clientId) && !input.staffView
   const liveAllowed = input.live && allowed && input.platforms.length > 0 && input.liveExhausted !== true
-  const url = allowed ? extractTurnUrl(input.prompt) : null
+  const research = studioResearchReads(input.task)
+  const url = allowed && research.publicPage ? extractTurnUrl(input.prompt) : null
   return {
     savesTurn: allowed,
-    readsSearchDemand: allowed && input.sourceStatus === 'bound',
+    readsSearchDemand: allowed && research.searchConsole && input.sourceStatus === 'bound',
+    readsKeywordDemand: allowed && research.keywords,
     readsPublicPage: Boolean(url),
     liveAnswers: liveAllowed ? input.platforms.length : 0,
   }

@@ -1,4 +1,5 @@
 import 'server-only'
+import { isDeepStrictEqual } from 'node:util'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { isConversationStudioEnabled } from '@/lib/flags'
@@ -6,6 +7,7 @@ import { readLimitedJson } from '@/lib/approvals/request'
 import { STUDIO_HOME_TEMPLATES, type StudioHomeTemplate } from './home'
 import { STUDIO_PROMPT_LIMIT, type StudioLiveReply } from './live-types'
 import { composeStudioTurn } from './compose-server'
+import { projectManagedAnswer, ANSWER_CONFLICT } from './live-store'
 import { parseStudioReceipts, type StudioReceipt } from './receipts'
 import { parseStudioSkill, skillForThread } from './skills'
 import type { StudioReply } from './types'
@@ -113,6 +115,8 @@ function isAttached(value: unknown): value is { label: string; versionNumber: nu
 }
 
 function readLive(value: unknown): StudioTurnLiveInput | null {
+  const managed = projectManagedAnswer(value)
+  if (managed) return managed.live
   if (!isObject(value) || 'pending' in value) return null
   const keys = Object.keys(value)
   if (keys.length !== 1) return null
@@ -184,6 +188,8 @@ function parseFinalizeLive(raw: unknown): { position: number; live: StudioTurnLi
   if (Object.keys(raw).some(key => !['position', 'live'].includes(key))) return null
   const position = raw.position
   if (!Number.isSafeInteger(position) || (position as number) < 0) return null
+  // Stored envelopes are normalized on read, never admitted as browser input.
+  if (!isObject(raw.live) || Object.keys(raw.live).length !== 1) return null
   const live = readLive(raw.live)
   return live ? { position: position as number, live } : null
 }
@@ -236,15 +242,18 @@ function threadRecord(row: Record<string, unknown>, viewerProfileId: string): St
   }
 }
 
-function turnRecord(row: Record<string, unknown>): StudioTurnRecord {
+function turnRecord(row: Record<string, unknown>, owner = true): StudioTurnRecord {
+  const managed = projectManagedAnswer(row.live)
   return {
+    ...(owner ? { requestId: typeof row.request_id === 'string' ? row.request_id : null } : {}),
+    ...(managed ? { answerState: managed.answerState } : {}),
     id: String(row.id),
     position: Number(row.position),
     prompt: String(row.prompt),
     task: isTask(row.task) ? row.task : null,
     reply: row.reply as StudioReply,
     attached: (row.attached ?? null) as StudioTurnRecord['attached'],
-    live: (row.live ?? null) as StudioTurnRecord['live'],
+    live: readLive(row.live ?? null),
     receipts: parseStudioReceipts(row.receipts),
     createdAt: String(row.created_at),
   }
@@ -377,7 +386,7 @@ export async function getStudioThread(_request: Request, clientId: string, threa
     // never by the viewer's, so a viewer cannot even form a query for their own rows here.
     const ownerProfileId = String((rows[0] as Record<string, unknown>).profile_id)
     const turns = await access.sql`
-      select id, position, prompt, task, reply, attached, live, receipts, created_at
+      select id, position, prompt, task, reply, attached, live, receipts, request_id, created_at
       from studio_thread_turns
       where thread_id = ${threadId}::uuid
         and account_id = ${access.accountId}::uuid
@@ -388,7 +397,7 @@ export async function getStudioThread(_request: Request, clientId: string, threa
     `
     return respond({
       thread: threadRecord(rows[0] as Record<string, unknown>, access.profileId),
-      turns: turns.map(row => turnRecord(row as Record<string, unknown>)),
+      turns: turns.map(row => turnRecord(row as Record<string, unknown>, ownerProfileId === access.profileId)),
     })
   } catch (error) {
     console.error('[studio] read thread failed:', error)
@@ -520,7 +529,7 @@ export async function updateStudioThread(request: Request, clientId: string, thr
  */
 async function readTurnByRequest(access: StudioBrandAccess, threadId: string, requestId: string): Promise<Record<string, unknown> | null> {
   const rows = await access.sql`
-    select id, position, prompt, task, reply, attached, live, receipts, created_at
+    select id, position, prompt, task, reply, attached, live, receipts, request_id, created_at
     from studio_thread_turns
     where thread_id = ${threadId}::uuid
       and request_id = ${requestId}::uuid
@@ -563,16 +572,20 @@ export async function appendStudioTurn(request: Request, clientId: string, threa
     if (input.requestId) {
       // B1: the server composes the stored reply from the brand's own records and
       // records what it read. The client's optimistic reply is never trusted here.
-      const composed = await composeStudioTurn({
-        accountId: access.accountId,
-        clientId: access.clientId,
-        language: input.language ?? 'en',
-        prompt: input.prompt,
-        task: input.task,
-      })
-      if (!composed) return unavailable()
-      reply = composed.reply
-      receipts = composed.receipts
+      let composed: Awaited<ReturnType<typeof composeStudioTurn>> = null
+      try {
+        composed = await composeStudioTurn({
+          accountId: access.accountId, clientId: access.clientId,
+          language: input.language ?? 'en', prompt: input.prompt, task: input.task,
+        })
+      } catch { /* Optional saved context must not discard a durable chat prompt. */ }
+      reply = composed?.reply ?? {
+        status: 'insufficient', template: null, observations: [], scan: null, researchSteps: [],
+        coverage: { pulse: 'missing', citations: 'missing', scan: 'missing', live: 'unsupported' },
+      }
+      // No invented compose/read receipt: null is explicitly unknown, not an
+      // empty successful evidence selection. The model may still answer chat.
+      receipts = composed?.receipts ?? null
     } else {
       reply = input.reply as StudioReply
       receipts = null
@@ -600,7 +613,7 @@ export async function appendStudioTurn(request: Request, clientId: string, threa
         from touched, next
         where next.count < ${STUDIO_TURN_CAP}
         on conflict (thread_id, request_id) where request_id is not null do nothing
-        returning id, position, prompt, task, reply, attached, live, receipts, created_at
+        returning id, position, prompt, task, reply, attached, live, receipts, request_id, created_at
       )
       select * from inserted
     `
@@ -630,16 +643,29 @@ export async function finalizeStudioTurn(request: Request, clientId: string, thr
     if (!input) return invalid()
     // A staff view never runs a LIVE answer, so it has none to record.
     if (access.staffGrantId) return invalid()
+    const current = await access.sql`
+      select id, position, prompt, task, reply, attached, live, receipts, request_id, created_at
+      from studio_thread_turns
+      where thread_id = ${threadId}::uuid and position = ${input.position}
+        and account_id = ${access.accountId}::uuid and client_id = ${access.clientId}::uuid and profile_id = ${access.profileId}::uuid
+      limit 1`
+    if (!current[0]) return notFound()
+    if (current[0].live !== null && current[0].live !== undefined) {
+      // Old browser clients may acknowledge the exact committed projection, but
+      // cannot replace a server claim/completion with an invented provider reply.
+      return isDeepStrictEqual(readLive(current[0].live), input.live)
+        ? respond({ turn: turnRecord(current[0] as Record<string, unknown>) })
+        : respond({ error: ANSWER_CONFLICT }, 409)
+    }
+    if ('reply' in input.live) return respond({ error: ANSWER_CONFLICT }, 409)
+    // Legacy error-only finalization remains supported. It races safely with
+    // the new server claim: at most one can replace NULL, neither overwrites it.
     const rows = await access.sql`
       update studio_thread_turns set live = ${JSON.stringify(input.live)}::jsonb
-      where thread_id = ${threadId}::uuid
-        and position = ${input.position}
-        and account_id = ${access.accountId}::uuid
-        and client_id = ${access.clientId}::uuid
-        and profile_id = ${access.profileId}::uuid
-      returning id, position, prompt, task, reply, attached, live, receipts, created_at
-    `
-    if (!rows[0]) return notFound()
+      where thread_id = ${threadId}::uuid and position = ${input.position} and live is null
+        and account_id = ${access.accountId}::uuid and client_id = ${access.clientId}::uuid and profile_id = ${access.profileId}::uuid
+      returning id, position, prompt, task, reply, attached, live, receipts, request_id, created_at`
+    if (!rows[0]) return respond({ error: ANSWER_CONFLICT }, 409)
     await access.sql`
       update studio_threads set updated_at = clock_timestamp()
       where id = ${threadId}::uuid

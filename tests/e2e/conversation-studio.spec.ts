@@ -242,23 +242,27 @@ for (const lang of ['en', 'zh-HK']) {
     expect(requests).toEqual([])
   })
 
-  test(`cap zero Send stays saved-only with no transport in ${lang}`, async ({ page }) => {
+  test(`cap zero preserves the draft and blocks model Send with no transport in ${lang}`, async ({ page }) => {
     const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 0)
     await expect(page.getByText(copy.live.disabled, { exact: true })).toBeVisible()
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
-    await page.locator('button[type="submit"]').click()
-    await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
+    await expect(page.locator('button[type="submit"]')).toBeDisabled()
+    await page.locator('#studio-composer').press('Enter')
+    await expect(page.locator('#studio-composer')).toHaveValue(copy.templates.brief.prompt)
+    await expect(page.getByRole('log')).toHaveCount(0)
     expect(liveRequests).toEqual([])
     expect(requests).toEqual([])
   })
 
-  test(`a plan with no platforms stays saved-only in ${lang}`, async ({ page }) => {
+  test(`a plan with no platforms preserves the draft and blocks Send in ${lang}`, async ({ page }) => {
     const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 5, false, true)
     await expect(page.getByText(copy.live.upgrade, { exact: true })).toBeVisible()
     await expect(page.getByRole('checkbox')).toHaveCount(0)
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
-    await page.locator('button[type="submit"]').click()
-    await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
+    await expect(page.locator('button[type="submit"]')).toBeDisabled()
+    await page.locator('#studio-composer').press('Enter')
+    await expect(page.locator('#studio-composer')).toHaveValue(copy.templates.brief.prompt)
+    await expect(page.getByRole('log')).toHaveCount(0)
     expect(liveRequests).toEqual([])
     expect(requests).toEqual([])
   })
@@ -314,9 +318,10 @@ for (const lang of ['en', 'zh-HK']) {
     await page.locator('.as-thread').filter({ hasText: copy.templates.brief.prompt }).click()
     await expect(composer).toHaveValue('Keep this draft')
     await expect(log).not.toContainText('unrelated helicopters')
-    // Editing a template drops its structured intent; no confident generic reply.
+    // Clear the selected task explicitly before asking an unrelated question.
     await page.getByRole('button', { name: copy.title, exact: true }).click()
     await page.getByRole('button', { name: copy.templates.pulse.label, exact: true }).click()
+    await page.getByRole('button', { name: copy.skillChip.clear, exact: true }).click()
     await composer.fill('Is sourdough gluten free today?')
     await send.click()
     await expect(log).toContainText(copy.evidence.questionLimit)
@@ -365,7 +370,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByRole('log')).toHaveCount(0)
     await expect(composer).toHaveValue('廣東話測試')
     await composer.press('End')
-    await composer.press('Enter')
+    await composer.press('Shift+Enter')
     await expect(composer).toHaveValue('廣東話測試\n')
     await expect(page.getByRole('log')).toHaveCount(0)
     await page.locator('button[type="submit"]').click()
@@ -376,7 +381,7 @@ for (const lang of ['en', 'zh-HK']) {
     await composer.fill('Follow-up question')
     await composer.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, keyCode: 229 })
     await composer.press('End')
-    await composer.press('Enter')
+    await composer.press('Shift+Enter')
     await expect(composer).toHaveValue('Follow-up question\n')
     await expect(page.locator('.as-answer-label')).toHaveCount(1)
     await page.locator('button[type="submit"]').click()
@@ -426,7 +431,7 @@ for (const lang of ['en', 'zh-HK']) {
 
   test(`inspector contains focus, closes and honestly presents loaded reads in ${lang}`, async ({ page }) => {
     const { copy, requests, liveRequests } = await fixture(page, lang, false, true, undefined, false, false, true)
-    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.getByRole('button', { name: copy.templates.report.label, exact: true }).click()
     await page.locator('button[type="submit"]').click()
     const trigger = page.getByRole('button', { name: `${copy.evidence.open} [1]`, exact: true })
     await trigger.click()
@@ -505,6 +510,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByText('MOCK LIVE ANSWER', { exact: true })).toBeVisible()
     const composer = page.locator('#studio-composer')
     await composer.fill('Keep source draft')
+    await page.locator('.as-saved-context > summary').click()
     await page.getByRole('button', { name: copy.branchBrief, exact: true }).click()
     await expect(toast).toHaveText(copy.branchOpened)
     await expect(toast).toBeVisible()
@@ -562,6 +568,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByText('MOCK LIVE ANSWER', { exact: true })).toHaveCount(2)
     await expect(page.locator('.as-toast')).toHaveText(copy.followUpSent)
     await composer.fill('Source-only unsent text')
+    await page.locator('.as-saved-context > summary').last().click()
     await page.getByRole('button', { name: copy.branchBrief, exact: true }).last().click()
     const seed = await composer.inputValue()
     expect(seed).toContain(copy.templates.pulse.prompt)
@@ -584,6 +591,7 @@ for (const lang of ['en', 'zh-HK']) {
     await page.locator('.as-thread').filter({ has: page.getByText(copy.templates.pulse.label, { exact: true }) }).click()
     await expect(composer).toHaveValue('Source-only unsent text')
     // The earlier card must still branch its own result, not the latest turn.
+    await page.locator('.as-saved-context > summary').first().click()
     await page.getByRole('button', { name: copy.branchBrief, exact: true }).first().click()
     const earlierSeed = await composer.inputValue()
     expect(earlierSeed).toContain(copy.evidence.savedSummary)
@@ -604,6 +612,8 @@ for (const lang of ['en', 'zh-HK']) {
       }
       throw Error(`Keyboard could not reach ${selector}`)
     }
+    await tabTo('.as-saved-context > summary')
+    await page.keyboard.press('Enter')
     await tabTo('.as-research > summary')
     await page.keyboard.press('Enter')
     await expect(page.locator('.as-research li')).toHaveCount(3)

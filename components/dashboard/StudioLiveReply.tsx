@@ -3,7 +3,7 @@ import type { OpenStudioEvidence } from '@/lib/conversation-studio/types'
 import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { safeEvidenceUrl } from '@/lib/pulse/provider-citations'
 
-export function StudioLiveReplyView({ reply, pending, error, number = 1, onOpenEvidence }: { reply?: StudioLiveReply; pending?: boolean; error?: string; number?: number; onOpenEvidence?: OpenStudioEvidence }) {
+export function StudioLiveReplyView({ reply, pending, error, number = 1, onOpenEvidence, onRefresh, refreshing = false }: { reply?: StudioLiveReply; pending?: boolean; error?: string; number?: number; onOpenEvidence?: OpenStudioEvidence; onRefresh?: () => void; refreshing?: boolean }) {
   const t = useTranslations('conversationStudio.live')
   const evidence = useTranslations('conversationStudio.evidence')
   return <section aria-label={t('replyLabel', { number })} className="as-result as-live-result min-w-0 space-y-3 [overflow-wrap:anywhere]">
@@ -11,7 +11,8 @@ export function StudioLiveReplyView({ reply, pending, error, number = 1, onOpenE
     <h3>{t('unverifiedTitle')}</h3>
     <p className="as-note">{t('unverified')}</p>
     {pending && <p role="status">{t('pending')}</p>}
-    {error && <p role="alert" className={error === 'STUDIO_QUOTA_EXCEEDED' ? 'as-note as-live-exhausted' : 'as-note'}>{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : error === 'STUDIO_ATTACH_UNAVAILABLE' ? 'attachUnavailable' : 'unavailable')}</p>}
+    {error && <p role={error === 'STUDIO_ANSWER_PENDING' ? 'status' : 'alert'} className={error === 'STUDIO_QUOTA_EXCEEDED' ? 'as-note as-live-exhausted' : 'as-note'}>{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : error === 'STUDIO_ATTACH_UNAVAILABLE' ? 'attachUnavailable' : error === 'STUDIO_ANSWER_PENDING' ? 'pending' : error === 'STUDIO_ANSWER_UNKNOWN' ? 'answerUnknown' : error === 'STUDIO_ANSWER_CONFLICT' ? 'answerConflict' : 'unavailable')}</p>}
+    {onRefresh && (pending || error) && <button type="button" className="as-button px-3" disabled={refreshing} onClick={onRefresh}>{t(refreshing ? 'refreshingReply' : 'refreshReply')}</button>}
     {reply && <>
       <p className="as-muted as-small">{t('remaining', { count: reply.quota.remaining })}</p>
       {reply.attachment && <p className="as-muted as-small">{reply.attachment.truncated

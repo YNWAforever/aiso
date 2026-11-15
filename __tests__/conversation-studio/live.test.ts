@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ profile: vi.fn(), sql: vi.fn(), answerUsage: new Map<string, number>() }))
+const mocks = vi.hoisted(() => ({ profile: vi.fn(), sql: vi.fn(), answerUsage: new Map<string, number>(),
+  turns: new Map<string, { id: string; prompt: string; live: unknown; account: unknown; client: unknown; profile: unknown; position: number }>(),
+  prompts: new Map<number, string>(), savedReply: null as unknown, savedReceipts: null as unknown,
+  nextId: 0, missingTurn: false, failFinish: false, loseFinishAck: false }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/auth', () => ({ getProfile: mocks.profile }))
 vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
@@ -8,6 +11,7 @@ vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
 const clientId = '11111111-1111-4111-8111-111111111111'
 const accountA = '10000000-0000-4000-8000-000000000001'
 const accountB = '10000000-0000-4000-8000-000000000002'
+const profileId = '10000000-0000-4000-8000-000000000003'
 const threadId = '55555555-5555-4555-8555-555555555555'
 const position = 2
 const prompt = 'PRIVATE QUESTION: What does this brand do?'
@@ -40,11 +44,39 @@ function answerQuota(strings: TemplateStringsArray, values: unknown[]) {
 
 function defaultSql(strings: TemplateStringsArray, ...values: unknown[]) {
   const text = strings.join('')
-  // Thread ownership is a separate read from the brand lookup; the fake returns
-  // the thread row so the happy path can proceed, and [] to exercise a miss.
+  // Mock only the SQL boundary. Real ownership queries, CAS, projections and
+  // provider client run above this stateful in-memory table.
+  if (text.includes('select u.id, u.prompt, u.live')) {
+    if (mocks.missingTurn) return []
+    const [thread, position, account, client, profile] = values
+    const key = JSON.stringify([thread, position, account, client, profile])
+    if (!mocks.turns.has(key)) mocks.turns.set(key, {
+      id: `66666666-6666-4666-8666-${String(++mocks.nextId).padStart(12, '0')}`,
+      prompt: mocks.prompts.get(Number(position)) ?? prompt, live: null,
+      account, client, profile, position: Number(position),
+    })
+    return [{ ...structuredClone(mocks.turns.get(key)!), reply: mocks.savedReply, receipts: mocks.savedReceipts }]
+  }
+  if (text.includes('update studio_thread_turns set live')) {
+    const finish = text.includes("live->>'token'")
+    const [encoded, id, ...rest] = values
+    const [account, client, profile] = finish ? rest : rest.slice(1)
+    const row = [...mocks.turns.values()].find(value => value.id === id && value.account === account && value.client === client && value.profile === profile)
+    if (!row) return []
+    const current = row.live as { token?: string; state?: string } | null
+    if (finish ? current?.token !== rest[3] || current?.state !== 'pending' : row.live !== null || row.prompt !== rest[0]) return []
+    if (finish && mocks.failFinish) throw Error('completion storage unavailable')
+    row.live = JSON.parse(String(encoded))
+    if (finish && mocks.loseFinishAck) { mocks.loseFinishAck = false; throw Error('acknowledgement lost') }
+    return [{ id: row.id }]
+  }
   if (text.includes('from studio_threads t')) return [{ id: threadId }]
-  // The real read orders by position desc; the helper reverses it to chronological.
-  if (text.includes('from studio_thread_turns')) return [...historyRows].reverse()
+  if (text.includes('from studio_thread_turns')) {
+    if (historyRows.length) return [...historyRows].reverse()
+    const [, account, client, profile, before] = values
+    return [...mocks.turns.values()].filter(row => row.account === account && row.client === client && row.profile === profile && row.position < Number(before))
+      .sort((a, b) => b.position - a.position).slice(0, 10).map(row => ({ position: row.position, prompt: row.prompt, live: structuredClone(row.live) }))
+  }
   const quota = answerQuota(strings, values)
   if (quota) return quota
   if (text.includes('as used')) return [{ used: 0 }]
@@ -84,8 +116,11 @@ beforeEach(() => {
   vi.stubEnv('AISO_LLM_TASK_TOKENS', '12000')
   vi.stubEnv('AISO_LLM_MAX_OUTPUT_TOKENS', '4000')
   vi.stubEnv('OPENROUTER_API_KEY', 'mock-only')
-  mocks.profile.mockResolvedValue({ account_id: accountA, accounts: { override_plan: 'pro' } })
+  mocks.profile.mockResolvedValue({ id: profileId, account_id: accountA, accounts: { override_plan: 'pro' } })
   mocks.answerUsage.clear()
+  mocks.turns.clear(); mocks.prompts.clear(); mocks.nextId = 0
+  mocks.missingTurn = false; mocks.failFinish = false; mocks.loseFinishAck = false
+  mocks.savedReply = null; mocks.savedReceipts = null
   historyRows = []
   mocks.sql.mockImplementation(defaultSql)
   outbound = vi.fn(async () => completion())
@@ -113,14 +148,14 @@ it('requires authentication before validating UUID or ownership', async () => {
 it('rejects bad UUID and foreign ownership before entitlement or calls', async () => {
   expect((await send(body(), 'bad')).status).toBe(404)
   expect(mocks.sql).not.toHaveBeenCalled()
-  mocks.profile.mockResolvedValue({ account_id: 'other', accounts: null })
+  mocks.profile.mockResolvedValue({ id: profileId, account_id: 'other', accounts: null })
   mocks.sql.mockResolvedValue([])
   expect((await send()).status).toBe(404)
   expect(mocks.sql.mock.calls[0].slice(1)).toEqual([clientId, 'other'])
   expect(outbound).not.toHaveBeenCalled()
 })
 it('returns UPGRADE_REQUIRED only after owned-brand lookup', async () => {
-  mocks.profile.mockResolvedValue({ account_id: accountA, accounts: { plan: 'free' } })
+  mocks.profile.mockResolvedValue({ id: profileId, account_id: accountA, accounts: { plan: 'free' } })
   const response = await send()
   expect(response.status).toBe(403)
   expect(await response.json()).toEqual({ error: 'UPGRADE_REQUIRED' })
@@ -132,7 +167,7 @@ it.each([null, [], {}, { ...body(), prompt: '' }, { ...body(), prompt: ' '.repea
   { ...body(), language: 'zh-TW' }, { ...body(), language: ['en'] }, { ...body(), accountId: 'foreign' },
   { ...body(), attachedSourceId: 'not-a-uuid' }, { ...body(), attachedSourceId: { id: attachedSourceId } },
   { ...body(), threadId: 'not-a-uuid' }, { ...body(), threadId: undefined },
-  { ...body(), position: -1 }, { ...body(), position: 1.5 }, { ...body(), position: 51 }, { ...body(), position: '2' },
+  { ...body(), position: -1 }, { ...body(), position: 1.5 }, { ...body(), position: 50 }, { ...body(), position: 51 }, { ...body(), position: '2' },
 ])('rejects invalid input %# without outbound', async input => {
   const response = await send(input)
   expect(response.status).toBe(400)
@@ -146,7 +181,7 @@ it('bounds actual bytes and rejects malformed JSON at stable 400', async () => {
   expect(outbound).not.toHaveBeenCalled()
 })
 it('accepts only Basic plan Gemini, without altering entitlement logic', async () => {
-  mocks.profile.mockResolvedValue({ account_id: accountA, accounts: { override_plan: 'basic' } })
+  mocks.profile.mockResolvedValue({ id: profileId, account_id: accountA, accounts: { override_plan: 'basic' } })
   expect((await send(body(['gpt-4o']))).status).toBe(400)
   expect(outbound).not.toHaveBeenCalled()
   expect((await send()).status).toBe(200)
@@ -192,7 +227,7 @@ it('sends one localized question, preserves safe citations and logs only studio 
   expect(sent.messages[0].content).toContain('zh-HK')
   expect(sent.messages[0].content).toContain('Example Brand')
   expect(sent.messages[1]).toEqual({ role: 'user', content: prompt })
-  expect(sent.messages[0].content).toContain('Do not claim access to saved records or conversation history.')
+  expect(sent.messages[0].content).toContain('Do not claim access to saved records or conversation history beyond the messages supplied here.')
   expect(sent.messages[0].content).not.toContain('studio_attached_source')
   expect(sent.plugins).toBeUndefined()
   expect(info).toHaveBeenCalledWith(expect.objectContaining({ event: 'openrouter_usage', label: 'studio.answer', promptTokens: 10 }))
@@ -210,7 +245,7 @@ it('attaches only the explicitly selected usable source as fenced data', async (
   const sent = JSON.parse((outbound.mock.calls[0][1] as RequestInit).body as string)
   expect(sent.messages).toHaveLength(2)
   expect(sent.messages[0].content).toContain('Example Brand')
-  expect(sent.messages[0].content).toContain('beyond this attached source')
+  expect(sent.messages[0].content).toContain('the only explicitly attached source body available')
   expect(sent.messages[0].content).toContain('<studio_attached_source')
   expect(sent.messages[0].content).toContain('Which flour?')
   expect(sent.messages[0].content).toContain('Rice flour.')
@@ -256,7 +291,7 @@ it('keeps partial and total failures explicit and charges attempted calls withou
   expect(partial.answers.map((a: { coverage: string }) => a.coverage).sort()).toEqual(['missing', 'present'])
   expect(partial.answers.find((a: { coverage: string }) => a.coverage === 'missing')).toMatchObject({ answer: null, error: 'PROVIDER_UNAVAILABLE' })
   outbound.mockRejectedValue(new Error(prompt))
-  const failed = await (await send()).json()
+  const failed = await (await send(body(undefined, { position: 3 }))).json()
   expect(failed.answers[0]).toMatchObject({ coverage: 'missing', answer: null })
   expect(outbound).toHaveBeenCalledTimes(3)
   expect(failed.quota.remaining).toBe(7)
@@ -268,7 +303,7 @@ it('meters LIVE per brand in one account and keeps another account separate', as
   expect((await send()).status).toBe(429)
   expect((await send(body(), '22222222-2222-4222-8222-222222222222')).status).toBe(200)
   expect(outbound).toHaveBeenCalledTimes(1)
-  mocks.profile.mockResolvedValue({ account_id: accountB, accounts: { override_plan: 'pro' } })
+  mocks.profile.mockResolvedValue({ id: profileId, account_id: accountB, accounts: { override_plan: 'pro' } })
   expect((await send()).status).toBe(200)
 })
 it('only enables web search within the existing allowance and its local Studio reservation', async () => {
@@ -276,10 +311,10 @@ it('only enables web search within the existing allowance and its local Studio r
   vi.stubEnv('PULSE_GROUNDED_ANSWERS_PER_WEEK', '1')
   mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
     if (strings.join('').includes('as used')) return [{ used: 0 }]
-    return answerQuota(strings, values) ?? [{ id: clientId, brand_name: 'Brand' }]
+    return defaultSql(strings, ...values)
   })
   await send()
-  await send()
+  await send(body(undefined, { position: 3 }))
   const requests = outbound.mock.calls.map(call => JSON.parse((call[1] as RequestInit).body as string))
   expect(requests[0].plugins).toEqual([{ id: 'web', max_results: 5 }])
   expect(requests[1].plugins).toBeUndefined()
@@ -288,7 +323,7 @@ it('fails closed to no web search on allowance lookup failure; native search sta
   vi.stubEnv('FEATURE_PULSE_GROUNDING', '1')
   mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
     if (strings.join('').includes('as used')) throw new Error('private DB details')
-    return answerQuota(strings, values) ?? [{ id: clientId, brand_name: 'Brand' }]
+    return defaultSql(strings, ...values)
   })
   const data = await (await send(body(['perplexity-sonar', 'gemini-flash']))).json()
   expect(data.answers.map((a: { grounding: string }) => a.grounding).sort()).toEqual(['native', 'none'])
@@ -347,8 +382,8 @@ it("continues a thread: earlier prompts and this platform's answers become conte
   expect(sent.messages[1]).toEqual({ role: 'user', content: 'FIRST QUESTION' })
   expect(sent.messages[2]).toEqual({ role: 'assistant', content: 'FIRST ANSWER' })
   expect(sent.messages[3]).toEqual({ role: 'user', content: prompt })
-  expect(sent.messages[0].content).toContain('conversation context')
-  expect(sent.messages[0].content).not.toContain('Do not claim access to saved records or conversation history.')
+  expect(sent.messages[0].content).toContain('earlier messages for follow-up context')
+  expect(sent.messages[0].content).toContain('Do not claim access to saved records or conversation history beyond the messages supplied here.')
 })
 
 it("rejects a thread that is not this principal's own without spending quota", async () => {
@@ -373,4 +408,104 @@ it('caps replayed history so a long thread cannot grow input tokens without boun
   // The 8,000-char window holds exactly two clipped pairs (4 x 2,000 chars).
   expect(sent.messages.slice(1, -1)).toHaveLength(4)
   expect(sent.messages.slice(1, -1).every((message: { content: string }) => message.content.length <= 2_001)).toBe(true)
+})
+
+it('claims concurrent answer requests once and replays the persisted completion without quota spend', async () => {
+  let entered!: () => void, release!: () => void
+  const started = new Promise<void>(resolve => { entered = resolve })
+  const gate = new Promise<void>(resolve => { release = resolve })
+  outbound.mockImplementation(async () => { entered(); await gate; return completion() })
+  const first = send(); await started
+  const second = await send()
+  expect(second.status).toBe(409); expect(await second.json()).toEqual({ error: 'STUDIO_ANSWER_PENDING' })
+  expect(outbound).toHaveBeenCalledTimes(1)
+  release()
+  const response = await first, original = await response.json()
+  expect(response.status).toBe(200)
+  expect((await send()).status).toBe(200)
+  expect(await (await send()).json()).toEqual(original)
+  expect(outbound).toHaveBeenCalledTimes(1)
+  expect([...mocks.answerUsage.values()]).toEqual([1])
+  const { projectManagedAnswer } = await import('@/lib/conversation-studio/live-store')
+  expect(projectManagedAnswer([...mocks.turns.values()][0].live)).toEqual({ answerState: 'complete', live: { reply: original } })
+  expect(JSON.stringify(projectManagedAnswer([...mocks.turns.values()][0].live))).not.toMatch(/signature|token|origin/)
+})
+it('the actual stored assistant completion becomes the next turn model context', async () => {
+  expect((await send()).status).toBe(200)
+  mocks.prompts.set(3, 'Explain your previous answer.')
+  expect((await send(body(undefined, { position: 3, prompt: 'Explain your previous answer.' }))).status).toBe(200)
+  const messages = JSON.parse((outbound.mock.calls[1][1] as RequestInit).body as string).messages
+  expect(messages.slice(1)).toEqual([{ role: 'user', content: prompt }, { role: 'assistant', content: reply }, { role: 'user', content: 'Explain your previous answer.' }])
+})
+it('binds the exact persisted current prompt and rejects nonexistent turns before any spend', async () => {
+  expect((await send(body(undefined, { prompt: 'A different unpersisted question' }))).status).toBe(409)
+  mocks.missingTurn = true
+  expect((await send()).status).toBe(404)
+  expect(outbound).not.toHaveBeenCalled(); expect(mocks.answerUsage.size).toBe(0)
+})
+it('does not spend for a brand removed from the Studio rollout', async () => {
+  vi.stubEnv('STUDIO_ROLLOUT_CLIENT_IDS', '22222222-2222-4222-8222-222222222222')
+  expect((await send()).status).toBe(404)
+  expect(mocks.sql).not.toHaveBeenCalled(); expect(outbound).not.toHaveBeenCalled()
+})
+it('a completed claim rejects changed model selection without replacing the answer', async () => {
+  expect((await send()).status).toBe(200)
+  expect((await send(body(['gpt-4o']))).status).toBe(409)
+  expect(outbound).toHaveBeenCalledTimes(1); expect([...mocks.answerUsage.values()]).toEqual([1])
+})
+it('reconciles a lost database completion acknowledgement from the committed row', async () => {
+  mocks.loseFinishAck = true
+  expect((await send()).status).toBe(200)
+  expect((await send()).status).toBe(200)
+  expect(outbound).toHaveBeenCalledTimes(1)
+})
+it('does not return a false completion or regenerate when completion storage is unavailable', async () => {
+  mocks.failFinish = true
+  const first = await send()
+  expect(first.status).toBe(409); expect(await first.json()).toEqual({ error: 'STUDIO_ANSWER_UNKNOWN' })
+  expect((await send()).status).toBe(409)
+  vi.useFakeTimers(); vi.setSystemTime(new Date(Date.now() + 91_000))
+  const unknown = await send()
+  expect(await unknown.json()).toEqual({ error: 'STUDIO_ANSWER_UNKNOWN' })
+  expect(outbound).toHaveBeenCalledTimes(1); expect([...mocks.answerUsage.values()]).toEqual([1])
+})
+it('persists one charged provider failure and replays it rather than retrying the paid call', async () => {
+  outbound.mockRejectedValue(new Error('private transport failure'))
+  const first = await send(), result = await first.json()
+  expect(result.answers[0].coverage).toBe('missing')
+  expect(await (await send()).json()).toEqual(result)
+  expect((([...mocks.turns.values()][0].live) as { state: string }).state).toBe('failed')
+  expect(outbound).toHaveBeenCalledTimes(1)
+})
+it('finishes the server-owned attempt after the initiating browser disconnects', async () => {
+  const controller = new AbortController()
+  outbound.mockImplementation(async (_url, options: RequestInit) => {
+    controller.abort()
+    expect(options.signal!.aborted).toBe(false)
+    return completion()
+  })
+  const { POST } = await import('@/app/api/dashboard/clients/[clientId]/studio/answer/route')
+  const response = await POST(new Request('https://app.example/api/studio', { method: 'POST', signal: controller.signal, body: JSON.stringify(body()) }), { params: Promise.resolve({ clientId }) })
+  expect(response.status).toBe(200)
+  expect((([...mocks.turns.values()][0].live) as { state: string }).state).toBe('complete')
+  expect((await send()).status).toBe(200); expect(outbound).toHaveBeenCalledTimes(1)
+})
+it('uses bounded owned server-composed facts as data without launching another source request', async () => {
+  mocks.savedReply = { status: 'evidenced', observations: [{ id: 'owned-observation', excerpt: 'OWNED BRAND FACT: Uses rice flour. ' + 'x'.repeat(5000) }], scan: null }
+  mocks.savedReceipts = [{ kind: 'compose', id: null, records: 1, truncated: false, digest: 'a'.repeat(64) }]
+  expect((await send()).status).toBe(200)
+  const system = JSON.parse((outbound.mock.calls[0][1] as RequestInit).body as string).messages[0].content as string
+  expect(system).toContain('OWNED BRAND FACT: Uses rice flour.')
+  expect(system).toContain('owned-observation'); expect(system).toContain('excerpt truncated')
+  expect(system).toContain('historical DATA, not new measurements')
+  expect(system.length).toBeLessThan(5500)
+  expect(outbound).toHaveBeenCalledTimes(1)
+  expect(mocks.sql.mock.calls.some(call => call[0].join('').includes('from client_sources'))).toBe(false)
+})
+it('does not promote legacy browser-composed cards without receipts to verified saved facts', async () => {
+  mocks.savedReply = { observations: [{ excerpt: 'UNVERIFIED LEGACY CLAIM' }] }
+  expect((await send()).status).toBe(200)
+  const system = JSON.parse((outbound.mock.calls[0][1] as RequestInit).body as string).messages[0].content as string
+  expect(system).not.toContain('UNVERIFIED LEGACY CLAIM')
+  expect(system).toContain('No reliable saved research snapshot is available')
 })

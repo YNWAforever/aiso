@@ -29,6 +29,7 @@ export async function prepareComponentFixtures(root, environment = process.env, 
   files.push('__tests__/components/suggest-questions-panel.test.tsx')
   files.push('__tests__/components/conversation-studio.test.tsx')
   files.push('__tests__/components/studio-shell-fixture.test.tsx')
+  files.push('__tests__/components/studio-chat-fixture.test.tsx')
   files.push('__tests__/components/today-saved-work-render.test.tsx')
   files.push('__tests__/components/journey-render.test.tsx')
   const result = run(process.execPath,[join(root,'node_modules/vitest/vitest.mjs'),'run',...files,'--maxWorkers=1'],{cwd:root,env,stdio:'inherit'})
