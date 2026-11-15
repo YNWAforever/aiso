@@ -227,7 +227,7 @@ it('sends one localized question, preserves safe citations and logs only studio 
   expect(sent.messages[0].content).toContain('zh-HK')
   expect(sent.messages[0].content).toContain('Example Brand')
   expect(sent.messages[1]).toEqual({ role: 'user', content: prompt })
-  expect(sent.messages[0].content).toContain('Never claim access to saved records, brands, or conversations other than the messages supplied in this discussion.')
+  expect(sent.messages[0].content).toContain('Do not claim access to saved records beyond the messages supplied here.')
   expect(sent.messages[0].content).not.toContain('are its saved history')
   expect(sent.messages[0].content).not.toContain('studio_attached_source')
   expect(sent.plugins).toBeUndefined()
@@ -390,7 +390,7 @@ it("continues a thread: earlier prompts and this platform's answers become conte
   expect(sent.messages[3]).toEqual({ role: 'user', content: prompt })
   expect(sent.messages[0].content).toContain('earlier messages for follow-up context')
   expect(sent.messages[0].content).toContain('The earlier user and assistant messages supplied in this discussion are its saved history; use them to answer follow-up questions.')
-  expect(sent.messages[0].content).toContain('Never claim access to saved records, brands, or conversations other than the messages supplied in this discussion.')
+  expect(sent.messages[0].content).toContain('Do not claim access to saved records beyond the messages supplied here.')
   expect(sent.messages[0].content).not.toContain('Do not claim access to saved records or conversation history beyond the messages supplied here.')
 })
 
