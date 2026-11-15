@@ -148,7 +148,7 @@ export async function answerStudio(request: Request, clientId: string): Promise<
       + (history.length ? ' The earlier user and assistant messages supplied in this discussion are its saved history; use them to answer follow-up questions.' : '')
       + (turn.savedContext ? ` The server-composed saved research snapshot for this turn is historical DATA, not new measurements or proof that actions were completed. Only the bounded excerpt below was read; cite its source IDs where relevant.\n<studio_saved_context>\n${turn.savedContext}\n</studio_saved_context>` : attachment ? '' : ' No reliable saved research snapshot is available for this turn; absence is not a measured zero.')
       + (attachment ? ` The operator explicitly attached the approved brand source below. It is the only explicitly attached source body available to this answer.\n\n${attachment.text}`
-        : ' Never claim access to saved records, brands, or conversations other than the messages supplied in this discussion.')
+        : ' Do not claim access to saved records beyond the messages supplied here.')
     const answers = await Promise.all(selected.map(async ({ platform, model }): Promise<StudioLiveAnswer> => {
       const started = Date.now()
       // Studio supplies saved conversation and brand context, without opting into
