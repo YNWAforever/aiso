@@ -306,7 +306,7 @@ it('meters LIVE per brand in one account and keeps another account separate', as
   mocks.profile.mockResolvedValue({ id: profileId, account_id: accountB, accounts: { override_plan: 'pro' } })
   expect((await send()).status).toBe(200)
 })
-it('only enables web search within the existing allowance and its local Studio reservation', async () => {
+it('does not borrow Pulse web-search allowance for Studio chat', async () => {
   vi.stubEnv('FEATURE_PULSE_GROUNDING', '1')
   vi.stubEnv('PULSE_GROUNDED_ANSWERS_PER_WEEK', '1')
   mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
@@ -316,10 +316,14 @@ it('only enables web search within the existing allowance and its local Studio r
   await send()
   await send(body(undefined, { position: 3 }))
   const requests = outbound.mock.calls.map(call => JSON.parse((call[1] as RequestInit).body as string))
-  expect(requests[0].plugins).toEqual([{ id: 'web', max_results: 5 }])
-  expect(requests[1].plugins).toBeUndefined()
+  expect(requests).toHaveLength(2)
+  for (const request of requests) {
+    expect(request.plugins).toBeUndefined()
+    expect(request.web_search_options).toBeUndefined()
+  }
+  expect(mocks.sql.mock.calls.some(call => call[0].join('').includes('as used'))).toBe(false)
 })
-it('fails closed to no web search on allowance lookup failure; native search stays honest', async () => {
+it('keeps explicitly selected native search honest without consulting Pulse allowance', async () => {
   vi.stubEnv('FEATURE_PULSE_GROUNDING', '1')
   mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
     if (strings.join('').includes('as used')) throw new Error('private DB details')
@@ -328,6 +332,7 @@ it('fails closed to no web search on allowance lookup failure; native search sta
   const data = await (await send(body(['perplexity-sonar', 'gemini-flash']))).json()
   expect(data.answers.map((a: { grounding: string }) => a.grounding).sort()).toEqual(['native', 'none'])
   expect(outbound.mock.calls.every(call => !JSON.parse((call[1] as RequestInit).body as string).plugins)).toBe(true)
+  expect(mocks.sql.mock.calls.some(call => call[0].join('').includes('as used'))).toBe(false)
 })
 it('returns unavailable on SQL failure, never a false foreign-brand result', async () => {
   mocks.sql.mockRejectedValue(new Error(prompt))
