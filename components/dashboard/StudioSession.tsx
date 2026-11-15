@@ -105,9 +105,18 @@ function turnFromRecord(record: StudioTurnRecord, id: number): StudioTurn {
   }
 }
 
+type StudioNavigation = { activeId: string | null; version: number }
+
 function useSessionState(clientId?: string, initialDraft = '') {
   const [threads, setThreads] = useState<StudioThread[]>([])
-  const [navigation, setNavigation] = useState<{ activeId: string | null; version: number }>({ activeId: null, version: 0 })
+  const [navigation, setNavigationState] = useState<StudioNavigation>({ activeId: null, version: 0 })
+  const navigationIntent = useRef(navigation)
+  // Record intent before React can flush an older commit's passive URL effect.
+  const setNavigation = useCallback((update: (previous: StudioNavigation) => StudioNavigation) => {
+    const next = update(navigationIntent.current)
+    navigationIntent.current = next
+    setNavigationState(next)
+  }, [])
   const [feedback, setFeedback] = useState<{ id: number; threadId: string; key: 'briefOpened' | 'branchOpened' | 'branchUnavailable' | 'followUpSent' } | null>(null)
   const [newDraft, setNewDraft] = useState(initialDraft)
   const [newTemplate, setNewTemplate] = useState<StudioHomeTemplate | null>(null)
@@ -188,7 +197,7 @@ function useSessionState(clientId?: string, initialDraft = '') {
     setNavigation(previous => ({ activeId: id, version: previous.version + 1 }))
     setFeedback(null)
     void loadThread(id)
-  }, [loadThread])
+  }, [loadThread, setNavigation])
 
   // Keep a saved discussion addressable across refresh and browser Back/Forward.
   // Other Studio destinations and offline embeds do not rewrite their route.
@@ -206,17 +215,17 @@ function useSessionState(clientId?: string, initialDraft = '') {
     const start = setTimeout(restore, 0)
     window.addEventListener('popstate', restore)
     return () => { clearTimeout(start); window.removeEventListener('popstate', restore) }
-  }, [clientId, loadThread])
+  }, [clientId, loadThread, setNavigation])
 
   useEffect(() => {
-    if (!clientId || !locationReady) return
+    if (!clientId || !locationReady || navigation !== navigationIntent.current) return
     const url = new URL(window.location.href)
     if (!url.pathname.endsWith(`/dashboard/${encodeURIComponent(clientId)}/studio`)) return
     const id = navigation.activeId
     if (id && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id)) { url.searchParams.set('thread', id); url.searchParams.delete('ask') }
     else url.searchParams.delete('thread')
     if (url.href !== window.location.href) window.history.replaceState(null, '', url)
-  }, [clientId, locationReady, navigation.activeId])
+  }, [clientId, locationReady, navigation])
 
   async function saveThread(localId: string, input: StudioThreadCreateInput): Promise<string | null> {
     if (!clientId) return null

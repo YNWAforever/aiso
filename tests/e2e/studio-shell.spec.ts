@@ -31,6 +31,51 @@ async function navigate(page: Page, label: string, copy: typeof en.conversationS
 }
 
 for (const lang of ['en', 'zh-HK']) {
+  test(`recent discussions reopen from other Studio views and survive reload in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang)
+    const title = 'Persisted sidebar question'
+    await page.locator('#studio-composer').fill(title)
+    await page.locator('button[type="submit"]').click()
+    await expect.poll(() => new URL(page.url()).searchParams.get('thread')).toMatch(/^[a-f0-9-]{36}$/)
+    const threadId = new URL(page.url()).searchParams.get('thread')
+    for (const destination of [copy.nav.documents, copy.nav.connections]) {
+      await navigate(page, destination, copy)
+      const toggle = page.getByRole('button', { name: copy.openNavigation, exact: true })
+      if (await toggle.isVisible()) await toggle.click()
+      await page.locator('.as-recent').getByRole('button').filter({ has: page.getByText(title, { exact: true }) }).click()
+      await expect(page.locator('#studio-discussion > header').getByRole('heading', { level: 1 })).toHaveText(title)
+      await expect(page.locator('.as-question').getByText(title, { exact: true })).toBeVisible()
+      expect(new URL(page.url()).searchParams.get('thread')).toBe(threadId)
+    }
+    await page.reload()
+    await expect(page.locator('#studio-discussion > header').getByRole('heading', { level: 1 })).toHaveText(title)
+    await expect(page.locator('.as-question').getByText(title, { exact: true })).toBeVisible()
+    expect(new URL(page.url()).searchParams.get('thread')).toBe(threadId)
+    expect(unexpectedRequests(requests)).toEqual([])
+  })
+
+  test(`native account navigation wins over an older saved-thread URL effect in ${lang}`, async ({ page }) => {
+    const { requests } = await fixture(page, lang, '?switchAtCommit=1')
+    await expect(page.locator('html')).toHaveAttribute('data-scope-probe', 'armed')
+    await page.locator('#studio-composer').fill('Original account saved question')
+    await page.locator('button[type="submit"]').click()
+    await expect(page.locator('html')).toHaveAttribute('data-scope-probe', 'fired')
+    await expect.poll(() => new URL(page.url()).searchParams.get('account')).toBe('account-b')
+    await expect(page.locator('#studio-home')).toBeVisible()
+    await expect(page.locator('#studio-composer')).toHaveValue('')
+    await expect(page.locator('.as-recent li')).toHaveCount(0)
+    await expect(page.getByRole('log')).toHaveCount(0)
+    expect(new URL(page.url()).searchParams.get('thread')).toBeNull()
+    await expect(page.locator('html')).toHaveAttribute('data-scope-probe-misses', '0')
+    const storage = await page.evaluate(client => ({
+      original: JSON.parse(localStorage.getItem(`studio-threads:account-a:${client}`) ?? '[]').map((row: { goal: string }) => row.goal),
+      next: JSON.parse(localStorage.getItem(`studio-threads:account-b:${client}`) ?? '[]'),
+    }), clientId)
+    expect(storage.original).toEqual(['Original account saved question'])
+    expect(storage.next).toEqual([])
+    expect(unexpectedRequests(requests)).toEqual([])
+  })
+
   test(`follow-up drafts and feedback stay in their thread and clear across brands, accounts and exits in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     const composer = page.locator('#studio-composer')

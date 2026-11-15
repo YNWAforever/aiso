@@ -49,7 +49,7 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
     closeMenu()
     if (pathname !== base) router.push(base)
   }
-  function openThread(id: string) { session.selectThread(id); closeMenu(); if (pathname !== base) router.push(base) }
+  function openThread(id: string) { session.selectThread(id); closeMenu(); if (pathname !== base) router.push(`${base}?thread=${encodeURIComponent(id)}`) }
   const tools = buildStudioTools({ lang, clientId, features, admin, conversationStudio: true })
   const commands = [
     ...entries.filter(entry => !staff || STAFF_VIEWS.has(entry.path)).map(entry => ({ id: `studio${entry.path}`, label: t(entry.key), href: base + entry.path, ...(!entry.path ? { onSelect: () => goHome() } : {}) })),
