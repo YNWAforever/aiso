@@ -7,14 +7,14 @@ import { runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { readLimitedJson } from '@/lib/approvals/request'
 import { BudgetExceededError, clampOutputTokens, createTaskBudget } from '@/lib/agents/budget'
 import { callOpenRouterWithEvidence, modelVariantsFor } from '@/lib/openrouter'
-import { groundingFor, searchEvidenceFor, webSearchAllowance } from '@/lib/pulse/grounding'
+import { groundingFor, searchEvidenceFor } from '@/lib/pulse/grounding'
 import { normalizeProviderCitations } from '@/lib/pulse/provider-citations'
 import { answerEnvelope, answerSignature, answerState, claimStudioAnswer, finishStudioAnswer, readOwnedAnswerTurn,
   ANSWER_CONFLICT, ANSWER_PENDING, ANSWER_UNKNOWN, type StudioAnswerEnvelope, type OwnedAnswerTurn } from './live-store'
 import { STUDIO_PROMPT_LIMIT, type StudioLiveAnswer, type StudioAttachMeta } from './live-types'
 import { buildStudioAttachment } from './attach'
 import { readAgentUsableSource } from '@/lib/sources/store'
-import { reserveStudioAnswers, reserveStudioSearches, studioWeek } from './live-quota'
+import { reserveStudioAnswers, studioWeek } from './live-quota'
 import {
   STUDIO_TURN_CAP,
   readOwnStudioHistory,
@@ -138,9 +138,6 @@ export async function answerStudio(request: Request, clientId: string): Promise<
     operation = { access, turn, claim, threadId, position }
     const week = studioWeek()
     const quota = await reserveStudioAnswers(profile.account_id, clientId, selected.length, week)
-    const allowance = await webSearchAllowance(sql, profile.account_id, week)
-    const searchable = selected.filter(({ platform }) => groundingFor(platform, false) === 'none').length
-    const webSearch = searchable > 0 && reserveStudioSearches(profile.account_id, searchable, allowance, week)
     // Once durably claimed, a browser disconnect must not discard the only
     // completion. The provider still has its own strict server-side time bound.
     const signal = AbortSignal.timeout(20_000)
@@ -150,7 +147,10 @@ export async function answerStudio(request: Request, clientId: string): Promise<
         : ' Do not claim access to saved records or conversation history beyond the messages supplied here.')
     const answers = await Promise.all(selected.map(async ({ platform, model }): Promise<StudioLiveAnswer> => {
       const started = Date.now()
-      const grounding = groundingFor(platform, webSearch)
+      // Studio supplies saved conversation and brand context, without opting into
+      // supplemental web research. Explicitly selected native-search models keep
+      // their native behavior; Pulse controls its own grounding separately.
+      const grounding = groundingFor(platform, false)
       const base = { platform, model, startedAt: new Date(started).toISOString(), grounding }
       const messages = [
         { role: 'system' as const, content: systemContent },
