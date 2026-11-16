@@ -1,0 +1,85 @@
+name: Release receipt
+
+# Read-only post-release verification. This workflow never deploys, never writes
+# production data and never runs on pull requests: it turns a production commit
+# into a machine-checked receipt (CI check runs, tested-merge tree, Vercel
+# deployment and canonical alias, schema gate from the real build log, Worker
+# schedules) and fails closed on a mismatch or an unapproved unknown.
+#
+# Required repository secrets:
+#   VERCEL_TOKEN            a Vercel token that can read the aiso project
+#   VERCEL_SCOPE            the Vercel team slug (owner-provided)
+# Optional:
+#   CLOUDFLARE_API_TOKEN    enables the deployee schedule readback; without it
+#                           pass worker_schedules to allow_unknown with a reason.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Production commit SHA to verify
+        required: true
+        type: string
+      pr:
+        description: Pull request number (optional; resolved from the commit otherwise)
+        required: false
+        type: string
+      allow_unknown:
+        description: Comma-separated dependency ids allowed to be unknown (e.g. worker_schedules when no Cloudflare token is configured)
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  checks: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: release-receipt-${{ inputs.sha }}
+  cancel-in-progress: false
+
+jobs:
+  receipt:
+    name: Verify release dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          # The tested merge ref and the app commit must both be resolvable.
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install the Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Collect the release receipt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_SCOPE: ${{ secrets.VERCEL_SCOPE }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -o pipefail
+          args=(--app-sha "${{ inputs.sha }}")
+          if [ -n "${{ inputs.pr }}" ]; then args+=(--pr "${{ inputs.pr }}"); fi
+          if [ -n "${{ inputs.allow_unknown }}" ]; then args+=(--allow-unknown "${{ inputs.allow_unknown }}"); fi
+          node scripts/release/receipt.mjs "${args[@]}"
+
+      - name: Upload the receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-receipt-${{ inputs.sha }}
+          path: .release-receipts/
+          if-no-files-found: error
+          retention-days: 30

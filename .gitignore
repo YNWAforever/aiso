@@ -71,3 +71,6 @@ artifacts/
 
 # Lighthouse CI working files (lighthouserc.cjs)
 .lighthouseci/
+
+# Read-only release receipts (npm run release:receipt). Local evidence only.
+.release-receipts/
