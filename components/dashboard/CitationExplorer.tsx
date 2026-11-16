@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import type { CitationKind } from '@/lib/citations/classify'
 import type { CitationDomain, CitationReport } from '@/lib/citations/report'
 import { summarizeCitations } from '@/lib/citations/summary'
+import { platformLabel } from '@/lib/view-models/monitor-signals'
 
 /** Display order of the source types; also the order of the filter chips. */
 export const CITATION_KINDS: readonly CitationKind[] = [
@@ -43,15 +44,15 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
 
   return (
     <div className="space-y-6">
-      <section aria-label={t('summary_label')} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <section aria-label={t('summary_label')} className="grid grid-cols-3 gap-2 sm:gap-3">
         {[
           [t('summary_with_citations'), summary.withCitations],
           [t('summary_recorded_empty'), summary.recordedEmpty],
           [t('summary_unrecorded'), summary.unrecorded],
         ].map(([label, value]) => (
-          <div key={String(label)} className="rounded-xl border border-border bg-card p-4">
+          <div key={String(label)} className="rounded-xl border border-border bg-card p-3 sm:p-4">
             <p className="text-xs font-medium text-muted-foreground">{label}</p>
-            <p className="mt-1 text-3xl font-black tabular-nums text-foreground">{value}</p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-foreground sm:text-3xl">{value}</p>
           </div>
         ))}
       </section>
@@ -59,7 +60,9 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
 
       <div className="flex flex-wrap items-center gap-3">
         {summary.total > 0 && <a href={csvHref} download onClick={async event=>{event.preventDefault();setExportError(false);try{const response=await fetch(csvHref,{cache:'no-store'});if(!response.ok)throw new Error('export');const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='cited-sources.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch{setExportError(true)}}} className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-primary-accessible underline">{t('download')}</a>}
-        {latest && earliest && <p className="text-sm text-muted-foreground">{t('weeks', { from: earliest, to: latest })}</p>}
+        {latest && (latest === earliest
+          ? <p className="text-sm text-muted-foreground">{t('week_single', { week: latest })}</p>
+          : <p className="text-sm text-muted-foreground">{t('weeks', { from: earliest ?? latest, to: latest })}</p>)}
         {exportError && <p role="alert" className="text-sm text-tone-danger-fg">{t('export_error')}</p>}
       </div>
 
@@ -148,7 +151,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
                         <td className="py-2 pr-4 tabular-nums">{d.answers}</td>
                         <td className="py-2 pr-4 tabular-nums">{d.citations}</td>
                         <td className="py-2 pr-4 tabular-nums">{d.prompts}</td>
-                        <td className="py-2">{d.platforms.join(', ')}</td>
+                        <td className="py-2">{d.platforms.map(platformLabel).join(', ')}</td>
                       </tr>
                     ))}
                   </tbody>

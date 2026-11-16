@@ -6,6 +6,7 @@ import {ObservationDetail} from './ObservationDetail'
 import { MaintenanceNextSteps } from '@/components/workspace/MaintenanceNextSteps'
 import { PULSE_ACTIVE_QUESTIONS_PER_BRAND } from '@/lib/pulse/limits'
 import { groupObservations } from '@/lib/observations/group'
+import { platformLabel } from '@/lib/view-models/monitor-signals'
 
 import type { ObservationCopy } from './copy'
 export type { ObservationCopy } from './copy'
@@ -257,7 +258,7 @@ function Workspace({
                   {group.items.map((item) => (
                     <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium">{item.platform}</span>
+                        <span className="text-sm font-medium">{platformLabel(item.platform)}</span>
                         <span className={item.brandMentioned === true ? badge + ' bg-tone-success-soft' : badge}>{mention(item)}</span>
                         {item.result !== 'success' && <span className={badge}>{item.hasAnswer ? copy.smeIncomplete : copy.noAnswer}</span>}
                         <details className="min-w-0">

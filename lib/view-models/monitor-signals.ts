@@ -15,6 +15,11 @@ const PLATFORM_NAMES: Record<string, string> = {
 }
 const ORDER = Object.keys(PLATFORM_NAMES)
 
+/** Display name for a stored platform/model id; unknown ids stay as recorded. */
+export function platformLabel(id: string): string {
+  return PLATFORM_NAMES[id] ?? id
+}
+
 export const GRID_WEEKS = 8
 
 export type PlatformGrid = {

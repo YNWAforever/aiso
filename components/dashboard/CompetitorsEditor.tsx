@@ -109,7 +109,6 @@ export function CompetitorsEditor({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm leading-6 text-muted-foreground">{t('intro')}</p>
       <p className="text-xs font-medium text-muted-foreground">{t('count', { count: rows.length, max })}</p>
 
       <div aria-live="polite">

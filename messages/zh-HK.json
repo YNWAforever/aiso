@@ -4026,7 +4026,8 @@
     "summary_unrecorded": "沒有來源記錄",
     "summary_note": "{total} 個已記錄回答中，{share}% 有列出來源。",
     "filters": "篩選",
-    "filters_applied": "已套用 {count} 項"
+    "filters_applied": "已套用 {count} 項",
+    "week_single": "週次：{week}"
   },
   "runProgress": {
     "title": "監測品牌",
