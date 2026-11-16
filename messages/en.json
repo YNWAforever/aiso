@@ -1480,7 +1480,7 @@
     "step_improve_body": "Draft improvements from your saved website checks. Review each suggestion against its source evidence. Available monitoring samples are shown separately and do not establish that a change improved AI visibility.",
     "step_improve_locked": "Upgrade to unlock the analysis included in your plan. Review website recommendations and available monitoring evidence; comparisons require compatible observations.",
     "step_monitor_title": "Monitor your ranking",
-    "step_monitor_sme_title": "Check saved AI answers",
+    "step_monitor_sme_title": "AI visibility",
     "step_monitor_body": "Track your Share of Voice — how often your brand appears in AI-generated answers across all platforms. See which queries you're missing and where competitors are showing up instead.",
     "step_roi_title": "Local trust and enquiry value",
     "step_roi_body": "Show owners how local trust, AI visibility, completed fixes, and estimated enquiry value are moving over time.",
@@ -1846,7 +1846,8 @@
     "nav_verified_facts": "Verified facts",
     "nav_pages": "Pages",
     "nav_billing": "Billing",
-    "nav_account_menu": "Account menu"
+    "nav_account_menu": "Account menu",
+    "step_monitor_sme_body": "How often AI answers mention your brand each week, by platform and question."
   },
   "reports": {
     "scan_domain_mismatch": "This scan is for a different domain from the brand’s current website. Choose a completed scan for the current domain, or run a new scan.",
@@ -2637,6 +2638,34 @@
         "none": "No alert raised yet",
         "error": "Alert status could not be read."
       }
+    },
+    "visibility": {
+      "title": "AI visibility",
+      "intro": "How often AI answers mention your brand each week, by platform and question.",
+      "mentionRate": "AI mention rate",
+      "rateCaption": "Share of classified answers that mention your brand",
+      "week": "Week of {week}",
+      "deltaUp": "+{delta} pts vs last week",
+      "deltaDown": "−{delta} pts vs last week",
+      "deltaFlat": "Same as last week",
+      "noComparison": "No comparable previous week",
+      "statsLabel": "Visibility at a glance",
+      "platforms": "Platforms with results",
+      "questions": "Active questions",
+      "missed": "Questions missed",
+      "emptyTitle": "No visibility results yet",
+      "emptyBody": "Run this week's monitoring to see how often AI answers mention your brand.",
+      "viewAnswers": "View this week's answers",
+      "manageQuestions": "Manage questions",
+      "freshWeek": "Latest results: week of {week}",
+      "staleWeek": "No new results since {week}",
+      "never": "No weekly results yet",
+      "missedTitle": "Questions AI answered without your brand",
+      "missedCaption": "Answers that named a competitor but not you, grouped by question.",
+      "namedCompetitors": "named {names}",
+      "missedMore": "View all answers",
+      "missedEmpty": "Every classified answer mentioned your brand this week.",
+      "missedError": "This section could not load. Refresh later to try again."
     }
   },
   "sampleReport": {
@@ -4079,8 +4108,23 @@
       "classificationWork": "Check the brand in {count} saved answers. No new answers will be collected.",
       "savedWorkload": "Use the selected monitoring record and its saved settings, covering up to {expected} answers. Resuming does not repeat work already completed.",
       "latest": "Open latest monitoring record",
-      "states": { "queued": "Waiting to collect answers", "running": "Collecting answers", "partial": "Some answers or brand checks are missing", "completed": "Answers and brand checks saved", "failed": "Answers could not be collected", "blocked": "Monitoring needs attention" },
-      "blockers": { "paused": "New answer collection is paused", "no_models": "No monitoring models are configured", "no_prompts": "Add monitoring questions", "context_missing": "Confirm the questions’ language and market", "quota_exceeded": "Not enough answer allowance", "existing_run": "Monitoring for this week already exists", "legacy_review_required": "Review the saved historical answers before collecting more" }
+      "states": {
+        "queued": "Waiting to collect answers",
+        "running": "Collecting answers",
+        "partial": "Some answers or brand checks are missing",
+        "completed": "Answers and brand checks saved",
+        "failed": "Answers could not be collected",
+        "blocked": "Monitoring needs attention"
+      },
+      "blockers": {
+        "paused": "New answer collection is paused",
+        "no_models": "No monitoring models are configured",
+        "no_prompts": "Add monitoring questions",
+        "context_missing": "Confirm the questions’ language and market",
+        "quota_exceeded": "Not enough answer allowance",
+        "existing_run": "Monitoring for this week already exists",
+        "legacy_review_required": "Review the saved historical answers before collecting more"
+      }
     }
   },
   "brandAssistant": {

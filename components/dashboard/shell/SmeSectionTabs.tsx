@@ -25,8 +25,8 @@ export function SmeSectionTabs() {
   const segment = pathname.slice(prefix.length).replace(/^\//, '')
   const state = smeTabState({ base: prefix, segment, step: searchParams.get('step'), accountBase: `/${lang}/dashboard/this-month` })
   if (!state) return null
-  return <nav aria-label={t(smeSectionLabelKey(state.section))} className="border-b border-border bg-background">
-    <ul className="mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto px-4 py-2 text-sm sm:px-6">
+  return <nav aria-label={t(smeSectionLabelKey(state.section))} tabIndex={0} className="sticky top-0 z-20 overflow-x-auto border-b border-border bg-background/95 backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <ul className="mx-auto flex w-full max-w-6xl gap-1 px-4 py-2 text-sm sm:px-6">
       {state.tabs.map(tab => {
         const active = tab.id === state.active
         return <li key={tab.id}>
@@ -34,8 +34,8 @@ export function SmeSectionTabs() {
             href={tab.href}
             aria-current={active ? 'page' : undefined}
             className={active
-              ? 'inline-block whitespace-nowrap rounded-full bg-primary px-3 py-1.5 font-semibold text-primary-foreground no-underline'
-              : 'inline-block whitespace-nowrap rounded-full px-3 py-1.5 text-muted-foreground no-underline hover:bg-muted hover:text-foreground'}
+              ? 'inline-flex min-h-11 items-center whitespace-nowrap rounded-full bg-primary px-4 py-2 font-semibold text-primary-foreground no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+              : 'inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-4 py-2 text-muted-foreground no-underline hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'}
           >{t(tab.labelKey)}</Link>
         </li>
       })}
