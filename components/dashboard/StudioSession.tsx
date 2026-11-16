@@ -52,7 +52,10 @@ export type StudioThread = {
   saveState: 'persisted' | 'unsaved' | 'failed'
   turnsLoaded: boolean
   turnsError?: boolean
+  /** Server metadata projection for list items; local unsaved threads have none. */
+  createdAt?: string
   updatedAt?: string
+  turnCount?: number
   /** Skill the thread started from (first turn's task). Absent while unknown. */
   skill?: StudioSkillId | null
   /** Saved visibility; a shared thread is read-only to everyone but its creator. */
@@ -78,7 +81,9 @@ function fromRecord(record: StudioThreadRecord): StudioThread {
     template: null,
     saveState: 'persisted',
     turnsLoaded: false,
+    createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    turnCount: record.turnCount,
     skill: record.skill ?? null,
     visibility: record.visibility,
     pinned: record.pinned,
@@ -277,6 +282,7 @@ function useSessionState(clientId?: string, initialDraft = '') {
         ...thread,
         saveState: turns.some(turn => turn.saveState === 'failed') ? 'failed' as const : 'persisted' as const,
         updatedAt: new Date().toISOString(),
+        turnCount: turns.length,
         turns,
       }
     }))

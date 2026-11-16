@@ -256,6 +256,8 @@
     "savedDataLabel": "AISO 已保存資料",
     "templatesDescription": "每個範本都有明確成果",
     "continueTitle": "繼續工作",
+    "resumeLast": "繼續上次對話",
+    "turnCount": "{count} 則訊息",
     "discussionTitle": "討論",
     "followUpSend": "傳送訊息",
     "followUpPlaceholder": "繼續追問，或把選定內容另開討論…",

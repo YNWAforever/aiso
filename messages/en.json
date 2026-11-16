@@ -256,6 +256,8 @@
     "savedDataLabel": "Data saved in AISO",
     "templatesDescription": "Every template has a clear outcome",
     "continueTitle": "Continue working",
+    "resumeLast": "Continue last discussion",
+    "turnCount": "{count, plural, one {# turn} other {# turns}}",
     "discussionTitle": "Discussion",
     "followUpSend": "Send message",
     "followUpPlaceholder": "Ask a follow-up, or start a new discussion with selected content…",

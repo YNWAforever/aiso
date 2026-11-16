@@ -668,4 +668,26 @@ for (const lang of ['en', 'zh-HK']) {
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     expect(requests).toEqual([])
   })
+
+  test(`landing offers the last discussion first and resumes it in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang)
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    await expect(page.getByRole('log')).toBeVisible()
+    await expect(page.locator('h1.as-thread-heading')).toContainText(copy.templates.brief.label)
+    await page.getByRole('button', { name: copy.title, exact: true }).click()
+    const resume = page.locator('.as-resume')
+    await expect(resume).toBeVisible()
+    await expect(resume).toContainText(copy.resumeLast)
+    await expect(resume).toContainText(copy.templates.brief.label)
+    const resumeComesFirst = await page.evaluate(() => {
+      const card = document.querySelector('.as-resume')
+      const templates = document.querySelector('#studio-home .as-template')
+      return Boolean(card && templates && (card.compareDocumentPosition(templates) & Node.DOCUMENT_POSITION_FOLLOWING))
+    })
+    expect(resumeComesFirst).toBe(true)
+    await resume.click()
+    await expect(page.getByRole('log')).toBeVisible()
+    expect(requests).toEqual([])
+  })
 }
