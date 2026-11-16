@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCompetitorBars, buildPlatformGrid, monitorStatus, GRID_WEEKS } from '@/lib/view-models/monitor-signals'
+import { buildCompetitorBars, buildPlatformGrid, monitorStatus, platformLabel, GRID_WEEKS } from '@/lib/view-models/monitor-signals'
 
 const weeks = Array.from({ length: 10 }, (_, i) => `2026-08-${String(i * 3 + 1).padStart(2, '0')}`)
 const series = (platform: string | null, sov: (number | null)[]) => ({ platform, points: weeks.map((week, i) => ({ week, sov: sov[i] ?? null })) })
@@ -35,6 +35,14 @@ describe('competitor bars', () => {
   it('is null without classified answers, so zero is never drawn as a measurement', () => {
     expect(buildCompetitorBars([{ name: null, mentions: 0, answers: 0 }])).toBeNull()
     expect(buildCompetitorBars(undefined)).toBeNull()
+  })
+})
+
+describe('platform labels', () => {
+  it('shows the product name for a stored model id and leaves unknown ids as recorded', () => {
+    expect(platformLabel('gpt-4o')).toBe('ChatGPT')
+    expect(platformLabel('perplexity-sonar-pro')).toBe('Perplexity Pro')
+    expect(platformLabel('some-new-model')).toBe('some-new-model')
   })
 })
 

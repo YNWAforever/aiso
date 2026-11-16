@@ -69,6 +69,19 @@ describe('CitationExplorer', () => {
     expect(html).toContain('href="/api/dashboard/clients/client-1/citations?format=csv"')
   })
 
+  it('shows product names instead of stored model ids and does not repeat a one-week range', () => {
+    const html = render()
+    expect(html).toContain('Perplexity')
+    expect(html).not.toContain('>perplexity-sonar,')
+    const oneWeek = buildCitationReport({
+      context: { ownedDomains: ['fimmick.com'], competitors: [] },
+      answers: [answer({ provider_citations: [{ url: 'https://fimmick.com/loans', title: 'Our loans' }] })],
+    })
+    const single = render(oneWeek)
+    expect(single).toContain('Week of 2026-10-05')
+    expect(single).not.toContain('2026-10-05 to 2026-10-05')
+  })
+
   it('renders in Traditional Chinese', () => {
     const html = render(report, 'zh-HK')
     expect(html).toContain('競爭對手被引用而您沒有的問題')

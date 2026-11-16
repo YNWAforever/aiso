@@ -4026,7 +4026,8 @@
     "summary_unrecorded": "No source record",
     "summary_note": "{share}% of {total} recorded answers listed at least one source.",
     "filters": "Filters",
-    "filters_applied": "{count} applied"
+    "filters_applied": "{count} applied",
+    "week_single": "Week of {week}"
   },
   "runProgress": {
     "title": "Monitor your brand",
