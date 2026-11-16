@@ -2895,7 +2895,7 @@
     "smeLatest": "最新一次記錄",
     "smeNoRecord": "未有記錄",
     "smeAnswersTitle": "AI 答過啲咩",
-    "smeAnswersHint": "揀一個星期，再打開記錄睇返當時保存嘅回答。",
+    "smeAnswersHint": "每條問題一張卡，下面列出各平台結果。",
     "smeFilter": "篩選",
     "smeFilterActive": "篩選中",
     "smeComplete": "已保存回答及品牌判斷",
@@ -2921,7 +2921,9 @@
     "smeAnswersCount": "{count} 個回答",
     "smeActive": "監察中",
     "smeInactive": "已暫停",
-    "smeActivityUnknown": "狀態未明"
+    "smeActivityUnknown": "狀態未明",
+    "smeGroupMeta": "{platforms} 個平台 · {mentioned} 提及 · {notMentioned} 未提及",
+    "smeGroupPageNote": "此頁按已載入嘅回答分組；載入更多會加入較舊嘅回答。"
   },
   "opportunities": {
     "sme": {
@@ -3992,8 +3994,8 @@
     "scope_label": "引用範圍",
     "scope_domain": "網站",
     "scope_platform": "平台",
-    "scope_promptId": "問題 ID",
-    "scope_runId": "Run ID",
+    "scope_promptId": "問題",
+    "scope_runId": "監測批次",
     "scope_from": "開始日期",
     "scope_to": "結束日期",
     "apply_filters": "套用篩選",
@@ -4012,7 +4014,14 @@
     "gaps_page_empty": "這一頁沒有差距；此範圍的其他頁仍有差距。",
     "page_empty": "這一頁沒有來源；請返回此範圍的較早頁面。",
     "invalid_filters": "引用篩選條件不正確",
-    "read_unavailable": "引用讀取暫時無法使用或範圍太大，請縮小範圍再試。"
+    "read_unavailable": "引用讀取暫時無法使用或範圍太大，請縮小範圍再試。",
+    "summary_label": "引用來源摘要",
+    "summary_with_citations": "有列出來源嘅回答",
+    "summary_recorded_empty": "沒有列出來源",
+    "summary_unrecorded": "沒有來源記錄",
+    "summary_note": "{total} 個已記錄回答中，{share}% 有列出來源。",
+    "filters": "篩選",
+    "filters_applied": "已套用 {count} 項"
   },
   "runProgress": {
     "title": "監測品牌",

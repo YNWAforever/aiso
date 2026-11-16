@@ -34,7 +34,8 @@ describe('CitationExplorer', () => {
   it('summarises coverage honestly, separating unrecorded answers', () => {
     const html = render()
     expect(html).toContain('2026-09-28 to 2026-10-05')
-    expect(html).toContain('3 answers listed sources · 0 listed none · 1 have no record of sources')
+    expect(html).toContain('Answers with sources')
+    expect(html).toContain('75% of 4 recorded answers listed at least one source.')
     expect(html).toContain('Search capability or a search request does not guarantee returned citations.')
   })
 
@@ -72,7 +73,8 @@ describe('CitationExplorer', () => {
     const html = render(report, 'zh-HK')
     expect(html).toContain('競爭對手被引用而您沒有的問題')
     expect(html).toContain('競爭對手 · HSBC Holdings')
-    expect(html).toContain('3 個回答列出來源')
+    expect(html).toContain('有列出來源嘅回答')
+    expect(html).toContain('75% 有列出來源')
   })
 
   it('explains an empty report instead of showing empty tables', () => {

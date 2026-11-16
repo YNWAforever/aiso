@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 import { notFound, redirect } from 'next/navigation'
 import { ObservationWorkspace } from '@/components/observations/ObservationWorkspace'
+import { WhatAiSaysPage } from '@/components/dashboard/sme/WhatAiSaysPage'
 import { RunTroubleshooting } from '@/components/observations/RunTroubleshooting'
 import { loadRunTroubleshooting,type RunItemFilter,type RunTroubleshooting as RunDto } from '@/lib/observations/run-troubleshooting'
 import {
@@ -70,9 +71,11 @@ export default async function ObservationsPage({
   const copy = Object.fromEntries(
     observationCopyKeys.map((key) => [key, t.raw(key)]),
   ) as ObservationCopy
-  return (
+  const smeCopilot = isSmeCopilotUiEnabled()
+  const workspace = (
     <ObservationWorkspace
-      smeCopilot={isSmeCopilotUiEnabled()}
+      smeCopilot={smeCopilot}
+      embedded={smeCopilot}
       initialObservationId={typeof raw.observation==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(raw.observation)?raw.observation:undefined}
       clientId={clientId}
       initial={initial}
@@ -91,5 +94,22 @@ export default async function ObservationsPage({
             : undefined,
       }}
     />
+  )
+  if (!smeCopilot) return workspace
+  return (
+    <WhatAiSaysPage
+      title={t('smeTitle')}
+      description={t('smeDescription')}
+      actions={(
+        <a
+          className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-medium"
+          href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/prompts`}
+        >
+          {t('smeManageQuestions')}
+        </a>
+      )}
+    >
+      {workspace}
+    </WhatAiSaysPage>
   )
 }
