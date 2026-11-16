@@ -268,7 +268,9 @@ function main() {
   }
   const prNumber = typeof pr?.number === 'number' ? pr.number : null
   const headSha = normalizeSha(pr?.head?.sha)
-  const baseSha = normalizeSha(pr?.base?.sha) ?? parents[0] ?? null
+  // The merge base actually used is the release merge commit's first parent; the
+  // PR payload's base can be an older main commit if the branch was updated.
+  const baseSha = parents[0] ?? normalizeSha(pr?.base?.sha) ?? null
 
   let testedTree = null
   let testedMergeSha = null
