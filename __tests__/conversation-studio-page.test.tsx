@@ -111,7 +111,7 @@ it('projects the remaining brand-week LIVE allowance read-only for the composer'
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '1')
   const accountId = '22222222-2222-4222-8222-222222222222'
   mocks.auth.mockResolvedValue({ account_id: accountId, accounts: { override_plan: 'basic' } })
-  mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+  mocks.sql.mockImplementation(async (strings: TemplateStringsArray) => {
     if (strings.join('?').includes('studio_live_weekly_usage')) return [{ answer_count: 4 }]
     return [{ id: clientId, brand_name: 'Example Brand' }]
   })
