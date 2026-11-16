@@ -195,6 +195,19 @@ npm --prefix cloudflare/cron-worker run typecheck
 
 These are release instructions, not a record of a deployment performed by this PR.
 
+## Release receipt
+
+`npm run release:receipt -- --app-sha <production merge sha> --scope <vercel team>`
+is the read-only check that ties the deployed commit to its CI evidence, tested
+merge tree, Vercel deployment and canonical alias, real build-log schema gate and
+deployed Worker schedules. It never deploys or writes production data; it fails
+closed on any mismatch or unapproved unknown. Run it after a production
+deployment is READY, keep the emitted `.release-receipts/<sha>.json`, and record
+any `--allow-unknown` reason in the release note. The same check runs on demand
+through `.github/workflows/release-receipt.yml`. Full inputs, dependency rules,
+limits and the post-merge merge-ref fallback are in
+[runbooks/release-receipt.md](runbooks/release-receipt.md).
+
 ## Roadmap outcome and enterprise acceptance
 
 Phases 2–4 release contracts and dark flags are documented in
