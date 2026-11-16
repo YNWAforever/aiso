@@ -3893,7 +3893,12 @@
     "website_missing": "No website saved, so a cited page can't be credited to this competitor.",
     "err_check_invalid": "That isn't a valid website address.",
     "err_check_limited": "Too many checks right now. Try again later.",
-    "err_check_unavailable": "The live check is unavailable right now."
+    "err_check_unavailable": "The live check is unavailable right now.",
+    "share_title": "Mention share",
+    "share_note": "Share of {answers} classified answers that named each brand over the last four weeks.",
+    "share_empty": "Mention share appears once Pulse has classified answers for this brand.",
+    "share_bar_label": "{name}: {share}% of classified answers",
+    "list_title": "Your competitor list"
   },
   "shareOfVoice": {
     "title": "Share of voice vs competitors",

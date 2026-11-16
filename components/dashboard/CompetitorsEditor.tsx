@@ -125,21 +125,23 @@ export function CompetitorsEditor({
         return (
           <Card key={row.key}>
             <CardContent className="p-4">
-              <fieldset className="grid gap-3" disabled={busy === row.key}>
+              <fieldset className="grid gap-4" disabled={busy === row.key}>
                 <legend className="mb-1 flex flex-wrap items-center gap-2 text-sm font-semibold">
                   {label}
                   {row.legacyName && <Badge variant="secondary" className="font-normal">{t('legacy_badge')}</Badge>}
                 </legend>
-                <div className="grid gap-1.5">
-                  <Label htmlFor={`${id}-name`}>{t('name_label')}</Label>
-                  <Input id={`${id}-name`} value={row.name} maxLength={120} className="min-h-11"
-                    onChange={e => update(row.key, { name: e.target.value })} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor={`${id}-aliases`}>{t('aliases_label')}</Label>
-                  <Input id={`${id}-aliases`} value={row.aliases} aria-describedby={`${id}-aliases-hint`} className="min-h-11"
-                    onChange={e => update(row.key, { aliases: e.target.value })} />
-                  <p id={`${id}-aliases-hint`} className="text-xs text-muted-foreground">{t('aliases_hint')}</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor={`${id}-name`}>{t('name_label')}</Label>
+                    <Input id={`${id}-name`} value={row.name} maxLength={120} className="min-h-11"
+                      onChange={e => update(row.key, { name: e.target.value })} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor={`${id}-aliases`}>{t('aliases_label')}</Label>
+                    <Input id={`${id}-aliases`} value={row.aliases} aria-describedby={`${id}-aliases-hint`} className="min-h-11"
+                      onChange={e => update(row.key, { aliases: e.target.value })} />
+                    <p id={`${id}-aliases-hint`} className="text-xs text-muted-foreground">{t('aliases_hint')}</p>
+                  </div>
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor={`${id}-domains`}>{t('domains_label')}</Label>
@@ -183,18 +185,20 @@ export function CompetitorsEditor({
       <Card>
         <CardContent className="p-4">
           <form onSubmit={add} aria-labelledby={`${formId}-add-title`}>
-            <fieldset className="grid gap-3" disabled={busy === 'new' || atLimit}>
+            <fieldset className="grid gap-4" disabled={busy === 'new' || atLimit}>
               <legend id={`${formId}-add-title`} className="mb-1 text-sm font-semibold">{t('add_title')}</legend>
-              <div className="grid gap-1.5">
-                <Label htmlFor={`${formId}-new-name`}>{t('name_label')}</Label>
-                <Input id={`${formId}-new-name`} value={draft.name} maxLength={120} required className="min-h-11"
-                  onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor={`${formId}-new-aliases`}>{t('aliases_label')}</Label>
-                <Input id={`${formId}-new-aliases`} value={draft.aliases} aria-describedby={`${formId}-new-aliases-hint`} className="min-h-11"
-                  onChange={e => setDraft(d => ({ ...d, aliases: e.target.value }))} />
-                <p id={`${formId}-new-aliases-hint`} className="text-xs text-muted-foreground">{t('aliases_hint')}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor={`${formId}-new-name`}>{t('name_label')}</Label>
+                  <Input id={`${formId}-new-name`} value={draft.name} maxLength={120} required className="min-h-11"
+                    onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor={`${formId}-new-aliases`}>{t('aliases_label')}</Label>
+                  <Input id={`${formId}-new-aliases`} value={draft.aliases} aria-describedby={`${formId}-new-aliases-hint`} className="min-h-11"
+                    onChange={e => setDraft(d => ({ ...d, aliases: e.target.value }))} />
+                  <p id={`${formId}-new-aliases-hint`} className="text-xs text-muted-foreground">{t('aliases_hint')}</p>
+                </div>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor={`${formId}-new-domains`}>{t('domains_label')}</Label>

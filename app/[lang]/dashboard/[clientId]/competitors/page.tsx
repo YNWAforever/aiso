@@ -1,12 +1,14 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
 import { CompetitorsEditor } from '@/components/dashboard/CompetitorsEditor'
+import { WhatAiSaysPage } from '@/components/dashboard/sme/WhatAiSaysPage'
 import { requireAuth } from '@/lib/auth'
 import { MAX_COMPETITORS } from '@/lib/competitors/schema'
 import { listCompetitors } from '@/lib/competitors/store'
 import { db } from '@/lib/db'
+import { buildCompetitorBars } from '@/lib/view-models/monitor-signals'
+import { loadOwnedPulse } from '@/lib/workspace/load-owned-pulse'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +17,9 @@ export const dynamic = 'force-dynamic'
  * other spellings, and their websites. Until 061 these were set once during
  * onboarding and never editable afterwards.
  *
- * No plan gate, like the API: every plan sets competitors at onboarding.
+ * The report above the editor answers the question a member actually arrives
+ * with ("are we ahead?") from the same classified answers the visibility tab
+ * uses. No plan gate, like the API: every plan sets competitors at onboarding.
  */
 export default async function CompetitorsPage({
   params,
@@ -27,23 +31,50 @@ export default async function CompetitorsPage({
   const t = await getTranslations('competitors')
   const profile = await requireAuth(locale)
 
+  const pulse = await loadOwnedPulse({ clientId, profile, withSignals: true })
+  if (!pulse) notFound()
   const sql = db()
-  const [client] = await sql`select brand_name from clients where id = ${clientId} and account_id = ${profile.account_id} limit 1`
-  // 404 rather than 403: the id came from the caller.
-  if (!client) notFound()
   const competitors = await listCompetitors(sql, profile.account_id, clientId)
   if (!competitors) notFound()
 
+  const rows = pulse.competitors?.status === 'ok' ? pulse.competitors.data : undefined
+  const bars = buildCompetitorBars(rows)
+  const answers = rows?.[0]?.answers ?? 0
+  const brandName = pulse.client.brand_name
+
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
-      <Link href={`/${locale}/dashboard/${clientId}`} className="mb-4 inline-flex min-h-11 items-center text-sm text-primary-accessible underline">
-        {t('back')}
-      </Link>
-      <div className="mb-6">
-        <p className="text-sm font-medium text-primary">{String(client.brand_name)}</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('title')}</h1>
+    <WhatAiSaysPage title={t('title')} description={t('intro')}>
+      <div className="space-y-6">
+        <section aria-labelledby="competitor-share-title" className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+          <h2 id="competitor-share-title" className="text-lg font-bold text-foreground">{t('share_title')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{bars ? t('share_note', { answers }) : t('share_empty')}</p>
+          {bars && (
+            <ul className="mt-5 space-y-3">
+              {bars.map(bar => {
+                const name = bar.name ?? brandName
+                return (
+                  <li key={bar.name ?? 'brand'} className="flex items-center gap-3">
+                    <span className="w-28 shrink-0 truncate text-sm font-medium sm:w-40">{name}</span>
+                    <div
+                      className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-secondary"
+                      role="img"
+                      aria-label={t('share_bar_label', { name, share: bar.share })}
+                    >
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${bar.share <= 0 ? 0 : Math.max(2, Math.min(100, bar.share))}%` }} />
+                    </div>
+                    <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums">{bar.share}%</span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section aria-labelledby="competitor-list-title" className="space-y-3">
+          <h2 id="competitor-list-title" className="text-lg font-bold text-foreground">{t('list_title')}</h2>
+          <CompetitorsEditor clientId={clientId} initialCompetitors={competitors} max={MAX_COMPETITORS} />
+        </section>
       </div>
-      <CompetitorsEditor clientId={clientId} initialCompetitors={competitors} max={MAX_COMPETITORS} />
-    </main>
+    </WhatAiSaysPage>
   )
 }

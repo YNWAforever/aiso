@@ -3893,7 +3893,12 @@
     "website_missing": "未儲存網站，被引用的頁面無法歸屬於此競爭對手。",
     "err_check_invalid": "這不是有效的網站地址。",
     "err_check_limited": "檢查次數過多，請稍後再試。",
-    "err_check_unavailable": "暫時無法即時檢查。"
+    "err_check_unavailable": "暫時無法即時檢查。",
+    "share_title": "提及佔比",
+    "share_note": "過去四週 {answers} 個已分類回答中，各品牌被提及的比例。",
+    "share_empty": "當 Pulse 有呢個品牌嘅已分類回答後，就會顯示提及佔比。",
+    "share_bar_label": "{name}：佔已分類回答 {share}%",
+    "list_title": "你嘅競爭對手名單"
   },
   "shareOfVoice": {
     "title": "與競爭對手的聲量佔比",

@@ -59,11 +59,8 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime, con
       )}
 
       {/* Section header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-sm font-black text-foreground uppercase tracking-widest">{t('qb_title')}</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">{t('qb_count', { active: activeCount, total: prompts.length })}</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <p className="text-sm font-semibold text-foreground">{t('qb_count', { active: activeCount, total: prompts.length })}</p>
         <div className="flex gap-2">
           <button
             onClick={() => { setError(null); setShowPanel(true) }}
