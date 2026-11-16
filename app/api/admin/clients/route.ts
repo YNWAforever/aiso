@@ -19,6 +19,7 @@ type AccountQueryRow = {
   created_at: string | Date
   display_name: string | null
   override_set_by_name: string | null
+  admin_uncapped: boolean
   clients: { id: string; brand_name: string; status: string }[]
 }
 
@@ -33,6 +34,15 @@ export async function GET() {
         a.id, a.plan, a.status, a.stripe_subscription_id, a.trial_ends_at,
         a.override_plan, a.override_reason, a.override_expires_at, a.override_set_by,
         a.created_at,
+        -- Migration 108's trigger skips the brand ceiling for accounts holding an
+        -- active platform administrator, so the admin table must not print a plan
+        -- number that the database no longer enforces.
+        exists(
+          select 1 from profiles p
+          where p.account_id = a.id
+            and p.is_admin
+            and p.deactivated_at is null
+        ) as admin_uncapped,
         (
           select p.display_name from profiles p
           where p.account_id = a.id

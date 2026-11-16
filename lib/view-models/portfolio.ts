@@ -7,7 +7,7 @@ import type { EffectivePlan } from '@/lib/tier'
 export type Portfolio = {
   clients: Array<WorkspaceClient & { visibility: WorkspaceSection<NonNullable<ClientOverview['pulseKpi']>> }>
   history: WorkspaceSection<ClientOverview['scanHistory']>
-  capacity: { state: 'known' | 'unknown'; count: number | null; limit: number; canCreate: boolean | null; plan: EffectivePlan }
+  capacity: { state: 'known' | 'unknown'; count: number | null; limit: number | null; canCreate: boolean | null; plan: EffectivePlan }
 }
 
 /** Narrow, pure display projection: no raw observations, rankings or improvement inference. */
@@ -23,6 +23,7 @@ export function buildPortfolio(owned: OwnedPortfolio): Portfolio {
       data: owned.history.status === 'ok' && owned.history.data.length ? owned.history.data : null,
       observedAt: owned.history.data[0]?.created_at || null, freshness: 'unknown' },
     capacity: { state: known ? 'known' : 'unknown', count: known ? owned.count.data : null, limit: owned.limit,
-      canCreate: known ? owned.count.data! < owned.limit : null, plan: owned.plan },
+      // `null` limit is uncapped (an account holding a platform admin), never "zero".
+      canCreate: known ? owned.limit === null || owned.count.data! < owned.limit : null, plan: owned.plan },
   }
 }

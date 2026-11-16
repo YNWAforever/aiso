@@ -13,7 +13,13 @@ export type OwnedPortfolio = {
   history: PortfolioRead<ClientOverview['scanHistory']>
   pulse: PortfolioRead<Record<string, ObservedPulseSummary>>
   count: PortfolioRead<number | null>
-  limit: number
+  /**
+   * `null` means uncapped: the account holds an active platform administrator, and
+   * migration 108's check_brand_limit() skips the brand ceiling for such accounts.
+   * The display must follow the database rule or an admin is shown 3/3 and loses
+   * the Add Brand control while the trigger would still accept the insert.
+   */
+  limit: number | null
   plan: EffectivePlan
 }
 async function optional<T>(name: string, load: () => Promise<T>, empty: T): Promise<PortfolioRead<T>> {
@@ -43,13 +49,29 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
   const clients = rows.map(row => ({ id: row.id, brand_name: row.brand_name, domain: row.domain, industry: row.industry, status: row.status })) as WorkspaceClient[]
   const ids = clients.map(client => client.id)
   const entitlement = resolveCommercialEntitlement(profile.accounts)
-  const [count, history, pulse] = await Promise.all([
-    optional('capacity', async () => {
-      const counted = await sql`select count(*)::int as n from clients where account_id = ${accountId}`
-      const total = numeric(counted[0]?.n)
-      if (total === null || !Number.isInteger(total) || total < 0) throw new Error('Unavailable client count')
-      return total
-    }, null),
+  // Migration 108 makes the brand ceiling skip accounts that hold an active platform
+  // administrator. Read that from the same rule the trigger uses — account-level, not
+  // the viewer's is_admin — so every member of an admin-owned account sees the truth.
+  const capacity = await optional('capacity', async () => {
+    const counted = await sql`
+      select count(*)::int as n,
+             coalesce(bool_or(exists(
+               select 1 from profiles p
+               where p.account_id = c.account_id
+                 and p.is_admin
+                 and p.deactivated_at is null
+             )), false) as admin_uncapped
+      from clients c
+      where c.account_id = ${accountId}
+    `
+    const total = numeric(counted[0]?.n)
+    if (total === null || !Number.isInteger(total) || total < 0) throw new Error('Unavailable client count')
+    return { total, adminUncapped: counted[0]?.admin_uncapped === true }
+  }, null)
+  const count: PortfolioRead<number | null> = capacity.data
+    ? { status: capacity.status, data: capacity.data.total }
+    : { status: capacity.status, data: null }
+  const [history, pulse] = await Promise.all([
     optional('history', async () => {
       const scans = await sql`
         select id, domain, score, grade, created_at, results->'evidence' as evidence from scans
@@ -96,5 +118,13 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
       return Object.fromEntries(ids.map(id => [id, projectObservedSummary(byClient.get(id) ?? [])]))
     }, {}) : Promise.resolve<PortfolioRead<Record<string, ObservedPulseSummary>>>({ status: 'ok', data: {} }),
   ])
-  return { clients, history, pulse, count, limit: entitlement.features.max_brands, plan: entitlement.plan }
+  const adminUncapped = capacity.data?.adminUncapped === true
+  return {
+    clients,
+    history,
+    pulse,
+    count,
+    limit: adminUncapped ? null : entitlement.features.max_brands,
+    plan: entitlement.plan,
+  }
 }
