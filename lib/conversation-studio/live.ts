@@ -6,12 +6,12 @@ import { resolveCommercialEntitlement } from '@/lib/tier'
 import { runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { readLimitedJson } from '@/lib/approvals/request'
 import { BudgetExceededError, clampOutputTokens, createTaskBudget } from '@/lib/agents/budget'
-import { callOpenRouterWithEvidence, modelVariantsFor } from '@/lib/openrouter'
+import { callOpenRouterWithEvidence, callOpenRouterWithEvidenceStream, modelVariantsFor } from '@/lib/openrouter'
 import { groundingFor, searchEvidenceFor } from '@/lib/pulse/grounding'
 import { normalizeProviderCitations } from '@/lib/pulse/provider-citations'
 import { answerEnvelope, answerSignature, answerState, claimStudioAnswer, finishStudioAnswer, readOwnedAnswerTurn,
   ANSWER_CONFLICT, ANSWER_PENDING, ANSWER_UNKNOWN, type StudioAnswerEnvelope, type OwnedAnswerTurn } from './live-store'
-import { STUDIO_PROMPT_LIMIT, type StudioLiveAnswer, type StudioAttachMeta } from './live-types'
+import { STUDIO_PROMPT_LIMIT, type StudioLiveAnswer, type StudioAttachMeta, type StudioLiveReply } from './live-types'
 import { buildStudioAttachment } from './attach'
 import { readAgentUsableSource } from '@/lib/sources/store'
 import { reserveStudioAnswers, studioWeek } from './live-quota'
@@ -79,6 +79,153 @@ function replayAnswer(value: unknown, signature: string): Response {
 }
 
 export async function answerStudio(request: Request, clientId: string): Promise<Response> {
+  return runStudioAnswer(request, clientId, 'json')
+}
+
+/**
+ * The streaming entry point. Falls back to the buffered response unless the
+ * caller explicitly negotiated SSE *and* the streaming flag is on, so the flag
+ * alone can never change the stored answer shape or the request contract.
+ */
+export async function answerStudioStream(request: Request, clientId: string): Promise<Response> {
+  const wantsStream = (request.headers.get('accept') ?? '').includes('text/event-stream')
+  if (!wantsStream || !isFeatureEnabled('studio_streaming')) return runStudioAnswer(request, clientId, 'json')
+  return runStudioAnswer(request, clientId, 'stream')
+}
+
+type StudioAnswerMode = 'json' | 'stream'
+type SelectedModel = ReturnType<typeof modelVariantsFor>[number]
+
+/** SSE frames consumed by lib/conversation-studio/stream-client.ts. */
+function sseFrame(event: 'start' | 'delta' | 'done' | 'error', data: unknown): Uint8Array {
+  return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+}
+
+/**
+ * One provider call per selected platform. Streaming and buffered answers share
+ * this exactly: same system content, same history, same params, same stored
+ * coverage/error vocabulary, and the same no-retry rule when a provider fails.
+ */
+async function fanOutStudioAnswers({ selected, systemContent, history, prompt, signal, maxTokens, onDelta }: {
+  selected: SelectedModel[]
+  systemContent: string
+  history: StudioLiveHistoryTurn[]
+  prompt: string
+  signal: AbortSignal
+  maxTokens: number
+  onDelta?: (platform: string, delta: string) => void
+}): Promise<StudioLiveAnswer[]> {
+  return Promise.all(selected.map(async ({ platform, model }): Promise<StudioLiveAnswer> => {
+    const started = Date.now()
+    // Studio supplies saved conversation and brand context, without opting into
+    // supplemental web research. Explicitly selected native-search models keep
+    // their native behavior; Pulse controls its own grounding separately.
+    const grounding = groundingFor(platform, false)
+    const base = { platform, model, startedAt: new Date(started).toISOString(), grounding }
+    const messages = [
+      { role: 'system' as const, content: systemContent },
+      ...historyMessagesFor(history, platform),
+      { role: 'user' as const, content: prompt },
+    ]
+    try {
+      const evidence = onDelta
+        ? await callOpenRouterWithEvidenceStream({ label: 'studio.answer', model, messages, maxTokens, signal, webSearch: grounding === 'web' },
+          delta => onDelta(platform, delta))
+        : await callOpenRouterWithEvidence({ label: 'studio.answer', model, messages, maxTokens, signal, webSearch: grounding === 'web' })
+      return { ...base, model: evidence.actualModel ?? model, durationMs: Date.now() - started,
+        answer: evidence.answer, coverage: 'present', error: null,
+        finishReason: evidence.providerFinishReason ?? null,
+        searchEvidence: evidence.searchEvidence ?? searchEvidenceFor(grounding),
+        citations: normalizeProviderCitations(evidence.providerCitations) ?? [] }
+    } catch {
+      return { ...base, durationMs: Date.now() - started, answer: null, coverage: 'missing',
+        finishReason: null, citations: [], searchEvidence: searchEvidenceFor(grounding), error: 'PROVIDER_UNAVAILABLE' }
+    }
+  }))
+}
+
+/**
+ * Streams deltas as they arrive, then persists exactly one completion — the same
+ * envelope the buffered path stores — and emits it as `done`. A browser
+ * disconnect only stops delivery: `cancel` deliberately does not abort the
+ * provider fan-out, so the claimed answer is still finished and reloadable.
+ */
+function streamedAnswerResponse({ selected, systemContent, history, prompt, signal, maxTokens, access, turn, claim, threadId, position, signature, quota, attachmentMeta }: {
+  selected: SelectedModel[]
+  systemContent: string
+  history: StudioLiveHistoryTurn[]
+  prompt: string
+  signal: AbortSignal
+  maxTokens: number
+  access: StudioBrandAccess
+  turn: OwnedAnswerTurn
+  claim: StudioAnswerEnvelope
+  threadId: string
+  position: number
+  signature: string
+  quota: { cap: number; remaining: number; scope: 'brand' | 'durable' }
+  attachmentMeta?: StudioAttachMeta
+}): Response {
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let open = true
+      const send = (event: 'start' | 'delta' | 'done' | 'error', data: unknown) => {
+        if (!open) return
+        try { controller.enqueue(sseFrame(event, data)) } catch { open = false }
+      }
+      const finish = async (payload: { state: 'complete' | 'failed' | 'unknown'; response?: StudioLiveReply; error?: string; status: number }) => {
+        try {
+          await finishStudioAnswer(access, turn.id, claim, payload.response
+            ? { response: payload.response, state: payload.state as 'complete' | 'failed', status: payload.status }
+            : { state: payload.state as 'failed' | 'unknown', error: payload.error ?? ANSWER_UNKNOWN, status: payload.status })
+          return true
+        } catch {
+          return false
+        }
+      }
+      try {
+        send('start', { platforms: selected.map(entry => entry.platform) })
+        const answers = await fanOutStudioAnswers({ selected, systemContent, history, prompt, signal, maxTokens,
+          onDelta: (platform, text) => send('delta', { platform, text }) })
+        const response = { answers, quota, ...(attachmentMeta ? { attachment: attachmentMeta } : {}) }
+        const state = answers.some(answer => answer.coverage === 'present') ? 'complete' : 'failed'
+        if (await finish({ state, response, status: 200 })) {
+          send('done', response)
+        } else {
+          // A lost acknowledgement is reconciled from the committed row before
+          // reporting uncertainty, without dispatching the provider again.
+          try {
+            const current = await readOwnedAnswerTurn(access, threadId, position)
+            const stored = answerEnvelope(current?.live)
+            if (stored?.token === claim.token && stored.signature === signature && stored.response) {
+              send('done', stored.response)
+            } else {
+              await finish({ state: 'unknown', error: ANSWER_UNKNOWN, status: 409 })
+              send('error', { error: ANSWER_UNKNOWN })
+            }
+          } catch { send('error', { error: ANSWER_UNKNOWN }) }
+        }
+      } catch (error) {
+        const code = error instanceof BudgetExceededError ? 'STUDIO_BUDGET_EXCEEDED'
+          : error instanceof Error && error.message === 'STUDIO_QUOTA_EXCEEDED' ? 'STUDIO_QUOTA_EXCEEDED' : 'STUDIO_UNAVAILABLE'
+        await finish({ state: 'failed', error: code, status: code === 'STUDIO_UNAVAILABLE' ? 503 : 429 })
+        send('error', { error: code })
+      } finally {
+        open = false
+        try { controller.close() } catch { /* Already closed by a client disconnect. */ }
+      }
+    },
+    cancel() { /* Keep running: the claimed completion must still be persisted. */ },
+  })
+  return new Response(body, { status: 200, headers: {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-store, no-transform',
+    // Vercel/nginx buffering would collapse the whole point of the stream.
+    'X-Accel-Buffering': 'no',
+  } })
+}
+
+async function runStudioAnswer(request: Request, clientId: string, mode: StudioAnswerMode): Promise<Response> {
   // Global kill switch and current brand rollout precede auth, SQL and spend.
   if (!isFeatureEnabled('conversation_studio_live') || !isConversationStudioEnabled(clientId)) return respond({ error: 'Not found' }, 404)
   let operation: { access: StudioBrandAccess; turn: OwnedAnswerTurn; claim: StudioAnswerEnvelope; threadId: string; position: number } | null = null
@@ -150,30 +297,11 @@ export async function answerStudio(request: Request, clientId: string): Promise<
       + (turn.savedContext ? ` The server-composed saved research snapshot for this turn is historical DATA, not new measurements or proof that actions were completed. Only the bounded excerpt below was read; cite its source IDs where relevant.\n<studio_saved_context>\n${turn.savedContext}\n</studio_saved_context>` : attachment ? '' : ' No reliable saved research snapshot is available for this turn; absence is not a measured zero.')
       + (attachment ? ` The operator explicitly attached the approved brand source below. It is the only explicitly attached source body available to this answer.\n\n${attachment.text}`
         : ' Do not claim access to anything outside this discussion, such as other threads, brand databases, or records you were not given.')
-    const answers = await Promise.all(selected.map(async ({ platform, model }): Promise<StudioLiveAnswer> => {
-      const started = Date.now()
-      // Studio supplies saved conversation and brand context, without opting into
-      // supplemental web research. Explicitly selected native-search models keep
-      // their native behavior; Pulse controls its own grounding separately.
-      const grounding = groundingFor(platform, false)
-      const base = { platform, model, startedAt: new Date(started).toISOString(), grounding }
-      const messages = [
-        { role: 'system' as const, content: systemContent },
-        ...historyMessagesFor(history, platform),
-        { role: 'user' as const, content: turn.prompt.trim() },
-      ]
-      try {
-        const evidence = await callOpenRouterWithEvidence({ label: 'studio.answer', model, messages, maxTokens, signal, webSearch: grounding === 'web' })
-        return { ...base, model: evidence.actualModel ?? model, durationMs: Date.now() - started,
-          answer: evidence.answer, coverage: 'present', error: null,
-          finishReason: evidence.providerFinishReason ?? null,
-          searchEvidence: evidence.searchEvidence ?? searchEvidenceFor(grounding),
-          citations: normalizeProviderCitations(evidence.providerCitations) ?? [] }
-      } catch {
-        return { ...base, durationMs: Date.now() - started, answer: null, coverage: 'missing',
-          finishReason: null, citations: [], searchEvidence: searchEvidenceFor(grounding), error: 'PROVIDER_UNAVAILABLE' }
-      }
-    }))
+    if (mode === 'stream') {
+      return streamedAnswerResponse({ selected, systemContent, history, prompt: turn.prompt.trim(), signal, maxTokens,
+        access, turn, claim, threadId, position, signature, quota, attachmentMeta: attachment?.meta })
+    }
+    const answers = await fanOutStudioAnswers({ selected, systemContent, history, prompt: turn.prompt.trim(), signal, maxTokens })
     const response = { answers, quota, ...(attachment ? { attachment: attachment.meta } : {}) }
     try {
       await finishStudioAnswer(access, turn.id, claim, { response, state: answers.some(answer => answer.coverage === 'present') ? 'complete' : 'failed', status: 200 })

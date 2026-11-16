@@ -4,10 +4,13 @@
  * from client components ??flags gate server-rendered behavior only, per
  * ADR-011's dark-launch requirement.
  */
-export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility' | 'enterprise_os' | 'conversation_studio' | 'conversation_studio_live' | 'conversation_studio_mcp' | 'sme_copilot_ui'
+export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'pulse_attempts' | 'pulse_grounding' | 'outcome_integrations' | 'closed_loop_visibility' | 'enterprise_os' | 'conversation_studio' | 'conversation_studio_live' | 'conversation_studio_mcp' | 'studio_streaming' | 'sme_copilot_ui'
 
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
   if (flag === 'conversation_studio_live' && !isFeatureEnabled('conversation_studio')) return false
+  // Streaming is an answer-transport change on top of LIVE answers: it can never
+  // be served for a brand that cannot make LIVE answers in the first place.
+  if (flag === 'studio_streaming' && !isFeatureEnabled('conversation_studio_live')) return false
   return process.env[`FEATURE_${flag.toUpperCase()}`] === '1'
 }
 

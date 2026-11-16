@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
 
-async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false, reads = false, opportunities: 'saved' | 'empty' | 'pending' = 'saved', attach: 'ready' | 'empty' | 'unavailable' = 'ready') {
+async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false, reads = false, opportunities: 'saved' | 'empty' | 'pending' = 'saved', attach: 'ready' | 'empty' | 'unavailable' = 'ready', streaming = false) {
   // Native smooth scrolling can keep a mobile target moving as replies grow.
   // Use supported reduced motion, without forced clicks or skipped assertions.
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -13,6 +13,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   const css = readFileSync(`${directory}/build.css`, 'utf8')
   const requests: string[] = []
   const liveRequests: { prompt: string; platforms: string[]; language: string; threadId: string; position: number; attachedSourceId?: string }[] = []
+  const liveAccepts: string[] = []
   const saveRequests: { source: unknown; ruleVersion: string; fingerprint: string; locale: string }[] = []
   // Block and record ALL attempted outbound requests, including provider URLs,
   // unexpected same-origin calls and browser-triggered source prefetches.
@@ -20,15 +21,25 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   await page.route('https://studio.fixture/api/dashboard/clients/*/studio/answer', route => {
     const body = route.request().postDataJSON()
     liveRequests.push(body)
+    liveAccepts.push(route.request().headers()['accept'] ?? '')
     if (quotaError) return route.fulfill({ status: 429, json: { error: 'STUDIO_QUOTA_EXCEEDED' } })
-    return route.fulfill({ json: { quota: { cap: 5, remaining: 3, scope: 'account' }, answers: body.platforms.map((platform: string) => ({
+    const answerList = body.platforms.map((platform: string) => ({
       platform, coverage: platform === 'gemini-flash' ? 'present' : 'missing',
       answer: platform === 'gemini-flash' ? 'MOCK LIVE ANSWER' : null,
       model: 'mock-live-model', startedAt: '2026-10-28T00:00:00Z', durationMs: 12, finishReason: 'stop', grounding: 'none',
       searchEvidence: { requested: 'none', execution: 'unknown', basis: 'request-only' },
       citations: [{ url: 'https://source.example/live', title: 'Live source' }, { url: 'http://127.0.0.1/private', title: 'Unsafe' }],
       error: platform === 'gemini-flash' ? null : 'PROVIDER_UNAVAILABLE',
-    })) } })
+    }))
+    const reply = { quota: { cap: 5, remaining: 3, scope: 'account' }, answers: answerList }
+    if (streaming) {
+      // One SSE body: the client parser applies deltas, then replaces the partial
+      // text with the terminal reply the buffered route would have returned.
+      const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+      return route.fulfill({ status: 200, contentType: 'text/event-stream; charset=utf-8',
+        body: [frame('start', { platforms: body.platforms }), frame('delta', { platform: 'gemini-flash', text: 'MOCK LIVE ' }), frame('delta', { platform: 'gemini-flash', text: 'ANSWER' }), frame('done', reply)].join('') })
+    }
+    return route.fulfill({ json: reply })
   })
   await page.route('**/api/clients/*/work-items', route => {
     saveRequests.push(route.request().postDataJSON())
@@ -38,6 +49,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   if (empty) params.set('empty', '1')
   if (scan) params.set('scan', '1')
   if (liveCap !== undefined) params.set('live', String(liveCap))
+  if (streaming) params.set('streaming', '1')
   if (free) params.set('free', '1')
   if (reads) params.set('reads', '1')
   params.set('opps', opportunities)
@@ -48,7 +60,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
     body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Studio fixture</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`,
   }))
   await page.goto(url)
-  return { copy: (lang === 'en' ? en : zh).conversationStudio, requests, liveRequests, saveRequests }
+  return { copy: (lang === 'en' ? en : zh).conversationStudio, requests, liveRequests, liveAccepts, saveRequests }
 }
 
 for (const lang of ['en', 'zh-HK']) {
@@ -141,6 +153,25 @@ for (const lang of ['en', 'zh-HK']) {
     }
     await page.reload()
     await expect(page.locator('#studio-home')).toBeVisible()
+    expect(requests).toEqual([])
+  })
+
+  test(`streaming Send applies SSE deltas and keeps the same unverified reply in ${lang}`, async ({ page }) => {
+    const { copy, requests, liveRequests, liveAccepts } = await fixture(page, lang, false, false, 5, false, false, false, 'saved', 'ready', true)
+    await page.locator('.as-platform-picker > summary').click()
+    await page.getByRole('checkbox', { name: 'gpt-4o', exact: true }).check()
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    const panel = page.getByRole('region', { name: copy.live.replyLabel.replace('{number}', '1'), exact: true })
+    await expect(panel).toContainText('MOCK LIVE ANSWER')
+    await expect(panel).toContainText(copy.live.missing)
+    // The browser negotiated SSE, and the terminal reply replaced the partial
+    // streaming text rather than being appended to it.
+    expect(liveAccepts[0]).toContain('text/event-stream')
+    expect(liveRequests).toHaveLength(1)
+    expect(liveRequests[0]).toMatchObject({ prompt: copy.templates.brief.prompt, platforms: ['gemini-flash', 'gpt-4o'], language: lang })
+    await expect(page.getByText('MOCK LIVE ANSWER', { exact: true })).toHaveCount(1)
+    await expect(page.getByText(copy.live.streaming, { exact: true })).toHaveCount(0)
     expect(requests).toEqual([])
   })
 

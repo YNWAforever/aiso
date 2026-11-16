@@ -66,6 +66,44 @@ export async function callOpenRouter(options: CallOptions): Promise<string> {
   const evidence=await callOpenRouterWithEvidence(options);options.onEvidence?.(evidence);return evidence.answer
 }
 
+/** The chat-completions body shared by the buffered and streaming calls. */
+function completionBody({ model, messages, maxTokens = 2000, responseFormat, webSearch, temperature }: CallOptions) {
+  return {
+    model, max_tokens: clampOutputTokens(maxTokens), messages,
+    ...(temperature!==undefined && Number.isFinite(temperature) && temperature>=0 && temperature<=2 ? {temperature} : {}),
+    // Structured outputs: the provider enforces the schema, so a caller no longer
+    // depends on the model echoing a schema written out in prose.
+    // require_parameters stops OpenRouter routing to a provider that would
+    // silently ignore response_format.
+    ...(responseFormat && {
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: responseFormat.name, strict: true, schema: responseFormat.schema },
+      },
+      provider: { require_parameters: true },
+    }),
+    // Low search context is the cheapest native-search tier; citations come
+    // back as message.annotations either way.
+    // web_search_options is not sent to OpenAI models: OpenAI's chat API
+    // accepts it only on its *-search-preview models, and openai/gpt-4o
+    // answered every request carrying it with a 400 (production,
+    // 2026-10-10). The plugin alone still searches.
+    ...(webSearch && {
+      plugins: [{ id: 'web', max_results: WEB_SEARCH_MAX_RESULTS }],
+      ...(!model.startsWith('openai/') && { web_search_options: { search_context_size: 'low' } }),
+    }),
+  }
+}
+
+function openRouterHeaders(apiKey: string) {
+  return {
+    'Authorization': `Bearer ${apiKey}`,
+    'HTTP-Referer': appOrigin(),
+    'X-Title': 'Fimmick AISO',
+    'Content-Type': 'application/json',
+  }
+}
+
 export async function callOpenRouterWithEvidence({ label, model, messages, maxTokens = 2000, signal, responseFormat, webSearch, temperature }: CallOptions): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
   const fail = (fields: Record<string, unknown>) => console.error({ event: 'openrouter_failed', label, model, ...fields })
 
@@ -82,39 +120,10 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
   try {
     res = await fetch(BASE, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': appOrigin(),
-        'X-Title': 'Fimmick AISO',
-        'Content-Type': 'application/json',
-      },
+      headers: openRouterHeaders(apiKey),
       // Clamped, never raised. The ceiling is deployer-configured and applies here
       // rather than at each call site, so a caller cannot opt out by forgetting.
-      body: JSON.stringify({
-        model, max_tokens: clampOutputTokens(maxTokens), messages,
-        ...(temperature!==undefined && Number.isFinite(temperature) && temperature>=0 && temperature<=2 ? {temperature} : {}),
-        // Structured outputs: the provider enforces the schema, so a caller no longer
-        // depends on the model echoing a schema written out in prose.
-        // require_parameters stops OpenRouter routing to a provider that would
-        // silently ignore response_format.
-        ...(responseFormat && {
-          response_format: {
-            type: 'json_schema',
-            json_schema: { name: responseFormat.name, strict: true, schema: responseFormat.schema },
-          },
-          provider: { require_parameters: true },
-        }),
-        // Low search context is the cheapest native-search tier; citations come
-        // back as message.annotations either way.
-        // web_search_options is not sent to OpenAI models: OpenAI's chat API
-        // accepts it only on its *-search-preview models, and openai/gpt-4o
-        // answered every request carrying it with a 400 (production,
-        // 2026-10-10). The plugin alone still searches.
-        ...(webSearch && {
-          plugins: [{ id: 'web', max_results: WEB_SEARCH_MAX_RESULTS }],
-          ...(!model.startsWith('openai/') && { web_search_options: { search_context_size: 'low' } }),
-        }),
-      }),
+      body: JSON.stringify(completionBody({ label, model, messages, maxTokens, signal, responseFormat, webSearch, temperature })),
       signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
     })
   } catch (error) {
@@ -160,7 +169,144 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
     providerCitations: citationsFromAnnotations(data?.choices?.[0]?.message?.annotations), providerFinishReason: finishReason?.slice(0,64) ?? null }
 }
 
+/**
+ * Streaming variant of `callOpenRouterWithEvidence`.
+ *
+ * The SSE body is consumed incrementally and every content delta is handed to
+ * `onDelta` so a caller can render it before the completion is durable. The
+ * returned evidence is the same shape as the buffered call: the full assembled
+ * answer plus usage/citations, so persistence and logging stay identical.
+ *
+ * Deliberately no automatic retry and no silent buffered fallback: a provider
+ * that rejects `stream: true` is an explicit failure for that platform, the same
+ * way a failed buffered call is. Retrying here would spend twice for one answer
+ * and break the Studio guarantee that an attempted provider call is never
+ * silently re-dispatched.
+ */
+export async function callOpenRouterWithEvidenceStream(
+  options: CallOptions,
+  onDelta: (delta: string) => void,
+): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
+  const { label, model, signal, webSearch, responseFormat } = options
+  const fail = (fields: Record<string, unknown>) => console.error({ event: 'openrouter_failed', label, model, ...fields })
+  if (responseFormat) throw new Error('streaming does not support response_format')
+
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) {
+    fail({ reason: 'missing_api_key' })
+    throw new Error('OPENROUTER_API_KEY is not set')
+  }
+
+  let res: Response
+  try {
+    res = await fetch(BASE, {
+      method: 'POST',
+      headers: openRouterHeaders(apiKey),
+      // include_usage asks for the final chunk to carry token/cost accounting;
+      // the assembled answer, not the chunk shape, is what callers persist.
+      body: JSON.stringify({ ...completionBody(options), stream: true, stream_options: { include_usage: true } }),
+      signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    })
+  } catch (error) {
+    const timeout = error instanceof DOMException && error.name === 'TimeoutError'
+    fail({ reason: timeout ? 'timeout' : 'network' })
+    throw new Error(timeout ? 'OpenRouter request timed out' : 'OpenRouter request failed')
+  }
+
+  if (!res.ok || !res.body) {
+    await res.body?.cancel().catch(() => {})
+    fail({ reason: 'http_error', status: res.status })
+    throw new Error(`OpenRouter request failed (HTTP ${res.status})`)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let answer = ''
+  let finishReason: string | null = null
+  let actualModel: string | null = null
+  let requestId: string | null = null
+  let usage: CompletionMetadata['usage']
+  const annotations: unknown[] = []
+  let done = false
+
+  try {
+    outer: for (;;) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      buffer += decoder.decode(chunk.value, { stream: true })
+      let newline = buffer.indexOf('\n')
+      while (newline !== -1) {
+        // SSE lines end with \n or \r\n, and OpenRouter may send comment lines.
+        const line = buffer.slice(0, newline).replace(/\r$/, '')
+        buffer = buffer.slice(newline + 1)
+        newline = buffer.indexOf('\n')
+        if (!line || line.startsWith(':')) continue
+        if (!line.startsWith('data:')) continue
+        const payload = line.slice('data:'.length).trim()
+        if (payload === '[DONE]') {
+          done = true
+          break outer
+        }
+        let frame: {
+          id?: unknown
+          model?: unknown
+          usage?: CompletionMetadata['usage']
+          error?: unknown
+          choices?: Array<{ finish_reason?: unknown; delta?: { content?: unknown; annotations?: unknown }; message?: { annotations?: unknown } }>
+        }
+        try {
+          frame = JSON.parse(payload)
+        } catch {
+          continue
+        }
+        if (frame?.error) {
+          fail({ reason: 'stream_error' })
+          throw new Error('OpenRouter stream returned an error')
+        }
+        actualModel ??= str(frame.model)
+        requestId ??= str(frame.id)
+        if (frame.usage) usage = frame.usage
+        const choice = frame.choices?.[0]
+        const delta = choice?.delta?.content
+        if (typeof delta === 'string' && delta) {
+          answer += delta
+          onDelta(delta)
+        }
+        for (const annotation of (choice?.delta?.annotations as unknown[] | undefined) ?? []) annotations.push(annotation)
+        for (const annotation of (choice?.message?.annotations as unknown[] | undefined) ?? []) annotations.push(annotation)
+        finishReason = str(choice?.finish_reason) ?? finishReason
+      }
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => {})
+    if (error instanceof Error && error.message === 'OpenRouter stream returned an error') throw error
+    const timeout = error instanceof DOMException && error.name === 'TimeoutError'
+    fail({ reason: timeout ? 'timeout' : 'stream_interrupted' })
+    throw new Error(timeout ? 'OpenRouter request timed out' : 'OpenRouter stream interrupted')
+  } finally {
+    reader.releaseLock?.()
+  }
+
+  // A stream that ends without [DONE] or a finish reason is not a completion.
+  logUsage(label, model, { usage, choices: [{ finish_reason: finishReason }] })
+  if (!answer.trim()) {
+    fail({ reason: 'no_content', finishReason: safeFinishReason(finishReason) })
+    throw new Error('OpenRouter returned no content')
+  }
+  if (!done && finishReason === null) {
+    fail({ reason: 'stream_incomplete' })
+    throw new Error('OpenRouter returned an incomplete stream')
+  }
+  return { answer, actualModel, requestId,
+    promptTokens: tokens(usage?.prompt_tokens), completionTokens: tokens(usage?.completion_tokens),
+    costUsd: num(usage?.cost), httpStatus: res.status,
+    searchEvidence: searchEvidenceFor(webSearch ? 'web' : model.startsWith('perplexity/') ? 'native' : 'none', usage),
+    providerCitations: citationsFromAnnotations(annotations), providerFinishReason: finishReason?.slice(0, 64) ?? null }
+}
+
 const FINISH_REASONS = new Set(['stop', 'length', 'content_filter', 'tool_calls', 'error', 'cancelled'])
+
 const safeFinishReason = (value: unknown): string | null => typeof value === 'string' && FINISH_REASONS.has(value) ? value : null
 
 type CompletionMetadata = {

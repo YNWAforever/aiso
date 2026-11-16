@@ -28,7 +28,7 @@ export type StudioAttachMeta = {
   truncated: boolean
   characters: number
 }
-export type StudioLiveConfig = { platforms: string[]; cap: number }
+export type StudioLiveConfig = { platforms: string[]; cap: number; streaming?: boolean }
 export type StudioLiveQuota = {
   cap: number
   remaining: number
@@ -52,3 +52,14 @@ export type StudioLiveReply = {
   quota: StudioLiveQuota
   attachment?: StudioAttachMeta
 }
+
+/**
+ * The SSE frames `POST …/studio/answer` emits when streaming is on. `done` is
+ * the exact reply the buffered response would return, so persistence, quota and
+ * replay never depend on which transport the browser used.
+ */
+export type StudioStreamEvent =
+  | { event: 'start'; data: { platforms: string[] } }
+  | { event: 'delta'; data: { platform: string; text: string } }
+  | { event: 'done'; data: StudioLiveReply }
+  | { event: 'error'; data: { error: string } }

@@ -96,3 +96,27 @@ describe('sme_copilot_ui flag', () => {
     expect(isSmeCopilotUiEnabled()).toBe(true)
   })
 })
+
+describe('studio_streaming flag', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  // Streaming changes only how a LIVE answer is delivered, so it can never be
+  // on without a LIVE answer being possible in the first place.
+  it('requires the LIVE flag, which itself requires the Studio flag', () => {
+    vi.stubEnv('FEATURE_STUDIO_STREAMING', '1')
+    expect(isFeatureEnabled('studio_streaming')).toBe(false)
+    vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '1')
+    expect(isFeatureEnabled('studio_streaming')).toBe(false)
+    vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+    expect(isFeatureEnabled('studio_streaming')).toBe(true)
+  })
+
+  it('stays off unless its own value is exactly 1', () => {
+    vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+    vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '1')
+    for (const value of ['0', 'true', '', '1 ']) {
+      vi.stubEnv('FEATURE_STUDIO_STREAMING', value)
+      expect(isFeatureEnabled('studio_streaming'), value).toBe(false)
+    }
+  })
+})

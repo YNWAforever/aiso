@@ -187,6 +187,8 @@
       "composerHelp": "Enter to send, Shift+Enter for a new line. Replies use this conversation's recent saved messages. Up to 1,000 characters.",
       "continuityNote": "Follow-ups continue this conversation and see earlier messages. Start a new conversation for a clean thread.",
       "pending": "Waiting for selected models…",
+      "streaming": "Generating answer…",
+      "streamingPending": "Waiting for the first words…",
       "exhausted": "This brand has used its 10 AI replies for the week. Your conversation remains saved and the current draft stays in this tab for you to continue after the reset.",
       "unavailable": "The AI reply could not be confirmed. Read the saved reply again without making another model request.",
       "remaining": "LIVE answers left this week for this brand: {count}. Failed or unknown provider attempts still use quota.",
