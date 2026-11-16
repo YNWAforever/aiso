@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs'
 import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
 
+const LIVE_ANSWER_ROUTE = 'https://studio.fixture/api/dashboard/clients/*/studio/answer'
+
 async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false, reads = false, opportunities: 'saved' | 'empty' | 'pending' = 'saved', attach: 'ready' | 'empty' | 'unavailable' = 'ready', streaming = false) {
   // Native smooth scrolling can keep a mobile target moving as replies grow.
   // Use supported reduced motion, without forced clicks or skipped assertions.
@@ -18,7 +20,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   // Block and record ALL attempted outbound requests, including provider URLs,
   // unexpected same-origin calls and browser-triggered source prefetches.
   await page.route('**/*', route => { requests.push(route.request().url()); return route.abort() })
-  await page.route('https://studio.fixture/api/dashboard/clients/*/studio/answer', route => {
+  await page.route(LIVE_ANSWER_ROUTE, route => {
     const body = route.request().postDataJSON()
     liveRequests.push(body)
     liveAccepts.push(route.request().headers()['accept'] ?? '')
@@ -657,7 +659,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(inspector).toContainText(copy.evidence.coverageMeaning)
     await expect(inspector).toContainText(copy.honesty.noEstimatedNumbers)
     await page.keyboard.press('Escape')
-    await tabTo('.as-live-result button')
+    await tabTo('.as-live-result button[aria-haspopup="dialog"]')
     await page.keyboard.press('Enter')
     await expect(inspector).toContainText(copy.live.searchUnknown)
     await expect(page.locator('#studio-inspected-live-0')).toBeFocused()
@@ -667,6 +669,74 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByText(copy.honesty.missingIsNotZero, { exact: true })).toBeVisible()
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     expect(requests).toEqual([])
+  })
+
+  test(`live model Markdown renders as safe text and links in ${lang}`, async ({ page }) => {
+    const { copy } = await fixture(page, lang, false, false, 5)
+    await page.unroute(LIVE_ANSWER_ROUTE)
+    await page.route(LIVE_ANSWER_ROUTE, route => route.fulfill({
+      json: {
+        quota: { cap: 5, remaining: 4, scope: 'account' },
+        answers: [{
+          platform: 'gemini-flash', coverage: 'present',
+          answer: '**Bold**\n\n- one\n- two\n\n`code` [ok](https://example.com/a) [bad](javascript:alert(1)) <script>alert(1)</script>',
+          model: 'mock-live-model', startedAt: '2026-10-28T00:00:00Z', durationMs: 1, finishReason: 'stop', grounding: 'none',
+          searchEvidence: { requested: 'none', execution: 'unknown', basis: 'request-only' }, citations: [], error: null,
+        }],
+      },
+    }))
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    const panel = page.getByRole('region', { name: copy.live.replyLabel.replace('{number}', '1'), exact: true })
+    await expect(panel.locator('strong').first()).toHaveText('Bold')
+    await expect(panel.locator('ul.as-md-list > li')).toHaveCount(2)
+    await expect(panel.getByRole('link', { name: 'ok', exact: true })).toHaveAttribute('href', 'https://example.com/a')
+    await expect(panel.getByRole('link', { name: 'bad', exact: true })).toHaveCount(0)
+    await expect(panel.locator('script')).toHaveCount(0)
+    await expect(panel).toContainText('<script>alert(1)</script>')
+  })
+
+  test(`live answers copy to the clipboard in ${lang}`, async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    const { copy } = await fixture(page, lang, false, false, 5)
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    const panel = page.getByRole('region', { name: copy.live.replyLabel.replace('{number}', '1'), exact: true })
+    await expect(panel).toContainText('MOCK LIVE ANSWER')
+    await panel.getByRole('button', { name: copy.live.copy, exact: true }).click()
+    await expect(panel.getByRole('button', { name: copy.live.copied, exact: true })).toBeVisible()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('MOCK LIVE ANSWER')
+  })
+
+  test(`stopping a live answer returns control and reads the saved turn back in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang, false, false, 5, false, false, false, 'saved', 'ready', true)
+    await page.unroute(LIVE_ANSWER_ROUTE)
+    await page.route(LIVE_ANSWER_ROUTE, async route => {
+      // Hold the answer open so the stop control is reachable; the client aborts
+      // it, and this best-effort fulfilment simply never lands.
+      await new Promise(resolve => setTimeout(resolve, 5000))
+      try { await route.fulfill({ json: { quota: { cap: 5, remaining: 4, scope: 'account' }, answers: [] } }) } catch { /* request was aborted */ }
+    })
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    await expect(page.getByRole('button', { name: copy.live.stop, exact: true })).toBeVisible()
+    await page.getByRole('button', { name: copy.live.stop, exact: true }).click()
+    await expect(page.locator('.as-toast')).toHaveText(copy.live.stopped)
+    await expect(page.getByRole('button', { name: copy.live.stop, exact: true })).toHaveCount(0)
+    await expect(page.locator('#studio-composer')).toBeVisible()
+    expect(requests).toEqual([])
+  })
+
+  test(`a failed live answer offers an edit-and-retry path in ${lang}`, async ({ page }) => {
+    const { copy } = await fixture(page, lang, false, false, 5)
+    await page.unroute(LIVE_ANSWER_ROUTE)
+    await page.route(LIVE_ANSWER_ROUTE, route => route.fulfill({ status: 500, json: { error: 'STUDIO_ANSWER_UNKNOWN' } }))
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    const retry = page.getByRole('button', { name: copy.live.retryPrompt, exact: true })
+    await expect(retry).toBeVisible()
+    await retry.click()
+    await expect(page.locator('#studio-composer')).toHaveValue(copy.templates.brief.prompt)
   })
 
   test(`landing offers the last discussion first and resumes it in ${lang}`, async ({ page }) => {

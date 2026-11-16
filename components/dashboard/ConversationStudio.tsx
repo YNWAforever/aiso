@@ -142,6 +142,8 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const conversationPending = Boolean(current?.turns.some(turn => turn.live?.pending || turn.answerState === 'pending'))
   const carriedDraft = useRef('')
   const conversationEnd = useRef<HTMLDivElement>(null)
+  const answerAbort = useRef<AbortController | null>(null)
+  const stopRequested = useRef(false)
 
   useEffect(() => {
     if (!initialDraft || carriedDraft.current === initialDraft) return
@@ -201,6 +203,15 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   function openHome() { setInspection(null); setActiveId(null) }
   function openThread(id: string) { setInspection(null); selectThread(id) }
 
+  /**
+   * Stop an open SSE answer. The server still commits what it generated, so the
+   * caller reads the owned turn back instead of re-dispatching the paid request.
+   */
+  function stopAnswer() {
+    stopRequested.current = true
+    answerAbort.current?.abort()
+  }
+
   function branchThread(source: StudioThread, turn: StudioTurn) {
     // Lineage needs a saved origin turn; a brand-new unsaved turn has no server id yet.
     if (source.saveState !== 'persisted' || turn.saveState !== 'saved' || !turn.serverId) {
@@ -228,6 +239,13 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   function updateDraft(value: string, template: StudioHomeTemplate | null = null) {
     if (activeId === null) { setNewDraft(value); setNewTemplate(template) }
     else setThreads(previous => previous.map(thread => thread.id === activeId ? { ...thread, draft: value, template } : thread))
+  }
+
+  /** Refill the composer with a failed question so the member can edit and resend. */
+  function retryPrompt(prompt: string, task: StudioHomeTemplate | null) {
+    updateDraft(prompt, task)
+    composer.current?.focus()
+    composer.current?.scrollIntoView({ block: 'center' })
   }
 
   /** Explicit Send is the only write/provider path; a selected task just fills the draft. */
@@ -325,6 +343,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     }
     if (askLive && saved.ok) {
       let result: NonNullable<StudioTurn['live']>
+      stopRequested.current = false
       const answerInput = { prompt, platforms, language: language === 'zh-HK' ? 'zh-HK' as const : 'en' as const, threadId: saved.threadId, position: saved.position, ...(attachment ? { attachedSourceId: attachment.id } : {}) }
       // While an SSE answer is open the turn shows partial text; the terminal
       // payload then replaces it with the same reply the buffered route returns.
@@ -335,19 +354,27 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         : thread))
       try {
         if (live?.streaming) {
-          const outcome = await requestStudioAnswer({ clientId: clientId!, input: answerInput, signal: AbortSignal.timeout(55_000), onDelta: applyStream })
-          if (outcome.kind === 'reply') {
-            result = { reply: outcome.reply }
-            if (outcome.reply.quota.remaining === 0) setLiveExhausted(true)
-          } else if (outcome.kind === 'pending') {
-            result = { pending: true }
-          } else if (outcome.kind === 'error') {
-            result = { error: outcome.error }
-            if (outcome.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
-          } else {
-            // The stream ended without a terminal frame: the server may still have
-            // committed the answer, so the refresh below reads it back.
-            result = { error: 'STUDIO_UNAVAILABLE' }
+          const controller = new AbortController()
+          answerAbort.current = controller
+          const timeout = setTimeout(() => controller.abort(), 55_000)
+          try {
+            const outcome = await requestStudioAnswer({ clientId: clientId!, input: answerInput, signal: controller.signal, onDelta: applyStream })
+            if (outcome.kind === 'reply') {
+              result = { reply: outcome.reply }
+              if (outcome.reply.quota.remaining === 0) setLiveExhausted(true)
+            } else if (outcome.kind === 'pending') {
+              result = { pending: true }
+            } else if (outcome.kind === 'error') {
+              result = { error: outcome.error }
+              if (outcome.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
+            } else {
+              // Unconfirmed stream: either the member stopped it or it broke. In
+              // both cases the server may already have committed the answer.
+              result = stopRequested.current ? { pending: true } : { error: 'STUDIO_UNAVAILABLE' }
+            }
+          } finally {
+            clearTimeout(timeout)
+            answerAbort.current = null
           }
         } else {
           const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId!)}/studio/answer`, {
@@ -369,9 +396,15 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         : result.reply ? result.reply.answers.some(answer => answer.coverage === 'present') ? 'complete' : 'failed'
           : result.error === 'STUDIO_ANSWER_UNKNOWN' ? 'unknown' : undefined
       setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id) ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: result, answerState } : item) } : thread))
-      // The answer endpoint commits the assistant turn before it returns 200.
-      // On a lost response, GET the owned thread; never re-dispatch a paid answer.
-      if (result.error === 'STUDIO_UNAVAILABLE') await refreshThread(saved.threadId)
+      if (stopRequested.current) {
+        setFeedback({ id: turn.id, threadId: saved.threadId, key: 'live.stopped' })
+        // Stopping never re-sends the paid answer; this reads back what the server committed.
+        await refreshThread(saved.threadId)
+      } else if (result.error === 'STUDIO_UNAVAILABLE') {
+        // The answer endpoint commits the assistant turn before it returns 200.
+        // On a lost response, GET the owned thread; never re-dispatch a paid answer.
+        await refreshThread(saved.threadId)
+      }
     }
     } finally { endLive() }
   }
@@ -596,7 +629,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               {attached && <p className="as-muted as-small mt-2">{t('attach.badge')} · {attached.label}{!live ? ` — ${t('attach.savedNote')}` : ''}</p>}
             </div>
             <div className="as-answer space-y-3">
-            <p className="as-answer-label"><Sparkles className="size-4" aria-hidden="true" />{t('answerLabel')}</p>
+            {!liveTurn && <p className="as-answer-label"><Sparkles className="size-4" aria-hidden="true" />{t('answerLabel')}</p>}
             <StudioTurnTrace attached={attached} gsc={gsc} dfs={dfs} firecrawl={firecrawl} live={liveTurn} receipts={receipts} />
             <StudioAttachedSource attached={attached} liveAttachment={liveTurn?.reply?.attachment ?? null} documents={inspector.documents} />
             {task && <div className="as-note space-y-1">
@@ -604,7 +637,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             </div>}
             <div className="min-w-0 space-y-4">
               {turnSaveState === 'failed' && <p role="alert" className="as-note">{t('messageNotSent')}</p>}
-              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} refreshing={busy || refreshingThreadId === current.id} onRefresh={current.mine ? () => void refreshThread(current.id) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />}
+              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} refreshing={busy || refreshingThreadId === current.id} onRefresh={current.mine ? () => void refreshThread(current.id) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} onStop={live?.streaming && liveTurn.pending && busy ? stopAnswer : undefined} onRetry={current.mine && liveTurn.error && liveTurn.error !== 'STUDIO_QUOTA_EXCEEDED' ? () => retryPrompt(prompt, task ?? null) : undefined} />}
               {turnSaveState !== 'failed' && <details className="as-note as-saved-context" open={!liveTurn}>
                 <summary>{t('savedContextDetails')}</summary>
               <StudioReplyView clientId={clientId} readOnly={staffView || !current.mine} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={turnSaveState === 'saved' ? () => branchThread(current, current.turns[index]) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
