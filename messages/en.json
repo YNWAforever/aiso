@@ -2537,6 +2537,7 @@
     "firstRunBody": "Setting up a brand claims the scan you just ran, starts your trial, and seeds the questions Pulse asks each week.",
     "firstRunAction": "Start setup",
     "capacity": "All owned brands",
+    "capacityUnlimited": "Unlimited",
     "capacityUnknown": "Brand creation availability could not be verified. Refresh later to try again.",
     "capacityLimit": "Your current brand allowance is full.",
     "pricing": "Review plan",

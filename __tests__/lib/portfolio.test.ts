@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CommercialAccount } from '@/lib/tier'
-const state = vi.hoisted(() => ({ calls: [] as { text: string; values: unknown[] }[], failure: '', count: 3 as unknown, clients: [{ id: 'active-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active', account_id: 'DO_NOT_EXPOSE' }], pulse: [] as Record<string, unknown>[] }))
+const state = vi.hoisted(() => ({ calls: [] as { text: string; values: unknown[] }[], failure: '', count: 3 as unknown, adminUncapped: false, clients: [{ id: 'active-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active', account_id: 'DO_NOT_EXPOSE' }], pulse: [] as Record<string, unknown>[] }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...values: unknown[]) => {
   const text = strings.join('?'); state.calls.push({ text, values })
   if (state.failure && text.includes(state.failure)) throw new Error('Offline')
   if (text.includes('select r.id as run_id')) return []
   if (text.includes('with owned_clients')) return state.pulse
-  if (text.includes('count(*)')) return [{ n: state.count }]
+  if (text.includes('count(*)')) return [{ n: state.count, admin_uncapped: state.adminUncapped }]
   if (text.includes('from clients')) return values[0] === 'account-a' ? state.clients : []
   if (text.includes('from scans')) return [{ id: 'scan-a', domain: 'example.com', score: '42', grade: 'D', created_at: new Date('2026-09-06T01:00:00Z'), account_id: 'DO_NOT_EXPOSE' }]
   throw new Error('Unexpected query')
@@ -16,7 +16,7 @@ import { loadOwnedPortfolio } from '@/lib/workspace/load-owned-portfolio'
 import { buildPortfolio } from '@/lib/view-models/portfolio'
 const load = (accounts: CommercialAccount = { plan: 'pro', status: 'active', stripe_subscription_id: 'sub' }) => loadOwnedPortfolio({ profile: { account_id: 'account-a', accounts } })
 const observation = { client_id: 'active-a', scan_week: '2026-09-01', platform: null, total_queries: 2, observed_queries: 2, collected_queries: 2, successful_queries: 2, brand_mentions: 0, observed_brand_mentions: 0, sov_score: 0, successful_platform_count: 1 }
-beforeEach(() => { state.calls = []; state.failure = ''; state.count = 3; state.clients = [{ id: 'active-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active', account_id: 'DO_NOT_EXPOSE' }]; state.pulse = [] })
+beforeEach(() => { state.calls = []; state.failure = ''; state.count = 3; state.adminUncapped = false; state.clients = [{ id: 'active-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active', account_id: 'DO_NOT_EXPOSE' }]; state.pulse = [] })
 
 describe('owned portfolio read model', () => {
   it('binds authenticated tenant to each read and never mutates', async () => {
@@ -63,6 +63,12 @@ describe('owned portfolio read model', () => {
   it('uses existing entitlement override and cancellation limits', async () => {
     expect(buildPortfolio(await load({ plan: 'enterprise', status: 'cancelled' })).capacity.limit).toBe(1)
     expect(buildPortfolio(await load({ plan: 'free', override_plan: 'enterprise' })).capacity.limit).toBe(10)
+  })
+  it('shows an account holding an active platform admin as uncapped, matching migration 108', async () => {
+    state.adminUncapped = true
+    const owned = await load()
+    expect(owned.limit).toBeNull()
+    expect(buildPortfolio(owned).capacity).toMatchObject({ state: 'known', count: 3, limit: null, canCreate: true, plan: 'pro' })
   })
   it('normalizes persisted history numbers and timestamps and strips account fields', async () => {
     const dto = buildPortfolio(await load())

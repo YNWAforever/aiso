@@ -12,6 +12,8 @@ export interface AdminAccount {
   override_expires_at: string | null
   override_set_by_name: string | null
   display_name: string | null
+  /** Account holds an active platform administrator, so check_brand_limit() is bypassed. */
+  admin_uncapped: boolean
   clients: { id: string; brand_name: string; status: string }[]
   entitlement: {
     plan: PlanId
@@ -77,7 +79,7 @@ export function AccountRow({ account, busy, onGrant, onRevoke }: AccountRowProps
         )}
         {/* Rendered from the catalog rather than restated here. */}
         <div className="mt-1 text-[11px] text-slate-500">
-          {ent.features.max_brands} brands · {ent.features.history_weeks}w history
+          {account.admin_uncapped ? 'Unlimited brands' : `${ent.features.max_brands} brands`} · {ent.features.history_weeks}w history
           {ent.features.alerts ? ' · alerts' : ''}
           {ent.features.csv_export ? ' · csv' : ''}
         </div>

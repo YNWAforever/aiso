@@ -2537,6 +2537,7 @@
     "firstRunBody": "設定品牌會認領你剛完成的掃描、開始試用期，並建立 Pulse 每週會問的問題。",
     "firstRunAction": "開始設定",
     "capacity": "所有持有的品牌",
+    "capacityUnlimited": "不限",
     "capacityUnknown": "暫時無法核實新增品牌的可用額度，請稍後重新整理再試。",
     "capacityLimit": "你目前的品牌額度已滿。",
     "pricing": "查看方案",

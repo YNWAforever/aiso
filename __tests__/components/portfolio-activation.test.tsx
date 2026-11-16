@@ -117,6 +117,24 @@ describe('the first-run path out of an empty portfolio', () => {
   })
 })
 
+describe('an account that holds a platform administrator', () => {
+  it.each(LANGS)('renders the uncapped allowance instead of a plan number and keeps creation (%s)', lang => {
+    const markup = renderToStaticMarkup(
+      <PortfolioView
+        portfolio={{ ...portfolio(3), capacity: { state: 'known', count: 3, limit: null, canCreate: true, plan: 'pro' } }}
+        lang={lang}
+        creationControl={<button type="button">Add brand</button>}
+        activation={ready()}
+        firstRunScanId={null}
+      />,
+    )
+
+    expect(markup).toContain(`3 / ${copyFor(lang).portfolio.capacityUnlimited}`)
+    expect(markup).toContain('Add brand')
+    expect(markup).not.toContain(copyFor(lang).portfolio.capacityLimit)
+  })
+})
+
 describe('activation progress on the dashboard root', () => {
   it.each(LANGS)('reports the consecutive count and the next step (%s)', lang => {
     const copy = copyFor(lang).activation
