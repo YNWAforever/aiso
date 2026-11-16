@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Activity, ArrowLeft, ArrowUpRight, FilePenLine, FileText, Globe2, Lock, NotebookPen, Paperclip, ScanSearch, Search, Send, Sparkles } from 'lucide-react'
+import { Activity, ArrowLeft, ArrowUpRight, Ellipsis, FilePenLine, FileText, Globe2, Lock, NotebookPen, Paperclip, ScanSearch, Search, Send, Sparkles } from 'lucide-react'
 import { composeSavedReply } from '@/lib/conversation-studio/reply'
 import { composeBriefDraft } from '@/lib/conversation-studio/brief'
 import { type StudioEvidence, type StudioEvidenceTarget, type StudioInspectorReads, type StudioOpportunities } from '@/lib/conversation-studio/types'
@@ -27,6 +27,8 @@ import { skillForTask } from '@/lib/conversation-studio/skills'
 import { useStudioActions } from '@/components/dashboard/StudioActionPanel'
 import type { PlanFeatures } from '@/lib/plans/catalog'
 import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type StudioThread, type StudioTurn } from '@/components/dashboard/StudioSession'
+import { relativeTime } from '@/lib/conversation-studio/thread-list'
+import type { StudioThreadUpdateInput } from '@/lib/conversation-studio/threads-types'
 import Link from 'next/link'
 import './conversation-studio.css'
 
@@ -45,12 +47,51 @@ function boundedTitle(value: string): string {
   return wordEnd > 0 ? clipped.slice(0, wordEnd) : clipped
 }
 
-export function StudioThreadHeader({ thread, attachment, onHome, originTitle, onOpenOrigin }: { thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState' | 'visibility' | 'branchOf'>; attachment?: StudioAttachCandidate | null; onHome: () => void; originTitle?: string | null; onOpenOrigin?: () => void }) {
+export function StudioThreadHeader({ thread, attachment, onHome, originTitle, onOpenOrigin, onUpdate, onArchived }: {
+  thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState' | 'visibility' | 'turnCount' | 'updatedAt' | 'branchOf'> & { pinned?: boolean; mine?: boolean }
+  attachment?: StudioAttachCandidate | null
+  onHome: () => void
+  originTitle?: string | null
+  onOpenOrigin?: () => void
+  onUpdate?: (patch: StudioThreadUpdateInput) => Promise<boolean>
+  onArchived?: () => void
+}) {
   const t = useTranslations('conversationStudio')
+  const lang = useLocale()
+  const [renaming, setRenaming] = useState(false)
+  const [titleDraft, setTitleDraft] = useState(thread.title)
+  const [actionFailed, setActionFailed] = useState(false)
+  const when = relativeTime(thread.updatedAt, new Date(), lang)
+  async function patch(next: StudioThreadUpdateInput) {
+    if (!onUpdate) return false
+    setActionFailed(false)
+    const ok = await onUpdate(next)
+    if (!ok) setActionFailed(true)
+    return ok
+  }
   return <header className="space-y-3">
-    <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
-    <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : thread.saveState === 'failed' ? 'saveUnknownLabel' : 'temporaryLabel')}</span></div>
-    <h1 className="[overflow-wrap:anywhere]">{thread.title}</h1>
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
+      {onUpdate && thread.mine && <details className="as-thread-menu">
+        <summary className="as-button inline-flex items-center justify-center px-3" aria-label={t('threadActions.label')}><Ellipsis className="size-4" aria-hidden="true" /></summary>
+        <div role="group" aria-label={t('threadActions.label')} className="as-thread-menu-panel">
+          <button type="button" aria-pressed={thread.pinned} onClick={() => void patch({ pinned: !thread.pinned })}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
+          <button type="button" aria-pressed={thread.visibility === 'shared'} onClick={() => void patch({ visibility: thread.visibility === 'shared' ? 'private' : 'shared' })}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
+          <button type="button" onClick={() => { setRenaming(true); setTitleDraft(thread.title); setActionFailed(false) }}>{t('threadActions.rename')}</button>
+          <button type="button" onClick={() => void patch({ archived: true }).then(ok => { if (ok) onArchived?.() })}>{t('threadActions.archive')}</button>
+        </div>
+      </details>}
+      {onUpdate && !thread.mine && <span className="as-badge">{t('sharedReadOnlyBody')}</span>}
+    </div>
+    {actionFailed && <p role="alert" className="as-note">{t('threadActions.failed')}</p>}
+    {renaming && <form className="flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); const title = titleDraft.trim(); if (!title) return; void patch({ title }).then(ok => { if (ok) setRenaming(false) }) }}>
+      <label className="min-w-0 flex-1 space-y-1 text-sm"><span className="as-muted as-small block font-semibold">{t('threadActions.rename')}</span><input className="as-search block w-full min-w-0" value={titleDraft} maxLength={200} onChange={event => setTitleDraft(event.target.value)} autoFocus /></label>
+      <button type="submit" className="as-button as-primary inline-flex min-h-11 items-center px-3 text-sm" disabled={!titleDraft.trim()}>{t('threadActions.save')}</button>
+      <button type="button" className="as-button inline-flex min-h-11 items-center px-3 text-sm" onClick={() => setRenaming(false)}>{t('threadActions.cancel')}</button>
+    </form>}
+    <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><div className="flex flex-wrap gap-2"><span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : thread.saveState === 'failed' ? 'saveUnknownLabel' : 'temporaryLabel')}</span>{thread.pinned && <span className="as-badge">{t('pinnedLabel')}</span>}{thread.visibility === 'shared' && <span className="as-badge">{t('sharedLabel')}</span>}</div></div>
+    <h1 className="as-thread-heading" title={thread.title}>{thread.title}</h1>
+    {(when || thread.turnCount) && <p className="as-muted as-small">{thread.turnCount ? `${t('turnCount', { count: thread.turnCount })}${when ? ' · ' : ''}` : ''}{when}</p>}
     {thread.branchOf && (originTitle && onOpenOrigin
       ? <button type="button" onClick={onOpenOrigin} className="as-button inline-flex min-h-11 items-center gap-2 px-3 text-sm">{t('branchedFrom', { title: originTitle })}</button>
       : <span className="as-badge">{t('branchedFromUnknown')}</span>)}
@@ -86,13 +127,18 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const [liveExhausted, setLiveExhausted] = useState(false)
   const [attachment, setAttachment] = useState<StudioAttachCandidate | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, refreshThread, refreshingThreadId, selectionError, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId, hydrated, readFailed } = useStudioSession()
+  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, refreshThread, refreshingThreadId, selectionError, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId, hydrated, readFailed, updateThread } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
+  const [lastThreadId, setLastThreadId] = useState<string | null>(null)
+  const lastThreadKey = clientId ? `aiso:studio:last-thread:${clientId}` : null
   const [inspection, setInspection] = useState<{ navigationVersion: number; turnId: number; target: StudioEvidenceTarget; trigger: HTMLButtonElement } | null>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
   const previousNavigation = useRef(navigationVersion)
   const focusBriefStart = useRef(false)
   const current = threads.find(thread => thread.id === activeId)
+  const currentId = current?.id
+  const currentSaveState = current?.saveState
+  const currentMine = current?.mine
   const conversationPending = Boolean(current?.turns.some(turn => turn.live?.pending || turn.answerState === 'pending'))
   const carriedDraft = useRef('')
   const conversationEnd = useRef<HTMLDivElement>(null)
@@ -105,6 +151,20 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     }, 0)
     return () => clearTimeout(start)
   }, [initialDraft, activeId, setNewDraft])
+
+  // Remember the last saved discussion this member opened, so landing can offer
+  // one-tap resume even after the sidebar's Studio link drops `?thread=`.
+  useEffect(() => {
+    if (!lastThreadKey) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe mount gate: last-thread lives only in this browser
+    try { setLastThreadId(window.localStorage.getItem(lastThreadKey)) } catch { /* Private mode: resume card simply stays hidden. */ }
+  }, [lastThreadKey])
+  useEffect(() => {
+    if (!lastThreadKey || !currentId || currentSaveState !== 'persisted' || !currentMine) return
+    if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(currentId)) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors client-only navigation state so the resume card updates without a reload
+    try { window.localStorage.setItem(lastThreadKey, currentId); setLastThreadId(currentId) } catch { /* Storage unavailable. */ }
+  }, [lastThreadKey, currentId, currentSaveState, currentMine])
 
   const latestTurn = current?.turns.at(-1)
   useEffect(() => {
@@ -412,6 +472,41 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     </div>
   </details>
 
+  const visibleThreads = threads.filter(thread => !thread.archived)
+  const lastThread = lastThreadId ? visibleThreads.find(thread => thread.id === lastThreadId) ?? null : null
+  function threadMeta(thread: StudioThread): string {
+    const when = relativeTime(thread.updatedAt, new Date(), language)
+    const turns = thread.turnCount ?? thread.turns.length
+    return [when, turns ? t('turnCount', { count: turns }) : null].filter(Boolean).join(' · ')
+  }
+  const continueSection = <section aria-labelledby="studio-continue-title" className="space-y-3">
+    <div className="as-section-heading">
+      <h2 id="studio-continue-title">{t('continueTitle')}</h2>
+      {basePath && !staffView && <Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link>}
+    </div>
+    {lastThread && <button type="button" onClick={() => openThread(lastThread.id)} className="as-thread as-resume flex w-full items-center justify-between gap-3 text-left">
+      <span className="min-w-0"><span className="as-badge">{t('resumeLast')}</span><span className="mt-1 block truncate font-semibold">{lastThread.title}</span><span className="as-muted as-small block">{threadMeta(lastThread)}</span></span>
+      <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
+    </button>}
+    {readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : visibleThreads.length === 0 ? <div className="space-y-3">
+      <p className="as-muted">{t('threadsEmpty')}</p>
+      {smeCopilot && <div className="space-y-2" aria-label={t('examplesTitle')}>
+        <p className="as-small font-semibold">{t('examplesTitle')}</p>
+        <div className="flex flex-wrap gap-2">
+          {(['exampleOne', 'exampleTwo', 'exampleThree'] as const).map(key => <button key={key} type="button" onClick={() => { updateDraft(t(key)); composer.current?.focus() }} className="as-button px-3 text-left">{t(key)}</button>)}
+        </div>
+      </div>}
+    </div> : <ul className="as-continue-list">
+      {visibleThreads.filter(thread => thread.id !== lastThread?.id).slice(0, 6).map(thread => <li key={thread.id}>
+        <button type="button" onClick={() => openThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">
+          <span className="min-w-0"><span className="block truncate font-semibold">{thread.title}</span><span className="as-muted as-small block">{threadMeta(thread)}{thread.pinned ? ` · ${t('pinnedLabel')}` : ''}{thread.visibility === 'shared' ? ` · ${t('sharedLabel')}` : ''}</span>{thread.goal !== thread.title && <span className="sr-only">{thread.goal}</span>}</span>
+          <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
+        </button>
+      </li>)}
+    </ul>}
+    {visibleThreads.length > (lastThread ? 7 : 6) && basePath && <p className="as-small"><Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link></p>}
+  </section>
+
   return (
     <main id={embedded ? undefined : "aiso-studio"} className={embedded ? "as-page space-y-6" : "mx-auto w-full min-w-0 max-w-6xl space-y-6"}>
       {!embedded && <div className="as-topbar">
@@ -436,7 +531,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           <span className="as-muted">{t('sources.notQueried')}</span>
           {embedded && basePath && !staffView && <Link href={`${basePath}/studio/connections`} className="underline">{t('manageConnections')}</Link>}
         </div>
-        <section aria-labelledby="studio-templates-title" className="space-y-3">
+        {continueSection}
+        <details className="as-disclosure" open>
+          <summary className="as-muted as-small font-semibold">{t('templatesTitle')}</summary>
+          <section aria-labelledby="studio-templates-title" className="mt-3 space-y-3">
           <div className="as-section-heading">
             <h2 id="studio-templates-title">{t('templatesTitle')}</h2>
             <p className="as-muted as-small">{t('templatesDescription')}</p>
@@ -465,27 +563,9 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               })}
             </div>
           </>}
-        </section>
+          </section>
+        </details>
         {actionPanel}
-        <section aria-labelledby="studio-continue-title" className="space-y-3">
-          <div className="as-section-heading"><h2 id="studio-continue-title">{t('continueTitle')}</h2>{embedded && basePath && <Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link>}</div>
-          {readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : threads.length === 0 ? <div className="space-y-3">
-            <p className="as-muted">{t('threadsEmpty')}</p>
-            {smeCopilot && <div className="space-y-2" aria-label={t('examplesTitle')}>
-              <p className="as-small font-semibold">{t('examplesTitle')}</p>
-              <div className="flex flex-wrap gap-2">
-                {(['exampleOne', 'exampleTwo', 'exampleThree'] as const).map(key => <button key={key} type="button" onClick={() => { updateDraft(t(key)); composer.current?.focus() }} className="as-button px-3 text-left">{t(key)}</button>)}
-              </div>
-            </div>}
-          </div> : <ul className="as-continue-list">
-            {threads.map(thread => <li key={thread.id}>
-              <button type="button" onClick={() => openThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">
-                <span className="min-w-0"><span className="block truncate">{thread.title}</span><span className="as-muted as-small block truncate">{thread.goal}</span><span className="as-muted as-small">{t(thread.saveState !== 'persisted' ? 'temporaryLabel' : thread.visibility === 'shared' ? 'sharedLabel' : 'privateLabel')}</span></span>
-                <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
-              </button>
-            </li>)}
-          </ul>}
-        </section>
         {smeCopilot && basePath && !staffView && <details className="as-note as-disclosure">
           <summary>{t('chatMoreTitle')}</summary>
           <ul className="as-record-list mt-3">
@@ -502,10 +582,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </details>}
         {scopeNote}
       </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
-        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} />
+        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} onUpdate={current.mine && !staffView ? async patch => (await updateThread(current.id, patch)).ok : undefined} onArchived={openHome} />
         {current.saveState === 'failed' && <p role="alert" className="as-note">{t('saveFailed')}</p>}
         <h2 className="sr-only">{t('conversationLabel')}</h2>
-        <div className="as-discussion-grid">
+        <div className="as-discussion-grid as-has-rail">
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
           {!current.turnsLoaded && !current.turnsError && <p className="as-muted as-small">{t('loadingThreads')}</p>}
           {current.turnsError && <p role="alert" className="as-note">{t('readUnavailable')} <button type="button" className="as-button px-3" onClick={() => void refreshThread(current.id)}>{t('retry')}</button></p>}
@@ -540,6 +620,13 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           </div>)}
           <div ref={conversationEnd} aria-hidden="true" />
         </div>
+        {!staffView && visibleThreads.length > 1 && <aside className="as-thread-rail" aria-labelledby="studio-rail-title">
+          <h2 id="studio-rail-title" className="as-muted as-small font-semibold">{t('recentThreadsTitle')}</h2>
+          <ul>{visibleThreads.filter(thread => thread.id !== current.id).slice(0, 6).map(thread => <li key={thread.id}>
+            <button type="button" className="as-thread w-full px-2 text-left" onClick={() => openThread(thread.id)}><span className="block truncate">{thread.title}</span><span className="as-muted as-small block">{threadMeta(thread)}</span></button>
+          </li>)}</ul>
+          {basePath && <Link href={`${basePath}/studio/threads`} className="as-small block px-2 underline">{t('allThreads')}</Link>}
+        </aside>}
         {inspection && inspectedTurn && <StudioEvidenceInspector reply={inspectedTurn.reply} evidence={evidenceForHomeTask(evidence, inspectedTurn.task)} liveReply={inspectedTurn.live?.reply} liveEnabled={Boolean(live)} gsc={inspectedTurn.gsc} dfs={inspectedTurn.dfs} firecrawl={inspectedTurn.firecrawl} reads={inspector} sourceStatus={sourceStatus} prompt={inspectedTurn.prompt} target={inspection.target} trigger={inspection.trigger} onClose={() => setInspection(null)} />}
         </div>
         {current.mine ? composerForm : <p className="as-note">{t('sharedReadOnlyBody')}</p>}

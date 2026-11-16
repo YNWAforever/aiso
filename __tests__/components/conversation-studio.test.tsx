@@ -143,7 +143,7 @@ it.each(['en', 'zh-HK'])('renders thread scope and brief context without invente
   expect(html).toContain(copy.discussionEyebrow)
   expect(html).toContain(copy.privateLabel)
   expect(html).not.toContain(copy.temporaryLabel)
-  expect(html).toContain('<h1 class="[overflow-wrap:anywhere]">Source goal</h1>')
+  expect(html).toContain('<h1 class="as-thread-heading" title="Source goal">Source goal</h1>')
   expect(html).toContain(copy.localeBadge)
   expect(html).toContain(copy.savedWeek.replace('{week}', thread.week))
   expect(html).not.toMatch(/28 days|產品資料|Selected documents/)
