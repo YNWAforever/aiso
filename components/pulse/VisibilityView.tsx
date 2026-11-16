@@ -50,7 +50,6 @@ export function VisibilityView({ view, lang, now }: { view: PulseView; lang: str
             <p className={cn('mt-2 text-5xl font-black tracking-tight tabular-nums text-foreground', !hasNumbers && 'text-xl font-semibold text-muted-foreground')}>
               {overview.sov === null ? baseCopy.unknown : `${Number(overview.sov.toFixed(1))}%`}
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">{copy.rateCaption}</p>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
             <span className={cn(
