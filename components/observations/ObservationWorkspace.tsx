@@ -4,6 +4,7 @@ import { useEffect, useRef, useState,type ReactNode } from 'react'
 import type { ObservationResponse } from '@/lib/observations/types'
 import {ObservationDetail} from './ObservationDetail'
 import { MaintenanceNextSteps } from '@/components/workspace/MaintenanceNextSteps'
+import { PULSE_ACTIVE_QUESTIONS_PER_BRAND } from '@/lib/pulse/limits'
 
 import type { ObservationCopy } from './copy'
 export type { ObservationCopy } from './copy'
@@ -28,6 +29,8 @@ type Props = {
 }
 const format = (value: string, count: number) =>
   value.replace('{count}', String(count))
+const fill = (value: string, values: Record<string, string | number>) =>
+  Object.entries(values).reduce((text, [key, replacement]) => text.replaceAll(`{${key}}`, String(replacement)), value)
 
 export function ObservationWorkspace(props: Props) {
   return <Workspace key={`${props.clientId}:${props.lang}`} {...props} />
@@ -139,6 +142,7 @@ function Workspace({
     const badge = 'inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium'
     const filterCount = [filters.promptId, filters.platform, filters.result].filter(Boolean).length
     const activeQuestions = data.questions.filter(question => question.isActive === true).length
+    const pausedQuestions = data.questions.filter(question => question.isActive === false).length
     // API counters are scoped to the selected week/question/platform, before result filtering.
     const matchingRecords = filters.result === 'success' ? data.counts.successfulRows
       : filters.result === 'incomplete' ? data.counts.incompleteRows : data.counts.recordedRows
@@ -281,6 +285,11 @@ function Workspace({
             </summary>
             <div className="space-y-2 border-t border-border p-4">
               <p className="text-sm text-muted-foreground">{copy.smeMonitoringHint}</p>
+              {pausedQuestions > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {fill(copy.smeMonitoringCap, { max: PULSE_ACTIVE_QUESTIONS_PER_BRAND, paused: pausedQuestions })}
+                </p>
+              )}
               {!data.questions.length && <p className="text-sm">{copy.smeNoQuestions}</p>}
               <ul className="divide-y divide-border">
                 {data.questions.map((question) => (

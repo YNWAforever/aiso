@@ -163,7 +163,9 @@ describe('GET /api/cron/pulse — driving the producer', () => {
     expect(init.method).toBe('POST')
     expect(init.headers['x-cron-secret']).toBe(CRON_SECRET)
     expect(init.headers.authorization).toBeUndefined()
-    expect(JSON.parse(init.body)).toEqual({ clientId: 'client-1', cursor: 6 })
+    // One prompt per call: a three-prompt chunk was consuming almost the whole
+    // 60s ceiling, which is what stopped the chain after one brand.
+    expect(JSON.parse(init.body)).toEqual({ clientId: 'client-1', cursor: 6, limit: 1 })
   })
 
   it('resumes from the derived cursor rather than restarting the client', async () => {
@@ -283,18 +285,44 @@ describe('GET /api/cron/pulse — selection', () => {
 
 describe('GET /api/cron/pulse — chaining', () => {
   it('chains to a fresh invocation while work remains', async () => {
-    // The driver cannot loop a client to completion: its own ceiling is 60s and
-    // a chunk costs most of that. Throughput comes from chaining, not from a
-    // tighter cron schedule, which Hobby would not allow anyway.
+    // A chunk costs most of the invocation, so throughput comes from chaining
+    // rather than from a tighter cron schedule (Hobby would not allow one).
     const res = await get()
 
     expect((await res.json()).chained).toBe(true)
     expect(afterCallbacks).toHaveLength(1)
+    // One prompt per producer call: three prompts already used most of the 60s
+    // ceiling (45–58s in production), which left no room for the awaited hop.
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({ clientId: 'client-1', limit: 1 })
 
     await afterCallbacks[0]()
     const hop = fetchMock.mock.calls.at(-1)
     expect(String(hop?.[0])).toContain('hop=1')
     expect(hop?.[1].headers.authorization).toBe(`Bearer ${CRON_SECRET}`)
+  })
+
+  it('chains after a chunk that fits the headroom and stops when it does not', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-11-16T04:17:00.000Z'))
+      fetchMock.mockImplementation(async () => {
+        vi.setSystemTime(Date.now() + 20_000)
+        return { ok: true, status: 200, json: async () => ({ processed: 3, nextCursor: 9 }) }
+      })
+      expect((await (await get()).json()).chained).toBe(true)
+      afterCallbacks.length = 0
+
+      vi.setSystemTime(new Date('2026-11-16T04:17:00.000Z'))
+      fetchMock.mockImplementation(async () => {
+        vi.setSystemTime(Date.now() + 31_000)
+        return { ok: true, status: 200, json: async () => ({ processed: 3, nextCursor: 9 }) }
+      })
+      const late = await get()
+      expect((await late.json()).chained).toBe(false)
+      expect(afterCallbacks).toHaveLength(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('increments the hop so the chain cannot run forever', async () => {

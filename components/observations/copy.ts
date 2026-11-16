@@ -54,7 +54,7 @@ export const observationCopyKeys = [
   'providerEvidenceNote','providerCitationsEmpty','providerFinishReason','providerComplete',
   'smeEyebrow','smeTitle','smeDescription','smeManageQuestions','smeStatsLabel','smeMonitored','smeRecorded','smeLatest','smeNoRecord',
   'smeAnswersTitle','smeAnswersHint','smeAnswersCount','smeFilter','smeFilterActive','smeActive','smeInactive','smeActivityUnknown','smeComplete','smeIncomplete','smeMentioned','smeNotMentioned','smeMentionUnknown',
-  'smeViewAnswer','smeDetails','smeNoRecordsTitle','smeNoRecordsBody','smeNoFiltered','smeClearFilters','smeMonitoringTitle','smeMonitoringHint','smeNoQuestions',
+  'smeViewAnswer','smeDetails','smeNoRecordsTitle','smeNoRecordsBody','smeNoFiltered','smeClearFilters','smeMonitoringTitle','smeMonitoringHint','smeMonitoringCap','smeNoQuestions',
   'smeKeyPoints','smeTechnical','smeViewRecord','smeEvidenceNote','smeMonitoringStatus',
   'searchExecution','searchUnknown','searchConfirmed','grounding','groundingWeb','groundingNative','groundingNone',
   ...workflowCopyKeys,
