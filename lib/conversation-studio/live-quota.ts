@@ -90,8 +90,31 @@ export async function reserveStudioAnswers(
   return { cap, remaining: decision.remaining, scope: 'brand' }
 }
 
-/** Includes local Studio web requests, which are intentionally absent from Pulse. */
-export function reserveStudioSearches(
+export type StudioLiveUsage = { cap: number; remaining: number; week: string }
+
+/**
+ * Read-only projection for the composer and its saved-only fallback. It never
+ * reserves or charges: the answer route remains the only consumer of quota.
+ * A failed read returns null so the UI says nothing it cannot prove.
+ */
+export async function loadStudioLiveUsage(accountId: string, clientId: string, now = new Date()): Promise<StudioLiveUsage | null> {
+  const cap = studioLiveCap()
+  const week = studioWeek(now)
+  if (!UUID.test(accountId) || !UUID.test(clientId)) return null
+  try {
+    const rows = await db()`
+      select answer_count from studio_live_weekly_usage
+      where account_id = ${accountId}::uuid and client_id = ${clientId}::uuid and week_start = ${week}::date
+    `
+    const used = Number((rows[0] as { answer_count?: number | string } | undefined)?.answer_count ?? 0)
+    if (!Number.isSafeInteger(used) || used < 0) return null
+    return { cap, remaining: Math.max(0, cap - used), week }
+  } catch {
+    return null
+  }
+}
+
+/** Includes local Studio web requests, which are intentionally absent from Pulse. */export function reserveStudioSearches(
   accountId: string,
   count: number,
   allowance: { allowed: boolean; used: number | null; cap: number },

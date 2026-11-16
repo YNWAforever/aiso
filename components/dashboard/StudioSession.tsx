@@ -122,7 +122,7 @@ function useSessionState(clientId?: string, initialDraft = '') {
     navigationIntent.current = next
     setNavigationState(next)
   }, [])
-  const [feedback, setFeedback] = useState<{ id: number; threadId: string; key: 'briefOpened' | 'branchOpened' | 'branchUnavailable' | 'followUpSent' } | null>(null)
+  const [feedback, setFeedback] = useState<{ id: number; threadId: string; key: 'briefOpened' | 'branchOpened' | 'branchUnavailable' | 'followUpSent' | 'live.stopped' } | null>(null)
   const [newDraft, setNewDraft] = useState(initialDraft)
   const [newTemplate, setNewTemplate] = useState<StudioHomeTemplate | null>(null)
   const [busy, setBusy] = useState(false)

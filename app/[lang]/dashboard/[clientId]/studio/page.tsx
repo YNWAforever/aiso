@@ -7,7 +7,7 @@ import { requireStudioBrand } from '@/lib/conversation-studio/secondary'
 import { ConversationStudio } from '@/components/dashboard/ConversationStudio'
 import { loadStudioEvidence } from '@/lib/conversation-studio/evidence'
 import { loadStudioOpportunities } from '@/lib/conversation-studio/opportunities'
-import { studioLiveCap } from '@/lib/conversation-studio/live-quota'
+import { loadStudioLiveUsage, studioLiveCap } from '@/lib/conversation-studio/live-quota'
 import { runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { loadBinding, loadPanelData } from '@/lib/integrations/search-console/store'
@@ -84,10 +84,15 @@ export default async function StudioPage({ params, searchParams }: {
   // Brand changes remount the studio, clearing all page-local conversation state.
   // Streaming is only advertised when its own flag is on; the answer route
   // re-checks the flag, so the client can never negotiate a stream without it.
-  const live = isFeatureEnabled('conversation_studio_live') ? {
+  const liveEnabled = isFeatureEnabled('conversation_studio_live')
+  // Read-only quota projection so the composer can show what is left and offer
+  // saved-only answers instead of blocking the member when the week is used up.
+  const liveUsage = liveEnabled ? await loadStudioLiveUsage(profile.account_id, clientId) : null
+  const live = liveEnabled ? {
     platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
     cap: studioLiveCap(),
     streaming: isFeatureEnabled('studio_streaming'),
+    ...(liveUsage ? { remaining: liveUsage.remaining, week: liveUsage.week } : {}),
   } : undefined
   return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} smeCopilot={isSmeCopilotUiEnabled()} brandDomain={brand.domain ?? null} features={resolveCommercialEntitlement(profile.accounts).features} />
 }

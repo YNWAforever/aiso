@@ -122,3 +122,28 @@ it('uses the UTC Monday boundary, so a new week starts with a fresh brand allowa
     vi.useRealTimers()
   }
 })
+
+it('projects the brand-week usage read-only, for the composer and saved-only fallback', async () => {
+  const { loadStudioLiveUsage, reserveStudioAnswers } = await import('@/lib/conversation-studio/live-quota')
+  const at = new Date('2026-10-28T12:00:00Z')
+  // No row yet: the composer sees a full allowance without a reservation.
+  expect(await loadStudioLiveUsage(accountA, brandA, at)).toEqual({ cap: 10, remaining: 10, week: '2026-10-26' })
+  expect((await state.pg!.query('select count(*)::int as count from studio_live_weekly_usage')).rows).toEqual([{ count: 0 }])
+  expect((await reserveStudioAnswers(accountA, brandA, 4, '2026-10-26')).remaining).toBe(6)
+  expect(await loadStudioLiveUsage(accountA, brandA, at)).toEqual({ cap: 10, remaining: 6, week: '2026-10-26' })
+  expect((await state.pg!.query('select count(*)::int as count from studio_live_weekly_usage')).rows).toEqual([{ count: 1 }])
+})
+
+it('returns null for malformed ids or a failed usage read instead of claiming a number', async () => {
+  const { loadStudioLiveUsage } = await import('@/lib/conversation-studio/live-quota')
+  expect(await loadStudioLiveUsage('not-a-uuid', brandA)).toBeNull()
+  expect(await loadStudioLiveUsage(accountA, 'not-a-uuid')).toBeNull()
+  // A failed read must say "unknown", never "zero remaining", so the composer
+  // keeps trying LIVE instead of silently degrading to saved-only.
+  await state.pg!.exec('alter table studio_live_weekly_usage rename to studio_live_weekly_usage_hidden')
+  try {
+    expect(await loadStudioLiveUsage(accountA, brandA)).toBeNull()
+  } finally {
+    await state.pg!.exec('alter table studio_live_weekly_usage_hidden rename to studio_live_weekly_usage')
+  }
+})

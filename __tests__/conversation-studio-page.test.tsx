@@ -107,6 +107,21 @@ it('passes only plan-granted platforms and the fixed per-brand weekly cap when L
   vi.stubEnv('FEATURE_STUDIO_STREAMING', '1')
   expect((await render()).props.live).toEqual({ platforms: ['gemini-flash'], cap: 10, streaming: true })
 })
+it('projects the remaining brand-week LIVE allowance read-only for the composer', async () => {
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '1')
+  const accountId = '22222222-2222-4222-8222-222222222222'
+  mocks.auth.mockResolvedValue({ account_id: accountId, accounts: { override_plan: 'basic' } })
+  mocks.sql.mockImplementation(async (strings: TemplateStringsArray) => {
+    if (strings.join('?').includes('studio_live_weekly_usage')) return [{ answer_count: 4 }]
+    return [{ id: clientId, brand_name: 'Example Brand' }]
+  })
+  const page = await render()
+  expect(page.props.live).toEqual({ platforms: ['gemini-flash'], cap: 10, streaming: false, remaining: 6, week: expect.any(String) })
+  expect(mocks.sql).toHaveBeenCalledTimes(2)
+  const [usageStrings, ...usageValues] = mocks.sql.mock.calls[1]
+  expect(usageStrings.join('?')).toMatch(/select answer_count from studio_live_weekly_usage/)
+  expect(usageValues).toEqual([accountId, clientId, expect.any(String)])
+})
 it('stops at authentication before any brand read', async () => {
   mocks.auth.mockRejectedValueOnce(new Error('AUTH_REDIRECT'))
   await expect(render()).rejects.toThrow('AUTH_REDIRECT')
