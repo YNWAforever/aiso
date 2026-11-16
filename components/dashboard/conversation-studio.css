@@ -222,7 +222,7 @@
 #aiso-studio .as-resume { border: 1px solid var(--as-blue); background: var(--as-soft); padding: 14px; }
 #aiso-studio .as-thread-heading { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 #aiso-studio .as-thread-menu { position: relative; }
-#aiso-studio .as-thread-menu > summary { list-style: none; cursor: pointer; }
+#aiso-studio .as-thread-menu > summary { list-style: none; cursor: pointer; min-width: 44px; justify-content: center; }
 #aiso-studio .as-thread-menu > summary::-webkit-details-marker { display: none; }
 #aiso-studio .as-thread-menu[open] > summary { background: var(--as-soft); }
 #aiso-studio .as-thread-menu-panel { position: absolute; right: 0; z-index: 20; min-width: 210px; padding: 6px; border: 1px solid var(--as-line); border-radius: 10px; background: var(--as-panel); box-shadow: 0 10px 28px rgb(0 0 0 / .14); }
