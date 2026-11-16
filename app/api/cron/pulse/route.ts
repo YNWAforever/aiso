@@ -12,16 +12,37 @@ export const dynamic = 'force-dynamic'
 /**
  * How far the chain may run before it stops on its own.
  *
- * A full week is roughly (clients x ceil(prompts / DEFAULT_CHUNK)) steps — about
- * 8 per client at the 24 prompts onboarding seeds. 200 covers ~25 clients in one
- * chain; beyond that the next daily firing picks up where this left off, because
- * progress lives in the data rather than in the chain.
+ * A full week is roughly (clients x active prompts) steps now that a hop scans
+ * one prompt: about 24 per client at the 24 prompts onboarding seeds. 200 covers
+ * the current book of brands in one chain; beyond that the next daily firing
+ * picks up where this left off, because progress lives in the data rather than
+ * in the chain.
  *
  * It exists to bound cost if a bug ever makes "work remaining" permanently true.
  */
 const MAX_CHAIN = 200
 
-/** Stop starting new work with less than this left, so the in-flight chunk lands. */
+/**
+ * How many prompts one producer call may scan.
+ *
+ * Three prompts (the producer default) finish in 45–58s in production, which is
+ * most of this function's 60s ceiling. The chain then dies at the budget check
+ * below: one chunk per daily firing covered at most one brand, so brands created
+ * later were never reached and the weekly rollup stayed empty. One prompt takes
+ * roughly a third of that, leaving the awaited `after()` hop room to finish.
+ * Throughput therefore comes from the chain, not from a bigger chunk.
+ */
+const CRON_CHUNK = 1
+
+/**
+ * Only schedule the next hop while the current invocation still has this much
+ * of its 60s ceiling left. `after()` awaits the next hop's response, so a slow
+ * chunk must not start a successor that would outlive the caller and break the
+ * chain. Typical one-prompt chunks use about 20s, well inside this.
+ */
+const CHAIN_HEADROOM_MS = 30_000
+
+/** Deadline for the pending-client lookup; it must land before the response. */
 const BUDGET_MS = 45_000
 
 /**
@@ -158,7 +179,7 @@ export async function GET(req: NextRequest) {
       const res = await fetch(`${appOrigin()}/api/pulse/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-cron-secret': cronSecret },
-        body: JSON.stringify({ clientId: target.clientId, cursor: target.cursor }),
+        body: JSON.stringify({ clientId: target.clientId, cursor: target.cursor, limit: CRON_CHUNK }),
       })
       if (!res.ok) {
         // Never retry a failing client in the same chain — that would spin the
@@ -169,7 +190,7 @@ export async function GET(req: NextRequest) {
         // (failed write, lookup or provider outage) is not about the client and
         // the next one would pay for LLM calls and lose them the same way, so
         // the chain stops; the next firing retries from the derived cursor.
-        if (res.status < 500 && page.nextCursor && Date.now() - startedAt < BUDGET_MS) {
+        if (res.status < 500 && page.nextCursor && Date.now() - startedAt < CHAIN_HEADROOM_MS) {
           chainTo(hop + 1, cronSecret, page.nextCursor)
         }
         console.error(`[cron/pulse] producer returned ${res.status} for ${target.clientId}`)
@@ -185,11 +206,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(payload, { status: 502 })
     }
 
-    // Chain only if there is budget left to be worth another hop. `after()` runs
-    // once the response is sent, so this invocation is not holding the connection
-    // open for its successor.
+    // Chain while there is work left and this invocation still has room for the
+    // next hop's response. `after()` runs once the response is sent, but the
+    // awaited hop shares this invocation's 60s ceiling: a slow chunk must not
+    // start a successor that would outlive it. One-prompt chunks leave room.
     const moreWork = result.nextCursor !== null || pending.length > 0
-    const chained = moreWork && Date.now() - startedAt < BUDGET_MS
+    const chained = moreWork && hop + 1 < MAX_CHAIN && Date.now() - startedAt < CHAIN_HEADROOM_MS
     if (chained) chainTo(hop + 1, cronSecret)
 
     const payload = {
