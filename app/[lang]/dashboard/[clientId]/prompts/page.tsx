@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { LockKeyhole } from 'lucide-react'
 
+import { WhatAiSaysPage } from '@/components/dashboard/sme/WhatAiSaysPage'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { QuestionBankSection } from '@/components/pulse/QuestionBankSection'
@@ -61,12 +62,11 @@ export default async function PromptsPage({
   // plan should see their own brand's locked state rather than a 404.
   if (!entitlement.features.edit_prompts) {
     return (
-      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <WhatAiSaysPage title={t('qb_title')}>
         <Card>
           <CardContent className="p-8 text-center">
             <LockKeyhole className="mx-auto size-8 text-muted-foreground" aria-hidden="true" />
-            <h1 className="mt-4 text-xl font-semibold">{t('qb_title')}</h1>
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+            <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-muted-foreground">
               {t('qb_locked_body')}
             </p>
             <Button asChild className="mt-6 min-h-11">
@@ -74,7 +74,7 @@ export default async function PromptsPage({
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </WhatAiSaysPage>
     )
   }
 
@@ -92,13 +92,13 @@ export default async function PromptsPage({
   const guided = isSmeCopilotUiEnabled() ? await getTranslations('runProgress.sme') : null
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-primary">{client.brand_name}</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('qb_title')}</h1>
-      </div>
-      {guided && <div className="mb-5 space-y-2"><p className="text-sm text-muted-foreground">{guided('questionStep')}</p><Link className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold" href={`/${locale}/dashboard/${encodeURIComponent(clientId)}?step=monitor#first-monitoring`}>{guided('backToMonitoring')}</Link></div>}
+    <WhatAiSaysPage
+      title={t('qb_title')}
+      actions={guided ? (
+        <Link className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-medium" href={`/${locale}/dashboard/${encodeURIComponent(clientId)}?step=monitor#first-monitoring`}>{guided('backToMonitoring')}</Link>
+      ) : undefined}
+    >
       <QuestionBankSection clientId={clientId} initialPrompts={prompts} isFirstTime={false} contextDefaults={{ language: client.prompt_language, market: client.region }} />
-    </main>
+    </WhatAiSaysPage>
   )
 }

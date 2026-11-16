@@ -2895,7 +2895,7 @@
     "smeLatest": "Latest recording",
     "smeNoRecord": "No recording yet",
     "smeAnswersTitle": "What AI answered",
-    "smeAnswersHint": "Choose a week, then open a record to read the saved answer.",
+    "smeAnswersHint": "One card per question, with each platform result underneath.",
     "smeFilter": "Filters",
     "smeFilterActive": "Filtered",
     "smeComplete": "Answer and brand check saved",
@@ -2921,7 +2921,9 @@
     "smeAnswersCount": "{count} answers",
     "smeActive": "Watching",
     "smeInactive": "Paused",
-    "smeActivityUnknown": "Status unknown"
+    "smeActivityUnknown": "Status unknown",
+    "smeGroupMeta": "{platforms} platforms · {mentioned} mentioned · {notMentioned} not mentioned",
+    "smeGroupPageNote": "This page groups the answers already loaded; load more to add older answers."
   },
   "opportunities": {
     "sme": {
@@ -3891,7 +3893,12 @@
     "website_missing": "No website saved, so a cited page can't be credited to this competitor.",
     "err_check_invalid": "That isn't a valid website address.",
     "err_check_limited": "Too many checks right now. Try again later.",
-    "err_check_unavailable": "The live check is unavailable right now."
+    "err_check_unavailable": "The live check is unavailable right now.",
+    "share_title": "Mention share",
+    "share_note": "Share of {answers} classified answers that named each brand over the last four weeks.",
+    "share_empty": "Mention share appears once Pulse has classified answers for this brand.",
+    "share_bar_label": "{name}: {share}% of classified answers",
+    "list_title": "Your competitor list"
   },
   "shareOfVoice": {
     "title": "Share of voice vs competitors",
@@ -3992,8 +3999,8 @@
     "scope_label": "Citation scope",
     "scope_domain": "Site",
     "scope_platform": "Platform",
-    "scope_promptId": "Prompt ID",
-    "scope_runId": "Run ID",
+    "scope_promptId": "Question",
+    "scope_runId": "Monitoring run",
     "scope_from": "From",
     "scope_to": "To",
     "apply_filters": "Apply filters",
@@ -4012,7 +4019,14 @@
     "gaps_page_empty": "No gaps on this page. Other pages contain gaps in this scope.",
     "page_empty": "No sources on this page. Return to an earlier page in this scope.",
     "invalid_filters": "Invalid citation filters",
-    "read_unavailable": "Citation read unavailable or scope too large. Narrow filters and retry."
+    "read_unavailable": "Citation read unavailable or scope too large. Narrow filters and retry.",
+    "summary_label": "Citation summary",
+    "summary_with_citations": "Answers with sources",
+    "summary_recorded_empty": "Listed no sources",
+    "summary_unrecorded": "No source record",
+    "summary_note": "{share}% of {total} recorded answers listed at least one source.",
+    "filters": "Filters",
+    "filters_applied": "{count} applied"
   },
   "runProgress": {
     "title": "Monitor your brand",
