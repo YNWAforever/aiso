@@ -3,14 +3,22 @@ import type { OpenStudioEvidence } from '@/lib/conversation-studio/types'
 import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { safeEvidenceUrl } from '@/lib/pulse/provider-citations'
 
-export function StudioLiveReplyView({ reply, pending, error, number = 1, onOpenEvidence, onRefresh, refreshing = false }: { reply?: StudioLiveReply; pending?: boolean; error?: string; number?: number; onOpenEvidence?: OpenStudioEvidence; onRefresh?: () => void; refreshing?: boolean }) {
+export function StudioLiveReplyView({ reply, pending, error, stream, number = 1, onOpenEvidence, onRefresh, refreshing = false }: { reply?: StudioLiveReply; pending?: boolean; error?: string; stream?: Record<string, string>; number?: number; onOpenEvidence?: OpenStudioEvidence; onRefresh?: () => void; refreshing?: boolean }) {
   const t = useTranslations('conversationStudio.live')
   const evidence = useTranslations('conversationStudio.evidence')
+  const partial = stream && Object.keys(stream).length ? Object.entries(stream) : []
   return <section aria-label={t('replyLabel', { number })} className="as-result as-live-result min-w-0 space-y-3 [overflow-wrap:anywhere]">
     <p className="as-result-kicker">{t('title')}</p>
     <h3>{t('unverifiedTitle')}</h3>
     <p className="as-note">{t('unverified')}</p>
-    {pending && <p role="status">{t('pending')}</p>}
+    {pending && partial.length === 0 && <p role="status">{t('pending')}</p>}
+    {partial.length > 0 && <div role="status" aria-live="polite" className="space-y-3">
+      <p className="as-note">{t('streaming')}</p>
+      {partial.map(([platform, text]) => <div key={platform} className="space-y-1">
+        <h4 className="font-semibold">{platform}</h4>
+        {text ? <p className="whitespace-pre-wrap">{text}</p> : <p className="as-note">{t('streamingPending')}</p>}
+      </div>)}
+    </div>}
     {error && <p role={error === 'STUDIO_ANSWER_PENDING' ? 'status' : 'alert'} className={error === 'STUDIO_QUOTA_EXCEEDED' ? 'as-note as-live-exhausted' : 'as-note'}>{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : error === 'STUDIO_ATTACH_UNAVAILABLE' ? 'attachUnavailable' : error === 'STUDIO_ANSWER_PENDING' ? 'pending' : error === 'STUDIO_ANSWER_UNKNOWN' ? 'answerUnknown' : error === 'STUDIO_ANSWER_CONFLICT' ? 'answerConflict' : 'unavailable')}</p>}
     {onRefresh && (pending || error) && <button type="button" className="as-button px-3" disabled={refreshing} onClick={onRefresh}>{t(refreshing ? 'refreshingReply' : 'refreshReply')}</button>}
     {reply && <>

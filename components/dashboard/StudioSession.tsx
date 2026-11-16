@@ -25,7 +25,7 @@ export type StudioTurn = {
   reply: StudioReply
   task: StudioHomeTemplate | null
   attached?: { label: string; versionNumber: number }
-  live?: { pending?: boolean; reply?: StudioLiveReply; error?: string }
+  live?: { pending?: boolean; reply?: StudioLiveReply; error?: string; /** Partial answer text per platform while SSE is open. */ stream?: Record<string, string> }
   gsc?: StudioGscRead
   dfs?: StudioDfsRead
   firecrawl?: StudioFirecrawlRead

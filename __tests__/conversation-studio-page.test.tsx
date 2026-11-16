@@ -101,7 +101,11 @@ it('passes only plan-granted platforms and the fixed per-brand weekly cap when L
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '1')
   mocks.auth.mockResolvedValue({ account_id: 'account-a', accounts: { override_plan: 'basic' } })
   // The cap is a business rule in code (10 per brand per week), not an env knob.
-  expect((await render()).props.live).toEqual({ platforms: ['gemini-flash'], cap: 10 })
+  expect((await render()).props.live).toEqual({ platforms: ['gemini-flash'], cap: 10, streaming: false })
+  // Streaming is advertised to the client only when its own flag is on; the
+  // answer route re-checks it, so this is a delivery choice, not a new gate.
+  vi.stubEnv('FEATURE_STUDIO_STREAMING', '1')
+  expect((await render()).props.live).toEqual({ platforms: ['gemini-flash'], cap: 10, streaming: true })
 })
 it('stops at authentication before any brand read', async () => {
   mocks.auth.mockRejectedValueOnce(new Error('AUTH_REDIRECT'))

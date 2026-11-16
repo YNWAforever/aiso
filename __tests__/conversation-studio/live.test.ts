@@ -517,3 +517,135 @@ it('does not promote legacy browser-composed cards without receipts to verified 
   expect(system).not.toContain('UNVERIFIED LEGACY CLAIM')
   expect(system).toContain('No reliable saved research snapshot is available')
 })
+
+// ---------------------------------------------------------------------------
+// Streaming transport (FEATURE_STUDIO_STREAMING). The buffered tests above pin
+// the stored contract; these pin that SSE is additive: same claim, same quota,
+// same persisted envelope, same replay, and JSON for every non-stream case.
+// ---------------------------------------------------------------------------
+
+/** A provider reply delivered as SSE frames. */
+function streamCompletion(frames: string[] = [
+  `data: ${JSON.stringify({ model: 'google/gemini-3.8-flash', choices: [{ delta: { content: reply }, finish_reason: null }] })}\n\n`,
+  `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 20, cost: 0.001 } })}\n\n`,
+  'data: [DONE]\n\n',
+]) {
+  const encoder = new TextEncoder()
+  return new Response(new ReadableStream<Uint8Array>({
+    start(controller) { for (const frame of frames) controller.enqueue(encoder.encode(frame)); controller.close() },
+  }), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+}
+
+async function sendStream(input: unknown = body(), id = clientId) {
+  const { POST } = await import('@/app/api/dashboard/clients/[clientId]/studio/answer/route')
+  return POST(new Request('https://app.example/api/studio', {
+    method: 'POST', headers: { accept: 'text/event-stream', 'content-type': 'application/json' }, body: JSON.stringify(input),
+  }), { params: Promise.resolve({ clientId: id }) })
+}
+
+type SseEvent = { event: string; data: unknown }
+function parseSse(text: string): SseEvent[] {
+  return text.split('\n\n').filter(block => block.trim()).map(block => {
+    const lines = block.split('\n')
+    const event = lines.find(line => line.startsWith('event:'))?.slice('event:'.length).trim() ?? ''
+    const data = lines.filter(line => line.startsWith('data:')).map(line => line.slice('data:'.length).trim()).join('\n')
+    return { event, data: JSON.parse(data) }
+  })
+}
+
+describe('streaming answers', () => {
+  beforeEach(() => {
+    vi.stubEnv('FEATURE_STUDIO_STREAMING', '1')
+    // Streaming tests must receive SSE from the provider mock, not a JSON completion.
+    outbound.mockImplementation(async () => streamCompletion())
+  })
+
+  it('streams deltas, then persists and returns the same reply the buffered route would', async () => {
+    const response = await sendStream()
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/event-stream')
+    expect(response.headers.get('cache-control')).toContain('no-store')
+    const events = parseSse(await response.text())
+    expect(events[0]).toEqual({ event: 'start', data: { platforms: ['gemini-flash'] } })
+    expect(events.filter(event => event.event === 'delta')).toEqual([{ event: 'delta', data: { platform: 'gemini-flash', text: reply } }])
+    const done = events.at(-1)!
+    expect(done.event).toBe('done')
+    expect(done.data).toMatchObject({ quota: { cap: 10, remaining: 9, scope: 'brand' }, answers: [{ platform: 'gemini-flash', coverage: 'present', answer: reply, finishReason: 'stop' }] })
+    // Persisted exactly as the buffered response, and replayed without a second call.
+    expect((([...mocks.turns.values()][0].live) as { state: string }).state).toBe('complete')
+    const replay = await send()
+    expect(replay.status).toBe(200)
+    expect(await replay.json()).toEqual(done.data)
+    expect(outbound).toHaveBeenCalledTimes(1)
+    expect([...mocks.answerUsage.values()]).toEqual([1])
+  })
+
+  it('requests a real provider stream and never exceeds the buffered token bound', async () => {
+    await sendStream()
+    const sent = JSON.parse((outbound.mock.calls[0][1] as RequestInit).body as string)
+    expect(sent.stream).toBe(true)
+    expect(sent.max_tokens).toBeLessThanOrEqual(1000)
+    expect(sent.response_format).toBeUndefined()
+  })
+
+  it('falls back to buffered JSON when the streaming flag is off', async () => {
+    vi.stubEnv('FEATURE_STUDIO_STREAMING', '0')
+    // The buffered path must still receive a normal JSON completion.
+    outbound.mockImplementation(async () => completion())
+    const response = await sendStream()
+    expect(response.headers.get('content-type')).toContain('application/json')
+    expect(await response.json()).toMatchObject({ answers: [{ platform: 'gemini-flash', coverage: 'present', answer: reply }] })
+    expect(outbound).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects SSE requests when the LIVE flag itself is off', async () => {
+    vi.stubEnv('FEATURE_CONVERSATION_STUDIO_LIVE', '0')
+    const response = await sendStream()
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'Not found' })
+    expect(outbound).not.toHaveBeenCalled()
+  })
+
+  it('keeps validation and quota errors on the unchanged JSON contract', async () => {
+    const invalid = await sendStream({ ...body(), prompt: '' })
+    expect(invalid.status).toBe(400)
+    expect(await invalid.json()).toEqual({ error: 'INVALID_STUDIO_INPUT' })
+    const week = (await import('@/lib/conversation-studio/live-quota')).studioWeek()
+    mocks.answerUsage.set(`${accountA}:${clientId}:${week}`, 10)
+    const spent = await sendStream()
+    expect(spent.status).toBe(429)
+    expect(await spent.json()).toEqual({ error: 'STUDIO_QUOTA_EXCEEDED' })
+    expect(outbound).not.toHaveBeenCalled()
+  })
+
+  it('persists an explicit missing answer instead of delivering a partial reply as complete', async () => {
+    outbound.mockResolvedValue(streamCompletion([
+      `data: ${JSON.stringify({ choices: [{ delta: { content: 'PARTIAL BUT INCOMPLETE' }, finish_reason: null }] })}\n\n`,
+      `data: ${JSON.stringify({ error: { message: 'upstream dropped' } })}\n\n`,
+    ]))
+    const response = await sendStream()
+    const events = parseSse(await response.text())
+    expect(events.filter(event => event.event === 'delta')).toEqual([{ event: 'delta', data: { platform: 'gemini-flash', text: 'PARTIAL BUT INCOMPLETE' } }])
+    const done = events.at(-1)!
+    expect(done.event).toBe('done')
+    expect(done.data).toMatchObject({ answers: [{ platform: 'gemini-flash', coverage: 'missing', answer: null, error: 'PROVIDER_UNAVAILABLE' }] })
+    expect((([...mocks.turns.values()][0].live) as { state: string }).state).toBe('failed')
+    expect(outbound).toHaveBeenCalledTimes(1)
+  })
+
+  it('finishes and persists the answer after the browser cancels the stream', async () => {
+    const response = await sendStream()
+    const reader = response.body!.getReader()
+    const first = await reader.read()
+    expect(new TextDecoder().decode(first.value)).toContain('event: start')
+    await reader.cancel()
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const state = ([...mocks.turns.values()][0]?.live as { state?: string } | null)?.state
+      if (state === 'complete') break
+      await new Promise(resolve => setTimeout(resolve, 5))
+    }
+    expect((([...mocks.turns.values()][0].live) as { state: string }).state).toBe('complete')
+    expect(outbound).toHaveBeenCalledTimes(1)
+    expect([...mocks.answerUsage.values()]).toEqual([1])
+  })
+})

@@ -21,6 +21,7 @@ import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-ty
 import { extractTurnUrl } from '@/lib/conversation-studio/firecrawl-url'
 import { buildExecutionPreview, studioResearchReads } from '@/lib/conversation-studio/execution-preview'
 import { STUDIO_PROMPT_LIMIT, type StudioAttachCandidate, type StudioLiveConfig, type StudioLiveReply } from '@/lib/conversation-studio/live-types'
+import { requestStudioAnswer } from '@/lib/conversation-studio/stream-client'
 import { evidenceForHomeTask, HOME_TASKS, STUDIO_FILTERS, STUDIO_HOME_TEMPLATES, type StudioFilter, type StudioHomeTemplate, type StudioSourceStatus } from '@/lib/conversation-studio/home'
 import { skillForTask } from '@/lib/conversation-studio/skills'
 import { useStudioActions } from '@/components/dashboard/StudioActionPanel'
@@ -264,19 +265,44 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     }
     if (askLive && saved.ok) {
       let result: NonNullable<StudioTurn['live']>
+      const answerInput = { prompt, platforms, language: language === 'zh-HK' ? 'zh-HK' as const : 'en' as const, threadId: saved.threadId, position: saved.position, ...(attachment ? { attachedSourceId: attachment.id } : {}) }
+      // While an SSE answer is open the turn shows partial text; the terminal
+      // payload then replaces it with the same reply the buffered route returns.
+      const applyStream = (platform: string, text: string) => setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id)
+        ? { ...thread, turns: thread.turns.map(item => item.id === turn.id
+          ? { ...item, live: { pending: true, stream: { ...(item.live?.stream ?? {}), [platform]: (item.live?.stream?.[platform] ?? '') + text } } }
+          : item) }
+        : thread))
       try {
-        const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId!)}/studio/answer`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
-          body: JSON.stringify({ prompt, platforms, language, threadId: saved.threadId, position: saved.position, ...(attachment ? { attachedSourceId: attachment.id } : {}) }), signal: AbortSignal.timeout(45_000),
-        })
-        const data = await response.json()
-        if (response.ok) {
-          const reply = data as StudioLiveReply
-          result = { reply }
-          if (reply.quota.remaining === 0) setLiveExhausted(true)
+        if (live?.streaming) {
+          const outcome = await requestStudioAnswer({ clientId: clientId!, input: answerInput, signal: AbortSignal.timeout(55_000), onDelta: applyStream })
+          if (outcome.kind === 'reply') {
+            result = { reply: outcome.reply }
+            if (outcome.reply.quota.remaining === 0) setLiveExhausted(true)
+          } else if (outcome.kind === 'pending') {
+            result = { pending: true }
+          } else if (outcome.kind === 'error') {
+            result = { error: outcome.error }
+            if (outcome.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
+          } else {
+            // The stream ended without a terminal frame: the server may still have
+            // committed the answer, so the refresh below reads it back.
+            result = { error: 'STUDIO_UNAVAILABLE' }
+          }
         } else {
-          result = data.error === 'STUDIO_ANSWER_PENDING' ? { pending: true } : { error: data.error ?? 'STUDIO_UNAVAILABLE' }
-          if (data.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
+          const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId!)}/studio/answer`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+            body: JSON.stringify(answerInput), signal: AbortSignal.timeout(45_000),
+          })
+          const data = await response.json()
+          if (response.ok) {
+            const reply = data as StudioLiveReply
+            result = { reply }
+            if (reply.quota.remaining === 0) setLiveExhausted(true)
+          } else {
+            result = data.error === 'STUDIO_ANSWER_PENDING' ? { pending: true } : { error: data.error ?? 'STUDIO_UNAVAILABLE' }
+            if (data.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
+          }
         }
       } catch { result = { error: 'STUDIO_UNAVAILABLE' } }
       const answerState: StudioTurn['answerState'] = result.pending ? 'pending'

@@ -82,9 +82,12 @@ export default async function StudioPage({ params, searchParams }: {
     } catch { /* Unknown stays unknown; a failed read is never an unbound claim. */ }
   }
   // Brand changes remount the studio, clearing all page-local conversation state.
+  // Streaming is only advertised when its own flag is on; the answer route
+  // re-checks the flag, so the client can never negotiate a stream without it.
   const live = isFeatureEnabled('conversation_studio_live') ? {
     platforms: runtimePlatformsFor(resolveCommercialEntitlement(profile.accounts).features.platform_access),
     cap: studioLiveCap(),
+    streaming: isFeatureEnabled('studio_streaming'),
   } : undefined
   return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} smeCopilot={isSmeCopilotUiEnabled()} brandDomain={brand.domain ?? null} features={resolveCommercialEntitlement(profile.accounts).features} />
 }
