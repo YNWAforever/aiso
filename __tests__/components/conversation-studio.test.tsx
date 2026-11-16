@@ -316,7 +316,7 @@ it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified
   expect(html).not.toContain('javascript:')
   expect(html).toContain('href="https://source.example/"')
   const exhausted = renderWithIntl(<StudioLiveReplyView error="STUDIO_QUOTA_EXCEEDED" />, lang)
-  expect(exhausted).toContain(copy.exhausted)
+  expect(exhausted).toContain(copy.exhausted.replace('{cap}', '10'))
   expect(exhausted).toContain('as-live-exhausted')
 })
 
@@ -595,7 +595,7 @@ const evidence=location.search.includes('empty=1')?emptyStudioEvidence:location.
 const params=new URLSearchParams(location.search);
 const opportunities=params.get('opps')==='empty'?emptyStudioOpportunities:params.get('opps')==='pending'?pendingStudioOpportunities:savedStudioOpportunities;
 const inspector=params.has('reads')?{documents:{items:[{id:'fixture-doc',label:'Approved brand facts',versionId:'fixture-version-2',versionNumber:2,approvedAt:'2026-10-27T04:00:00Z',importedAt:'2026-10-26T04:00:00Z'}],truncated:false},searchConsole:{kind:params.get('gsc')||'synced',dataThrough:'2026-10-26'}}:undefined;
-const live=params.has('live')?{cap:Number(params.get('live')),platforms:params.has('free')?[]:['gemini-flash','gpt-4o'],streaming:params.has('streaming')}:undefined;
+const live=params.has('live')?{cap:Number(params.get('live')),platforms:params.has('free')?[]:['gemini-flash','gpt-4o'],streaming:params.has('streaming'),...(params.has('remaining')?{remaining:Number(params.get('remaining')),week:'2026-11-16'}:{})}:undefined;
 const attachCandidates=params.get('attach')==='empty'?[]:params.get('attach')==='unavailable'?null:[{id:'33333333-3333-4333-8333-333333333333',label:'Approved brand facts',versionNumber:2,contentHash:'${'a'.repeat(64)}'}];
 createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale,messages:locale==='en'?en:zh,timeZone:'UTC'},React.createElement(ConversationStudio,{brandName:'Example Brand',clientId:'11111111-1111-4111-8111-111111111111',smeCopilot:params.has('actions'),brandDomain:'example.test',features:{agent_recs:true,client_reports_online:true},evidence,opportunities,live,inspector,attachCandidates,sourceStatus:params.has('reads')?'bound':'unavailable'})));`)
   await build({

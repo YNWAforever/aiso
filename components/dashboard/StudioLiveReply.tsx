@@ -5,12 +5,14 @@ import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { safeEvidenceUrl } from '@/lib/pulse/provider-citations'
 import { StudioMarkdown } from './StudioMarkdown'
 
-export function StudioLiveReplyView({ reply, pending, error, stream, number = 1, onOpenEvidence, onRefresh, refreshing = false, onStop, onRetry }: {
+export function StudioLiveReplyView({ reply, pending, error, stream, number = 1, cap = 10, onOpenEvidence, onRefresh, refreshing = false, onStop, onRetry }: {
   reply?: StudioLiveReply
   pending?: boolean
   error?: string
   stream?: Record<string, string>
   number?: number
+  /** Weekly LIVE cap for the honest exhausted message; the server owns the real number. */
+  cap?: number
   onOpenEvidence?: OpenStudioEvidence
   onRefresh?: () => void
   refreshing?: boolean
@@ -52,7 +54,7 @@ export function StudioLiveReplyView({ reply, pending, error, stream, number = 1,
         {text ? <div className="as-answer-body"><StudioMarkdown text={text} /></div> : <p className="as-note">{t('streamingPending')}</p>}
       </div>)}
     </div>}
-    {error && <p role={error === 'STUDIO_ANSWER_PENDING' ? 'status' : 'alert'} className={error === 'STUDIO_QUOTA_EXCEEDED' ? 'as-note as-live-exhausted' : 'as-note'}>{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : error === 'STUDIO_ATTACH_UNAVAILABLE' ? 'attachUnavailable' : error === 'STUDIO_ANSWER_PENDING' ? 'pending' : error === 'STUDIO_ANSWER_UNKNOWN' ? 'answerUnknown' : error === 'STUDIO_ANSWER_CONFLICT' ? 'answerConflict' : 'unavailable')}</p>}
+    {error && <p role={error === 'STUDIO_ANSWER_PENDING' ? 'status' : 'alert'} className={error === 'STUDIO_QUOTA_EXCEEDED' ? 'as-note as-live-exhausted' : 'as-note'}>{t(error === 'STUDIO_QUOTA_EXCEEDED' ? 'exhausted' : error === 'STUDIO_BUDGET_EXCEEDED' ? 'budget' : error === 'INVALID_STUDIO_INPUT' ? 'invalid' : error === 'UPGRADE_REQUIRED' ? 'upgrade' : error === 'STUDIO_ATTACH_UNAVAILABLE' ? 'attachUnavailable' : error === 'STUDIO_ANSWER_PENDING' ? 'pending' : error === 'STUDIO_ANSWER_UNKNOWN' ? 'answerUnknown' : error === 'STUDIO_ANSWER_CONFLICT' ? 'answerConflict' : 'unavailable', { cap })}</p>}
     <div className="flex flex-wrap gap-2">
       {onRefresh && (pending || error) && <button type="button" className="as-button px-3" disabled={refreshing} onClick={onRefresh}>{t(refreshing ? 'refreshingReply' : 'refreshReply')}</button>}
       {onRetry && error && <button type="button" className="as-button px-3" onClick={onRetry}>{t('retryPrompt')}</button>}

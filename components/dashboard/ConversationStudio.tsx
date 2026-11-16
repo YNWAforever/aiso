@@ -124,7 +124,9 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
-  const [liveExhausted, setLiveExhausted] = useState(false)
+  const [liveRemaining, setLiveRemaining] = useState<number | null>(live?.remaining ?? null)
+  const [liveExhausted, setLiveExhausted] = useState(live?.remaining === 0)
+  const [confirmingLive, setConfirmingLive] = useState<{ prompt: string; task: StudioHomeTemplate | null } | null>(null)
   const [attachment, setAttachment] = useState<StudioAttachCandidate | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, refreshThread, refreshingThreadId, selectionError, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId, hydrated, readFailed, updateThread } = useStudioSession()
@@ -183,7 +185,8 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const branchOrigin = current?.branchOf ? threads.find(thread => thread.id === current.branchOf!.threadId) ?? null : null
   const inspectedTurn = inspection?.navigationVersion === navigationVersion ? current?.turns.find(turn => turn.id === inspection.turnId) : undefined
   const draft = current?.draft ?? newDraft
-  const sendBlocked = busy || conversationPending || Boolean(current && (!current.turnsLoaded || current.turnsError)) || Boolean(live && (liveExhausted || live.cap === 0 || !platforms.length))
+  const liveReady = Boolean(live && live.cap > 0 && platforms.length && !liveExhausted && liveRemaining !== 0)
+  const sendBlocked = busy || conversationPending || Boolean(current && (!current.turnsLoaded || current.turnsError))
   const home = !current
   const basePath = clientId ? `/${language}/dashboard/${encodeURIComponent(clientId)}` : null
   const actionPanel = useStudioActions({ clientId, brandName, brandDomain, features, evidence, enabled: smeCopilot && !staffView })
@@ -251,8 +254,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   /** Explicit Send is the only write/provider path; a selected task just fills the draft. */
   async function submitTurn(prompt: string, taskHint: StudioHomeTemplate | null) {
     if (!prompt || isInFlight() || sendBlocked || (current && !current.mine)) return
-    if (prompt.length > STUDIO_PROMPT_LIMIT || (live && (liveExhausted || live.cap === 0 || !platforms.length))) return
-    const askLive = Boolean(live && !staffView && live.cap > 0 && platforms.length && clientId)
+    if (prompt.length > STUDIO_PROMPT_LIMIT) return
+    // Exhausted or ungranted LIVE never blocks the send: the turn is still saved
+    // as the evidence-only answer composed from this brand's own records.
+    const askLive = Boolean(live && !staffView && live.cap > 0 && platforms.length && clientId && !liveExhausted && liveRemaining !== 0)
     // Lock synchronously, before thread creation or append can yield.
     beginLive()
     try {
@@ -361,12 +366,13 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             const outcome = await requestStudioAnswer({ clientId: clientId!, input: answerInput, signal: controller.signal, onDelta: applyStream })
             if (outcome.kind === 'reply') {
               result = { reply: outcome.reply }
+              setLiveRemaining(outcome.reply.quota.remaining)
               if (outcome.reply.quota.remaining === 0) setLiveExhausted(true)
             } else if (outcome.kind === 'pending') {
               result = { pending: true }
             } else if (outcome.kind === 'error') {
               result = { error: outcome.error }
-              if (outcome.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
+              if (outcome.error === 'STUDIO_QUOTA_EXCEEDED') { setLiveRemaining(0); setLiveExhausted(true) }
             } else {
               // Unconfirmed stream: either the member stopped it or it broke. In
               // both cases the server may already have committed the answer.
@@ -385,10 +391,11 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           if (response.ok) {
             const reply = data as StudioLiveReply
             result = { reply }
+            setLiveRemaining(reply.quota.remaining)
             if (reply.quota.remaining === 0) setLiveExhausted(true)
           } else {
             result = data.error === 'STUDIO_ANSWER_PENDING' ? { pending: true } : { error: data.error ?? 'STUDIO_UNAVAILABLE' }
-            if (data.error === 'STUDIO_QUOTA_EXCEEDED') setLiveExhausted(true)
+            if (data.error === 'STUDIO_QUOTA_EXCEEDED') { setLiveRemaining(0); setLiveExhausted(true) }
           }
         }
       } catch { result = { error: 'STUDIO_UNAVAILABLE' } }
@@ -413,7 +420,13 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     event.preventDefault()
     const prompt = draft.trim()
     if (!prompt) return
-    void submitTurn(prompt, current ? current.template : newTemplate)
+    const task = current ? current.template : newTemplate
+    // More than one model means more than one answer unit: confirm the cost once.
+    if (liveReady && platforms.length > 1) {
+      setConfirmingLive({ prompt, task })
+      return
+    }
+    void submitTurn(prompt, task)
   }
 
   /** Review the task's question before explicitly sending it to the model. */
@@ -423,7 +436,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     composer.current?.focus()
   }
 
-  const preview = buildExecutionPreview({ clientId, staffView, sourceStatus, prompt: draft, task: current ? current.template : newTemplate, live: Boolean(live && live.cap > 0), platforms, liveExhausted })
+  const preview = buildExecutionPreview({ clientId, staffView, sourceStatus, prompt: draft, task: current ? current.template : newTemplate, live: liveReady, platforms, liveExhausted })
   const previewReads = [preview.savesTurn && t('execution.readsSaved'), preview.readsSearchDemand && t('execution.readsSearchDemand'), preview.readsKeywordDemand && t('execution.readsKeywordDemand'), preview.readsPublicPage && t('execution.readsPublicPage')].filter(Boolean).join(' · ')
   const executionPreview = t('execution.preview', { reads: previewReads || t('execution.readsNothing'), live: preview.liveAnswers })
 
@@ -441,7 +454,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
 
   const composerForm = <form onSubmit={submit} className={`as-composer space-y-3${home ? '' : ' as-chat-composer'}`} aria-busy={busy}>
     <label htmlFor="studio-composer" className="as-muted as-small block font-semibold">{t(home ? 'composerLabel' : 'followUpLabel')}</label>
-    <textarea ref={composer} id="studio-composer" value={draft} maxLength={STUDIO_PROMPT_LIMIT} onChange={event => updateDraft(event.target.value, current ? current.template : newTemplate)} onKeyDown={event => {
+    <textarea ref={composer} id="studio-composer" value={draft} maxLength={STUDIO_PROMPT_LIMIT} onChange={event => { setConfirmingLive(null); updateDraft(event.target.value, current ? current.template : newTemplate) }} onKeyDown={event => {
       if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); event.currentTarget.form?.requestSubmit() }
     }} rows={home ? 4 : 2} placeholder={t(home ? 'composerPlaceholder' : 'followUpPlaceholder')} aria-describedby="studio-composer-help" className="block w-full min-w-0 resize-y" />
     <div className="as-composer-footer">
@@ -458,10 +471,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         {!smeCopilot && <span className="as-badge">{t('localeBadge')}</span>}
         {live && <details className="as-platform-picker">
           <summary>{t('live.selector', { count: platforms.length })}</summary>
-          <fieldset className="space-y-2" disabled={busy || live.cap === 0 || liveExhausted}>
+          <fieldset className="space-y-2" disabled={busy || !liveReady}>
             <legend className="as-muted as-small font-semibold">{t('live.platforms')}</legend>
             <div className="flex flex-wrap gap-2">{live.platforms.map(platform => <label key={platform} className="as-platform flex items-center gap-2 px-3">
-              <input type="checkbox" checked={platforms.includes(platform)} onChange={event => setPlatforms(previous => event.target.checked ? [...previous, platform] : previous.filter(item => item !== platform))} />{platform}
+              <input type="checkbox" checked={platforms.includes(platform)} onChange={event => { setConfirmingLive(null); setPlatforms(previous => event.target.checked ? [...previous, platform] : previous.filter(item => item !== platform)) }} />{platform}
             </label>)}</div>
           </fieldset>
         </details>}
@@ -483,15 +496,22 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           </li>)}</ul>}
     </div>}
     {!live && attachment && <p className="as-muted as-small">{t('attach.savedNote')}</p>}
-    {smeCopilot && live && (liveExhausted || live.cap === 0 || !live.platforms.length) && <p role="status" className="as-note">{t(liveExhausted ? 'live.exhausted' : !live.platforms.length ? 'live.upgrade' : 'live.disabled')}</p>}
-    {smeCopilot
-      ? <p className="as-muted as-small">{executionPreview}</p>
-      : <>
-        {!live && <p className="as-note">{t('featureShellNote')}</p>}
-        {live && <p className="as-muted as-small">{t(liveExhausted ? 'live.exhausted' : !live.platforms.length ? 'live.upgrade' : live.cap === 0 ? 'live.disabled' : 'live.usesQuota', { count: platforms.length, cap: live.cap })}</p>}
-      </>}
+    {live && liveRemaining !== null && <p className="as-muted as-small">{t('live.remainingComposer', { count: liveRemaining, cap: live.cap })}</p>}
+    {live && !liveReady && <p role="status" className="as-note">{t(liveExhausted || liveRemaining === 0 ? 'live.savedOnly' : !live.platforms.length ? 'live.upgrade' : 'live.disabled')}</p>}
+    {liveReady && smeCopilot && <p className="as-muted as-small">{executionPreview}</p>}
+    {liveReady && !smeCopilot && <p className="as-muted as-small">{t('live.usesQuota', { count: platforms.length, cap: live!.cap })}</p>}
+    {!live && !smeCopilot && <p className="as-note">{t('featureShellNote')}</p>}
+    {!live && smeCopilot && <p className="as-muted as-small">{executionPreview}</p>}
     <p id="studio-composer-help" className="as-muted as-small">{t(live ? 'live.composerHelp' : 'composerHelp')}</p>
     {live && !home && (current?.turns.length ?? 0) > 0 && <p className="as-muted as-small">{t('live.continuityNote')}</p>}
+    {confirmingLive && live && <div role="group" aria-label={t('live.confirmTitle')} className="as-note space-y-2">
+      <p className="font-semibold">{t('live.confirmTitle')}</p>
+      <p>{t('live.confirmCost', { count: platforms.length, cap: live.cap })}</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="as-button as-primary px-3" onClick={() => { const confirmed = confirmingLive; setConfirmingLive(null); void submitTurn(confirmed.prompt, confirmed.task) }}>{t('live.confirmSend', { count: platforms.length })}</button>
+        <button type="button" className="as-button px-3" onClick={() => setConfirmingLive(null)}>{t('threadActions.cancel')}</button>
+      </div>
+    </div>}
   </form>
 
   const scopeNote = <details className="as-note as-disclosure">
@@ -637,7 +657,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             </div>}
             <div className="min-w-0 space-y-4">
               {turnSaveState === 'failed' && <p role="alert" className="as-note">{t('messageNotSent')}</p>}
-              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} refreshing={busy || refreshingThreadId === current.id} onRefresh={current.mine ? () => void refreshThread(current.id) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} onStop={live?.streaming && liveTurn.pending && busy ? stopAnswer : undefined} onRetry={current.mine && liveTurn.error && liveTurn.error !== 'STUDIO_QUOTA_EXCEEDED' ? () => retryPrompt(prompt, task ?? null) : undefined} />}
+              {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} cap={live?.cap} refreshing={busy || refreshingThreadId === current.id} onRefresh={current.mine ? () => void refreshThread(current.id) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} onStop={live?.streaming && liveTurn.pending && busy ? stopAnswer : undefined} onRetry={current.mine && liveTurn.error && liveTurn.error !== 'STUDIO_QUOTA_EXCEEDED' ? () => retryPrompt(prompt, task ?? null) : undefined} />}
               {turnSaveState !== 'failed' && <details className="as-note as-saved-context" open={!liveTurn}>
                 <summary>{t('savedContextDetails')}</summary>
               <StudioReplyView clientId={clientId} readOnly={staffView || !current.mine} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={turnSaveState === 'saved' ? () => branchThread(current, current.turns[index]) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />

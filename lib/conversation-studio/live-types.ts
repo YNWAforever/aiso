@@ -28,7 +28,14 @@ export type StudioAttachMeta = {
   truncated: boolean
   characters: number
 }
-export type StudioLiveConfig = { platforms: string[]; cap: number; streaming?: boolean }
+export type StudioLiveConfig = {
+  platforms: string[]
+  cap: number
+  streaming?: boolean
+  /** Read-only brand-week projection; absent when the read failed (unknown, not zero). */
+  remaining?: number
+  week?: string
+}
 export type StudioLiveQuota = {
   cap: number
   remaining: number

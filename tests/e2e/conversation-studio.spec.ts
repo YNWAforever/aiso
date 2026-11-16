@@ -6,7 +6,7 @@ import zh from '../../messages/zh-HK.json'
 
 const LIVE_ANSWER_ROUTE = 'https://studio.fixture/api/dashboard/clients/*/studio/answer'
 
-async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false, reads = false, opportunities: 'saved' | 'empty' | 'pending' = 'saved', attach: 'ready' | 'empty' | 'unavailable' = 'ready', streaming = false) {
+async function fixture(page: Page, lang: string, empty = false, scan = false, liveCap?: number, quotaError = false, free = false, reads = false, opportunities: 'saved' | 'empty' | 'pending' = 'saved', attach: 'ready' | 'empty' | 'unavailable' = 'ready', streaming = false, remaining?: number) {
   // Native smooth scrolling can keep a mobile target moving as replies grow.
   // Use supported reduced motion, without forced clicks or skipped assertions.
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -51,6 +51,7 @@ async function fixture(page: Page, lang: string, empty = false, scan = false, li
   if (empty) params.set('empty', '1')
   if (scan) params.set('scan', '1')
   if (liveCap !== undefined) params.set('live', String(liveCap))
+  if (remaining !== undefined) params.set('remaining', String(remaining))
   if (streaming) params.set('streaming', '1')
   if (free) params.set('free', '1')
   if (reads) params.set('reads', '1')
@@ -113,6 +114,7 @@ for (const lang of ['en', 'zh-HK']) {
     await page.getByRole('checkbox', { name: 'gpt-4o', exact: true }).check()
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
     await page.locator('button[type="submit"]').click()
+    await page.getByRole('button', { name: copy.live.confirmSend.replace('{count}', '2'), exact: true }).click()
     const panel = page.getByRole('region', { name: copy.live.replyLabel.replace('{number}', '1'), exact: true })
     await expect(panel).toContainText(copy.live.unverified)
     await expect(panel).toHaveClass(/as-live-result/)
@@ -142,6 +144,7 @@ for (const lang of ['en', 'zh-HK']) {
     expect(liveRequests[0]).toMatchObject({ prompt: copy.templates.brief.prompt, platforms: ['gemini-flash', 'gpt-4o'], language: lang, threadId: expect.any(String), position: 0 })
     await page.locator('#studio-composer').fill('Second question only')
     await page.locator('button[type="submit"]').click()
+    await page.getByRole('button', { name: copy.live.confirmSend.replace('{count}', '2'), exact: true }).click()
     await expect(page.getByText('MOCK LIVE ANSWER', { exact: true })).toHaveCount(2)
     expect(liveRequests[1]).toMatchObject({ prompt: 'Second question only', platforms: ['gemini-flash', 'gpt-4o'], language: lang, threadId: liveRequests[0].threadId, position: 1 })
     expect(requests).toEqual([])
@@ -164,6 +167,7 @@ for (const lang of ['en', 'zh-HK']) {
     await page.getByRole('checkbox', { name: 'gpt-4o', exact: true }).check()
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
     await page.locator('button[type="submit"]').click()
+    await page.getByRole('button', { name: copy.live.confirmSend.replace('{count}', '2'), exact: true }).click()
     const panel = page.getByRole('region', { name: copy.live.replyLabel.replace('{number}', '1'), exact: true })
     await expect(panel).toContainText('MOCK LIVE ANSWER')
     await expect(panel).toContainText(copy.live.missing)
@@ -275,39 +279,43 @@ for (const lang of ['en', 'zh-HK']) {
     expect(requests).toEqual([])
   })
 
-  test(`cap zero preserves the draft and blocks model Send with no transport in ${lang}`, async ({ page }) => {
+  test(`cap zero allows saved-evidence sends without any model transport in ${lang}`, async ({ page }) => {
     const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 0)
     await expect(page.getByText(copy.live.disabled, { exact: true })).toBeVisible()
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
-    await expect(page.locator('button[type="submit"]')).toBeDisabled()
-    await page.locator('#studio-composer').press('Enter')
-    await expect(page.locator('#studio-composer')).toHaveValue(copy.templates.brief.prompt)
-    await expect(page.getByRole('log')).toHaveCount(0)
+    await expect(page.locator('button[type="submit"]')).toBeEnabled()
+    await page.locator('button[type="submit"]').click()
+    await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
     expect(liveRequests).toEqual([])
     expect(requests).toEqual([])
   })
 
-  test(`a plan with no platforms preserves the draft and blocks Send in ${lang}`, async ({ page }) => {
+  test(`a plan with no platforms still allows saved-evidence sends in ${lang}`, async ({ page }) => {
     const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 5, false, true)
     await expect(page.getByText(copy.live.upgrade, { exact: true })).toBeVisible()
     await expect(page.getByRole('checkbox')).toHaveCount(0)
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
-    await expect(page.locator('button[type="submit"]')).toBeDisabled()
-    await page.locator('#studio-composer').press('Enter')
-    await expect(page.locator('#studio-composer')).toHaveValue(copy.templates.brief.prompt)
-    await expect(page.getByRole('log')).toHaveCount(0)
+    await expect(page.locator('button[type="submit"]')).toBeEnabled()
+    await page.locator('button[type="submit"]').click()
+    await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
     expect(liveRequests).toEqual([])
     expect(requests).toEqual([])
   })
 
-  test(`quota rejection preserves saved evidence in ${lang}`, async ({ page }) => {
+  test(`quota rejection preserves saved evidence and keeps saved-only sends open in ${lang}`, async ({ page }) => {
     const { copy, requests, liveRequests } = await fixture(page, lang, false, false, 5, true)
     await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
     await page.locator('button[type="submit"]').click()
-    await expect(page.getByRole('alert')).toHaveText(copy.live.exhausted)
-    await expect(page.locator('form').getByText(copy.live.exhausted, { exact: true })).toHaveCount(1)
+    await expect(page.getByRole('alert')).toHaveText(copy.live.exhausted.replace('{cap}', '5'))
+    await expect(page.locator('form').getByText(copy.live.savedOnly, { exact: true })).toHaveCount(1)
     await expect(page.locator('.as-platform-picker input').first()).toBeDisabled()
     await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
+    expect(liveRequests).toHaveLength(1)
+    // Exhausted LIVE must not block the saved-evidence path: a second Send still
+    // saves an answer and never calls the paid route again.
+    await page.locator('#studio-composer').fill('Saved-only follow-up')
+    await page.locator('button[type="submit"]').click()
+    await expect(page.getByRole('log')).toContainText('Saved-only follow-up')
     expect(liveRequests).toHaveLength(1)
     expect(requests).toEqual([])
   })
@@ -737,6 +745,36 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(retry).toBeVisible()
     await retry.click()
     await expect(page.locator('#studio-composer')).toHaveValue(copy.templates.brief.prompt)
+  })
+
+  test(`the composer shows remaining LIVE answers and confirms multi-model cost in ${lang}`, async ({ page }) => {
+    const { copy, liveRequests } = await fixture(page, lang, false, false, 5, false, false, false, 'saved', 'ready', false, 3)
+    await expect(page.getByText(copy.live.remainingComposer.replace('{count}', '3').replace('{cap}', '5'), { exact: true })).toBeVisible()
+    await page.locator('.as-platform-picker > summary').click()
+    await page.getByRole('checkbox', { name: 'gpt-4o', exact: true }).check()
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    const confirm = page.getByRole('group', { name: copy.live.confirmTitle })
+    await expect(confirm).toBeVisible()
+    await expect(confirm).toContainText(copy.live.confirmCost.replaceAll('{count}', '2').replace('{cap}', '5'))
+    expect(liveRequests).toEqual([])
+    await page.getByRole('button', { name: copy.threadActions.cancel, exact: true }).click()
+    await expect(confirm).toHaveCount(0)
+    await page.locator('button[type="submit"]').click()
+    await page.getByRole('button', { name: copy.live.confirmSend.replace('{count}', '2'), exact: true }).click()
+    await expect(page.getByRole('log')).toBeVisible()
+    expect(liveRequests).toHaveLength(1)
+    expect(liveRequests[0].platforms).toEqual(['gemini-flash', 'gpt-4o'])
+  })
+
+  test(`zero remaining starts saved-only without blocking Send in ${lang}`, async ({ page }) => {
+    const { copy, liveRequests } = await fixture(page, lang, false, false, 5, false, false, false, 'saved', 'ready', false, 0)
+    await expect(page.getByText(copy.live.savedOnly, { exact: true })).toBeVisible()
+    await expect(page.getByText(copy.live.remainingComposer.replace('{count}', '0').replace('{cap}', '5'), { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: copy.templates.brief.label, exact: true }).click()
+    await page.locator('button[type="submit"]').click()
+    await expect(page.getByRole('log')).toContainText(copy.evidence.savedSummary)
+    expect(liveRequests).toEqual([])
   })
 
   test(`landing offers the last discussion first and resumes it in ${lang}`, async ({ page }) => {
