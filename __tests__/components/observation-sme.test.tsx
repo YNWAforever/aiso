@@ -111,6 +111,17 @@ describe('SME observation page', () => {
     expect(html).toContain(copy.smeInactive)
   })
 
+  it('groups each platform row under one question card', () => {
+    const copy = copyFor('en')
+    const html = renderToString(<ObservationWorkspace {...propsFor('en', withAnswers)} />)
+    expect(html.match(/<article/g)).toHaveLength(1)
+    const group = html.split('<article')[1]
+    expect(group).toContain('香港邊度可以沖洗菲林相？')
+    expect(group).toContain('ChatGPT')
+    expect(group).toContain('Gemini')
+    expect(group).toContain(copy.smeGroupMeta.replace('{platforms}', '2').replace('{mentioned}', '1').replace('{notMentioned}', '0'))
+  })
+
   it('keeps an explicitly selected run when checking status without treating the empty week as the current week', () => {
     const html = renderToString(<ObservationWorkspace {...propsFor('en', noAnswers)} initialFilters={{ run: 'saved-run', week: '2026-10-05' }} />)
     expect(html).toContain(`href="/en/dashboard/${clientId}?step=monitor&amp;run=saved-run#first-monitoring"`)
@@ -145,8 +156,9 @@ describe('SME observation page', () => {
 
   it('does not promise a full answer when a record has no answer', () => {
     const html = renderToString(<ObservationWorkspace {...propsFor('en', withAnswers)} />)
-    const missing = html.split('<article')[2].split('</article>')[0]
-    expect(missing).toContain(copyFor('en').noAnswer)
+    const rows = html.split('<li').slice(1)
+    const missing = rows.find(row => row.includes(copyFor('en').noAnswer))
+    expect(missing).toBeDefined()
     expect(missing).toContain(copyFor('en').smeViewRecord)
     expect(missing).not.toContain(copyFor('en').smeViewAnswer)
     expect(html).not.toContain(copyFor('en').workflowTitle)
@@ -155,7 +167,8 @@ describe('SME observation page', () => {
 
   it('keeps the flags-off evidence page as the only flat table', () => {
     const page = readFileSync('app/[lang]/dashboard/[clientId]/observations/page.tsx', 'utf8')
-    expect(page).toContain('smeCopilot={isSmeCopilotUiEnabled()}')
+    expect(page).toContain('smeCopilot={smeCopilot}')
+    expect(page).toContain('embedded={smeCopilot}')
     const legacy = renderToString(<ObservationWorkspace clientId={clientId} initial={withAnswers} copy={copyFor('zh-HK')} lang="zh-HK" />)
     expect(legacy).toContain(copyFor('zh-HK').title)
     expect(legacy).toContain(copyFor('zh-HK').historicalQuestion)

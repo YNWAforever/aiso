@@ -5,6 +5,7 @@ import type { ObservationResponse } from '@/lib/observations/types'
 import {ObservationDetail} from './ObservationDetail'
 import { MaintenanceNextSteps } from '@/components/workspace/MaintenanceNextSteps'
 import { PULSE_ACTIVE_QUESTIONS_PER_BRAND } from '@/lib/pulse/limits'
+import { groupObservations } from '@/lib/observations/group'
 
 import type { ObservationCopy } from './copy'
 export type { ObservationCopy } from './copy'
@@ -26,6 +27,8 @@ type Props = {
   runPanel?:ReactNode
   /** Approved SME copilot layout: plain-language page instead of the evidence table. */
   smeCopilot?: boolean
+  /** The page already renders the shared What AI says shell and header. */
+  embedded?: boolean
 }
 const format = (value: string, count: number) =>
   value.replace('{count}', String(count))
@@ -44,6 +47,7 @@ function Workspace({
   initialFilters = {},
   runPanel,
   smeCopilot = false,
+  embedded = false,
 }: Props) {
   const [data, setData] = useState(initial)
   const [filters, setFilters] = useState({
@@ -154,19 +158,10 @@ function Workspace({
       [copy.smeMonitored, `${activeQuestions}${data.questionsTruncated ? '+' : ''}`],
       [copy.smeRecorded, String(matchingRecords)],
     ]
+    const groups = groupObservations(data.items)
 
-    return (
-      <main className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-4 md:p-8">
-        <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{copy.smeEyebrow}</p>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <h1 className="text-2xl font-bold">{copy.smeTitle}</h1>
-              <p className="text-sm text-muted-foreground">{copy.smeDescription}</p>
-            </div>
-            <a className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-border px-4 text-sm font-medium" href={'/' + lang + '/dashboard/' + encodeURIComponent(clientId) + '/prompts'}>{copy.smeManageQuestions}</a>
-          </div>
-        </header>
+    const content = (
+      <>
         {runPanel}
         <section aria-label={copy.smeStatsLabel} className="grid grid-cols-2 gap-3">
           {stats.map(([label, value]) => (
@@ -248,29 +243,41 @@ function Workspace({
                 {filterCount > 0 && <button className="mt-3 min-h-11 underline" type="button" onClick={clearFilters}>{copy.smeClearFilters}</button>}
               </div>
             )}
-            {data.items.map((item) => (
-              <article key={item.id} className="space-y-3 rounded-xl border border-border bg-card p-4">
-                <h3 className="min-w-0 break-words font-semibold">{item.question}</h3>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <span className={badge}>{item.platform}</span>
-                  <span className={badge}>{item.scanWeek}</span>
-                  <span className={badge}>{item.result === 'success' ? copy.smeComplete : item.hasAnswer ? copy.smeIncomplete : copy.noAnswer}</span>
-                  <span className={item.brandMentioned === true ? badge + ' bg-tone-success-soft' : badge}>{mention(item)}</span>
+            {groups.map((group) => (
+              <article key={group.key} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3 className="min-w-0 break-words font-semibold">{group.question}</h3>
+                  <span className={badge}>{fill(copy.smeGroupMeta, {
+                    platforms: group.platforms.length,
+                    mentioned: group.mentioned,
+                    notMentioned: group.notMentioned,
+                  })}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-4">
-                  <button type="button" className="min-h-11 rounded-lg border border-border px-4 text-sm font-medium" onClick={() => setDetailId(item.id)}>{item.hasAnswer ? copy.smeViewAnswer : copy.smeViewRecord}</button>
-                  <details className="min-w-0">
-                    <summary className="min-h-11 cursor-pointer py-3 text-sm text-muted-foreground">{copy.smeDetails}</summary>
-                    <dl className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                      <div><dt>{copy.recordedAt}</dt><dd className="break-words">{item.recordedAt ?? copy.unknown}</dd></div>
-                      <div><dt>{copy.collectedAt}</dt><dd className="break-words">{item.collectedAt ?? copy.unknownCollectionTime}</dd></div>
-                      <div><dt>{copy.model}</dt><dd className="break-words">{item.model ?? copy.unknownModel}</dd></div>
-                      <div><dt>{copy.market}</dt><dd className="break-words">{item.market ?? copy.unknownMarket}</dd></div>
-                    </dl>
-                  </details>
-                </div>
+                <ul className="mt-3 divide-y divide-border">
+                  {group.items.map((item) => (
+                    <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">{item.platform}</span>
+                        <span className={item.brandMentioned === true ? badge + ' bg-tone-success-soft' : badge}>{mention(item)}</span>
+                        {item.result !== 'success' && <span className={badge}>{item.hasAnswer ? copy.smeIncomplete : copy.noAnswer}</span>}
+                        <details className="min-w-0">
+                          <summary className="min-h-11 cursor-pointer py-2 text-xs text-muted-foreground">{copy.smeDetails}</summary>
+                          <dl className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                            <div><dt>{copy.week}</dt><dd className="break-words">{item.scanWeek}</dd></div>
+                            <div><dt>{copy.recordedAt}</dt><dd className="break-words">{item.recordedAt ?? copy.unknown}</dd></div>
+                            <div><dt>{copy.collectedAt}</dt><dd className="break-words">{item.collectedAt ?? copy.unknownCollectionTime}</dd></div>
+                            <div><dt>{copy.model}</dt><dd className="break-words">{item.model ?? copy.unknownModel}</dd></div>
+                            <div><dt>{copy.market}</dt><dd className="break-words">{item.market ?? copy.unknownMarket}</dd></div>
+                          </dl>
+                        </details>
+                      </div>
+                      <button type="button" className="min-h-11 rounded-lg border border-border px-4 text-sm font-medium" onClick={() => setDetailId(item.id)}>{item.hasAnswer ? copy.smeViewAnswer : copy.smeViewRecord}</button>
+                    </li>
+                  ))}
+                </ul>
               </article>
             ))}
+            {data.nextCursor && <p className="text-sm text-muted-foreground">{copy.smeGroupPageNote}</p>}
           </div>
           {data.nextCursor && (
             <div className="flex justify-center">
@@ -304,6 +311,22 @@ function Workspace({
           </details>
         </section>
         {detailId && <ObservationDetail key={detailId} clientId={clientId} observationId={detailId} copy={copy} smeCopilot onClose={() => setDetailId(null)} />}
+      </>
+    )
+    if (embedded) return <div className="min-w-0 space-y-6">{content}</div>
+    return (
+      <main className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-4 md:p-8">
+        <header className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{copy.smeEyebrow}</p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <h1 className="text-2xl font-bold">{copy.smeTitle}</h1>
+              <p className="text-sm text-muted-foreground">{copy.smeDescription}</p>
+            </div>
+            <a className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-border px-4 text-sm font-medium" href={'/' + lang + '/dashboard/' + encodeURIComponent(clientId) + '/prompts'}>{copy.smeManageQuestions}</a>
+          </div>
+        </header>
+        {content}
       </main>
     )
   }

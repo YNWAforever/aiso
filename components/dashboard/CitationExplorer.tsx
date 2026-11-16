@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 
 import type { CitationKind } from '@/lib/citations/classify'
 import type { CitationDomain, CitationReport } from '@/lib/citations/report'
+import { summarizeCitations } from '@/lib/citations/summary'
 
 /** Display order of the source types; also the order of the filter chips. */
 export const CITATION_KINDS: readonly CitationKind[] = [
@@ -36,23 +37,56 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
   const csvHref = `/api/dashboard/clients/${encodeURIComponent(clientId)}/citations?format=csv${report.query?`&${citationQueryParams(report.query)}`:''}`
   const latest = report.weeks[0]
   const earliest = report.weeks.at(-1)
+  const summary = summarizeCitations(report)
+  const filterKeys = ['domain', 'platform', 'promptId', 'runId', 'from', 'to'] as const
+  const filterCount = filterKeys.filter(key => report.query?.[key]).length + (report.query?.kind ? 1 : 0)
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <p className="text-sm leading-6 text-muted-foreground">{t('intro')}</p>
-        {latest && earliest && <p className="text-sm font-medium">{t('weeks', { from: earliest, to: latest })}</p>}
-        <p className="text-sm">{t('coverage', report.answers)}</p>
-        <p className="text-xs text-muted-foreground">{t('coverage_note')}</p>
+    <div className="space-y-6">
+      <section aria-label={t('summary_label')} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {[
+          [t('summary_with_citations'), summary.withCitations],
+          [t('summary_recorded_empty'), summary.recordedEmpty],
+          [t('summary_unrecorded'), summary.unrecorded],
+        ].map(([label, value]) => (
+          <div key={String(label)} className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground">{label}</p>
+            <p className="mt-1 text-3xl font-black tabular-nums text-foreground">{value}</p>
+          </div>
+        ))}
+      </section>
+      {summary.total > 0 && <p className="text-sm text-muted-foreground">{t('summary_note', { share: summary.citedShare ?? '—', total: summary.total })}</p>}
+
+      <div className="flex flex-wrap items-center gap-3">
+        {summary.total > 0 && <a href={csvHref} download onClick={async event=>{event.preventDefault();setExportError(false);try{const response=await fetch(csvHref,{cache:'no-store'});if(!response.ok)throw new Error('export');const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='cited-sources.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch{setExportError(true)}}} className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-primary-accessible underline">{t('download')}</a>}
+        {latest && earliest && <p className="text-sm text-muted-foreground">{t('weeks', { from: earliest, to: latest })}</p>}
+        {exportError && <p role="alert" className="text-sm text-tone-danger-fg">{t('export_error')}</p>}
       </div>
 
-      <form method="get" className="flex flex-wrap gap-3" aria-label={t('scope_label')}>
-        {(['domain','platform','promptId','runId','from','to'] as const).map(key=><label key={key} className="text-sm">{t(`scope_${key}`)}<input className="block min-h-11 max-w-full rounded border px-2" type={key==='from'||key==='to'?'date':'text'} name={key} defaultValue={report.query?.[key]??''}/></label>)}
-        {report.query?.kind&&<input type="hidden" name="kind" value={report.query.kind}/>}<button className="min-h-11 rounded border px-3">{t('apply_filters')}</button>
-      </form>
-      <p className="text-sm">{t('scope_note')}{report.pages&&` · ${report.pages.domains.total} ${t('col_site')}`}</p>
-      {report.pages&&<nav aria-label={t('pagination')} className="flex flex-wrap gap-3"><span>{t('page_label',{page:report.pages.domains.page,total:report.pages.domains.total})}</span>{report.query!.page>1&&<a className="min-h-11 underline" href={queryHref({page:report.query!.page-1,evidencePage:1})}>{t('previous')}</a>}{[report.pages.domains,report.pages.urls,report.pages.gaps].some(p=>p.page*p.pageSize<p.total)&&<a className="min-h-11 underline" href={queryHref({page:report.query!.page+1,evidencePage:1})}>{t('next')}</a>}</nav>}
-      {report.evidenceWindow&&<nav aria-label={t('answer_evidence')} className="flex flex-wrap gap-3"><p>{t('evidence_window',{shown:report.evidence?.length??0,total:report.evidenceWindow.total,page:report.evidenceWindow.page})}</p>{report.evidenceWindow.page>1&&<a className="min-h-11 underline" href={queryHref({evidencePage:report.evidenceWindow.page-1})}>{t('previous')}</a>}{report.evidenceWindow.page*report.evidenceWindow.pageSize<report.evidenceWindow.total&&<a className="min-h-11 underline" href={queryHref({evidencePage:report.evidenceWindow.page+1})}>{t('next_evidence')}</a>}</nav>}
+      <details className="rounded-2xl border border-border bg-card">
+        <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold">
+          {t('filters')}{filterCount > 0 ? ` · ${t('filters_applied', { count: filterCount })}` : ''}
+        </summary>
+        <div className="space-y-3 border-t border-border p-4">
+          <form method="get" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label={t('scope_label')}>
+            {filterKeys.map(key => (
+              <label key={key} className="text-sm font-medium">
+                {t(`scope_${key}`)}
+                <input className="mt-1 block w-full min-h-11 rounded-lg border border-border bg-background px-3" type={key==='from'||key==='to'?'date':'text'} name={key} defaultValue={report.query?.[key]??''}/>
+              </label>
+            ))}
+            {report.query?.kind&&<input type="hidden" name="kind" value={report.query.kind}/>}
+            <div className="flex items-end">
+              <button className="min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">{t('apply_filters')}</button>
+            </div>
+          </form>
+          <p className="text-xs text-muted-foreground">{t('scope_note')}</p>
+          <p className="text-xs text-muted-foreground">{t('coverage_note')}</p>
+        </div>
+      </details>
+
+      {report.pages&&<nav aria-label={t('pagination')} className="flex flex-wrap gap-3"><span className="text-sm">{t('page_label',{page:report.pages.domains.page,total:report.pages.domains.total})}</span>{report.query!.page>1&&<a className="min-h-11 underline" href={queryHref({page:report.query!.page-1,evidencePage:1})}>{t('previous')}</a>}{[report.pages.domains,report.pages.urls,report.pages.gaps].some(p=>p.page*p.pageSize<p.total)&&<a className="min-h-11 underline" href={queryHref({page:report.query!.page+1,evidencePage:1})}>{t('next')}</a>}</nav>}
+      {report.evidenceWindow&&<nav aria-label={t('answer_evidence')} className="flex flex-wrap gap-3"><p className="text-sm">{t('evidence_window',{shown:report.evidence?.length??0,total:report.evidenceWindow.total,page:report.evidenceWindow.page})}</p>{report.evidenceWindow.page>1&&<a className="min-h-11 underline" href={queryHref({evidencePage:report.evidenceWindow.page-1})}>{t('previous')}</a>}{report.evidenceWindow.page*report.evidenceWindow.pageSize<report.evidenceWindow.total&&<a className="min-h-11 underline" href={queryHref({evidencePage:report.evidenceWindow.page+1})}>{t('next_evidence')}</a>}</nav>}
       <section className="space-y-2"><p>{t('gap_'+report.gapCoverage.state,{configured:report.gapCoverage.configuredCompetitors,domains:report.gapCoverage.competitorsWithDomains})}</p>{['not_configured','partial_config'].includes(report.gapCoverage.state)&&<a className="inline-flex min-h-11 items-center underline" href={`/${locale}/dashboard/${clientId}/competitors`}>{t('configure_competitors')}</a>}</section>
       {report.domains.length === 0 && (!report.pages||report.pages.domains.total===0) ? (
         report.query?.kind||report.query?.domain?<p className="text-sm text-muted-foreground">{t('filtered_empty')}</p>:<EmptyState illustration="monitor" title={t('empty')} />
@@ -62,7 +96,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
             <h2 id="citation-gaps-title" className="text-lg font-bold">{t('gaps_title')}</h2>
             <p className="text-sm text-muted-foreground">{t('gaps_note')}</p>
             {report.gaps.length === 0 ? <p className="text-sm">{report.pages&&report.pages.gaps.total>0?t('gaps_page_empty'):report.gapCoverage.state==='ready'?t('gaps_none'):t('gap_'+report.gapCoverage.state,{configured:report.gapCoverage.configuredCompetitors,domains:report.gapCoverage.competitorsWithDomains})}</p> : (
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto" tabIndex={0} aria-label={t('gaps_title')}>
                 <table className="w-full min-w-[28rem] text-sm">
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
@@ -94,7 +128,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
               ))}
             </div>
             {shown.length === 0 ? <p className="text-sm text-muted-foreground">{report.pages&&report.pages.domains.total>0?t('page_empty'):t('filtered_empty')}</p> : (
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto" tabIndex={0} aria-label={t('domains_title')}>
                 <table className="w-full min-w-[40rem] text-sm">
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
@@ -125,7 +159,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
 
           <section aria-labelledby="citation-urls-title" className="space-y-3">
             <h2 id="citation-urls-title" className="text-lg font-bold">{t('urls_title')}</h2>
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto" tabIndex={0} aria-label={t('urls_title')}>
               <table className="w-full min-w-[32rem] text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
@@ -154,11 +188,9 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
             </div>
           </section>
 
-          <p className="text-sm">{t('export_scope',{count:report.pages?.domains.total??report.domains.length})}</p>
-          {exportError&&<p role="alert">{t('export_error')}</p>}
-          <a href={csvHref} download onClick={async event=>{event.preventDefault();setExportError(false);try{const response=await fetch(csvHref,{cache:'no-store'});if(!response.ok)throw new Error('export');const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='cited-sources.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch{setExportError(true)}}} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline">{t('download')}</a>
         </>
       )}
     </div>
   )
 }
+

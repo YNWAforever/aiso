@@ -1,9 +1,9 @@
 import {parseCitationQuery} from '@/lib/citations/query'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
 import { CitationExplorer } from '@/components/dashboard/CitationExplorer'
+import { WhatAiSaysPage } from '@/components/dashboard/sme/WhatAiSaysPage'
 import { requireAuth } from '@/lib/auth'
 import { readCitationReport } from '@/lib/citations/report'
 import { db } from '@/lib/db'
@@ -31,20 +31,13 @@ export default async function CitationsPage({
   // 404 rather than 403: the id came from the caller.
   if (!client) notFound()
   const raw=await searchParams
-  let query;try{query=parseCitationQuery(new URLSearchParams(Object.entries(raw??{}).filter(([,v])=>typeof v==='string') as [string,string][]))}catch{return <main><p>{t('invalid_filters')}</p></main>}
-  let report;try{report=await readCitationReport(sql, profile.account_id, clientId,query)}catch{return <main><p>{t('read_unavailable')}</p></main>}
+  let query;try{query=parseCitationQuery(new URLSearchParams(Object.entries(raw??{}).filter(([,v])=>typeof v==='string') as [string,string][]))}catch{return <WhatAiSaysPage title={t('title')} description={t('intro')}><p role="alert" className="rounded-xl border border-tone-danger/40 bg-tone-danger-soft p-4 text-sm text-tone-danger-fg">{t('invalid_filters')}</p></WhatAiSaysPage>}
+  let report;try{report=await readCitationReport(sql, profile.account_id, clientId,query)}catch{return <WhatAiSaysPage title={t('title')} description={t('intro')}><p role="alert" className="rounded-xl border border-tone-danger/40 bg-tone-danger-soft p-4 text-sm text-tone-danger-fg">{t('read_unavailable')}</p></WhatAiSaysPage>}
   if (!report) notFound()
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-5xl px-4 py-8 sm:px-6">
-      <Link href={`/${locale}/dashboard/${clientId}`} className="mb-4 inline-flex min-h-11 items-center text-sm text-primary-accessible underline">
-        {t('back')}
-      </Link>
-      <div className="mb-6">
-        <p className="text-sm font-medium text-primary">{String(client.brand_name)}</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('title')}</h1>
-      </div>
+    <WhatAiSaysPage title={t('title')} description={t('intro')}>
       <CitationExplorer report={report} clientId={clientId} />
-    </main>
+    </WhatAiSaysPage>
   )
 }
