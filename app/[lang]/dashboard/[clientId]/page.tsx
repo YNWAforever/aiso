@@ -24,6 +24,7 @@ import { loadOwnedScanChoices } from '@/lib/workspace/scan-choices'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
+import { WhatAiSaysPage } from '@/components/dashboard/sme/WhatAiSaysPage'
 import type { ScanQuota } from '@/components/dashboard/ScanStep'
 import { readAuthenticatedScanQuota } from '@/lib/security/authenticated-scan-quota'
 import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
@@ -151,7 +152,12 @@ export default async function DashboardPage({
       return <main className="px-6 py-12"><h1 className="text-xl font-bold">{t('workspace_load_error_title')}</h1><p className="mt-3">{t('workspace_load_error_body')}</p></main>
     }
     if (!owned) notFound()
-    return <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 sm:px-6"><h1 className="mb-5 text-2xl font-bold">{t(smeCopilot ? 'step_monitor_sme_title' : 'step_monitor_title')}</h1><MonitorStep features={features} lang={lang} clientId={clientId} view={buildPulseView(owned)} now={new Date()} /></main>
+    return <WhatAiSaysPage
+      title={t(smeCopilot ? 'step_monitor_sme_title' : 'step_monitor_title')}
+      description={smeCopilot ? t('step_monitor_sme_body') : t('step_monitor_body')}
+    >
+      <MonitorStep features={features} lang={lang} clientId={clientId} view={buildPulseView(owned)} now={new Date()} />
+    </WhatAiSaysPage>
   }
 
   const sql = db()

@@ -1480,7 +1480,7 @@
     "step_improve_body": "根據已保存的網站檢查草擬改善建議，並逐項對照來源證據覆核。可用的監測樣本會另行顯示，不能據此判定某項修改改善了 AI 能見度。",
     "step_improve_locked": "升級以解鎖方案包含的分析。覆核網站建議及可用的監測證據；只有相容的觀測結果才可作比較。",
     "step_monitor_title": "監測你的排名",
-    "step_monitor_sme_title": "查看已保存嘅 AI 回答",
+    "step_monitor_sme_title": "AI 能見度",
     "step_monitor_body": "追蹤你的聲音份額——你的品牌在各平台 AI 生成答案中出現的頻率。查看你錯過了哪些查詢，以及競爭對手在哪些地方取而代之。",
     "step_roi_title": "本地信任及查詢價值",
     "step_roi_body": "向老闆展示本地信任、AI 能見度、已完成修復及預估查詢價值如何隨時間改善。",
@@ -1846,7 +1846,8 @@
     "nav_verified_facts": "已核實資料",
     "nav_pages": "頁面",
     "nav_billing": "帳單",
-    "nav_account_menu": "帳戶選單"
+    "nav_account_menu": "帳戶選單",
+    "step_monitor_sme_body": "每週 AI 回答提及你品牌的比例，以及各平台嘅表現。"
   },
   "reports": {
     "scan_domain_mismatch": "此掃描的網域與品牌目前的網站不同。請選擇目前網域的已完成掃描，或執行新的掃描。",
@@ -2637,6 +2638,34 @@
         "none": "暫時未有提示",
         "error": "無法讀取提示狀態。"
       }
+    },
+    "visibility": {
+      "title": "AI 能見度",
+      "intro": "每週 AI 回答提及你品牌的比例，以及各平台嘅表現。",
+      "mentionRate": "AI 提及率",
+      "rateCaption": "已分類回答中提及你品牌嘅比例",
+      "week": "{week} 當週",
+      "deltaUp": "較上週 +{delta} 個百分點",
+      "deltaDown": "較上週 −{delta} 個百分點",
+      "deltaFlat": "與上週相同",
+      "noComparison": "暫時未有可比較嘅上週數字",
+      "statsLabel": "能見度摘要",
+      "platforms": "有結果嘅平台",
+      "questions": "啟用中嘅問題",
+      "missed": "未提及嘅問題",
+      "emptyTitle": "暫時未有能見度結果",
+      "emptyBody": "執行本週監測後，就會見到 AI 回答提及你品牌嘅比例。",
+      "viewAnswers": "睇本週回答",
+      "manageQuestions": "管理問題",
+      "freshWeek": "最新結果：{week} 當週",
+      "staleWeek": "自 {week} 起沒有新結果",
+      "never": "暫時未有每週結果",
+      "missedTitle": "AI 回答無提及你品牌嘅問題",
+      "missedCaption": "答案有提及競爭對手但無提及你，按問題分組。",
+      "namedCompetitors": "提及 {names}",
+      "missedMore": "睇全部回答",
+      "missedEmpty": "本週所有已分類回答都有提及你品牌。",
+      "missedError": "此部分暫時無法載入，請稍後重新整理。"
     }
   },
   "sampleReport": {
@@ -4079,8 +4108,23 @@
       "classificationWork": "判斷 {count} 個已保存回答有冇提及品牌，唔會收集新回答。",
       "savedWorkload": "沿用所選監測記錄嘅設定，涵蓋最多 {expected} 個回答。繼續工作唔會重做已完成嘅部分。",
       "latest": "查看最新監測記錄",
-      "states": { "queued": "等候收集回答", "running": "收集回答中", "partial": "部分回答或品牌判斷未齊", "completed": "已保存回答及品牌判斷", "failed": "未能收集回答", "blocked": "監測需要處理" },
-      "blockers": { "paused": "新回答收集已暫停", "no_models": "未設定監測模型", "no_prompts": "請加入監測問題", "context_missing": "請確認問題嘅語言及市場", "quota_exceeded": "回答額度不足", "existing_run": "呢個星期已有監測記錄", "legacy_review_required": "請先覆核已保存嘅舊回答，再收集新回答" }
+      "states": {
+        "queued": "等候收集回答",
+        "running": "收集回答中",
+        "partial": "部分回答或品牌判斷未齊",
+        "completed": "已保存回答及品牌判斷",
+        "failed": "未能收集回答",
+        "blocked": "監測需要處理"
+      },
+      "blockers": {
+        "paused": "新回答收集已暫停",
+        "no_models": "未設定監測模型",
+        "no_prompts": "請加入監測問題",
+        "context_missing": "請確認問題嘅語言及市場",
+        "quota_exceeded": "回答額度不足",
+        "existing_run": "呢個星期已有監測記錄",
+        "legacy_review_required": "請先覆核已保存嘅舊回答，再收集新回答"
+      }
     }
   },
   "brandAssistant": {

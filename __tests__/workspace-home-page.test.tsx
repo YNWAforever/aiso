@@ -16,6 +16,7 @@ import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import type { ReactElement } from 'react'
 import Page from '@/app/[lang]/dashboard/[clientId]/page'
+import { WhatAiSaysPage } from '@/components/dashboard/sme/WhatAiSaysPage'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
 import { BrandToday } from '@/components/dashboard/today/BrandToday'
 afterEach(() => vi.unstubAllEnvs())
@@ -134,7 +135,8 @@ it.each(['0','1'])('uses a saved-answer heading only in SME monitoring mode %s',
   vi.stubEnv('FEATURE_SME_COPILOT_UI', flag)
   mocks.pulse.mockResolvedValue({ client: { id: 'client-a', brand_name: 'Example' }, observations: { status: 'ok', data: [] }, missed: { status: 'ok', data: [] }, prompts: { status: 'ok', data: [] } })
   const page = await render({ step: 'monitor' })
-  expect(page.props.children[0].props.children).toBe(flag === '1' ? 'step_monitor_sme_title' : 'step_monitor_title')
+  expect(page.type).toBe(WhatAiSaysPage)
+  expect(page.props.title).toBe(flag === '1' ? 'step_monitor_sme_title' : 'step_monitor_title')
   expect(mocks.pulse).toHaveBeenCalledWith({ clientId: 'client-a', profile, withSignals: true })
   expect(mocks.sql).not.toHaveBeenCalled()
 })
