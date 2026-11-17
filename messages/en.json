@@ -19,6 +19,7 @@
     },
     "featureShellNote": "Studio is available. Live model answers stay off until LIVE is enabled; work from saved evidence and templates meanwhile.",
     "threadsTitle": "Discussions",
+    "threadsCount": "{count, plural, one {# discussion} other {# discussions}}",
     "newThread": "Start a new discussion",
     "threadsEmpty": "This brand has no saved discussions yet. Start with a work goal above.",
     "privateLabel": "Private to you · Saved in this brand workspace",
@@ -28,6 +29,7 @@
     "privacyBody": "Discussions are private to you by default and saved to this brand workspace. You can share one read-only with the rest of the brand; only its creator can rename, pin, share, archive or add turns. Composer drafts are not saved.",
     "threadActions": {
       "label": "Discussion actions",
+      "menu": "Discussion actions: {title}",
       "rename": "Rename",
       "save": "Save name",
       "cancel": "Cancel",
@@ -559,6 +561,7 @@
     },
     "threadSearch": {
       "label": "Search discussions",
+      "resultCount": "{count, plural, one {# discussion} other {# discussions}}",
       "noMatch": "No discussion matches “{query}”."
     },
     "threadGroups": {
@@ -603,7 +606,22 @@
       "sov": "Share of answers",
       "mentions": "Brand mentions",
       "mentionsValue": "{mentions} of {total}",
-      "actions": "Actions"
+      "actions": "Actions",
+      "latestLabel": "Latest saved week",
+      "trendTitle": "Saved weeks",
+      "latest": "Latest",
+      "noComparison": "No previous saved week with answers to compare.",
+      "noAnswers": "No answers were recorded for the latest week.",
+      "noAnswersValue": "—",
+      "deltaUp": "Up {points} pts vs the previous saved week",
+      "deltaDown": "Down {points} pts vs the previous saved week",
+      "deltaFlat": "No change vs the previous saved week",
+      "openThread": "Start with this week",
+      "openThreadPrompt": "Explain the AI visibility change for the week of {week}, using only saved observations.",
+      "scopeNote": "From the saved weekly rollup. This view does not call a provider.",
+      "emptyTitle": "No saved weeks yet",
+      "empty": "It appears after a saved weekly run.",
+      "unavailable": "The weekly rollup could not be read."
     },
     "conclusion": {
       "title": "Conclusion first",

@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowUpRight, FileText, Lock, MessageSquare, Unplug } from 'lucide-react'
+import { ArrowUpRight, Ellipsis, FileText, Lock, MessageSquare, Unplug } from 'lucide-react'
 import { useStudioSession, type StudioThread } from '@/components/dashboard/StudioSession'
 import { groupThreads, matchesThread, relativeTime } from '@/lib/conversation-studio/thread-list'
 import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
@@ -47,6 +47,13 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
     if (!title) return
     if (await act(id, { title })) setRenamingId(null)
   }
+  const closeMenu = (event: MouseEvent<HTMLButtonElement>) => {
+    const details = event.currentTarget.closest('details')
+    details?.removeAttribute('open')
+    // Do not leave focus on a hidden menu item after the action runs.
+    const summary = details?.querySelector('summary')
+    if (summary instanceof HTMLElement) summary.focus()
+  }
   return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="threads" showTabs={showTabs} title={t('threadsTitle')} description={t('views.threads.description')} />
     <div className="flex flex-wrap items-end gap-3">
       <button type="button" className="as-button as-primary px-4" onClick={() => { session.setActiveId(null); session.setNewDraft(''); session.setNewTemplate(null); router.push(base) }}>{t('newThread')}</button>
@@ -55,6 +62,7 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
         <input id="studio-thread-search" type="search" value={query} onChange={event => setQuery(event.target.value)} className="as-search block w-full min-w-0" />
       </div>}
     </div>
+    {session.hydrated && !session.readFailed && session.threads.length > 0 && <p className="as-small as-muted">{query.trim() ? t('threadSearch.resultCount', { count: visible.length }) : t('threadsCount', { count: session.threads.length })}</p>}
     {actionFailed && <p role="alert" className="as-note">{t('threadActions.failed')}</p>}
     {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : !session.threads.length
       ? <div className="as-empty space-y-2"><MessageSquare aria-hidden="true" className="as-blue mx-auto" /><h2>{t('recentThreadsEmpty')}</h2><p className="as-muted">{t('views.threads.empty')}</p></div>
@@ -73,16 +81,21 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
                 {skill && skill !== thread.title && <span className="as-badge">{skill}</span>}
                 {thread.pinned && <span className="as-badge">{t('pinnedLabel')}</span>}
                 {when && <span className="as-muted as-small shrink-0">{when}</span>}
-                <span className="as-badge">{t(thread.saveState !== 'persisted' ? 'temporaryLabel' : thread.visibility === 'shared' ? 'sharedLabel' : 'privateLabel')}</span><ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
+                {thread.saveState === 'unsaved' && <span className="as-badge">{t('temporaryLabel')}</span>}
+                {thread.visibility === 'shared' && <span className="as-badge">{t('sharedLabel')}</span>}
+                <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
               </button>
               {thread.mine
-                ? <div role="group" aria-label={t('threadActions.label')} className="flex flex-wrap items-center gap-1">
-                  <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm" aria-pressed={thread.pinned} onClick={() => void act(thread.id, { pinned: !thread.pinned })}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
-                  <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm" aria-pressed={thread.visibility === 'shared'} onClick={() => void act(thread.id, { visibility: thread.visibility === 'shared' ? 'private' : 'shared' })}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
-                  <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm" onClick={() => startRename(thread)}>{t('threadActions.rename')}</button>
-                  <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm" onClick={() => void act(thread.id, { archived: true })}>{t('threadActions.archive')}</button>
-                </div>
-                : <span className="as-badge" title={t('sharedReadOnlyBody')}>{t('threadActions.label')}</span>}
+                ? <details className="relative shrink-0">
+                  <summary aria-label={t('threadActions.menu', { title: thread.title })} className="as-button inline-flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center px-2 text-sm [&::-webkit-details-marker]:hidden"><Ellipsis className="size-4" aria-hidden="true" /></summary>
+                  <div className="absolute right-0 top-full z-20 mt-1 w-48 space-y-1 rounded-lg border border-border bg-background p-1 shadow-e2">
+                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" aria-pressed={thread.pinned} onClick={event => { closeMenu(event); void act(thread.id, { pinned: !thread.pinned }) }}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
+                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" aria-pressed={thread.visibility === 'shared'} onClick={event => { closeMenu(event); void act(thread.id, { visibility: thread.visibility === 'shared' ? 'private' : 'shared' }) }}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
+                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); startRename(thread) }}>{t('threadActions.rename')}</button>
+                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); void act(thread.id, { archived: true }) }}>{t('threadActions.archive')}</button>
+                  </div>
+                </details>
+                : null}
             </div>
             {renamingId === thread.id && <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); void saveRename(thread.id) }}>
               <label className="min-w-0 flex-1 space-y-1 text-sm"><span className="as-muted as-small block font-semibold">{t('threadActions.rename')}</span>
