@@ -2,8 +2,11 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { PulseCoverage } from './PulseCoverage'
 import { SovChart } from './SovChart'
+import { SavedTaskLink } from '@/components/dashboard/SavedTaskLink'
 import { buildVisibilityOverview } from '@/lib/view-models/visibility-summary'
-import { studioTaskHref } from '@/lib/conversation-studio/task-handoff'
+import { relativeTime } from '@/lib/conversation-studio/thread-list'
+import { studioTaskHref, studioThreadHref } from '@/lib/conversation-studio/task-handoff'
+import type { SavedTaskRead } from '@/lib/conversation-studio/saved-task'
 import type { PulseView } from '@/lib/view-models/pulse'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
@@ -14,7 +17,12 @@ import zhHK from '@/messages/zh-HK.json'
  * observed view; this component never re-scores, fills gaps or claims that a
  * later change came from an earlier action.
  */
-export function PulseReportView({ view, lang }: { view: PulseView; lang: string }) {
+export function PulseReportView({ view, lang, savedDiscussion = null }: {
+  view: PulseView
+  lang: string
+  /** Latest saved Studio discussion for this report's task; loaded by the page. */
+  savedDiscussion?: SavedTaskRead | null
+}) {
   const messages = lang === 'zh-HK' ? zhHK : en
   const copy = messages.pulseView
   const report = copy.report
@@ -75,6 +83,14 @@ export function PulseReportView({ view, lang }: { view: PulseView; lang: string 
         </Link>
         {hasNumbers && <Link href={askHref} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline decoration-primary/30 underline-offset-4">{report.askAi}</Link>}
       </div>
+      {savedDiscussion?.state === 'ready' && <SavedTaskLink
+        state="ready"
+        href={studioThreadHref({ lang, clientId: view.client.id, threadId: savedDiscussion.thread.id })}
+        title={savedDiscussion.thread.title}
+        when={relativeTime(savedDiscussion.thread.updatedAt, new Date(), lang)}
+        label={report.savedDiscussion}
+      />}
+      {savedDiscussion?.state === 'unavailable' && <SavedTaskLink state="unavailable" label={report.savedDiscussionUnavailable} />}
     </section>
 
     <details className="group rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">

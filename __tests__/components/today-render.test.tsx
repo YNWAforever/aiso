@@ -82,6 +82,23 @@ describe('BrandToday', () => {
     expect(html).toContain('oneBrandEyebrow')
   })
 
+  it('puts the saved discussion for this task back on the card', async () => {
+    const html = await render({
+      workspace: home(), lang: 'en', chatEnabled: true, clientReportsOnline: true,
+      savedDiscussion: { state: 'ready', thread: { id: '22222222-2222-4222-8222-222222222222', title: 'Why the brand was missed', updatedAt: '2026-11-15T00:00:00Z', turnCount: 2, skill: 'visibility_now', visibility: 'private', mine: true } },
+    })
+    expect(html).toContain('savedDiscussion.label')
+    expect(html).toContain('Why the brand was missed')
+    expect(html).toContain('href="/en/dashboard/c1/studio?thread=22222222-2222-4222-8222-222222222222"')
+    expect(html).not.toContain('savedDiscussion.unavailable')
+  })
+
+  it('names a failed saved-discussion read instead of showing an empty card', async () => {
+    const html = await render({ workspace: home(), lang: 'en', chatEnabled: true, clientReportsOnline: true, savedDiscussion: { state: 'unavailable' } })
+    expect(html).toContain('savedDiscussion.unavailable')
+    expect(html).not.toContain('/studio?thread=')
+  })
+
   it('is wired into the brand page only behind the SME flag, before WorkspaceHome', () => {
     const page = readFileSync(join(process.cwd(), 'app/[lang]/dashboard/[clientId]/page.tsx'), 'utf8')
     expect(page).toContain('isSmeCopilotUiEnabled()')

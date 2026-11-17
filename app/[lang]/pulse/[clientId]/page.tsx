@@ -7,6 +7,8 @@ import {PulseReportView} from '@/components/pulse/PulseReportView'
 import {ShareOfVoiceBenchmark} from '@/components/pulse/ShareOfVoiceBenchmark'
 import {db} from '@/lib/db'
 import {readShareOfVoice,type ShareOfVoiceView} from '@/lib/pulse/share-of-voice'
+import {isConversationStudioEnabled} from '@/lib/flags'
+import {loadSavedTaskThread,type SavedTaskRead} from '@/lib/conversation-studio/saved-task'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 export default async function PulsePage({params}:{params:Promise<{lang:string;clientId:string}>}){
@@ -17,6 +19,10 @@ export default async function PulsePage({params}:{params:Promise<{lang:string;cl
  // Its own failure state: a share-of-voice outage must not take the rest of the Pulse page with it.
  let sov:{state:'ok'|'error';view:ShareOfVoiceView|null}
  try{sov={state:'ok',view:await readShareOfVoice(db(),profile.account_id,clientId)}}catch{console.error('[pulse-view] share of voice read failed');sov={state:'error',view:null}}
+ // The return path is optional: a read failure stays explicit and never takes
+ // the report down with it.
+ let savedDiscussion:SavedTaskRead|null=null
+ if(isConversationStudioEnabled(clientId))savedDiscussion=await loadSavedTaskThread({accountId:profile.account_id,profileId:profile.id,clientId,task:'pulse'})
  const sovCopy=(lang==='zh-HK'?zhHK:en).shareOfVoice
- return <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 sm:px-6"><h1 className="mb-4 text-2xl font-bold">{owned.client.brand_name} · {copy.title}</h1><nav aria-label={copy.title} className="mb-5 flex flex-wrap gap-4"><Link href={`/${lang}/dashboard/${clientId}?step=monitor`} className="inline-flex min-h-11 items-center text-sm text-primary-accessible underline">{copy.back}</Link><Link href={`/${lang}/dashboard/${clientId}/prompts`} className="inline-flex min-h-11 items-center text-sm text-primary-accessible underline">{copy.prompts}</Link></nav><PulseReportView view={buildPulseView(owned)} lang={lang}/><ShareOfVoiceBenchmark state={sov.state} view={sov.view} copy={sovCopy} lang={lang} clientId={clientId}/></main>
+ return <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 sm:px-6"><h1 className="mb-4 text-2xl font-bold">{owned.client.brand_name} · {copy.title}</h1><nav aria-label={copy.title} className="mb-5 flex flex-wrap gap-4"><Link href={`/${lang}/dashboard/${clientId}?step=monitor`} className="inline-flex min-h-11 items-center text-sm text-primary-accessible underline">{copy.back}</Link><Link href={`/${lang}/dashboard/${clientId}/prompts`} className="inline-flex min-h-11 items-center text-sm text-primary-accessible underline">{copy.prompts}</Link></nav><PulseReportView view={buildPulseView(owned)} lang={lang} savedDiscussion={savedDiscussion}/><ShareOfVoiceBenchmark state={sov.state} view={sov.view} copy={sovCopy} lang={lang} clientId={clientId}/></main>
 }

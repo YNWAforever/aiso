@@ -4,6 +4,8 @@ import { loadOwnedPulse } from '@/lib/workspace/load-owned-pulse'
 import { buildPulseView } from '@/lib/view-models/pulse'
 import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
+import { buildTodayView } from '@/lib/view-models/today'
+import { loadSavedTaskThread, type SavedTaskRead } from '@/lib/conversation-studio/saved-task'
 import type { MonthlyReportHomeEntry } from '@/lib/view-models/workspace-home'
 import { currentMonthReport } from '@/lib/monthly-report/report-entry'
 import { listMonthlyReports } from '@/lib/monthly-report/store'
@@ -137,12 +139,21 @@ export default async function DashboardPage({
       } catch { monthlyReport = null }
     }
     const workspace = buildWorkspaceHome(owned, monthlyReport)
-    if (smeCopilot) return <BrandToday
-      workspace={workspace}
-      lang={lang}
-      chatEnabled={isConversationStudioEnabled(clientId)}
-      clientReportsOnline={features.client_reports_online}
-    />
+    if (smeCopilot) {
+      const chatEnabled = isConversationStudioEnabled(clientId)
+      let savedDiscussion: SavedTaskRead | null = null
+      if (chatEnabled) {
+        const today = buildTodayView(workspace, { lang, client_reports_online: features.client_reports_online })
+        if (today.chatTask) savedDiscussion = await loadSavedTaskThread({ accountId: profile.account_id, profileId: profile.id, clientId, task: today.chatTask })
+      }
+      return <BrandToday
+        workspace={workspace}
+        lang={lang}
+        chatEnabled={chatEnabled}
+        clientReportsOnline={features.client_reports_online}
+        savedDiscussion={savedDiscussion}
+      />
+    }
     return <WorkspaceHome workspace={workspace} lang={lang} />
   }
 

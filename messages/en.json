@@ -2658,6 +2658,8 @@
       "nextBody": "Use the missed questions as evidence, then recheck after a comparable week.",
       "askAi": "Ask AI about this report",
       "askPrompt": "Using this week's saved answers, explain why my brand was missed and what I should review first. Do not invent measurements.",
+      "savedDiscussion": "Your saved discussion",
+      "savedDiscussionUnavailable": "Saved discussion could not be read.",
       "evidence": "Evidence and method"
     },
     "empty": "No usable observations are available.",
@@ -5611,6 +5613,10 @@
     "loadError": "Could not open this brand",
     "loadErrorBody": "The brand records could not be read. Try again from your portfolio.",
     "oneBrandEyebrow": "Your brand",
+    "savedDiscussion": {
+      "label": "Your saved discussion",
+      "unavailable": "Saved discussion could not be read."
+    },
     "savedWork": {
       "continue": "Continue: {title}",
       "recorded": "Open delivery record: {title}",

@@ -2,6 +2,7 @@ import type { WorkspaceHome } from './workspace-home'
 import type { IllustrationName } from '@/components/ui/illustration'
 import { taskHref } from '@/lib/tasks/navigation'
 import type { TaskStatus } from '@/lib/tasks/status'
+import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 
 /**
  * The brand Today projection: one recommended action, at most three numbers, the
@@ -54,6 +55,8 @@ export interface TodayView {
   firstTask: TodayFirstTask | null
   /** null means not requested; empty and unavailable are separate read outcomes. */
   savedWork: TodaySavedWork | null
+  /** The Studio task this card hands to Chat, or null when Chat does not apply. */
+  chatTask: StudioHomeTemplate | null
   illustration: IllustrationName
   /** At most three: AI visibility, scan score, this month's report. */
   metrics: TodayMetric[]
@@ -132,6 +135,12 @@ export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; 
     }
   }
 
+  // The same task the card hands to Chat. Keeping it in the projection means a
+  // saved-discussion read and the composer cannot disagree about the unit.
+  const chatTask: StudioHomeTemplate | null = firstTask?.kind === 'questions' || firstTask?.kind === 'baseline'
+    ? 'pulse'
+    : action.kind === 'fix' || firstTask?.kind === 'first_change' ? 'improve' : null
+
   const metrics: TodayMetric[] = [
     {
       key: 'visibility',
@@ -163,6 +172,7 @@ export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; 
     action,
     firstTask,
     savedWork,
+    chatTask,
     illustration,
     metrics,
     setup,

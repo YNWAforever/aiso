@@ -2,11 +2,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { buildScanEvidence } from '@/lib/scan-evidence'
 vi.mock('server-only', () => ({}))
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), load: vi.fn(), project: vi.fn(), sql: vi.fn(), roi: vi.fn(), pulse: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), load: vi.fn(), project: vi.fn(), sql: vi.fn(), roi: vi.fn(), pulse: vi.fn(), today: vi.fn(), savedTask: vi.fn() }))
 vi.mock('@/lib/workspace/load-owned-pulse', () => ({ loadOwnedPulse: mocks.pulse }))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth }))
 vi.mock('@/lib/workspace/load-owned-workspace', () => ({ loadOwnedWorkspace: mocks.load }))
 vi.mock('@/lib/view-models/workspace-home', () => ({ buildWorkspaceHome: mocks.project }))
+vi.mock('@/lib/view-models/today', () => ({ buildTodayView: mocks.today }))
+vi.mock('@/lib/conversation-studio/saved-task', () => ({ loadSavedTaskThread: mocks.savedTask }))
 vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
 vi.mock('@/lib/localTrust/store', () => ({ getLocalTrustProfile: vi.fn(), getOrCreateLocalTrustSnapshot: mocks.roi }))
 vi.mock('next/navigation', () => ({ redirect: (href: string) => { throw new Error(`REDIRECT:${href}`) }, notFound: () => { throw new Error('NOT_FOUND') } }))
@@ -20,9 +22,9 @@ import { WhatAiSaysPage } from '@/components/dashboard/sme/WhatAiSaysPage'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
 import { BrandToday } from '@/components/dashboard/today/BrandToday'
 afterEach(() => vi.unstubAllEnvs())
-const profile = { account_id: 'account-a', accounts: { plan: 'free' } }
+const profile = { id: 'profile-a', account_id: 'account-a', accounts: { plan: 'free' } }
 const render = (search = {}) => Page({ params: Promise.resolve({ lang: 'en', clientId: 'client-a' }), searchParams: Promise.resolve(search) })
-beforeEach(() => { vi.clearAllMocks(); vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '0'); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null) })
+beforeEach(() => { vi.clearAllMocks(); vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '0'); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.today.mockReturnValue({ chatTask: null }); mocks.savedTask.mockResolvedValue({ state: 'empty' }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null) })
 it.each(['0', '1'])('opts in to saved work only for authenticated SME home flag %s', async flag => {
   vi.stubEnv('FEATURE_SME_COPILOT_UI', flag)
   const page = await render({ step: 'home', scanId: 'selected-scan' })
@@ -34,6 +36,23 @@ it.each(['0', '1'])('opts in to saved work only for authenticated SME home flag 
 })
 it('keeps explicit home on WorkspaceHome when the flag is off', async () => {
   expect((await render({ step: 'home' })).type).toBe(WorkspaceHome)
+})
+it('loads the saved discussion for the same task the SME home hands to Chat', async () => {
+  vi.stubEnv('FEATURE_SME_COPILOT_UI', '1')
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+  mocks.today.mockReturnValue({ chatTask: 'pulse' })
+  mocks.savedTask.mockResolvedValue({ state: 'ready', thread: { id: 'thread-a', title: 'Saved answer', updatedAt: '2026-11-17T00:00:00Z', turnCount: 1, skill: 'visibility_now', visibility: 'private', mine: true } })
+  const page = await render({ step: 'home' })
+  expect(mocks.savedTask).toHaveBeenCalledExactlyOnceWith({ accountId: 'account-a', profileId: 'profile-a', clientId: 'client-a', task: 'pulse' })
+  expect(page.props.savedDiscussion).toMatchObject({ state: 'ready', thread: { id: 'thread-a' } })
+})
+it('does not read a saved discussion when the card hands no task to Chat', async () => {
+  vi.stubEnv('FEATURE_SME_COPILOT_UI', '1')
+  vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
+  const page = await render({ step: 'home' })
+  expect(mocks.today).toHaveBeenCalledWith({ client: { id: 'client-a' } }, { lang: 'en', client_reports_online: false })
+  expect(mocks.savedTask).not.toHaveBeenCalled()
+  expect(page.props.savedDiscussion).toBeNull()
 })
 it('defaults to the independently authenticated read-only home and preserves selected scan', async () => {
   const page = await render({ scanId: 'selected-scan' })
