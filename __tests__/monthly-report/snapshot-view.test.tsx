@@ -31,12 +31,14 @@ describe('monthly report snapshot', () => {
   it('freezes the four sections with their sources, and records no Pulse data as not enough data rather than zero', () => {
     const s = build()
     expect(s).toMatchObject({ snapshotSchemaVersion: 2, kind: 'monthly', month: '2026-11', period: { start: period.start, end: period.end },
-      branding: { agencyName: 'Fimmick', attribution: 'Powered by Fimmick AISO' },
+      branding: { agencyName: 'Fimmick' },
       delivered: { verifiedLive: [{ title: 'Add FAQ schema', versionId: 'v6' }], selfReported: [{ title: 'Rewrote About page' }] },
       visibility: { state: 'not_enough_data', reason: 'no_pulse_data' },
       search: { opening: { state: 'ok', clicks: 120 }, closing: { state: 'not_recorded' } },
       nextMonth: { openWorkItems: [{ title: 'Add hours to llms.txt' }] }, executiveSummary: 'November 2026: 1 change verified live and 1 self-reported.' })
     expect(parseMonthlyReportSnapshot(JSON.parse(JSON.stringify(s)))).toEqual(s)
+    expect(s.branding).not.toHaveProperty('attribution')
+    expect(JSON.stringify(s)).not.toMatch(/AISO/i)
   })
 
   it('keeps the operator narrative, refuses one that is empty, too long or carries control characters', () => {

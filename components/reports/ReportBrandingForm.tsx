@@ -268,11 +268,7 @@ export function ReportBrandingForm({
                 <p className="text-sm text-muted-foreground">{t('client_report')}</p>
               </div>
             </div>
-            <div className="border-t border-border bg-muted/20 px-5 py-4 text-sm font-semibold">
-              Powered by Fimmick AISO
-            </div>
           </div>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">{t('attribution_help')}</p>
         </CardContent>
       </Card>
     </div>

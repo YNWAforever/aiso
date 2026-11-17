@@ -13,7 +13,7 @@ import { verifyReviewToken } from './review-token'
  * the page: raw branding URLs and internal version ids stay server-side.
  */
 export type PublicMonthlyReport = Omit<MonthlyReportSnapshotV2, 'delivered' | 'branding'> & {
-  branding: { agencyName: string; primaryColor: string; contactLabel: string | null; attribution: 'Powered by Fimmick AISO' }
+  branding: { agencyName: string; primaryColor: string; contactLabel: string | null }
   delivered: { verifiedLive: { title: string; recordedAt: string; versionId: string }[]; selfReported: { title: string; recordedAt: string; versionId: string }[] }
 }
 
@@ -63,7 +63,7 @@ function copyPublished(s: MonthlyReportSnapshotV2): PublicMonthlyReport {
   return {
     snapshotSchemaVersion: 2, kind: 'monthly', locale: s.locale, month: s.month,
     period: { start: s.period.start, end: s.period.end },
-    branding: { agencyName: s.branding.agencyName, primaryColor: s.branding.primaryColor, contactLabel: s.branding.contactLabel, attribution: 'Powered by Fimmick AISO' },
+    branding: { agencyName: s.branding.agencyName, primaryColor: s.branding.primaryColor, contactLabel: s.branding.contactLabel },
     client: { name: s.client.name, domain: s.client.domain },
     // Version ids are internal; the public list is keyed by position instead.
     delivered: { verifiedLive: s.delivered.verifiedLive.map(item), selfReported: s.delivered.selfReported.map(item) },

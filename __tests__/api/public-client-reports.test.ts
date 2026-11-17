@@ -45,7 +45,6 @@ const snapshot = {
     primaryColor: '#123ABC',
     contactLabel: 'Contact Acme',
     contactUrl: 'https://agency.example/contact',
-    attribution: 'Powered by Fimmick AISO' as const,
     internalWebhook: 'SENTINEL_BRANDING_SECRET',
   },
   client: { name: 'Example Client', domain: 'example.com', accountId: 'SENTINEL_ACCOUNT' },

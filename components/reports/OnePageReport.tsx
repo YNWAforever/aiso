@@ -169,7 +169,6 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
           {snapshot.methodology}
         </p>
         <div className="mt-4 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between print:mt-2">
-          <p className="font-semibold">{snapshot.branding.attribution}</p>
           {contact && (
             <a
               href={contact}

@@ -18,7 +18,6 @@ const snapshot: ClientReportSnapshotV1 = {
     primaryColor: '#123ABC',
     contactLabel: 'Contact us',
     contactUrl: 'https://agency.example/contact',
-    attribution: 'Powered by Fimmick AISO',
   },
   client: { name: 'Example Client', domain: 'example.com' },
   evidence: {
@@ -181,7 +180,7 @@ describe('ReportBuilder', () => {
     expect(html).toContain('82')
     expect(html).toContain('+7')
     expect(html).toContain('Clarify crawler access')
-    expect(html).toContain('Powered by Fimmick AISO')
+    expect(html).not.toContain('Powered by Fimmick AISO')
     expect(html).toContain('src="/api/client-reports/report-1/versions/version-1/logo"')
     expect(html).toContain('href="/api/client-reports/report-1/versions/version-1/contact"')
     expect(html).toContain('>Contact us<')

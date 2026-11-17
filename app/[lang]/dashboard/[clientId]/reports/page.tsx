@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
-import { CalendarDays, LockKeyhole, Plus } from 'lucide-react'
+import { CalendarDays, FileDown, LockKeyhole, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ReportsList, type ReportsListItem } from '@/components/reports/ReportsList'
@@ -131,6 +131,12 @@ export default async function ClientReportsPage({
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t(kind === 'monthly' ? 'monthly_list_body' : 'list_body')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline" className="min-h-11">
+          <Link href={`/${locale}/report/${clientId}/combined`}>
+            <FileDown aria-hidden="true" />
+            {t('combined_pdf')}
+          </Link>
+        </Button>
         <Button asChild variant="outline" className="min-h-11">
           <Link href={`/${locale}/dashboard/${clientId}/month`}>
             <CalendarDays aria-hidden="true" />

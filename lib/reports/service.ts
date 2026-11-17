@@ -639,7 +639,6 @@ function isSnapshot(value: unknown): value is ClientReportSnapshotV1 {
     || typeof value.branding.primaryColor !== 'string'
     || !isNullableString(value.branding.contactLabel)
     || !isNullableString(value.branding.contactUrl)
-    || value.branding.attribution !== 'Powered by Fimmick AISO'
     || !isRecord(value.client)
     || typeof value.client.name !== 'string'
     || typeof value.client.domain !== 'string'

@@ -23,7 +23,7 @@ const snapshot = {
   snapshotSchemaVersion: 2, kind: 'monthly', locale: 'en', month: '2026-11',
   period: { start: '2026-10-31T16:00:00.000Z', end: '2026-11-30T16:00:00.000Z' },
   branding: { agencyName: 'Fimmick', logoUrl: 'https://agency.example/logo.png', primaryColor: '#123ABC',
-    contactLabel: 'Talk to us', contactUrl: 'https://agency.example/contact', attribution: 'Powered by Fimmick AISO' },
+    contactLabel: 'Talk to us', contactUrl: 'https://agency.example/contact' },
   client: { name: 'Bakery', domain: 'bakery.hk' },
   delivered: { verifiedLive: [], selfReported: [] },
   visibility: { state: 'not_enough_data', reason: 'no_pulse_data' },

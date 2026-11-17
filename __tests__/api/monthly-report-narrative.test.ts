@@ -18,7 +18,7 @@ const ctx = { params: Promise.resolve({ clientId, month: '2026-11' }) }
 const request = (body: unknown = { locale: 'en' }) => new Request('http://localhost/fixture', { method: 'POST', body: JSON.stringify(body) })
 const snapshot = {
   snapshotSchemaVersion: 2, kind: 'monthly', locale: 'en', month: '2026-11', period: { start: 'a', end: 'b' },
-  branding: { agencyName: 'Fimmery', logoUrl: null, primaryColor: '#111827', contactLabel: null, contactUrl: null, attribution: 'Powered by Fimmick AISO' },
+  branding: { agencyName: 'Fimmery', logoUrl: null, primaryColor: '#111827', contactLabel: null, contactUrl: null },
   client: { name: 'Bakery', domain: 'bakery.hk' }, delivered: { verifiedLive: [], selfReported: [] },
   visibility: { state: 'not_enough_data', reason: 'no_pulse_data' },
   search: { opening: { state: 'not_connected' }, closing: { state: 'not_recorded' } }, nextMonth: { openWorkItems: [] },

@@ -61,7 +61,6 @@ function copyPublishedSnapshot(snapshot: ClientReportSnapshotV1): PublicClientRe
       primaryColor: snapshot.branding.primaryColor,
       contactLabel: snapshot.branding.contactLabel,
       contactUrl: null,
-      attribution: 'Powered by Fimmick AISO',
     },
     client: {
       name: snapshot.client.name,

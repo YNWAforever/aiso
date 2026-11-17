@@ -124,7 +124,6 @@ export function normalizeReportBranding(input: ReportBrandingInput): ReportBrand
     logoUrl: normalizeReportLogoUrl(input.logoUrl),
     primaryColor: normalizeReportPrimaryColor(input.primaryColor),
     ...contact,
-    attribution: 'Powered by Fimmick AISO',
   }
 }
 

@@ -101,7 +101,6 @@ export function parseClientReportSnapshot(value: unknown): ClientReportSnapshotV
     || ((value.branding.contactLabel === null) !== (value.branding.contactUrl === null))
     || (typeof value.branding.contactUrl === 'string'
       && !isSafeAbsoluteUrl(value.branding.contactUrl, ['https:', 'mailto:']))
-    || value.branding.attribution !== 'Powered by Fimmick AISO'
     || !isRecord(value.client)
     || typeof value.client.name !== 'string'
     || typeof value.client.domain !== 'string'

@@ -41,14 +41,13 @@ function branding(overrides: Partial<Parameters<typeof normalizeReportBranding>[
 beforeEach(() => mocks.logoTransport.mockReset())
 
 describe('report branding validation', () => {
-  it('trims agency branding, normalizes six-digit hex, and keeps exact attribution', () => {
+  it('trims agency branding and normalizes six-digit hex', () => {
     expect(normalizeReportBranding(branding())).toEqual({
       agencyName: 'Acme Agency',
       logoUrl: null,
       primaryColor: '#12ABEF',
       contactLabel: null,
       contactUrl: null,
-      attribution: 'Powered by Fimmick AISO',
     })
   })
 

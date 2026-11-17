@@ -60,7 +60,7 @@ export function monthlySnapshot(): MonthlyReportSnapshotV2 {
     snapshotSchemaVersion: 2, kind: 'monthly', locale: 'en', month: '2026-10',
     period: { start: '2026-09-30T16:00:00.000Z', end: '2026-10-31T16:00:00.000Z' },
     branding: { agencyName: 'Fixture Agency', logoUrl: null, primaryColor: '#123ABC', contactLabel: null,
-      contactUrl: null, attribution: 'Powered by Fimmick AISO' },
+      contactUrl: null },
     client: { name: 'Fixture Bakery', domain: 'bakery.example' },
     delivered: { verifiedLive: [], selfReported: [] },
     visibility: { state: 'not_enough_data', reason: 'movement_rule_pending' },

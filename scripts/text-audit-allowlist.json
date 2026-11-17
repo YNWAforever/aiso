@@ -103,11 +103,6 @@
       "reason": "the CSV column header format the importer requires"
     },
     {
-      "text": "Powered by Fimmick AISO",
-      "file": "components/reports/ReportBrandingForm.tsx",
-      "reason": "fixed report attribution, stored as a literal in every snapshot"
-    },
-    {
       "text": "Not Found",
       "file": "app/[lang]/r/[slug]/not-found.tsx",
       "reason": "share-link not found is deliberately neutral: no locale, product or report hint (public-report-page test)"

@@ -81,7 +81,7 @@ const branding = {
 const snapshot = {
   snapshotSchemaVersion: 1 as const,
   locale: 'en' as const,
-  branding: { ...branding, attribution: 'Powered by Fimmick AISO' as const },
+  branding: { ...branding },
   client: { name: 'Example Client', domain: 'example.com' },
   evidence: { scanDate: currentScan.createdAt, evidenceTimestamp: currentScan.createdAt },
   score: { current: 82, grade: 'A', comparisonState: 'comparable' as const, previous: 75, delta: 7, previousScanDate: previousScan.createdAt },
