@@ -125,8 +125,9 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
         state="ready"
         href={`${base}/studio?thread=${encodeURIComponent(savedDiscussion.thread.id)}`}
         title={savedDiscussion.thread.title}
+        detail={savedDiscussion.thread.outcomeExcerpt ?? t('savedDiscussion.turnCount', { count: savedDiscussion.thread.turnCount })}
         when={relativeTime(savedDiscussion.thread.updatedAt, new Date(), lang)}
-        label={t('savedDiscussion.label')}
+        label={action.kind === 'fix' ? t('savedDiscussion.recorded') : t('savedDiscussion.label')}
       />}
       {action.kind !== 'saved_work' && view.savedWork?.state !== 'ready' && savedDiscussion?.state === 'unavailable' && <SavedTaskLink
         state="unavailable"

@@ -2,6 +2,7 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { isConversationStudioEnabled } from '@/lib/flags'
 import { parseStudioSkill, skillForTask, type StudioSkillId } from './skills'
+import { storedOutcomeExcerpt } from './saved-outcome'
 import type { StudioHomeTemplate } from './home'
 
 /**
@@ -16,6 +17,8 @@ export type SavedTaskThread = {
   title: string
   updatedAt: string
   turnCount: number
+  /** One stored reply line, or null when the newest turn has no usable excerpt. */
+  outcomeExcerpt: string | null
   skill: StudioSkillId | null
   visibility: 'private' | 'shared'
   mine: boolean
@@ -35,6 +38,11 @@ function iso(value: unknown): string | null {
   return null
 }
 
+function savedReply(value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  try { return JSON.parse(value) } catch { return null }
+}
+
 function savedThread(row: Record<string, unknown>, profileId: string): SavedTaskThread | null {
   const updatedAt = iso(row.updated_at)
   if (typeof row.id !== 'string' || typeof row.title !== 'string' || !updatedAt) return null
@@ -44,6 +52,7 @@ function savedThread(row: Record<string, unknown>, profileId: string): SavedTask
     title: row.title,
     updatedAt,
     turnCount: Number(row.turn_count ?? 0),
+    outcomeExcerpt: storedOutcomeExcerpt(savedReply(row.latest_reply)),
     skill: parseStudioSkill(row.skill),
     visibility,
     mine: String(row.profile_id) === profileId,
@@ -65,7 +74,11 @@ export async function loadSavedTaskThread(input: {
       select t.id, t.title, t.updated_at, t.profile_id, t.visibility, t.skill,
         (select count(*)::int from studio_thread_turns u
           where u.thread_id = t.id and u.account_id = t.account_id
-            and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count
+            and u.client_id = t.client_id and u.profile_id = t.profile_id) as turn_count,
+        (select u.reply from studio_thread_turns u
+          where u.thread_id = t.id and u.account_id = t.account_id
+            and u.client_id = t.client_id and u.profile_id = t.profile_id
+          order by u.position desc limit 1) as latest_reply
       from studio_threads t
       where t.account_id = ${input.accountId}::uuid
         and t.client_id = ${input.clientId}::uuid

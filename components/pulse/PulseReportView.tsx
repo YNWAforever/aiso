@@ -43,6 +43,10 @@ export function PulseReportView({ view, lang, savedDiscussion = null }: {
   const nextHref = hasNumbers ? `${base}?step=improve` : `${base}?step=monitor`
   const nextLabel = hasNumbers ? report.nextImprove : overview.state === 'error' ? report.nextRetry : report.nextBaseline
   const askHref = studioTaskHref({ lang, clientId: view.client.id, task: 'pulse', ask: report.askPrompt })
+  const savedDetail = savedDiscussion?.state === 'ready'
+    ? savedDiscussion.thread.outcomeExcerpt
+      ?? (savedDiscussion.thread.turnCount === 1 ? report.savedTurnOne : report.savedTurnCount.replace('{count}', String(savedDiscussion.thread.turnCount)))
+    : null
 
   return <div className="min-w-0 space-y-5 break-words">
     <section aria-labelledby="pulse-baseline-heading" className="rounded-2xl border border-border bg-card p-5 shadow-e2 sm:p-6">
@@ -83,10 +87,11 @@ export function PulseReportView({ view, lang, savedDiscussion = null }: {
         </Link>
         {hasNumbers && <Link href={askHref} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline decoration-primary/30 underline-offset-4">{report.askAi}</Link>}
       </div>
-      {savedDiscussion?.state === 'ready' && <SavedTaskLink
+      {savedDiscussion?.state === 'ready' && savedDetail && <SavedTaskLink
         state="ready"
         href={studioThreadHref({ lang, clientId: view.client.id, threadId: savedDiscussion.thread.id })}
         title={savedDiscussion.thread.title}
+        detail={savedDetail}
         when={relativeTime(savedDiscussion.thread.updatedAt, new Date(), lang)}
         label={report.savedDiscussion}
       />}

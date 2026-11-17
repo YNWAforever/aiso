@@ -9,7 +9,7 @@ import type { SavedTaskRead } from '@/lib/conversation-studio/saved-task'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 function fixture(state:'ready'|'empty'|'error'):PulseView{return {client:{id:'owned-client',brand_name:'Fixture brand'},observations:{state,latestKpi:state==='ready'?{sovScore:0,brandMentions:0,totalQueries:10,platformCount:1,scanWeek:'2026-09-06'}:null,latestWeek:state==='ready'?'2026-09-06':null,series:state==='ready'?[{platform:null,points:[{week:'2026-08-23',sov:0},{week:'2026-08-30',sov:null},{week:'2026-09-06',sov:null}]},{platform:'openai',points:[{week:'2026-08-23',sov:25},{week:'2026-08-30',sov:null},{week:'2026-09-06',sov:null}]}]:[]},prompts:{state,data:state==='ready'?[{id:'p1',question:'Which local service is suitable?',category:'brand_query',language:'en',is_active:true}]:[]},missed:{state,data:state==='ready'?[{platform:'openai',question:'Which local service is suitable?',competitors_mentioned:['Other brand'],scan_week:'2026-08-23'}]:[]}}}
-const savedDiscussion: SavedTaskRead = { state: 'ready', thread: { id: 'thread-pulse', title: 'Why the brand was missed', updatedAt: '2026-11-15T00:00:00Z', turnCount: 2, skill: 'visibility_now', visibility: 'private', mine: true } }
+const savedDiscussion: SavedTaskRead = { state: 'ready', thread: { id: 'thread-pulse', title: 'Why the brand was missed', updatedAt: '2026-11-15T00:00:00Z', turnCount: 2, outcomeExcerpt: 'Two saved answers missed the brand.', skill: 'visibility_now', visibility: 'private', mine: true } }
 const render=(state:'ready'|'empty'|'error',lang:string,saved:SavedTaskRead|null=null)=>renderToStaticMarkup(<main className="mx-auto max-w-5xl p-6"><h1>{(lang==='en'?en:zh).pulseView.title}</h1><PulseReportView view={fixture(state)} lang={lang} savedDiscussion={saved}/></main>)
 it.each(['en','zh-HK'])('preserves observed zero and unavailable gaps in %s',lang=>{const copy=(lang==='en'?en:zh).pulseView;const html=render('ready',lang);expect(html).toContain('0%');expect(html).toContain(copy.unknown);expect(html).toContain(copy.gaps);expect(html).toContain('25%');expect(html).toContain(copy.freshness);expect(render('empty',lang)).not.toContain('0%');expect(render('error',lang)).toContain(copy.error);expect(render('error',lang)).not.toContain('0%')})
 it.each(['en','zh-HK'])('answers baseline, change and next action in reading order in %s',lang=>{
@@ -33,7 +33,16 @@ it.each(['en','zh-HK'])('puts the saved discussion for this report back on the n
  const html=render('ready',lang,savedDiscussion)
  expect(html).toContain(copy.savedDiscussion)
  expect(html).toContain('Why the brand was missed')
+ expect(html).toContain('Two saved answers missed the brand.')
  expect(html).toContain(`href="/${lang}/dashboard/owned-client/studio?thread=thread-pulse"`)
+ expect(html).not.toContain(copy.savedDiscussionUnavailable)
+})
+
+it.each(['en','zh-HK'])('falls back to the stored turn count when the newest reply has no excerpt in %s',lang=>{
+ const copy=(lang==='en'?en:zh).pulseView.report
+ const saved: SavedTaskRead = { state: 'ready', thread: { ...savedDiscussion.thread, outcomeExcerpt: null } }
+ const html=render('ready',lang,saved)
+ expect(html).toContain(lang==='en'?'2 turns':'共 2 輪')
  expect(html).not.toContain(copy.savedDiscussionUnavailable)
 })
 
