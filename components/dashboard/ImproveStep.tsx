@@ -195,38 +195,44 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
           )}
 
           {basis.length > 0 ? (
-            <section aria-labelledby="improve-evidence-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <section aria-labelledby="improve-evidence-heading" className="rounded-2xl border border-border bg-card p-4 sm:p-6">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 id="improve-evidence-heading" className="text-base font-semibold text-foreground">{generated('basisTitle')}</h3>
                 <span className="text-xs text-muted-foreground">{generated('evidenceCount',{count:basis.length})}</span>
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{generated('basisRetention')}</p>
-              <div className="mt-3 divide-y divide-border border-t border-border">
-                {basis.map(item => {
-                  const assessment = generated(item.assessment==='fail'?'basisFailed':'basisWarning')
-                  const badge = item.assessment==='fail' ? 'bg-tone-danger-soft text-tone-danger-fg' : 'bg-tone-warning-soft text-tone-warning-fg'
-                  return (
-                    <details key={item.checkId} className="group">
-                      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-                        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${item.assessment==='fail'?'bg-tone-danger':'bg-tone-warning'}`} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold text-foreground">{checks(item.checkId)}</span>
-                          <span className="mt-0.5 block text-xs text-muted-foreground">{item.checkId}</span>
-                        </span>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${badge}`}>{assessment}</span>
-                        <span aria-hidden="true" className="shrink-0 text-lg leading-none text-muted-foreground transition-transform group-open:rotate-90">›</span>
-                      </summary>
-                      <div className="space-y-3 pb-4 pl-5 pr-1">
-                        <p className="break-words text-sm leading-relaxed text-foreground">{item.action}</p>
-                        <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed text-muted-foreground">
-                          {[...new Set(item.limitations.map(value=>limitationCopy[value]??'basisOtherLimitations'))].map(copy=><li key={copy}>{generated(copy)}</li>)}
-                        </ul>
-                        <a className="inline-flex min-h-11 items-center text-xs font-semibold text-primary-accessible underline" href={`?step=results&scanId=${encodeURIComponent(scan.id)}`}>{generated('viewSourceScan')}</a>
-                      </div>
-                    </details>
-                  )
-                })}
-              </div>
+              <details className="group mt-2">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                  {generated('basisShow')}
+                  <span aria-hidden="true" className="text-lg leading-none text-muted-foreground transition-transform group-open:rotate-90">›</span>
+                </summary>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{generated('basisRetention')}</p>
+                <div className="mt-3 divide-y divide-border border-t border-border">
+                  {basis.map(item => {
+                    const assessment = generated(item.assessment==='fail'?'basisFailed':'basisWarning')
+                    const badge = item.assessment==='fail' ? 'bg-tone-danger-soft text-tone-danger-fg' : 'bg-tone-warning-soft text-tone-warning-fg'
+                    return (
+                      <details key={item.checkId} className="group">
+                        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                          <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${item.assessment==='fail'?'bg-tone-danger':'bg-tone-warning'}`} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-foreground">{checks(item.checkId)}</span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground">{item.checkId}</span>
+                          </span>
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${badge}`}>{assessment}</span>
+                          <span aria-hidden="true" className="shrink-0 text-lg leading-none text-muted-foreground transition-transform group-open:rotate-90">›</span>
+                        </summary>
+                        <div className="space-y-3 pb-4 pl-5 pr-1">
+                          <p className="break-words text-sm leading-relaxed text-foreground">{item.action}</p>
+                          <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed text-muted-foreground">
+                            {[...new Set(item.limitations.map(value=>limitationCopy[value]??'basisOtherLimitations'))].map(copy=><li key={copy}>{generated(copy)}</li>)}
+                          </ul>
+                          <a className="inline-flex min-h-11 items-center text-xs font-semibold text-primary-accessible underline" href={`?step=results&scanId=${encodeURIComponent(scan.id)}`}>{generated('viewSourceScan')}</a>
+                        </div>
+                      </details>
+                    )
+                  })}
+                </div>
+              </details>
             </section>
           ) : null}
 

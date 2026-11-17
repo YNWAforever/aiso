@@ -69,6 +69,8 @@ for (const lang of ['en', 'zh-HK'] as const) {
     await page.goto(`${base}?step=improve&scanId=older-scan`)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await expect(page.getByRole('combobox', { name: copy.dashboard.choose_saved_scan })).toHaveValue('older-scan')
+    await page.locator('summary').filter({ hasText: copy.generatedWork.basisShow }).click()
+    await expect(page.getByText('c1_robots', { exact: true })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([])
   })
