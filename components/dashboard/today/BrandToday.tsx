@@ -37,6 +37,9 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
   const firstTaskSteps = firstTask?.kind === 'questions' || firstTask?.kind === 'baseline'
     ? ['questions', 'baseline', 'change'] as const
     : null
+  const chatTask = firstTask?.kind === 'questions' || firstTask?.kind === 'baseline'
+    ? 'pulse'
+    : action.kind === 'fix' || firstTask?.kind === 'first_change' ? 'improve' : null
   const actionSentence = action.kind === 'saved_work'
     ? t('savedWork.continue', { title: action.title })
     : action.kind === 'fix'
@@ -125,6 +128,7 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
       placeholder={t('askPlaceholder')}
       cta={t('askCta')}
       hint={t('askHint')}
+      task={chatTask}
     />}
 
     <section aria-label={t('eyebrow')} className="grid gap-3 sm:grid-cols-3">

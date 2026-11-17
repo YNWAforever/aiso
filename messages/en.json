@@ -2656,6 +2656,8 @@
       "nextImprove": "Review the improvement work",
       "nextRetry": "Open monitoring",
       "nextBody": "Use the missed questions as evidence, then recheck after a comparable week.",
+      "askAi": "Ask AI about this report",
+      "askPrompt": "Using this week's saved answers, explain why my brand was missed and what I should review first. Do not invent measurements.",
       "evidence": "Evidence and method"
     },
     "empty": "No usable observations are available.",

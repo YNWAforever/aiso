@@ -17,6 +17,14 @@ it.each(['en', 'zh-HK'])('keeps the actual chat composer editable before an expl
   expect(html).not.toContain('role="log"')
 })
 
+it.each(['en', 'zh-HK'])('opens on the task carried by the action card in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const html = renderWithIntl(<ConversationStudio brandName="Chat fixture brand" clientId="11111111-1111-4111-8111-111111111111" evidence={savedStudioEvidence} smeCopilot initialDraft="A question carried from the Pulse report" initialTask="pulse" live={{ platforms: ['gemini-flash'], cap: 10 }} />, lang)
+  const label = copy.skillChip.label.replace('{skill}', copy.templates.pulse.label)
+  expect(html).toContain('A question carried from the Pulse report')
+  expect(html).toContain(label)
+})
+
 // Production React components and fetch transports, with Next navigation replaced
 // only for this offline origin. The browser spec supplies isolated HTTP responses;
 // the fixture never calls a database, a real provider or an authenticated service.
@@ -33,11 +41,12 @@ import {createRoot} from 'react-dom/client';
 import {NextIntlClientProvider} from 'next-intl';
 import {ConversationStudio} from '@/components/dashboard/ConversationStudio';
 import {StudioSessionProvider} from '@/components/dashboard/StudioSession';
+import {readStudioTask} from '@/lib/conversation-studio/task-handoff';
 import {savedStudioEvidence} from '@/__tests__/helpers/studio-evidence';
 import en from '@/messages/en.json';import zh from '@/messages/zh-HK.json';
 const lang=location.pathname.split('/')[1],clientId=location.pathname.split('/')[3];
 const params=new URLSearchParams(location.search);
-createRoot(document.getElementById('root')).render(<React.StrictMode><NextIntlClientProvider locale={lang} messages={lang==='zh-HK'?zh:en} timeZone="UTC"><StudioSessionProvider key={'fixture-owner:'+clientId} clientId={clientId}><div id="aiso-studio"><ConversationStudio brandName="Chat fixture brand" clientId={clientId} evidence={savedStudioEvidence} smeCopilot sourceStatus="unavailable" initialDraft={params.get('ask')||''} live={{platforms:['gemini-flash'],cap:10}}/></div></StudioSessionProvider></NextIntlClientProvider></React.StrictMode>);
+createRoot(document.getElementById('root')).render(<React.StrictMode><NextIntlClientProvider locale={lang} messages={lang==='zh-HK'?zh:en} timeZone="UTC"><StudioSessionProvider key={'fixture-owner:'+clientId} clientId={clientId} initialTask={readStudioTask(params.get('task') ?? undefined)}><div id="aiso-studio"><ConversationStudio brandName="Chat fixture brand" clientId={clientId} evidence={savedStudioEvidence} smeCopilot sourceStatus="unavailable" initialDraft={params.get('ask')||''} live={{platforms:['gemini-flash'],cap:10}}/></div></StudioSessionProvider></NextIntlClientProvider></React.StrictMode>);
 `)
   await build({
     configFile: false, envDir: false, oxc: { jsx: { development: false } },

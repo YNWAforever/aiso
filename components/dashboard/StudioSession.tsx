@@ -112,7 +112,7 @@ function turnFromRecord(record: StudioTurnRecord, id: number): StudioTurn {
 
 type StudioNavigation = { activeId: string | null; version: number }
 
-function useSessionState(clientId?: string, initialDraft = '') {
+function useSessionState(clientId?: string, initialDraft = '', initialTask: StudioHomeTemplate | null = null) {
   const [threads, setThreads] = useState<StudioThread[]>([])
   const [navigation, setNavigationState] = useState<StudioNavigation>({ activeId: null, version: 0 })
   const navigationIntent = useRef(navigation)
@@ -124,7 +124,7 @@ function useSessionState(clientId?: string, initialDraft = '') {
   }, [])
   const [feedback, setFeedback] = useState<{ id: number; threadId: string; key: 'briefOpened' | 'branchOpened' | 'branchUnavailable' | 'followUpSent' | 'live.stopped' } | null>(null)
   const [newDraft, setNewDraft] = useState(initialDraft)
-  const [newTemplate, setNewTemplate] = useState<StudioHomeTemplate | null>(null)
+  const [newTemplate, setNewTemplate] = useState<StudioHomeTemplate | null>(initialTask)
   const [busy, setBusy] = useState(false)
   const [hydrated, setHydrated] = useState(!clientId)
   const [readFailed, setReadFailed] = useState(false)
@@ -338,8 +338,8 @@ const Session = createContext<ReturnType<typeof useSessionState> | null>(null)
  * endpoint is read or written); the Studio layout no longer uses it, since a staff view
  * now exists only under a live grant and saves like any other, but offline fixtures do.
  */
-export function StudioSessionProvider({ children, clientId, persist = true, initialDraft = '' }: { children: ReactNode; clientId?: string; persist?: boolean; initialDraft?: string }) {
-  const value = useSessionState(persist ? clientId : undefined, persist ? initialDraft : '')
+export function StudioSessionProvider({ children, clientId, persist = true, initialDraft = '', initialTask = null }: { children: ReactNode; clientId?: string; persist?: boolean; initialDraft?: string; initialTask?: StudioHomeTemplate | null }) {
+  const value = useSessionState(persist ? clientId : undefined, persist ? initialDraft : '', persist ? initialTask : null)
   return <Session.Provider value={value}>{children}</Session.Provider>
 }
 export function useOptionalStudioSession() { return useContext(Session) }

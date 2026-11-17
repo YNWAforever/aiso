@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react'
 import { PulseCoverage } from './PulseCoverage'
 import { SovChart } from './SovChart'
 import { buildVisibilityOverview } from '@/lib/view-models/visibility-summary'
+import { studioTaskHref } from '@/lib/conversation-studio/task-handoff'
 import type { PulseView } from '@/lib/view-models/pulse'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
@@ -33,6 +34,7 @@ export function PulseReportView({ view, lang }: { view: PulseView; lang: string 
     : visibility.never
   const nextHref = hasNumbers ? `${base}?step=improve` : `${base}?step=monitor`
   const nextLabel = hasNumbers ? report.nextImprove : overview.state === 'error' ? report.nextRetry : report.nextBaseline
+  const askHref = studioTaskHref({ lang, clientId: view.client.id, task: 'pulse', ask: report.askPrompt })
 
   return <div className="min-w-0 space-y-5 break-words">
     <section aria-labelledby="pulse-baseline-heading" className="rounded-2xl border border-border bg-card p-5 shadow-e2 sm:p-6">
@@ -71,7 +73,7 @@ export function PulseReportView({ view, lang }: { view: PulseView; lang: string 
           {nextLabel}
           <ArrowRight aria-hidden="true" className="size-4" />
         </Link>
-        <Link href={`${base}/prompts`} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline decoration-primary/30 underline-offset-4">{visibility.manageQuestions}</Link>
+        {hasNumbers && <Link href={askHref} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline decoration-primary/30 underline-offset-4">{report.askAi}</Link>}
       </div>
     </section>
 
