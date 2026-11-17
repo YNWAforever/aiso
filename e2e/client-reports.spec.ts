@@ -342,7 +342,7 @@ test.describe('Pro client report lifecycle matrix', () => {
       const publicResponse = await publicPage.goto(publishedUrl, { waitUntil: 'networkidle' })
       expect(publicResponse?.ok()).toBe(true)
       await expect(publicPage.getByText(firstSummary, { exact: true })).toBeVisible()
-      await expect(publicPage.getByText('Powered by Fimmick AISO', { exact: true })).toBeVisible()
+      await expect(publicPage.getByText('Powered by Fimmick AISO', { exact: true })).toHaveCount(0)
       const publicHtml = await publicResponse!.text()
       assertPublicPayloadSafe(publicHtml)
       const applicationOrigin = new URL(process.env.BASE_URL || 'http://localhost:3000').origin

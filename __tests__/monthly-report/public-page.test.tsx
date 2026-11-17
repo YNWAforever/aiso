@@ -23,7 +23,7 @@ const render = async (lang = 'en', extra: Record<string, string> = {}) => render
 )
 const report = {
   snapshotSchemaVersion: 2, kind: 'monthly', locale: 'en', month: '2026-11', period: { start: 'a', end: 'b' },
-  branding: { agencyName: 'Fimmick', primaryColor: '#123ABC', contactLabel: null, attribution: 'Powered by Fimmick AISO' },
+  branding: { agencyName: 'Fimmick', primaryColor: '#123ABC', contactLabel: null },
   client: { name: 'Bakery', domain: 'bakery.hk' },
   delivered: { verifiedLive: [{ title: 'Add FAQ schema', recordedAt: '2026-11-06T01:00:00.000Z', versionId: '0' }], selfReported: [] },
   visibility: { state: 'not_enough_data', reason: 'movement_rule_pending' },
@@ -73,9 +73,10 @@ describe('public report page: monthly reports', () => {
     const html = await render()
     expect(h.monthly).toHaveBeenCalledWith({ slug, version: '3', signature: 'b'.repeat(43) })
     expect(h.view).toHaveBeenCalledWith({ publicSlug: slug, shareVersion: 3 })
-    for (const text of ['Fimmick', 'Bakery · Monthly report', 'A good month.', 'Add FAQ schema', 'Not enough data yet.', 'Powered by Fimmick AISO']) {
+    for (const text of ['Fimmick', 'Bakery · Monthly report', 'A good month.', 'Add FAQ schema', 'Not enough data yet.']) {
       expect(html).toContain(text)
     }
+    expect(html).not.toContain('Powered by Fimmick AISO')
     expect(html).toContain('border-color:#123ABC')
   })
 

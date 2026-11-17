@@ -15,7 +15,7 @@ const snapshot = {
   snapshotSchemaVersion: 2, kind: 'monthly', locale: 'en', month: '2026-11',
   period: { start: '2026-10-31T16:00:00.000Z', end: '2026-11-30T16:00:00.000Z' },
   branding: { agencyName: 'Fimmick', logoUrl: 'https://agency.example/logo.png', primaryColor: '#123ABC', contactLabel: 'Talk to us',
-    contactUrl: 'https://agency.example/contact', attribution: 'Powered by Fimmick AISO', internal: 'SENTINEL_BRANDING' },
+    contactUrl: 'https://agency.example/contact', internal: 'SENTINEL_BRANDING' },
   client: { name: 'Bakery', domain: 'bakery.hk' },
   delivered: { verifiedLive: [{ title: 'Add FAQ schema', recordedAt: '2026-11-06T01:00:00.000Z', versionId: 'SENTINEL_VERSION_ID' }], selfReported: [] },
   visibility: { state: 'not_enough_data', reason: 'movement_rule_pending' },

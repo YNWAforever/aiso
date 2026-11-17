@@ -60,6 +60,8 @@ describe('client report snapshot', () => {
 
     expect(first.snapshotSchemaVersion).toBe(1)
     expect(first).toEqual(second)
+    expect(first.branding).not.toHaveProperty('attribution')
+    expect(JSON.stringify(first)).not.toMatch(/AISO/i)
   })
 
   it('omits comparison fields for a baseline and includes only supported evidence in English', () => {

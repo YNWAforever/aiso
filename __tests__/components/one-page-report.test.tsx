@@ -11,7 +11,7 @@ import zh from '@/messages/zh-HK.json'
 const snapshot: ClientReportSnapshotV1 = {
   snapshotSchemaVersion: 1,
   locale: 'en',
-  branding: { agencyName: 'Acme Agency', logoUrl: null, primaryColor: '#123ABC', contactLabel: null, contactUrl: null, attribution: 'Powered by Fimmick AISO' },
+  branding: { agencyName: 'Acme Agency', logoUrl: null, primaryColor: '#123ABC', contactLabel: null, contactUrl: null },
   client: { name: 'Example Client', domain: 'example.com' },
   evidence: { scanDate: '2026-07-21T08:00:00.000Z', evidenceTimestamp: '2026-07-21T08:00:00.000Z' },
   score: { current: 72, grade: 'B', comparisonState: 'comparable', previous: 65, delta: 7, previousScanDate: '2026-07-01T08:00:00.000Z' },
@@ -73,6 +73,17 @@ describe('OnePageReport', () => {
     expect(html).toContain('1 check improved · 1 regressed')
     expect(html).toContain('Download PDF')
     expect(html).toContain('<h1')
+    expect(html).not.toMatch(/AISO/i)
+  })
+
+  it('keeps a legacy stored attribution readable but never renders it', () => {
+    const legacy = {
+      ...snapshot,
+      branding: { ...snapshot.branding, attribution: 'Powered by Fimmick AISO' },
+    }
+    const html = render(<OnePageReport variant="page" snapshot={legacy as typeof snapshot} />)
+    expect(html).not.toContain('Powered by Fimmick AISO')
+    expect(html).not.toMatch(/AISO/i)
   })
 
   it('words the report in Traditional Chinese', () => {

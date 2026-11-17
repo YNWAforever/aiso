@@ -10,7 +10,7 @@ import type { MonthlyReportSnapshotV2 } from '@/lib/monthly-report/snapshot'
 const snapshot = {
   snapshotSchemaVersion: 2, kind: 'monthly', locale: 'en', month: '2026-11',
   period: { start: 'a', end: 'b' },
-  branding: { agencyName: 'SECRET AGENCY', logoUrl: 'https://secret.example/logo.png', primaryColor: '#123ABC', contactLabel: null, contactUrl: 'https://secret.example', attribution: 'Powered by Fimmick AISO' },
+  branding: { agencyName: 'SECRET AGENCY', logoUrl: 'https://secret.example/logo.png', primaryColor: '#123ABC', contactLabel: null, contactUrl: 'https://secret.example' },
   client: { name: 'SECRET CLIENT', domain: 'secret.example' },
   delivered: { verifiedLive: [{ title: 'Add FAQ schema', recordedAt: 'x', versionId: '1' }], selfReported: [{ title: 'Rewrote About', recordedAt: 'y', versionId: '2' }] },
   visibility: { state: 'recorded', rule: 1, minAnswersPerWeek: 5, minDelta: 0.5, platforms: [

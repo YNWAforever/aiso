@@ -78,7 +78,7 @@ function brandingSnapshot(input: ReportBrandingInput): ReportBrandingSnapshot {
   return {
     agencyName: plain(input.agencyName, 'Agency name'), logoUrl: optional(input.logoUrl, 'Logo URL'),
     primaryColor: plain(input.primaryColor, 'Primary color'), contactLabel: optional(input.contactLabel, 'Contact label'),
-    contactUrl: optional(input.contactUrl, 'Contact URL'), attribution: 'Powered by Fimmick AISO',
+    contactUrl: optional(input.contactUrl, 'Contact URL'),
   }
 }
 

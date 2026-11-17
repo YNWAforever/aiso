@@ -37,7 +37,6 @@ export function PublicMonthlyReport({ report, publishedAt, title, publishedLabel
         )}
       </header>
       <MonthlyReportView snapshot={report} lang={lang} copy={copy} />
-      <footer className="border-t border-border pt-4 text-xs text-muted-foreground">{report.branding.attribution}</footer>
     </article>
   )
 }

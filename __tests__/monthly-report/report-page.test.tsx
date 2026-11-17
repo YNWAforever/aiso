@@ -31,7 +31,7 @@ import MonthlyReportPage from '@/app/[lang]/dashboard/[clientId]/month/report/pa
 const CLIENT = '11111111-1111-4111-8111-111111111111'
 const snapshot = (locale: 'en' | 'zh-HK', summary: string) => ({
   snapshotSchemaVersion: 2, kind: 'monthly', locale, month: '2026-11', period: { start: 'a', end: 'b' },
-  branding: { agencyName: 'Fimmick', logoUrl: null, primaryColor: '#111827', contactLabel: null, contactUrl: null, attribution: 'Powered by Fimmick AISO' },
+  branding: { agencyName: 'Fimmick', logoUrl: null, primaryColor: '#111827', contactLabel: null, contactUrl: null },
   client: { name: 'Bakery', domain: 'bakery.hk' }, delivered: { verifiedLive: [], selfReported: [] },
   visibility: { state: 'not_enough_data', reason: 'movement_rule_pending' },
   search: { opening: { state: 'not_connected' }, closing: { state: 'not_recorded' } }, nextMonth: { openWorkItems: [] },

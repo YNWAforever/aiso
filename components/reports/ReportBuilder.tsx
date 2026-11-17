@@ -440,7 +440,6 @@ export function ReportBuilder({
             <div className="rounded-xl border border-border bg-muted/20 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('agency_branding')}</p>
               <p className="mt-2 font-medium">{initialSnapshot.branding.agencyName}</p>
-              <p className="text-sm text-muted-foreground">{initialSnapshot.branding.attribution}</p>
             </div>
 
             <div>

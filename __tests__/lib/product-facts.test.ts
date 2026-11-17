@@ -44,15 +44,15 @@ describe('PRODUCT_FACTS', () => {
     )
   })
 
-  it('describes the released report as an attributed online report in both locales', () => {
+  it('describes the released report as an agency-branded online report in both locales', () => {
     expect(enMessages.pricing.row_client_report).toBe(
-      'Online client report with Fimmick AISO attribution',
+      'Online client report with your agency branding',
     )
     expect(zhMessages.pricing.row_client_report).toBe(
-      '附 Fimmick AISO 署名的網上客戶報告',
+      '具備你嘅 Agency 品牌設定嘅網上客戶報告',
     )
-    expect(enMessages.pricing.row_client_report).not.toMatch(/pdf|white[- ]label/i)
-    expect(zhMessages.pricing.row_client_report).not.toMatch(/PDF|白標/i)
+    expect(enMessages.pricing.row_client_report).not.toMatch(/pdf|white[- ]label|AISO/i)
+    expect(zhMessages.pricing.row_client_report).not.toMatch(/PDF|白標|AISO/i)
   })
 
   it('uses the approved platform list in conversion and dashboard copy', () => {

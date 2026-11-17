@@ -170,7 +170,6 @@ export function buildClientReportSnapshot(input: ClientReportSnapshotInput): Cli
     primaryColor: requiredText(input.branding.primaryColor, 'Primary color'),
     contactLabel: optionalText(input.branding.contactLabel, 'Contact label'),
     contactUrl: optionalText(input.branding.contactUrl, 'Contact URL'),
-    attribution: 'Powered by Fimmick AISO' as const,
   }
   const priorityFixes = buildFixes(input.recommendations, comparison.changes, input.currentScan.results)
   const executiveSummary = buildDeterministicReportSummary({

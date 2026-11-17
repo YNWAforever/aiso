@@ -62,7 +62,6 @@ const resolved = {
         primaryColor: '#123ABC',
         contactLabel: 'Contact Acme',
         contactUrl: 'https://agency.example/contact',
-        attribution: 'Powered by Fimmick AISO' as const,
       },
       client: { name: 'Example Client', domain: 'example.com' },
       evidence: {
@@ -121,7 +120,7 @@ describe('public client report page', () => {
     expect(markup).toContain('82')
     expect(markup).toContain('Grade A')
     expect(markup).toContain('first measured benchmark')
-    expect(markup).toContain('Powered by Fimmick AISO')
+    expect(markup).not.toContain('Powered by Fimmick AISO')
     expect(markup).toContain('Methodology and coverage')
     expect(markup).toContain('--report-primary:#123ABC')
     expect(markup).toContain(resolved.dto.logoProxyUrl.replaceAll('&', '&amp;'))
@@ -236,8 +235,8 @@ describe('public client report page', () => {
   })
 
   it.each([
-    ['en', 'Client report — Fimmick AISO'],
-    ['zh-HK', '客戶報告 — Fimmick AISO'],
+    ['en', 'Client report'],
+    ['zh-HK', '客戶報告'],
   ])('returns localized generic noindex metadata for %s', async (lang, title) => {
     const metadata = await generateMetadata({
       params: Promise.resolve({ lang, slug }),

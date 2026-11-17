@@ -35,7 +35,7 @@ export function sampleReportSnapshot(locale: ReportLocale, copy: { agency: strin
   return {
     snapshotSchemaVersion: 1,
     locale,
-    branding: { agencyName: copy.agency, logoUrl: null, primaryColor: '#1D4ED8', contactLabel: null, contactUrl: null, attribution: 'Powered by Fimmick AISO' },
+    branding: { agencyName: copy.agency, logoUrl: null, primaryColor: '#1D4ED8', contactLabel: null, contactUrl: null },
     client: { name: copy.brand, domain: SAMPLE_REPORT.domain },
     evidence: { scanDate: SAMPLE_REPORT.observedAt, evidenceTimestamp: SAMPLE_REPORT.observedAt },
     score: {

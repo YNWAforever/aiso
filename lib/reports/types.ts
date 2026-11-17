@@ -12,7 +12,6 @@ export interface ReportBrandingSnapshot {
   primaryColor: string
   contactLabel: string | null
   contactUrl: string | null
-  attribution: 'Powered by Fimmick AISO'
 }
 
 export interface ReportPriorityFix {

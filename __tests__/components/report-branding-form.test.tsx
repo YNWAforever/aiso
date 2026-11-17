@@ -29,7 +29,7 @@ describe('ReportBrandingForm', () => {
     expect(validateReportBrandingInput({ ...valid, contactUrl: 'javascript:alert(1)' })).toHaveProperty('contactUrl')
   })
 
-  it('renders labeled 44px fields, initials fallback, and mandatory attribution preview', async () => {
+  it('renders labeled 44px fields and initials fallback without a vendor attribution', async () => {
     const { ReportBrandingForm } = await import('@/components/reports/ReportBrandingForm')
 
     const html = renderToStaticMarkup(
@@ -54,7 +54,7 @@ describe('ReportBrandingForm', () => {
     expect(html).toContain('type="url"')
     expect(html).toContain('pattern="^#[0-9A-Fa-f]{6}$"')
     expect(html).toContain('>AA<')
-    expect(html).toContain('Powered by Fimmick AISO')
+    expect(html).not.toContain('Powered by Fimmick AISO')
     expect(html).toContain('min-h-11')
     expect(html).toContain('focus-visible:')
   })

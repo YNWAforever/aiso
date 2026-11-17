@@ -15,7 +15,6 @@ const snapshot = {
     primaryColor: '#123ABC',
     contactLabel: 'Contact us',
     contactUrl: 'https://agency.example/contact',
-    attribution: 'Powered by Fimmick AISO',
   },
   client: { name: 'Example Client', domain: 'example.com' },
   evidence: {
@@ -57,6 +56,15 @@ describe('report client DTO validation', () => {
     }
 
     expect(parseReportSaveResponse(valid)).toEqual(valid)
+    // Legacy published snapshots carry the old attribution field; readers must
+    // keep accepting them even though new snapshots no longer write it.
+    expect(parseReportSaveResponse({
+      ...valid,
+      reviewArtifact: {
+        ...valid.reviewArtifact,
+        snapshot: { ...snapshot, branding: { ...snapshot.branding, attribution: 'Powered by Fimmick AISO' } },
+      },
+    })).not.toBeNull()
     expect(parseReportSaveResponse({ report: {} })).toBeNull()
     expect(parseReportSaveResponse({
       ...valid,
