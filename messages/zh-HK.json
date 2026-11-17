@@ -4027,7 +4027,9 @@
     "summary_note": "{total} 個已記錄回答中，{share}% 有列出來源。",
     "filters": "篩選",
     "filters_applied": "已套用 {count} 項",
-    "week_single": "週次：{week}"
+    "week_single": "週次：{week}",
+    "weekly_label": "每週引用",
+    "weekly_caption": "{count} 週已保存回答中嘅引用數。"
   },
   "runProgress": {
     "title": "監測品牌",

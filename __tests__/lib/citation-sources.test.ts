@@ -111,6 +111,13 @@ describe('buildCitationReport', () => {
     expect(many.weeks).toHaveLength(8)
   })
 
+  it('counts recorded citations per week, oldest first', () => {
+    expect(report.weekly).toEqual([
+      { week: '2026-09-28', withCitations: 1, recordedEmpty: 0, unrecorded: 0, citations: 1 },
+      { week: '2026-10-05', withCitations: 3, recordedEmpty: 0, unrecorded: 1, citations: 4 },
+    ])
+  })
+
   it('ignores citations it cannot parse', () => {
     const bad = buildCitationReport({ context, answers: [answer({ provider_citations: [{ url: 'javascript:alert(1)' }, 'nope', null] as never })] })
     expect(bad.domains).toEqual([])

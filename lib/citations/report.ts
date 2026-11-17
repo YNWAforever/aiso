@@ -37,6 +37,13 @@ export type CitationDomain = {
 }
 export type CitationUrl = { url: string; title: string | null; domain: string; kind: CitationKind; competitor?: string; answers: number }
 export type CitationGap = { promptId: string | null; question: string; competitors: string[]; domains: string[] }
+export type CitationWeek = {
+  week: string
+  withCitations: number
+  recordedEmpty: number
+  unrecorded: number
+  citations: number
+}
 export type CitationReport = {
   query?:CitationQuery
   availableKinds?:CitationKind[]
@@ -46,6 +53,8 @@ export type CitationReport = {
   normalizationVersion?:string
   gapCoverage: {state:'not_configured'|'partial_config'|'no_observations'|'ready';configuredCompetitors:number;competitorsWithDomains:number}
   weeks: string[]
+  /** Per-week recorded citation counts, oldest first. */
+  weekly: CitationWeek[]
   /** recordedEmpty: the provider returned no usable citation. unrecorded: no citation envelope was stored at all. */
   answers: { withCitations: number; recordedEmpty: number; unrecorded: number }
   domains: CitationDomain[]
@@ -73,6 +82,7 @@ export function buildCitationReport(input: { context: ClassifyContext; answers: 
   const weeks = [...new Set(answers.map(a => a.scan_week))].sort().reverse().slice(0, input.weekLimit??CITATION_WEEKS)
   const latest = weeks[0]
   const counts = { withCitations: 0, recordedEmpty: 0, unrecorded: 0 }
+  const weekly = new Map<string, CitationWeek>()
   const kinds = new Map<string, ReturnType<typeof classifyDomain>>()
   const kindOf = (host: string) => {
     if (!kinds.has(host)) kinds.set(host, classifyDomain(host, input.context))
@@ -86,10 +96,14 @@ export function buildCitationReport(input: { context: ClassifyContext; answers: 
 
   for (const a of answers) {
     if (!weeks.includes(a.scan_week)) continue
+    const week = weekly.get(a.scan_week) ?? { week: a.scan_week, withCitations: 0, recordedEmpty: 0, unrecorded: 0, citations: 0 }
+    weekly.set(a.scan_week, week)
     const cited = citedUrls(a.provider_citations)
-    if (cited === null) { counts.unrecorded += 1; continue }
-    if (cited.size === 0) { counts.recordedEmpty += 1; continue }
+    if (cited === null) { counts.unrecorded += 1; week.unrecorded += 1; continue }
+    if (cited.size === 0) { counts.recordedEmpty += 1; week.recordedEmpty += 1; continue }
     counts.withCitations += 1
+    week.withCitations += 1
+    week.citations += cited.size
     const promptKey = a.prompt_id ?? `q:${(a.question ?? '').trim()}`
     const seenDomains = new Map<string, number>()
     for (const [url, title] of cited) {
@@ -129,6 +143,7 @@ export function buildCitationReport(input: { context: ClassifyContext; answers: 
     evidence,
     normalizationVersion:CITATION_NORMALIZATION_VERSION,
     weeks,
+    weekly: [...weekly.values()].sort((a, b) => a.week.localeCompare(b.week)),
     gapCoverage:{configuredCompetitors:input.context.competitors.length,competitorsWithDomains:input.context.competitors.filter(c=>c.domains.length>0).length,state:!input.context.competitors.length?'not_configured':input.context.competitors.some(c=>!c.domains.length)?'partial_config':counts.withCitations+counts.recordedEmpty===0?'no_observations':'ready'},
     answers: counts,
     domains: [...domains.values()]

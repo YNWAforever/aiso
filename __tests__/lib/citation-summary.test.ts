@@ -15,6 +15,7 @@ function report(overrides: Partial<CitationReport> = {}): CitationReport {
     gaps: [],
     gapCoverage: { state: 'ready', configuredCompetitors: 2, competitorsWithDomains: 2 },
     weeks: ['2026-11-16'],
+    weekly: [],
     query: null,
     pages: null,
     availableKinds: null,
@@ -43,5 +44,13 @@ describe('summarizeCitations', () => {
     expect(summary.total).toBe(0)
     expect(summary.citedShare).toBeNull()
     expect(summary.topDomains).toEqual([])
+  })
+
+  it('passes the oldest-first weekly series through without reordering it', () => {
+    const weekly = [
+      { week: '2026-11-09', withCitations: 5, recordedEmpty: 1, unrecorded: 0, citations: 9 },
+      { week: '2026-11-16', withCitations: 9, recordedEmpty: 0, unrecorded: 2, citations: 14 },
+    ]
+    expect(summarizeCitations(report({ weekly })).weekly).toEqual(weekly)
   })
 })

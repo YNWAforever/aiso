@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {citationQueryParams} from '@/lib/citations/query'
 import { useLocale, useTranslations } from 'next-intl'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Sparkline } from '@/components/visuals/Sparkline'
 
 import type { CitationKind } from '@/lib/citations/classify'
 import type { CitationDomain, CitationReport } from '@/lib/citations/report'
@@ -57,6 +58,15 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
         ))}
       </section>
       {summary.total > 0 && <p className="text-sm text-muted-foreground">{t('summary_note', { share: summary.citedShare ?? '—', total: summary.total })}</p>}
+      {summary.weekly.length > 1 && (
+        <div className="flex items-center gap-3">
+          <Sparkline points={summary.weekly.map(week => week.citations)} label={t('weekly_label')} width={80} height={26} />
+          <div>
+            <p className="text-xs font-semibold text-foreground">{t('weekly_label')}</p>
+            <p className="text-xs text-muted-foreground">{t('weekly_caption', { count: summary.weekly.length })}</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         {summary.total > 0 && <a href={csvHref} download onClick={async event=>{event.preventDefault();setExportError(false);try{const response=await fetch(csvHref,{cache:'no-store'});if(!response.ok)throw new Error('export');const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='cited-sources.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch{setExportError(true)}}} className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-primary-accessible underline">{t('download')}</a>}
