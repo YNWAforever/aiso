@@ -326,6 +326,67 @@ export default async function DashboardPage({
   const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
   const scanDisplay = step === 'results' && scan ? projectScanStatus({ score: scan.score, grade: scan.grade ?? null, evidence: scan.results?.evidence }) : null
 
+  // Improve is its own review workspace, not a narrow legacy wizard step. It
+  // owns one main landmark and one h1; the scan picker and report entry stay in
+  // the same column instead of sitting above the landmark.
+  if (step === 'improve') {
+    const improveBody = features.agent_recs ? t('step_improve_body') : t('step_improve_locked')
+    const reportHref = `/${lang}/dashboard/${clientId}/reports${scan ? `?scanId=${encodeURIComponent(scan.id)}` : ''}`
+    return (
+      <main className="mx-auto w-full max-w-5xl px-4 pb-12 pt-6 sm:px-6">
+        <header className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary-accessible">{t('nav_fixes')}</p>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">{t('step_improve_title')}</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">{improveBody}</p>
+          </div>
+          <Link
+            href={reportHref}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {features.client_reports_online ? reportT('open_reports') : reportT('upgrade_badge')}
+            <span aria-hidden="true">→</span>
+          </Link>
+        </header>
+
+        <div className="mt-6 rounded-xl border border-border bg-card p-4 sm:p-5">
+          <ScanPicker
+            lang={lang}
+            action={`/${lang}/dashboard/${clientId}`}
+            step="improve"
+            scans={scanHistory}
+            selectedScanId={scan?.id}
+            className="mb-0"
+          />
+        </div>
+
+        <div className="mt-6">
+          {scan ? (
+            <ImproveStep
+              smeCopilot={smeCopilot}
+              scan={scan}
+              features={features}
+              recommendations={agentRecs}
+              progress={agentProg}
+              competitors={agentCompetitors}
+            />
+          ) : (
+            <section className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
+              <h2 className="text-base font-semibold text-foreground">{t('no_scan_yet')}</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{t('no_scan_yet_body')}</p>
+              <Link
+                href={`/${lang}/dashboard/${clientId}?step=scan`}
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {t('run_new_scan')}
+              </Link>
+            </section>
+          )}
+        </div>
+      </main>
+    )
+  }
+
   return (
     <>
       <StepHeader step={step} features={features} />

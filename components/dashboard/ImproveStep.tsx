@@ -93,18 +93,36 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
     }finally{pending.current.delete(key)}
   }
 
+  const scanDate = new Date(scan.created_at).toLocaleString(lang, {
+    timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+  const scanScore = scan.score != null ? `${scan.score}${scan.grade ? ` (${scan.grade})` : ''}` : '—'
+
   return (
     <div className="space-y-4">
-      {smeCopilot && typeof clientId === 'string' && <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-        <p className="text-sm text-muted-foreground">{generated('draftEvidenceNotice')}</p>
-        <a className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2" href={`/${lang === 'zh-HK' ? 'zh-HK' : 'en'}/dashboard/${encodeURIComponent(clientId)}/opportunities`}>{generated('reviewDraftEvidence')}</a>
-      </section>}
-      {features.agent_recs&&typeof clientId==='string'?<div className="rounded-xl border border-dash-border bg-dash-surface p-5" aria-busy={loading}>
-        <button type="button" onClick={generate} disabled={loading} className={smeCopilot ? 'min-h-11 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60' : 'min-h-11 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60'}>
-          {loading?generated(attempt?.checking?'checkingStatus':'generating'):status==='complete'?generated('refreshStatus'):checkStatus?generated('checkStatus'):status==='error'?generated('retry'):generated('generateImprove')}
-        </button>
-        <p className="mt-2 text-xs text-dash-muted">{generated('improveActionNotice')}</p>
-      </div>:null}
+      {(smeCopilot || features.agent_recs) && typeof clientId === 'string' ? (
+        <section aria-labelledby="improve-action-heading" aria-busy={loading} className="rounded-2xl border border-primary/30 bg-primary/5 p-5 shadow-e2 sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary-accessible">{generated('actionTitle')}</p>
+              <h2 id="improve-action-heading" className="mt-2 text-sm font-semibold text-muted-foreground">{generated('selectedScan')}</h2>
+              <p className="mt-1 break-all text-lg font-bold text-foreground">{scan.domain}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{scanDate} · {scanScore}</p>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:flex-col">
+              {smeCopilot ? (
+                <a className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground text-center focus-visible:outline-2 focus-visible:outline-offset-2" href={`/${lang === 'zh-HK' ? 'zh-HK' : 'en'}/dashboard/${encodeURIComponent(clientId)}/opportunities`}>{generated('reviewDraftEvidence')}</a>
+              ) : null}
+              {features.agent_recs ? (
+                <button type="button" onClick={generate} disabled={loading} className={smeCopilot ? 'min-h-11 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60' : 'min-h-11 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60'}>
+                  {loading?generated(attempt?.checking?'checkingStatus':'generating'):status==='complete'?generated('refreshStatus'):checkStatus?generated('checkStatus'):status==='error'?generated('retry'):generated('generateImprove')}
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">{smeCopilot ? generated('draftEvidenceNotice') : generated('improveActionNotice')}</p>
+        </section>
+      ) : null}
       {receipt?<ul className="space-y-2 rounded-xl border border-dash-border bg-dash-surface p-5 text-sm text-dash-muted" aria-label={generated('receiptTitle')}>
         {(['recommendations','progress','competitors'] as const).filter(section=>features[section==='recommendations'?'agent_recs':section==='progress'?'agent_progress':'agent_competitors']).map(section=><li key={section}>
           <span className="font-medium text-dash-text">{t(section==='recommendations'?'recs_title':section==='progress'?'progress_title':'competitors_title')}: </span>
