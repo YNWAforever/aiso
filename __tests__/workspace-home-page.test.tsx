@@ -100,12 +100,19 @@ it('keeps expanded mobile navigation scrollable inside the fixed viewport', () =
   expect(source).toContain('overflow-y-auto md:max-h-none')
 })
 
-function findImprove(node: unknown): ReactElement<{ recommendations: {platform:string}[]; progress: unknown[]; competitors: unknown[] }> | undefined {
+function findImprove(node: unknown): ReactElement<{ recommendations: {platform:string}[]; progress: unknown[]; competitors: unknown[]; scanChoices?: unknown[] }> | undefined {
   if (!node || typeof node !== 'object') return undefined
   if (Array.isArray(node)) return node.map(findImprove).find(Boolean)
   const element = node as ReactElement<{ children?: unknown }>
   if (element.type === ImproveStep) return element as ReturnType<typeof findImprove>
   return findImprove(element.props?.children)
+}
+function findElements(node: unknown, type: string): ReactElement<{ children?: unknown }>[] {
+  if (!node || typeof node !== 'object') return []
+  if (Array.isArray(node)) return node.flatMap(item => findElements(item, type))
+  const element = node as ReactElement<{ children?: unknown }>
+  const here = element.type === type ? [element] : []
+  return [...here, ...findElements(element.props?.children, type)]
 }
 it.each([
   ['free', 0, 0, 0], ['basic', 1, 0, 0], ['pro', 2, 1, 0],
@@ -129,6 +136,26 @@ it.each([
   expect(queries.some(query => query.includes('agent_recommendations'))).toBe(recCount > 0)
   expect(queries.some(query => query.includes('agent_progress'))).toBe(progressCount > 0)
   expect(queries.some(query => query.includes('agent_competitors'))).toBe(false)
+})
+
+it('gives improve one main landmark and one page h1', async () => {
+  const evidence = buildScanEvidence({
+    requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: 'technology', region: 'HK', sitemapSource: null,
+    checks: { c1_robots: { assessment: 'fail', collection: 'complete' } },
+    observations: [{ collection: 'complete', target: { origin: 'https://example.com' }, httpStatus: 200, check: 'page' }],
+    collectedAt: '2026-09-05T00:00:00.000Z',
+  })
+  mocks.sql.mockImplementation(async (strings: TemplateStringsArray) => {
+    const query = strings.join('?')
+    if (query.includes('from clients')) return [{id:'client-a',brand_name:'Example',domain:'example.com'}]
+    if (query.includes('from scans')) return [{id:'scan-a',results:{evidence},created_at:'2026-09-05',account_id:'account-a',url:'https://example.com',domain:'example.com',score:30,grade:'C'}]
+    return []
+  })
+  const page = await render({step:'improve'})
+  expect(page.type).toBe('main')
+  const headings = findElements(page, 'h1')
+  expect(headings).toHaveLength(1)
+  expect(headings[0]!.props.children).toBe('step_improve_title')
 })
 
 it.each(['0','1'])('uses a saved-answer heading only in SME monitoring mode %s', async flag => {

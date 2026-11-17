@@ -349,17 +349,6 @@ export default async function DashboardPage({
           </Link>
         </header>
 
-        <div className="mt-6 rounded-xl border border-border bg-card p-4 sm:p-5">
-          <ScanPicker
-            lang={lang}
-            action={`/${lang}/dashboard/${clientId}`}
-            step="improve"
-            scans={scanHistory}
-            selectedScanId={scan?.id}
-            className="mb-0"
-          />
-        </div>
-
         <div className="mt-6">
           {scan ? (
             <ImproveStep
@@ -369,18 +358,26 @@ export default async function DashboardPage({
               recommendations={agentRecs}
               progress={agentProg}
               competitors={agentCompetitors}
+              scanChoices={scanHistory}
             />
           ) : (
-            <section className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
-              <h2 className="text-base font-semibold text-foreground">{t('no_scan_yet')}</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{t('no_scan_yet_body')}</p>
-              <Link
-                href={`/${lang}/dashboard/${clientId}?step=scan`}
-                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {t('run_new_scan')}
-              </Link>
-            </section>
+            <div className="space-y-4">
+              {scanHistory.length > 0 ? (
+                <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
+                  <ScanPicker lang={lang} action={`/${lang}/dashboard/${clientId}`} step="improve" scans={scanHistory} className="mb-0" />
+                </div>
+              ) : null}
+              <section className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
+                <h2 className="text-base font-semibold text-foreground">{t(scanHistory.length > 0 ? 'no_scan_selected' : 'no_scan_yet')}</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{t(scanHistory.length > 0 ? 'no_scan_selected_body' : 'no_scan_yet_body')}</p>
+                <Link
+                  href={`/${lang}/dashboard/${clientId}?step=scan`}
+                  className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {t('run_new_scan')}
+                </Link>
+              </section>
+            </div>
           )}
         </div>
       </main>

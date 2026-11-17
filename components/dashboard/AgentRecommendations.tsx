@@ -1,49 +1,46 @@
 import { useTranslations } from 'next-intl'
 import type { AgentRecommendation } from '@/lib/types'
 
-type Props = { recommendations: AgentRecommendation[] }
+type Props = { recommendations: AgentRecommendation[]; initialLimit?: number }
 
-function groupByPlatform(recs: AgentRecommendation[]): Record<string, AgentRecommendation[]> {
-  const g: Record<string, AgentRecommendation[]> = {}
-  for (const r of recs) { (g[r.platform] ??= []).push(r) }
-  return g
-}
-
-export function AgentRecommendations({ recommendations }: Props) {
+/**
+ * Saved review suggestions, in the order the server read them (priority, then
+ * impact score). The surrounding Improve section owns the heading and count;
+ * this list only renders the drafts so the page does not grow a nested card.
+ * The first three are visible; the rest are one native disclosure away so the
+ * page stays scannable on a phone without hiding the saved output.
+ */
+export function AgentRecommendations({ recommendations, initialLimit = 3 }: Props) {
   const t = useTranslations('dashboard')
   if (!recommendations.length) {
-    return (
-      <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-1.5">{t('recs_title')}</p>
-        <p className="text-[11px] text-dash-muted/60 font-mono">{t('recs_empty')}</p>
-      </div>
-    )
+    return <p role="status" className="text-sm leading-relaxed text-muted-foreground">{t('recs_empty')}</p>
   }
 
-  const grouped = groupByPlatform(recommendations)
+  const card = (r: AgentRecommendation, index: number) => (
+    <li key={r.id} className="min-w-0 rounded-xl border border-border bg-background p-4">
+      <p className="text-xs font-bold tracking-[0.14em] text-muted-foreground">{String(index + 1).padStart(2, '0')}</p>
+      <p className="mt-2 break-words text-sm leading-relaxed text-foreground">{r.recommendation}</p>
+    </li>
+  )
+  const visible = recommendations.slice(0, initialLimit)
+  const rest = recommendations.slice(initialLimit)
 
   return (
-    <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-      <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">{t('recs_title')}</p>
-      {Object.entries(grouped).map(([platform, recs]) => (
-        <div key={platform} className="mb-4 last:mb-0">
-          <p className="text-[10px] font-mono text-dash-accent tracking-wider uppercase mb-2.5">
-            {platform.split('/').pop()}
-          </p>
-          <div className="space-y-2">
-            {recs.slice(0, 4).map((r) => (
-              <div key={r.id} className="flex items-start gap-2.5 group">
-                <span className={`mt-0.5 w-1.5 h-1.5 rounded-full shrink-0 ${
-                  r.priority === 'high' ? 'bg-destructive' : r.priority === 'medium' ? 'bg-dash-warning' : 'bg-dash-muted'
-                }`} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12px] text-dash-text/90 leading-relaxed">{r.recommendation}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
+    <>
+      <ol className="grid gap-3 sm:grid-cols-2">
+        {visible.map((r, index) => card(r, index))}
+      </ol>
+      {rest.length ? (
+        <details className="group mt-3">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg text-sm font-semibold text-primary-accessible focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
+            {t('recs_show_more', { count: rest.length })}
+          </summary>
+          <ol className="mt-3 grid gap-3 sm:grid-cols-2">
+            {rest.map((r, index) => card(r, initialLimit + index))}
+          </ol>
+        </details>
+      ) : null}
+    </>
   )
 }

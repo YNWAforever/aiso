@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import en from '@/messages/en.json'
@@ -62,6 +63,14 @@ for (const lang of ['en', 'zh-HK'] as const) {
     await expect(page).toHaveURL(`${base}?step=results&scanId=older-scan`)
     await page.reload()
     await expect(page.getByRole('combobox', { name: copy.dashboard.choose_saved_scan })).toHaveValue('older-scan')
+  })
+  test(`improve keeps one frame, one scan control and no accessibility violations in ${lang}`, async ({ page }) => {
+    await fixture(page)
+    await page.goto(`${base}?step=improve&scanId=older-scan`)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    await expect(page.getByRole('combobox', { name: copy.dashboard.choose_saved_scan })).toHaveValue('older-scan')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([])
   })
   test(`report creation without a scan offers saved history in ${lang}`, async ({ page }) => {
     await fixture(page)

@@ -42,10 +42,11 @@ export function PostLoginScanFixture({ href }: { href: string }) {
             <ScanPicker lang={lang} action={`${base}/reports/new`} scans={fixtureScans} selectedScanId={selected} />
             {selected && <ReportBuilder key={selected} lang={lang} clientId={fixtureBrand} scanId={scan.id} initialReport={null}
               initialSnapshot={sampleReportSnapshot(lang, { agency: 'Synthetic agency', brand: 'Synthetic brand', summary: 'Synthetic saved scan summary.', method: 'Synthetic evidence only.' })} />}
-          </> : step === 'scan' ? <ScanStep lang={lang} clientId={fixtureBrand} scan={scan} scanHistory={fixtureScans} /> : <>
-            <ScanPicker lang={lang} action={base} step={step === 'improve' ? 'improve' : 'results'} scans={fixtureScans} selectedScanId={scan.id} />
-            {step === 'improve' ? <ImproveStep scan={scan} features={features} recommendations={[]} progress={[]} competitors={[]} /> : <ResultsStep scan={scan} lang={lang} clientId={fixtureBrand} />}
-          </>}
+          </> : step === 'scan' ? <ScanStep lang={lang} clientId={fixtureBrand} scan={scan} scanHistory={fixtureScans} /> : step === 'improve' ?
+            <ImproveStep scan={scan} features={features} recommendations={[]} progress={[]} competitors={[]} scanChoices={fixtureScans} /> : <>
+              <ScanPicker lang={lang} action={base} step="results" scans={fixtureScans} selectedScanId={scan.id} />
+              <ResultsStep scan={scan} lang={lang} clientId={fixtureBrand} />
+            </>}
         </>}
     </main>
   </NextIntlClientProvider>
