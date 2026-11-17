@@ -7,7 +7,9 @@ import { AgentRecommendations } from '@/components/dashboard/AgentRecommendation
 import { AgentProgress } from '@/components/dashboard/AgentProgress'
 import { AgentCompetitors } from '@/components/dashboard/AgentCompetitors'
 import { LockedFeature } from '@/components/dashboard/LockedFeature'
+import { ScanPicker } from '@/components/dashboard/ScanPicker'
 import { PLAN_CATALOG } from '@/lib/plans/catalog'
+import type { ScanChoice } from '@/lib/workspace/scan-choices'
 import type { Scan, AgentRecommendation, AgentProgress as AgentProgressType, AgentCompetitor } from '@/lib/types'
 import {readAgentGeneration,type AgentGenerationReceipt} from '@/lib/agents/generation-state'
 import {normalizeAgentNumbers} from '@/lib/workspace/agent-numbers'
@@ -20,6 +22,7 @@ type Props = {
   recommendations: AgentRecommendation[]
   progress: AgentProgressType[]
   competitors: AgentCompetitor[]
+  scanChoices?: ScanChoice[]
 }
 type Attempt={state:'pending'|'running'|'complete'|'error'|'unavailable';generation?:AgentGenerationReceipt|null;checking?:boolean}
 function numericRows<T extends object>(rows:T[],section:Parameters<typeof normalizeAgentNumbers>[1]):T[]{
@@ -44,9 +47,10 @@ function classifiedSamples(receipt:AgentGenerationReceipt|null,platforms:string[
     &&item.mentioned>=0&&item.mentioned<=item.classified)
 }
 
-export function ImproveStep({ scan, features, recommendations, progress, competitors, smeCopilot = false }: Props) {
+export function ImproveStep({ scan, features, recommendations, progress, competitors, scanChoices, smeCopilot = false }: Props) {
   const t = useTranslations('dashboard')
   const generated=useTranslations('generatedWork')
+  const checks=useTranslations('checks')
   const {clientId,lang}=useParams<{clientId:string;lang:string}>()
   const router=useRouter()
   const key=`${clientId}:${scan.id}`
@@ -68,6 +72,11 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
   const hasOutput=features.agent_recs&&allowedRecs.length>0||features.agent_progress&&measuredProgress.length>0||features.agent_competitors&&measuredCompetitors.length>0
   const proPrice = `$${PLAN_CATALOG.pro.monthlyPriceUsd}/month`
   const enterprisePrice = `$${PLAN_CATALOG.enterprise.monthlyPriceUsd}/month`
+  // Keep "more analyses" out of the page when every available source is empty;
+  // the status strip already says those sources are unavailable.
+  const moreVisible = !features.agent_progress || !features.agent_competitors || measuredProgress.length > 0 || measuredCompetitors.length > 0
+  const statusSections = (['recommendations','progress','competitors'] as const)
+    .filter(section => features[section==='recommendations'?'agent_recs':section==='progress'?'agent_progress':'agent_competitors'])
 
   async function generate(){
     if(pending.current.has(key))return
@@ -121,61 +130,133 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
             </div>
           </div>
           <p className="mt-4 text-xs leading-relaxed text-muted-foreground">{smeCopilot ? generated('draftEvidenceNotice') : generated('improveActionNotice')}</p>
+          {scanChoices && scanChoices.length > 0 && typeof clientId === 'string' ? (
+            <div className="mt-4 border-t border-primary/20 pt-4">
+              <ScanPicker
+                lang={lang}
+                action={`/${lang}/dashboard/${encodeURIComponent(clientId)}`}
+                step="improve"
+                scans={scanChoices}
+                selectedScanId={scan.id}
+                className="mb-0"
+              />
+            </div>
+          ) : null}
         </section>
       ) : null}
-      {receipt?<ul className="space-y-2 rounded-xl border border-dash-border bg-dash-surface p-5 text-sm text-dash-muted" aria-label={generated('receiptTitle')}>
-        {(['recommendations','progress','competitors'] as const).filter(section=>features[section==='recommendations'?'agent_recs':section==='progress'?'agent_progress':'agent_competitors']).map(section=><li key={section}>
-          <span className="font-medium text-dash-text">{t(section==='recommendations'?'recs_title':section==='progress'?'progress_title':'competitors_title')}: </span>
-          {generated(receipt.outcomes[section]==='available'?'sectionAvailable':receipt.outcomes[section]==='not-required'?'sectionNotRequired':section==='recommendations'?'recommendationsUnavailable':section==='progress'?'progressUnavailable':'competitorsUnavailable')}
-        </li>)}
-      </ul>:null}
-      {features.agent_recs&&basis.length>0?<section className="space-y-3 rounded-xl border border-dash-border bg-dash-surface p-5" aria-label={generated('basisTitle')}>
-        <h3 className="text-sm font-semibold text-dash-text">{generated('basisTitle')}</h3>
-        {basis.map(item=><article key={item.checkId} className="space-y-2 border-t border-dash-border pt-3 text-sm text-dash-muted">
-          <p className="font-medium text-dash-text">{generated('basisCheck',{checkId:item.checkId,assessment:generated(item.assessment==='fail'?'basisFailed':'basisWarning')})}</p>
-          <p>{item.action}</p>
-          <ul className="list-disc space-y-1 pl-5 text-xs">
-            {[...new Set(item.limitations.map(value=>limitationCopy[value]??'basisOtherLimitations'))].map(copy=><li key={copy}>{generated(copy)}</li>)}
+      {!(smeCopilot || features.agent_recs) && scanChoices && scanChoices.length > 0 && typeof clientId === 'string' ? (
+        <section aria-label={generated('selectedScan')} className="rounded-xl border border-border bg-card p-4 sm:p-5">
+          <ScanPicker
+            lang={lang}
+            action={`/${lang}/dashboard/${encodeURIComponent(clientId)}`}
+            step="improve"
+            scans={scanChoices}
+            selectedScanId={scan.id}
+            className="mb-0"
+          />
+        </section>
+      ) : null}
+      {receipt && statusSections.length > 0 ? (
+        <section aria-labelledby="improve-status-heading" className="rounded-xl border border-border bg-card p-4 sm:p-5">
+          <h2 id="improve-status-heading" className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{generated('statusTitle')}</h2>
+          <ul className={`mt-3 grid gap-2 ${statusSections.length === 2 ? 'sm:grid-cols-2' : statusSections.length >= 3 ? 'sm:grid-cols-3' : ''}`}>
+            {statusSections.map(section => {
+                const outcome = receipt.outcomes[section]
+                const label = section==='recommendations' ? t('recs_title') : section==='progress' ? t('progress_title') : t('competitors_title')
+                const text = outcome==='available' ? generated('sectionAvailable')
+                  : outcome==='not-required' ? generated('sectionNotRequired')
+                  : generated(section==='recommendations'?'recommendationsUnavailable':section==='progress'?'progressUnavailable':'competitorsUnavailable')
+                return <li key={section} className="flex items-start gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
+                  <span aria-hidden="true" className={`mt-1 h-2 w-2 shrink-0 rounded-full ${outcome==='available'?'bg-tone-success':'bg-muted-foreground/50'}`} />
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold text-foreground">{label}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{text}</span>
+                  </span>
+                </li>
+              })}
           </ul>
-          <a className="inline-flex min-h-11 items-center text-xs font-medium text-dash-accent underline" href={`?step=results&scanId=${encodeURIComponent(scan.id)}`}>{generated('viewSourceScan')}</a>
-        </article>)}
-      </section>:null}
-      {features.agent_progress&&samples.length>0?<section className="space-y-2 rounded-xl border border-dash-border bg-dash-surface p-5" aria-label={generated('progressSampleTitle')}>
-        <h3 className="text-sm font-semibold text-dash-text">{generated('progressSampleTitle')}</h3>
-        <ul className="space-y-1 text-sm text-dash-muted">{samples.map(sample=><li key={`${sample.platform}:${sample.week}`}>
-          {generated('progressSample',{platform:sample.platform,week:sample.week,ratio:`${sample.mentioned} / ${sample.classified}`})}
-        </li>)}</ul>
-        <p className="text-xs text-dash-muted">{generated('progressSampleNotice')}</p>
-      </section>:null}
-    <AgentSection status={status} hasOutput={Boolean(hasOutput)} draftNotice={generated('improveDraftNotice')}>
-      <div className="space-y-3">
-        {features.agent_recs ? (
-          receipt?<section className="rounded-xl border border-dash-border bg-dash-surface p-5" aria-label={generated('websiteDraftsTitle')}>
-            <h3 className="mb-3 text-sm font-semibold text-dash-text">{generated('websiteDraftsTitle')}</h3>
-            {allowedRecs.length?<ul className="space-y-3 text-sm text-dash-text">{allowedRecs.map(rec=><li key={rec.id}>{rec.recommendation}</li>)}</ul>
-              :<p className="text-sm text-dash-muted">{generated('recommendationsUnavailable')}</p>}
-          </section>:<AgentRecommendations recommendations={allowedRecs} />
-        ) : (
-          <LockedFeature feature={t('feature_recs')} requiredPlan="Pro" price={proPrice} />
-        )}
+        </section>
+      ) : null}
 
-        {features.agent_progress ? (
-          <AgentProgress progress={measuredProgress} />
-        ) : (
-          <LockedFeature feature={t('feature_progress')} requiredPlan="Pro" price={proPrice}>
-            <AgentProgress progress={measuredProgress} />
-          </LockedFeature>
-        )}
+      <AgentSection status={status} hasOutput={Boolean(hasOutput)} draftNotice={generated('improveDraftNotice')}>
+        <div className="space-y-6">
+          {features.agent_recs ? (
+            <section aria-labelledby="improve-drafts-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 id="improve-drafts-heading" className="text-base font-semibold text-foreground">{generated('websiteDraftsTitle')}</h3>
+                <span className="text-xs text-muted-foreground">{generated('draftCount',{count:allowedRecs.length})}</span>
+              </div>
+              {allowedRecs.length
+                ? <div className="mt-4"><AgentRecommendations recommendations={allowedRecs} /></div>
+                : <p role="status" className="mt-3 text-sm leading-relaxed text-muted-foreground">{receipt?generated('recommendationsUnavailable'):t('recs_empty')}</p>}
+            </section>
+          ) : (
+            <LockedFeature feature={t('feature_recs')} requiredPlan="Pro" price={proPrice} />
+          )}
 
-        {features.agent_competitors ? (
-          <AgentCompetitors competitors={measuredCompetitors} />
-        ) : (
-          <LockedFeature feature={t('feature_competitors')} requiredPlan="Enterprise" price={enterprisePrice}>
-            <AgentCompetitors competitors={measuredCompetitors.slice(0, 1)} />
-          </LockedFeature>
-        )}
-      </div>
-    </AgentSection>
+          {basis.length > 0 ? (
+            <section aria-labelledby="improve-evidence-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 id="improve-evidence-heading" className="text-base font-semibold text-foreground">{generated('basisTitle')}</h3>
+                <span className="text-xs text-muted-foreground">{generated('evidenceCount',{count:basis.length})}</span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{generated('basisRetention')}</p>
+              <div className="mt-3 divide-y divide-border border-t border-border">
+                {basis.map(item => {
+                  const assessment = generated(item.assessment==='fail'?'basisFailed':'basisWarning')
+                  const badge = item.assessment==='fail' ? 'bg-tone-danger-soft text-tone-danger-fg' : 'bg-tone-warning-soft text-tone-warning-fg'
+                  return (
+                    <details key={item.checkId} className="group">
+                      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${item.assessment==='fail'?'bg-tone-danger':'bg-tone-warning'}`} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-foreground">{checks(item.checkId)}</span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">{item.checkId}</span>
+                        </span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${badge}`}>{assessment}</span>
+                        <span aria-hidden="true" className="shrink-0 text-lg leading-none text-muted-foreground transition-transform group-open:rotate-90">›</span>
+                      </summary>
+                      <div className="space-y-3 pb-4 pl-5 pr-1">
+                        <p className="break-words text-sm leading-relaxed text-foreground">{item.action}</p>
+                        <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed text-muted-foreground">
+                          {[...new Set(item.limitations.map(value=>limitationCopy[value]??'basisOtherLimitations'))].map(copy=><li key={copy}>{generated(copy)}</li>)}
+                        </ul>
+                        <a className="inline-flex min-h-11 items-center text-xs font-semibold text-primary-accessible underline" href={`?step=results&scanId=${encodeURIComponent(scan.id)}`}>{generated('viewSourceScan')}</a>
+                      </div>
+                    </details>
+                  )
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          {features.agent_progress&&samples.length>0 ? (
+            <section aria-labelledby="improve-samples-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+              <h3 id="improve-samples-heading" className="text-base font-semibold text-foreground">{generated('progressSampleTitle')}</h3>
+              <ul className="mt-3 space-y-1 text-sm text-foreground">{samples.map(sample=><li key={`${sample.platform}:${sample.week}`}>
+                {generated('progressSample',{platform:sample.platform,week:sample.week,ratio:`${sample.mentioned} / ${sample.classified}`})}
+              </li>)}</ul>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{generated('progressSampleNotice')}</p>
+            </section>
+          ) : null}
+
+          {moreVisible ? (
+            <section aria-labelledby="improve-more-heading" className="space-y-3">
+              <h3 id="improve-more-heading" className="text-base font-semibold text-foreground">{generated('moreTitle')}</h3>
+              {features.agent_progress ? (
+                measuredProgress.length > 0 ? <AgentProgress progress={measuredProgress} /> : null
+              ) : (
+                <LockedFeature feature={t('feature_progress')} requiredPlan="Pro" price={proPrice} />
+              )}
+              {features.agent_competitors ? (
+                measuredCompetitors.length > 0 ? <AgentCompetitors competitors={measuredCompetitors} /> : null
+              ) : (
+                <LockedFeature feature={t('feature_competitors')} requiredPlan="Enterprise" price={enterprisePrice} />
+              )}
+            </section>
+          ) : null}
+        </div>
+      </AgentSection>
     </div>
   )
 }

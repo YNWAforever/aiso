@@ -96,10 +96,39 @@ it.each(['en','zh-HK'] as const)('shows honest native section receipts and actua
   const html=renderToStaticMarkup(ImproveStep({scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:receipt}},features,recommendations:[recommendation],progress:[],competitors:[]}))
   const copy=(locale==='en'?en:zhHK).generatedWork
   expect(html).toContain('Saved review action');expect(html).toContain(copy.progressUnavailable);expect(html).toContain(copy.competitorsUnavailable);expect(html).toContain(copy.improveDraftNotice)
-  expect(html).toContain(copy.websiteDraftsTitle);expect(html).not.toContain('>gpt4o<')
+  expect(html).toContain(copy.websiteDraftsTitle);expect(html).toContain(copy.statusTitle);expect(html).toContain((locale==='en'?en:zhHK).checks.c1_robots);expect(html).not.toContain('>gpt4o<')
   expect(html).toContain('Review the saved crawler access check.');expect(html).toContain('c1_robots');expect(html).toContain(copy.basisNoExcerpts);expect(html).toContain(copy.basisSinglePage)
   expect(html).toContain('?step=results&amp;scanId=scan-a')
   expect(html).not.toContain('native-improve.v1');expect(html).not.toContain('no-sourced-competitor-evidence')
+})
+it('keeps the selected scan, picker and actions in one panel',()=>{
+  hooks.locale='en';hooks.cursor=0
+  const scanChoices=[{id:'scan-a',domain:'example.com',score:30,grade:'C',created_at:'2026-10-15'}]
+  const html=renderToStaticMarkup(ImproveStep({scan:baseScan,features,recommendations:[],progress:[],competitors:[],scanChoices}))
+  expect(html).toContain('workspace-scan-picker')
+  expect(html).toContain('value="scan-a" selected=""')
+  expect(html).toContain(en.generatedWork.actionTitle)
+  expect(html).toContain(en.generatedWork.selectedScan)
+})
+it('keeps the saved-scan picker visible when the action panel is locked',()=>{
+  hooks.locale='en';hooks.cursor=0
+  const free=resolveCommercialEntitlement({plan:'free',status:'active'}).features
+  const scanChoices=[{id:'scan-a',domain:'example.com',score:30,grade:'C',created_at:'2026-10-15'}]
+  const html=renderToStaticMarkup(ImproveStep({scan:baseScan,features:free,recommendations:[],progress:[],competitors:[],scanChoices}))
+  expect(html).toContain('workspace-scan-picker')
+  expect(html).toContain('value="scan-a" selected=""')
+  expect(html).not.toContain(en.generatedWork.actionTitle)
+})
+it('puts drafts before evidence and keeps both disclosures closed',()=>{
+  hooks.locale='en';hooks.cursor=0
+  const recommendations=Array.from({length:6},(_,index)=>({...recommendation,id:`rec-${index}`,recommendation:`Saved review action ${index+1}`}))
+  const html=renderToStaticMarkup(ImproveStep({scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:receipt}},features,recommendations,progress:[],competitors:[]}))
+  expect(html.indexOf(en.generatedWork.websiteDraftsTitle)).toBeLessThan(html.indexOf(en.generatedWork.basisTitle))
+  expect((html.match(/<details/g)??[]).length).toBe(2)
+  expect(html).not.toContain('open=""')
+  expect(html).toContain('6 drafts')
+  expect(html).toContain('Show 3 more drafts')
+  expect(html).toContain(en.generatedWork.statusTitle)
 })
 it.each((['en','zh-HK'] as const).flatMap(locale=>['gpt4o','gpt-4o','gemini-flash','perplexity-sonar-pro'].map(platform=>({locale,platform}))))('shows $platform sample denominator and limitations in $locale without attributing improvement',({locale,platform})=>{
   hooks.locale=locale;hooks.cursor=0
