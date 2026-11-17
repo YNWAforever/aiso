@@ -31,7 +31,7 @@ for (const lang of ['en', 'zh-HK']) {
     await page.reload()
     await expect(page.locator('#onboarding-description')).toHaveValue('Synthetic design workshops.')
     await page.getByRole('button', { name: lang === 'en' ? 'Go to my dashboard' : '前往我的儀表板', exact: true }).click()
-    await expect(page.locator('html')).toHaveAttribute('data-navigation', /dashboard\/11111111/)
+    await expect(page.locator('html')).toHaveAttribute('data-navigation', `/${lang}/dashboard/11111111-1111-4111-8111-111111111111`)
     expect(requests).toHaveLength(1)
     expect(completions).toHaveLength(1)
     expect(completions[0]).toMatchObject({ brandName: 'Reviewed brand', domain: 'example.test', market: 'TW', language: lang === 'en' ? 'zh-HK' : 'en' })

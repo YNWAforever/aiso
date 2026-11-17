@@ -2647,6 +2647,17 @@
   "pulseView": {
     "title": "Observed AI visibility",
     "intro": "Stored answer observations, not provider attempt-success rates or attributed improvements.",
+    "report": {
+      "eyebrow": "AI visibility baseline",
+      "whatChanged": "What changed",
+      "changeUnavailable": "No comparable previous week yet. The first baseline is the starting point.",
+      "next": "What to do next",
+      "nextBaseline": "Start your first baseline",
+      "nextImprove": "Review the improvement work",
+      "nextRetry": "Open monitoring",
+      "nextBody": "Use the missed questions as evidence, then recheck after a comparable week.",
+      "evidence": "Evidence and method"
+    },
     "empty": "No usable observations are available.",
     "error": "This section could not load. Refresh later to try again.",
     "freshness": "Freshness: unknown",
@@ -5551,6 +5562,21 @@
     "summary": "One thing to do, one way to ask. Everything else is under details.",
     "actionCaption": "Your next action",
     "actionNone": "The latest saved scan has nothing to action.",
+    "firstTask": {
+      "caption": "Your first task",
+      "why": {
+        "questions": "Confirm what AI should ask before the first baseline runs.",
+        "baseline": "The first baseline gives you a starting point to compare against later.",
+        "first_change": "Start with the highest-value check from your saved scan."
+      },
+      "pathLabel": "First-run path",
+      "path": {
+        "questions": "Confirm questions",
+        "baseline": "First baseline",
+        "change": "First change"
+      },
+      "firstChangeNote": "No before/after claim is made until a later baseline is comparable."
+    },
     "fixSentence": "Fix first: {check}",
     "fixDetail": "Worth up to {n} points",
     "askLabel": "Or just ask AI",

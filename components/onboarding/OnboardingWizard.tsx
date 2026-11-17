@@ -323,9 +323,9 @@ function WizardForm({
   }
 
   function navigateToWorkspace(targetClientId: string) {
-    if (scanId) { router.push(`/${lang}/dashboard/${targetClientId}/result/${scanId}`); return }
-    const scanUrl = '/prompts'
-    router.push(`/${lang}/dashboard/${targetClientId}${scanUrl}`)
+    // One handoff: Today owns the first task. Sending a new owner to the
+    // question bank or a raw result left them with no stated next action.
+    router.push(`/${lang}/dashboard/${targetClientId}`)
   }
 
   const progress = (step / TOTAL_STEPS) * 100

@@ -21,6 +21,16 @@ export type TodaySavedWork =
   | { state: 'unavailable'; href: string }
   | { state: 'ready'; href: string; title: string; status: TaskStatus }
 
+/**
+ * The one handoff from onboarding into the product. It is only projected while
+ * the first-run checklist is still open, so an established brand keeps the
+ * ordinary "next action" framing. The kind is a display key, never a score.
+ */
+export type TodayFirstTask =
+  | { kind: 'questions' }
+  | { kind: 'baseline'; blocked: boolean }
+  | { kind: 'first_change' }
+
 export type NextStepKey = keyof {
   configure: string; start: string; repair: string; results: string; opportunities: string
   review: string; status: string; work: string; scan: string
@@ -40,6 +50,8 @@ export interface TodayView {
   brandName: string
   domain: string | null
   action: TodayAction
+  /** Present only while the first-run checklist is still open. */
+  firstTask: TodayFirstTask | null
   /** null means not requested; empty and unavailable are separate read outcomes. */
   savedWork: TodaySavedWork | null
   illustration: IllustrationName
@@ -108,6 +120,18 @@ export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; 
     illustration = 'tasks'
   }
 
+  // The onboarding handoff: only a brand whose checklist is still open gets the
+  // first-task framing. The action itself stays exactly the projectPrimaryNextStep
+  // result (or the observed site fix); this adds no ordering, score or write.
+  let firstTask: TodayFirstTask | null = null
+  if (workspace.gettingStarted) {
+    if (action.kind === 'fix') firstTask = { kind: 'first_change' }
+    else if (action.kind === 'next' && step?.kind === 'confirm_prompts') firstTask = { kind: 'questions' }
+    else if (action.kind === 'next' && (step?.kind === 'start_run' || step?.kind === 'monitoring_status')) {
+      firstTask = { kind: 'baseline', blocked: step.kind === 'monitoring_status' }
+    }
+  }
+
   const metrics: TodayMetric[] = [
     {
       key: 'visibility',
@@ -137,6 +161,7 @@ export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; 
     brandName: workspace.client.brand_name,
     domain: workspace.client.domain,
     action,
+    firstTask,
     savedWork,
     illustration,
     metrics,

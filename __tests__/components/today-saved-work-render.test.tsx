@@ -54,7 +54,10 @@ beforeEach(() => { copy.lang = 'en'; copy.links = [] })
 const fixtureStates = ['primary', 'setup', 'scoped', 'recorded', 'unavailable', 'empty', 'dedup', 'long', 'sitefix'] as const
 function fixture(state: typeof fixtureStates[number]): WorkspaceHome {
   const workspace = home({ savedWork: { status: 'ok', data: [task()] } })
-  if (state === 'setup') workspace.nextStep = { kind: 'confirm_prompts', labelKey: 'configure', href: '/__locale__/dashboard/c1/prompts' }
+  if (state === 'setup') {
+    workspace.nextStep = { kind: 'confirm_prompts', labelKey: 'configure', href: '/__locale__/dashboard/c1/prompts' }
+    workspace.gettingStarted = { done: 1, steps: [{ key: 'brand', state: 'done' }, { key: 'scan', state: 'current' }, { key: 'fixes', state: 'todo' }, { key: 'questions', state: 'todo' }] }
+  }
   if (state === 'scoped') workspace.nextStep = { kind: 'review_run', labelKey: 'repair', href: '/__locale__/dashboard/c1/observations?run=saved&week=2026-11-09#run-status' }
   if (state === 'recorded') workspace.savedWork = { status: 'ok', data: [task('delivered')] }
   if (state === 'unavailable') workspace.savedWork = { status: 'error', data: [task('approved', 'STALE PRIVATE TITLE')] }
