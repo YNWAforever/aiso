@@ -6,6 +6,17 @@
     "heroEyebrow": "YOUR BRAND WORKSPACE",
     "title": "Start work",
     "description": "Ask directly, or choose a template. Turn research into your next sourced, deliverable result.",
+    "sections": {
+      "label": "Chat sections",
+      "backToChat": "Back to Chat"
+    },
+    "chatMore": {
+      "threads": "Pick up earlier work and find every discussion.",
+      "weekly": "See AI visibility and how it changed by week.",
+      "documents": "Approved brand facts and finished work.",
+      "connections": "Search, retrieval and Drive connection status.",
+      "tools": "The full directory of existing tools."
+    },
     "featureShellNote": "Studio is available. Live model answers stay off until LIVE is enabled; work from saved evidence and templates meanwhile.",
     "threadsTitle": "Discussions",
     "newThread": "Start a new discussion",
@@ -499,7 +510,7 @@
     "views": {
       "threads": {
         "title": "Every task has its own context",
-        "description": "Discussions are private to you by default, saved to this brand workspace, and survive refresh. You can share one read-only with the brand. Composer drafts are not saved.",
+        "description": "Private to you by default and saved to this brand workspace. You can share one read-only; only its creator can rename, pin, share, archive or add turns. Composer drafts are not saved.",
         "empty": "Start with a work goal, or choose a template to begin a new discussion."
       },
       "documents": {

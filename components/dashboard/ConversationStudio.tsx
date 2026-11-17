@@ -629,7 +629,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               ['connections', t('nav.connections'), `${basePath}/studio/connections`],
               ['tools', t('nav.tools'), `${basePath}/studio/tools`],
             ] as const).map(([key, label, href]) => <li key={key}>
-              <Link href={href} className="as-record-link">{label}<ArrowUpRight className="ml-auto size-4 shrink-0" aria-hidden="true" /></Link>
+              <Link href={href} className="as-record-link"><span className="min-w-0"><span className="block font-semibold">{label}</span><span className="as-muted as-small block">{t(`chatMore.${key}`)}</span></span><ArrowUpRight className="ml-auto size-4 shrink-0" aria-hidden="true" /></Link>
             </li>)}
           </ul>
         </details>}

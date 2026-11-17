@@ -1,5 +1,6 @@
 import { StudioConnections, type StudioDriveNotice } from '@/components/dashboard/StudioSecondaryViews'
 import { requireStudioBrand, loadStudioConnection } from '@/lib/conversation-studio/secondary'
+import { isSmeCopilotUiEnabled } from '@/lib/flags'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -16,6 +17,6 @@ export default async function StudioConnectionsPage({ params, searchParams }: {
 }) {
   const { lang, clientId } = await params
   const search = (await searchParams) ?? {}
-  const { profile } = await requireStudioBrand(lang, clientId)
-  return <StudioConnections clientId={clientId} connection={await loadStudioConnection(profile, clientId)} driveNotice={driveNotice(search)} />
+  const { profile, staff } = await requireStudioBrand(lang, clientId)
+  return <StudioConnections clientId={clientId} connection={await loadStudioConnection(profile, clientId)} driveNotice={driveNotice(search)} showTabs={!staff && isSmeCopilotUiEnabled()} />
 }
