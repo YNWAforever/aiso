@@ -38,12 +38,27 @@ describe.each(['en', 'zh-HK'] as const)('Studio overview in %s', lang => {
     expect(html).toContain(`/${lang}/dashboard/${clientId}/studio/connections`)
   })
 
-  it('renders weekly rows and the existing client reports link', () => {
+  it('renders weekly rows, an honest single-week state, and the existing client reports link', () => {
     const weekly = (lang === 'en' ? en : zh).conversationStudio.weekly
     const html = render(lang, <StudioWeeklyView clientId={clientId} weeks={{ status: 'ok', data: [{ week: '2026-10-26', sovScore: 37.5, brandMentions: 15, totalQueries: 40 }] }} />)
     expect(html).toContain('2026-10-26')
+    expect(html).toContain('37.5%')
     expect(html).toContain(`/${lang}/dashboard/${clientId}/reports`)
     expect(html).toContain(weekly.title)
-    expect(render(lang, <StudioWeeklyView clientId={clientId} weeks={{ status: 'unavailable' }} />)).toContain(copy.unavailable)
+    expect(html).toContain(weekly.noComparison)
+    expect(html).not.toContain(weekly.deltaUp.replace('{points}', '7.5'))
+    expect(render(lang, <StudioWeeklyView clientId={clientId} weeks={{ status: 'unavailable' }} />)).toContain(weekly.unavailable)
+    expect(render(lang, <StudioWeeklyView clientId={clientId} weeks={{ status: 'ok', data: [] }} />)).toContain(weekly.emptyTitle)
+  })
+
+  it('compares the two newest saved weeks and seeds this week’s prompt', () => {
+    const weekly = (lang === 'en' ? en : zh).conversationStudio.weekly
+    const html = render(lang, <StudioWeeklyView clientId={clientId} weeks={{ status: 'ok', data: [
+      { week: '2026-10-19', sovScore: 30, brandMentions: 12, totalQueries: 40 },
+      { week: '2026-10-26', sovScore: 37.5, brandMentions: 15, totalQueries: 40 },
+    ] }} />)
+    expect(html).toContain(weekly.deltaUp.replace('{points}', '7.5'))
+    expect(html.indexOf('2026-10-26')).toBeLessThan(html.indexOf('2026-10-19'))
+    expect(html).toContain(weekly.openThread)
   })
 })

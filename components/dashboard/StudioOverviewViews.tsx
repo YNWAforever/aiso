@@ -8,6 +8,7 @@ import { useStudioSession } from '@/components/dashboard/StudioSession'
 import { StudioSectionHeader } from '@/components/dashboard/StudioSectionHeader'
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 import type { StudioOverview, StudioWeek } from '@/lib/conversation-studio/overview'
+import { summarizeStudioWeeks, weekPercent } from '@/lib/conversation-studio/weekly-view'
 
 type Section = { status: string }
 
@@ -17,9 +18,9 @@ function useStartSkill(clientId: string) {
   const session = useStudioSession()
   const router = useRouter()
   const lang = useLocale()
-  return (skill: StudioHomeTemplate) => {
+  return (skill: StudioHomeTemplate, prompt?: string) => {
     session.setActiveId(null)
-    session.setNewDraft(t(`templates.${skill}.prompt`))
+    session.setNewDraft(prompt ?? t(`templates.${skill}.prompt`))
     session.setNewTemplate(skill)
     router.push(`/${lang}/dashboard/${clientId}/studio`)
   }
@@ -87,23 +88,64 @@ export function StudioOverviewView({ clientId, brandName, overview }: { clientId
   </main>
 }
 
+function WeeklyReport({ summary, onStart }: { summary: NonNullable<ReturnType<typeof summarizeStudioWeeks>>; onStart: (skill: StudioHomeTemplate, prompt?: string) => void }) {
+  const t = useTranslations('conversationStudio.weekly')
+  const latestPercent = weekPercent(summary.latest)
+  const delta = summary.delta
+  const comparison = latestPercent === null
+    ? t('noAnswers')
+    : delta === null
+      ? t('noComparison')
+      : delta === 0
+        ? t('deltaFlat')
+        : delta > 0
+          ? t('deltaUp', { points: Math.abs(delta).toFixed(1) })
+          : t('deltaDown', { points: Math.abs(delta).toFixed(1) })
+  return <section className="as-card space-y-5" aria-labelledby="studio-weekly-summary">
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="space-y-1">
+        <h2 id="studio-weekly-summary" className="as-small as-muted font-semibold">{t('latestLabel')}</h2>
+        <p className="as-metric">{latestPercent === null ? t('noAnswersValue') : `${latestPercent}%`}</p>
+        <p className="as-small as-muted">{t('mentionsValue', { mentions: summary.latest.brandMentions, total: summary.latest.totalQueries })}</p>
+      </div>
+      <p className="as-small as-muted max-w-[34ch]">{comparison}</p>
+    </div>
+    <div className="space-y-2">
+      <h2 className="as-small as-muted font-semibold">{t('trendTitle')}</h2>
+      <ol className="space-y-2">
+        {summary.weeks.map((week, index) => {
+          const value = weekPercent(week)
+          return <li key={week.week} className="space-y-1 rounded-md px-2 py-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <span className="as-small font-semibold">{week.week}{index === 0 && <span className="as-badge ml-2">{t('latest')}</span>}</span>
+              <span className="as-small as-muted">{t('mentionsValue', { mentions: week.brandMentions, total: week.totalQueries })}</span>
+              <span className="as-small font-semibold tabular-nums">{value === null ? t('noAnswersValue') : `${value}%`}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+              <div className="h-full rounded-full bg-primary" style={{ width: `${value === null ? 0 : Math.max(2, Math.min(100, value))}%` }} />
+            </div>
+          </li>
+        })}
+      </ol>
+    </div>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+      <p className="as-small as-muted max-w-[52ch]">{t('scopeNote')}</p>
+      {latestPercent !== null && <button type="button" className="as-button as-primary inline-flex items-center gap-2 px-4" onClick={() => onStart('pulse', t('openThreadPrompt', { week: summary.latest.week }))}>{t('openThread')}<ArrowRight className="size-4" aria-hidden="true" /></button>}
+    </div>
+  </section>
+}
+
 export function StudioWeeklyView({ clientId, weeks, showTabs = false }: { clientId: string; weeks: StudioOverview['weeks']; showTabs?: boolean }) {
   const t = useTranslations('conversationStudio.weekly')
-  const overview = useTranslations('conversationStudio.overview')
   const lang = useLocale()
   const start = useStartSkill(clientId)
+  const summary = weeks.status === 'ok' ? summarizeStudioWeeks(weeks.data) : null
   return <main className="as-page space-y-6">
     <StudioSectionHeader clientId={clientId} active="weekly" showTabs={showTabs} title={t('title')} description={t('subtitle')} action={<Link className="as-button inline-flex items-center px-3" href={`/${lang}/dashboard/${clientId}/reports`}>{t('clientReports')}</Link>} />
-    {weeks.status !== 'ok' ? <p className="as-muted">{overview(weeks.status === 'unavailable' ? 'unavailable' : 'empty')}</p> : <div className="as-table-scroll relative" tabIndex={0} role="region" aria-label={t('title')}>
-      <table className="as-table">
-        <thead><tr><th scope="col">{t('week')}</th><th scope="col">{t('sov')}</th><th scope="col">{t('mentions')}</th><th scope="col"><span className="sr-only">{t('actions')}</span></th></tr></thead>
-        <tbody>{weeks.data.map(week => <tr key={week.week}>
-          <th scope="row">{week.week}</th>
-          <td>{percent(week.sovScore)}</td>
-          <td>{t('mentionsValue', { mentions: week.brandMentions, total: week.totalQueries })}</td>
-          <td><button type="button" className="as-link inline-flex min-h-11 items-center gap-1" onClick={() => start('pulse')}>{overview('openThread')}<span className="sr-only"> · {week.week}</span><ArrowRight className="size-4" aria-hidden="true" /></button></td>
-        </tr>)}</tbody>
-      </table>
-    </div>}
+    {weeks.status === 'unavailable'
+      ? <p className="as-muted">{t('unavailable')}</p>
+      : !summary
+        ? <div className="as-empty space-y-2"><h2>{t('emptyTitle')}</h2><p className="as-muted">{t('empty')}</p></div>
+        : <WeeklyReport summary={summary} onStart={start} />}
   </main>
 }
