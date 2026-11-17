@@ -148,6 +148,11 @@
 #aiso-studio .as-disclosure > summary { font-weight: 600; }
 #aiso-studio blockquote { border-color: var(--as-line); }
 #aiso-studio a { display: inline-flex; min-width: 44px; min-height: 44px; max-width: 100%; align-items: center; color: var(--as-blue); overflow-wrap: anywhere; }
+/* The shell-wide link colour must not paint the active section pill blue-on-blue. */
+#aiso-studio .as-tab-active { background: var(--as-blue); color: var(--primary-foreground); }
+#aiso-studio .as-tab-active:hover { background: var(--as-blue); color: var(--primary-foreground); }
+#aiso-studio .as-tab-idle { color: var(--as-muted); }
+#aiso-studio .as-tab-idle:hover { background: var(--as-soft); color: var(--as-ink); }
 #aiso-studio :is(button, a, input, textarea, summary):focus-visible { outline: 3px solid var(--as-blue); outline-offset: 3px; }
 
 @media (max-width: 900px) {

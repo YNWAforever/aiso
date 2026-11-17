@@ -48,8 +48,8 @@ export function StudioSectionHeader({ clientId, active, title, description, acti
             href={`${base}/${tab.path}`}
             aria-current={current ? 'page' : undefined}
             className={current
-              ? 'inline-flex min-h-11 items-center gap-1 whitespace-nowrap rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-              : 'inline-flex min-h-11 items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-muted-foreground no-underline hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
+              ? 'as-tab-active inline-flex min-h-11 items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+              : 'as-tab-idle inline-flex min-h-11 items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
           >{t(tab.labelKey)}</Link></li>
         })}
       </ul>

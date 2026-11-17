@@ -37,6 +37,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(sections.getByRole('link')).toHaveCount(5)
     await expect(sections.getByRole('link', { name: copy.nav.weekly })).toHaveAttribute('aria-current', 'page')
     await expect(page.locator('main h1')).toHaveText(copy.nav.weekly)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     await page.getByRole('link', { name: copy.sections.backToChat }).click()
     await expect(page).toHaveURL(new RegExp(`/${lang}/dashboard/${clientId}/studio$`))
     await expect(page.locator('#studio-home')).toBeVisible()
