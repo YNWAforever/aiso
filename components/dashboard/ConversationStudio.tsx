@@ -120,9 +120,9 @@ type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; o
   features?: PlanFeatures }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
-  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft} initialTask={props.initialTask}><StudioConversation {...props} /></StudioSessionProvider>
+  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft}><StudioConversation {...props} /></StudioSessionProvider>
 }
-function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features, initialDraft = '' }: Props & { embedded?: boolean }) {
+function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features, initialDraft = '', initialTask = null }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
@@ -145,6 +145,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const currentMine = current?.mine
   const conversationPending = Boolean(current?.turns.some(turn => turn.live?.pending || turn.answerState === 'pending'))
   const carriedDraft = useRef('')
+  const carriedTask = useRef<StudioHomeTemplate | null>(null)
   const conversationEnd = useRef<HTMLDivElement>(null)
   const answerAbort = useRef<AbortController | null>(null)
   const stopRequested = useRef(false)
@@ -157,6 +158,18 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     }, 0)
     return () => clearTimeout(start)
   }, [initialDraft, activeId, setNewDraft])
+
+  // The Studio layout owns the session, so the card's task is applied here on
+  // the home screen. It fills the skill chip only; the member still writes or
+  // edits the question and presses Send.
+  useEffect(() => {
+    if (!initialTask || carriedTask.current === initialTask) return
+    const start = setTimeout(() => {
+      carriedTask.current = initialTask
+      if (activeId === null) setNewTemplate(previous => previous ?? initialTask)
+    }, 0)
+    return () => clearTimeout(start)
+  }, [initialTask, activeId, setNewTemplate])
 
   // Remember the last saved discussion this member opened, so landing can offer
   // one-tap resume even after the sidebar's Studio link drops `?thread=`.
