@@ -333,8 +333,8 @@ export default async function DashboardPage({
     const improveBody = features.agent_recs ? t('step_improve_body') : t('step_improve_locked')
     const reportHref = `/${lang}/dashboard/${clientId}/reports${scan ? `?scanId=${encodeURIComponent(scan.id)}` : ''}`
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 pb-12 pt-6 sm:px-6">
-        <header className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
+      <main className="mx-auto w-full max-w-5xl px-4 pb-12 pt-5 sm:px-6 sm:pt-6">
+        <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-5 sm:pb-6">
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary-accessible">{t('nav_fixes')}</p>
             <h1 className="mt-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">{t('step_improve_title')}</h1>

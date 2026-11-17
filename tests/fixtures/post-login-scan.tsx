@@ -28,6 +28,21 @@ export function PostLoginScanFixture({ href }: { href: string }) {
   const scan = fixtureScans.find(item => item.id === selected) ?? fixtureScans[0]!
   const features = resolveCommercialEntitlement({ plan: 'pro', status: 'active', stripe_subscription_id: 'synthetic-subscription' }).features
   const step = url.searchParams.get('step') ?? 'results'
+  const improveReceipt = {
+    version: 1, producer: 'native-improve.v1', token: 'fixture-token', state: 'complete' as const,
+    fingerprint: 'fixture-fingerprint', startedAt: '2026-10-20T08:00:00Z', leaseUntil: '2026-10-20T08:01:00Z', providerStarted: true,
+    outcomes: { recommendations: 'available' as const, progress: 'unavailable' as const, competitors: 'unavailable' as const },
+    counts: { recommendations: 1, progress: 0, competitors: 0 },
+    reasons: { progress: 'no-classified-observations', competitors: 'no-sourced-competitor-evidence' },
+    sourceCheckIds: ['c1_robots'],
+    recommendationBasis: [{ checkId: 'c1_robots', assessment: 'fail' as const, action: 'Review the saved crawler access check.',
+      source: { scanId: scan.id, checkId: 'c1_robots' }, limitations: ['no-page-or-provider-excerpts'] }],
+  }
+  const improveScan = step === 'improve' ? { ...scan, results: { ...scan.results, _agent_generation: improveReceipt } } : scan
+  const recommendations = step === 'improve'
+    ? [{ id: 'fixture-recommendation', scan_id: scan.id, platform: 'gpt4o', category: 'content', priority: 'high' as const,
+      recommendation: 'Synthetic saved review action.', impact_score: 4, created_at: '2026-10-20T08:00:00Z' }]
+    : []
   const nav = buildDashboardNav({ lang, clientId: fixtureBrand, features, scanId: selected })
   const copy = lang === 'en' ? en : zh
   return <NextIntlClientProvider locale={lang} timeZone="UTC" messages={copy}>
@@ -43,7 +58,7 @@ export function PostLoginScanFixture({ href }: { href: string }) {
             {selected && <ReportBuilder key={selected} lang={lang} clientId={fixtureBrand} scanId={scan.id} initialReport={null}
               initialSnapshot={sampleReportSnapshot(lang, { agency: 'Synthetic agency', brand: 'Synthetic brand', summary: 'Synthetic saved scan summary.', method: 'Synthetic evidence only.' })} />}
           </> : step === 'scan' ? <ScanStep lang={lang} clientId={fixtureBrand} scan={scan} scanHistory={fixtureScans} /> : step === 'improve' ?
-            <ImproveStep scan={scan} features={features} recommendations={[]} progress={[]} competitors={[]} scanChoices={fixtureScans} /> : <>
+            <ImproveStep scan={improveScan} features={features} recommendations={recommendations} progress={[]} competitors={[]} scanChoices={fixtureScans} /> : <>
               <ScanPicker lang={lang} action={base} step="results" scans={fixtureScans} selectedScanId={scan.id} />
               <ResultsStep scan={scan} lang={lang} clientId={fixtureBrand} />
             </>}

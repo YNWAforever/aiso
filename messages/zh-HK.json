@@ -2750,6 +2750,7 @@
     "actionTitle": "下一步",
     "selectedScan": "目前掃描",
     "statusTitle": "生成狀態",
+    "basisShow": "查看證據",
     "draftCount": "{count, plural, =1 {1 份草稿} other {# 份草稿}}",
     "evidenceCount": "{count, plural, =1 {1 項檢查} other {# 項檢查}}",
     "moreTitle": "更多分析",
