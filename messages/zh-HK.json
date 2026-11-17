@@ -19,6 +19,7 @@
     },
     "featureShellNote": "已可進入開始工作。即時模型回答尚未開啟；期間請用已儲存證據及範本。",
     "threadsTitle": "討論串",
+    "threadsCount": "{count} 個討論",
     "newThread": "開始新討論",
     "threadsEmpty": "這個品牌未有已儲存討論。從上方的工作目標開始。",
     "privateLabel": "只供你查看 · 已儲存在此品牌工作室",
@@ -28,6 +29,7 @@
     "privacyBody": "討論預設只供你查看，並儲存在此品牌工作室。你可以把其中一個討論以只讀方式與品牌其他成員共用；只有建立者可重新命名、置頂、共用、封存或新增訊息。輸入中的草稿不會儲存。",
     "threadActions": {
       "label": "討論操作",
+      "menu": "討論操作：{title}",
       "rename": "重新命名",
       "save": "儲存名稱",
       "cancel": "取消",
@@ -559,6 +561,7 @@
     },
     "threadSearch": {
       "label": "搜尋討論",
+      "resultCount": "{count} 個討論",
       "noMatch": "沒有討論符合「{query}」。"
     },
     "threadGroups": {
@@ -603,7 +606,22 @@
       "sov": "回答佔比",
       "mentions": "品牌提及",
       "mentionsValue": "{total} 中 {mentions}",
-      "actions": "操作"
+      "actions": "操作",
+      "latestLabel": "最新已保存週次",
+      "trendTitle": "已保存週次",
+      "latest": "最新",
+      "noComparison": "未有上一個有回答嘅已保存週次可比較。",
+      "noAnswers": "最新一週未有回答記錄。",
+      "noAnswersValue": "—",
+      "deltaUp": "較上一個已保存週次高 {points} 個百分點",
+      "deltaDown": "較上一個已保存週次低 {points} 個百分點",
+      "deltaFlat": "與上一個已保存週次相同",
+      "openThread": "用呢週數據開始",
+      "openThreadPrompt": "只用已保存觀察，解釋 {week} 呢週嘅 AI 能見度變化。",
+      "scopeNote": "數據來自已儲存嘅每週彙總；呢頁唔會呼叫供應商。",
+      "emptyTitle": "仲未有已保存週次",
+      "empty": "每週監測保存後會顯示。",
+      "unavailable": "暫時未能讀取每週數據。"
     },
     "conclusion": {
       "title": "先講結論",
