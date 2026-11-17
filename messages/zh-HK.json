@@ -449,6 +449,12 @@
     "briefTemporary": "這是一個私人簡報討論。輸入中的草稿不會儲存；傳送後訊息會儲存在此品牌工作室。",
     "connections": {
       "disconnected": "未連接",
+      "notConfigured": "未設定",
+      "settingsUnavailable": "暫時未能讀取設定",
+      "statusUnavailable": "暫時未能讀取狀態",
+      "statusSyncUnavailable": "暫時未能讀取同步狀態",
+      "planned": "計劃中",
+      "readScopeNote": "只顯示已儲存嘅連接狀態；呢頁唔會查詢任何供應商。",
       "searchConsoleTitle": "Google Search Console",
       "hkEndpointPending": "香港端點待核實",
       "completenessPending": "資料完整度需驗證",
@@ -483,6 +489,26 @@
       "driveNoticeConnected": "已連接 Google Drive。",
       "driveNoticeFailed": "未能連接 Google Drive。",
       "driveNoticeScope": "請允許存取 Fimmick AISO 建立的檔案，然後再試。"
+    },
+    "tools": {
+      "groups": {
+        "audit": "掃描與改善",
+        "auditBody": "由已保存工作整理嘅檢查、修正同報告。",
+        "monitor": "追蹤 AI 回答",
+        "monitorBody": "能見度、問題、競爭者同引用。",
+        "library": "品牌資料與設定",
+        "libraryBody": "品牌事實、來源、報告同帳戶設定。",
+        "admin": "平台工具",
+        "adminBody": "呢個環境嘅內部管理。"
+      },
+      "entities": "品牌事實同已批准輸入。",
+      "opportunities": "由已保存掃描整理嘅優先缺口。",
+      "observations": "有已保存證據嘅變化。",
+      "sources": "已批准文件同匯入。",
+      "prompts": "用嚟追蹤 AI 能見度嘅問題。",
+      "competitors": "同品牌一齊出現嘅對象。",
+      "citations": "AI 回答引用嘅來源。",
+      "admin": "內部管理。"
     },
     "nav": {
       "documents": "文件與成果",
@@ -523,6 +549,10 @@
         "sourceFlow": "查看核准來源",
         "outputFlow": "查看工作項目",
         "readScope": "只顯示目前核准且未撤銷的版本資料；沒有將文件附加至回答或模型。",
+        "inputCount": "{count} 項輸入",
+        "outputCount": "{count} 項成果",
+        "emptyInputs": "仲未有已批准嘅品牌輸入。",
+        "emptyOutputs": "仲未有工作成果。",
         "approvedAt": "核准：{date}",
         "importedAt": "匯入：{date}",
         "updatedAt": "更新：{date}",
