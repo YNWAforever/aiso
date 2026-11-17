@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowRight } from 'lucide-react'
 import { useStudioSession } from '@/components/dashboard/StudioSession'
+import { StudioSectionHeader } from '@/components/dashboard/StudioSectionHeader'
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 import type { StudioOverview, StudioWeek } from '@/lib/conversation-studio/overview'
 
@@ -86,16 +87,13 @@ export function StudioOverviewView({ clientId, brandName, overview }: { clientId
   </main>
 }
 
-export function StudioWeeklyView({ clientId, weeks }: { clientId: string; weeks: StudioOverview['weeks'] }) {
+export function StudioWeeklyView({ clientId, weeks, showTabs = false }: { clientId: string; weeks: StudioOverview['weeks']; showTabs?: boolean }) {
   const t = useTranslations('conversationStudio.weekly')
   const overview = useTranslations('conversationStudio.overview')
   const lang = useLocale()
   const start = useStartSkill(clientId)
   return <main className="as-page space-y-6">
-    <header className="flex flex-wrap items-end justify-between gap-3">
-      <div className="space-y-1"><h1>{t('title')}</h1><p className="as-muted">{t('subtitle')}</p></div>
-      <Link className="as-button inline-flex items-center px-3" href={`/${lang}/dashboard/${clientId}/reports`}>{t('clientReports')}</Link>
-    </header>
+    <StudioSectionHeader clientId={clientId} active="weekly" showTabs={showTabs} title={t('title')} description={t('subtitle')} action={<Link className="as-button inline-flex items-center px-3" href={`/${lang}/dashboard/${clientId}/reports`}>{t('clientReports')}</Link>} />
     {weeks.status !== 'ok' ? <p className="as-muted">{overview(weeks.status === 'unavailable' ? 'unavailable' : 'empty')}</p> : <div className="as-table-scroll relative" tabIndex={0} role="region" aria-label={t('title')}>
       <table className="as-table">
         <thead><tr><th scope="col">{t('week')}</th><th scope="col">{t('sov')}</th><th scope="col">{t('mentions')}</th><th scope="col"><span className="sr-only">{t('actions')}</span></th></tr></thead>

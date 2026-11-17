@@ -14,14 +14,10 @@ import type { StudioFirecrawlBrandSettings } from '@/lib/conversation-studio/fir
 import { buildStudioTools } from '@/lib/conversation-studio/navigation'
 import { studioSkill } from '@/lib/conversation-studio/skills'
 import { StudioConnectAssistant } from '@/components/dashboard/StudioConnectAssistant'
+import { StudioSectionHeader } from '@/components/dashboard/StudioSectionHeader'
 import type { NavFeatures } from '@/lib/dashboard-nav'
 
-function ViewHeading({ view }: { view: 'threads' | 'documents' | 'connections' | 'tools' }) {
-  const t = useTranslations('conversationStudio')
-  return <header className="space-y-3"><p className="as-eyebrow">{t(view === 'threads' ? 'threadsTitle' : `nav.${view}`)}</p><h1>{t(`views.${view}.title`)}</h1><p className="as-muted">{t(`views.${view}.description`)}</p></header>
-}
-
-export function StudioThreads({ clientId }: { clientId: string }) {
+export function StudioThreads({ clientId, showTabs = false }: { clientId: string; showTabs?: boolean }) {
   const t = useTranslations('conversationStudio')
   const lang = useLocale()
   const router = useRouter()
@@ -51,8 +47,7 @@ export function StudioThreads({ clientId }: { clientId: string }) {
     if (!title) return
     if (await act(id, { title })) setRenamingId(null)
   }
-  return <main className="as-page space-y-6"><ViewHeading view="threads" />
-    <p className="as-note">{t('privacyBody')}</p>
+  return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="threads" showTabs={showTabs} title={t('threadsTitle')} description={t('views.threads.description')} />
     <div className="flex flex-wrap items-end gap-3">
       <button type="button" className="as-button as-primary px-4" onClick={() => { session.setActiveId(null); session.setNewDraft(''); session.setNewTemplate(null); router.push(base) }}>{t('newThread')}</button>
       {session.hydrated && !session.readFailed && session.threads.length > 0 && <div className="min-w-0 flex-1 space-y-1">
@@ -102,11 +97,11 @@ export function StudioThreads({ clientId }: { clientId: string }) {
   </main>
 }
 
-export function StudioDocuments({ clientId, documents, outputs }: { clientId: string; documents: StudioInspectorReads['documents']; outputs: StudioOutputs | null }) {
+export function StudioDocuments({ clientId, documents, outputs, showTabs = false }: { clientId: string; documents: StudioInspectorReads['documents']; outputs: StudioOutputs | null; showTabs?: boolean }) {
   const t = useTranslations('conversationStudio')
   const lang = useLocale()
   const base = `/${lang}/dashboard/${clientId}`
-  return <main className="as-page space-y-6"><ViewHeading view="documents" />
+  return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="documents" showTabs={showTabs} title={t('nav.documents')} description={t('views.documents.description')} />
     <section className="space-y-3" aria-labelledby="studio-brand-documents"><div className="as-section-heading"><h2 id="studio-brand-documents">{t('views.documents.inputs')}</h2><Link className="underline" href={`${base}/sources`}>{t('views.documents.sourceFlow')}</Link></div>
       <p className="as-muted as-small">{t('views.documents.readScope')}</p>
       {documents === null ? <p className="as-note">{t('readUnavailable')}</p> : !documents.items.length ? <p className="as-muted">{t('evidence.unknown')}</p> : <ul className="as-record-list">{documents.items.map(doc => <li key={doc.id}><Link className="as-record-link" href={`${base}/sources`}>
@@ -215,11 +210,11 @@ function DriveConnectionCard({ clientId, drive, notice }: { clientId: string; dr
   </section>
 }
 
-export function StudioConnections({ clientId, connection, driveNotice }: { clientId: string; connection: StudioConnection; driveNotice?: StudioDriveNotice }) {
+export function StudioConnections({ clientId, connection, driveNotice, showTabs = false }: { clientId: string; connection: StudioConnection; driveNotice?: StudioDriveNotice; showTabs?: boolean }) {
   const t = useTranslations('conversationStudio')
   const lang = useLocale()
   const state = connection.state
-  return <main className="as-page space-y-6"><ViewHeading view="connections" />
+  return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="connections" showTabs={showTabs} title={t('nav.connections')} description={t('views.connections.description')} />
     <div className="as-connection-grid">
       <section className="as-card space-y-3" aria-labelledby="studio-gsc-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-gsc-title">{t('connections.searchConsoleTitle')}</h2>
         <p className="as-badge">{t(`sources.${connection.sourceStatus}`)}</p>
@@ -239,11 +234,11 @@ export function StudioConnections({ clientId, connection, driveNotice }: { clien
   </main>
 }
 
-export function StudioTools({ clientId, features, admin, mcpEnabled = false }: { clientId: string; features: NavFeatures; admin: boolean; mcpEnabled?: boolean }) {
+export function StudioTools({ clientId, features, admin, mcpEnabled = false, showTabs = false }: { clientId: string; features: NavFeatures; admin: boolean; mcpEnabled?: boolean; showTabs?: boolean }) {
   const t = useTranslations('conversationStudio')
   const dashboard = useTranslations('dashboard')
   const lang = useLocale()
-  return <main className="as-page space-y-6"><ViewHeading view="tools" /><div className="as-tool-grid">{buildStudioTools({ lang, clientId, features, admin, conversationStudio: true }).map(tool => <Link key={tool.key} href={tool.href} className="as-card as-tool flex items-center gap-3">
+  return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="tools" showTabs={showTabs} title={t('nav.tools')} description={t('views.tools.description')} /><div className="as-tool-grid">{buildStudioTools({ lang, clientId, features, admin, conversationStudio: true }).map(tool => <Link key={tool.key} href={tool.href} className="as-card as-tool flex items-center gap-3">
     <span className="min-w-0 flex-1 font-semibold">{dashboard(tool.labelKey)}</span>{tool.locked && <Lock className="size-4 shrink-0" aria-label={t('planRequired')} />}{tool.badge && <span className="as-badge">{tool.badge}</span>}<ArrowUpRight className="size-4 shrink-0 as-blue" aria-hidden="true" />
   </Link>)}</div>{mcpEnabled && <StudioConnectAssistant clientId={clientId} />}</main>
 }

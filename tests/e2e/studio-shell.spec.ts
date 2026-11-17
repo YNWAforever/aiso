@@ -31,6 +31,18 @@ async function navigate(page: Page, label: string, copy: typeof en.conversationS
 }
 
 for (const lang of ['en', 'zh-HK']) {
+  test(`Chat section tabs show the current section and return to Chat in ${lang}`, async ({ page }) => {
+    const { copy } = await fixture(page, lang, '/weekly?sme=1')
+    const sections = page.getByRole('navigation', { name: copy.sections.label })
+    await expect(sections.getByRole('link')).toHaveCount(5)
+    await expect(sections.getByRole('link', { name: copy.nav.weekly })).toHaveAttribute('aria-current', 'page')
+    await expect(page.locator('main h1')).toHaveText(copy.nav.weekly)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    await page.getByRole('link', { name: copy.sections.backToChat }).click()
+    await expect(page).toHaveURL(new RegExp(`/${lang}/dashboard/${clientId}/studio$`))
+    await expect(page.locator('#studio-home')).toBeVisible()
+  })
+
   test(`recent discussions reopen from other Studio views and survive reload in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     const title = 'Persisted sidebar question'
@@ -176,7 +188,7 @@ for (const lang of ['en', 'zh-HK']) {
         await link.click()
         await expect(page).toHaveURL(`https://studio.fixture/${lang}/dashboard/${brand}/${destination}`)
         if (destination === 'studio/tools') {
-          await expect(page.getByRole('heading', { name: copy.views.tools.title })).toBeVisible()
+          await expect(page.getByRole('heading', { name: copy.nav.tools, exact: true })).toBeVisible()
           await expect(page.locator('main a[href*="step=monitor"]')).toHaveCount(0)
           await page.locator('main a[href$="?step=scan"]').click()
         }
@@ -200,7 +212,7 @@ for (const lang of ['en', 'zh-HK']) {
     await page.getByRole('button', { name: copy.send, exact: true }).click()
     await page.locator('#studio-composer').fill('Isolated follow-up draft')
     await navigate(page, copy.threadsTitle, copy)
-    await expect(page.getByRole('heading', { name: copy.views.threads.title })).toBeVisible()
+    await expect(page.getByRole('heading', { name: copy.threadsTitle, exact: true })).toBeVisible()
     await page.locator('main').getByRole('button', { name: /Session goal/ }).click()
     await expect(page.locator('#studio-composer')).toHaveValue('Isolated follow-up draft')
     const evidence = page.getByRole('button', { name: copy.evidence.open, exact: true }).first()
@@ -225,7 +237,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.locator('#aiso-studio')).toHaveCount(0)
     await page.getByTestId('dashboard-content').getByRole('link', { name: 'Studio', exact: true }).click()
     await navigate(page, copy.threadsTitle, copy)
-    await expect(page.getByRole('heading', { name: copy.views.threads.title })).toBeVisible()
+    await expect(page.getByRole('heading', { name: copy.threadsTitle, exact: true })).toBeVisible()
     await expect(page.locator('main').getByText('Session goal', { exact: true }).first()).toBeVisible()
     expect(unexpectedRequests(requests)).toEqual([])
   })
@@ -345,7 +357,7 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByRole('combobox')).toBeVisible()
     await page.getByRole('combobox').fill(copy.nav.documents)
     await page.keyboard.press('Enter')
-    await expect(page.getByRole('heading', { name: copy.views.documents.title })).toBeVisible()
+    await expect(page.getByRole('heading', { name: copy.nav.documents, exact: true })).toBeVisible()
     await page.keyboard.press('Control+k')
     await page.getByRole('combobox').fill(copy.title)
     await page.keyboard.press('Enter')
