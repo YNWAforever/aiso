@@ -17,7 +17,7 @@ import { StudioGscSnapshotView } from '@/components/dashboard/StudioGscSnapshot'
 import { StudioDfsSnapshotView } from '@/components/dashboard/StudioDfsSnapshot'
 import { StudioFirecrawlSnapshotView } from '@/components/dashboard/StudioFirecrawlSnapshot'
 import { StudioSaveToDocs, saveStateFor, type SaveState } from '@/components/dashboard/StudioSaveToDocs'
-import { StudioConnections } from '@/components/dashboard/StudioSecondaryViews'
+import { StudioConnections, StudioDocuments } from '@/components/dashboard/StudioSecondaryViews'
 import { StudioReplyView, StudioSavedEvidence } from '@/components/dashboard/StudioReply'
 import { StudioLiveReplyView, StudioLiveEvidence } from '@/components/dashboard/StudioLiveReply'
 
@@ -420,20 +420,20 @@ it.each(['en', 'zh-HK'])('renders the DataForSEO SERP snapshot, cap and 待核�
   expect(rows).toContain(copy.dfs.status.ok)
 })
 
-it.each(['en', 'zh-HK'])('keeps Firecrawl disconnected while the DataForSEO switch is explicit in %s', lang => {
+it.each(['en', 'zh-HK'])('keeps an unreadable Firecrawl setting distinct from a configured DataForSEO switch in %s', lang => {
   const copy = (lang === 'en' ? en : zh).conversationStudio
   const html = renderWithIntl(<StudioConnections clientId="11111111-1111-4111-8111-111111111111" connection={{
     sourceStatus: 'bound', state: { kind: 'synced', dataThrough: '2026-10-26' },
     dfs: { enabled: false, credentialsConfigured: false, locationCode: 2344, languageCode: 'zh-TW' },
   }} />, lang)
-  expect(html).toContain(copy.connections.dfsDisabled)
+  expect(html).toContain(copy.connections.notConfigured)
   expect(html).toContain(copy.connections.dfsSerpPending)
   expect(html).toContain(copy.connections.dfsSettingsNote)
   expect(html).not.toMatch(/DataForSEO|Firecrawl|Preview/)
   expect(html).toContain(copy.connections.dfsEnable)
   expect(html).toContain(copy.honesty.mentionsCoverage)
   expect(html).toContain(copy.evidence.firecrawl)
-  expect(html).toContain(copy.connections.disconnected)
+  expect(html).toContain(copy.connections.settingsUnavailable)
 })
 
 it.each(['en', 'zh-HK'])('renders the Firecrawl public-page snapshot and honest soft-fails in %s', lang => {
@@ -480,8 +480,7 @@ it.each(['en', 'zh-HK'])('shows the default-OFF Firecrawl brand switch in %s', l
     sourceStatus: 'bound', state: { kind: 'synced', dataThrough: '2026-10-26' },
     firecrawl: { enabled: false, keyConfigured: false },
   }} />, lang)
-  expect(html).toContain(copy.connections.firecrawlDisabled)
-  expect(html).toContain(copy.connections.disconnected)
+  expect(html).toContain(copy.connections.notConfigured)
   expect(html).not.toMatch(/DataForSEO|Firecrawl|Preview/)
   expect(html).toContain(copy.connections.firecrawlSettingsNote)
   expect(html).toContain(copy.connections.firecrawlEnable)
@@ -492,9 +491,26 @@ it.each(['en', 'zh-HK'])('shows the default-OFF Firecrawl brand switch in %s', l
   }} />, lang)
   expect(on).toContain(copy.connections.firecrawlEnabled)
   expect(on).toContain(copy.connections.firecrawlDisable)
-  // Only the DataForSEO fallback card (no settings passed) still says 未連接.
-  const disconnectedCount = (markup: string) => markup.split(copy.connections.disconnected).length - 1
-  expect(disconnectedCount(on)).toBe(disconnectedCount(html) - 1)
+  expect(on).toContain(copy.connections.settingsUnavailable)
+  expect(on).not.toContain(`as-badge">${copy.connections.disconnected}<`)
+})
+
+it.each(['en', 'zh-HK'])('shows document counts and keeps empty, failed and populated reads distinct in %s', lang => {
+  const copy = (lang === 'en' ? en : zh).conversationStudio
+  const clientId = '11111111-1111-4111-8111-111111111111'
+  const filled = renderWithIntl(<StudioDocuments clientId={clientId} documents={{ items: [{ id: 'd1', label: 'Brand brief', versionId: 'v1', versionNumber: 2, approvedAt: '2026-10-01', importedAt: '2026-10-02' }], truncated: false }} outputs={{ items: [{ id: 'o1', title: 'Landing page draft', status: 'draft', revision: 3, updatedAt: '2026-10-03' }], truncated: false }} />, lang)
+  expect(filled).toContain('Brand brief')
+  expect(filled).toContain('Landing page draft')
+  expect(filled).toContain(lang === 'en' ? '1 input' : '1 項輸入')
+
+  const empty = renderWithIntl(<StudioDocuments clientId={clientId} documents={{ items: [], truncated: false }} outputs={{ items: [], truncated: false }} />, lang)
+  expect(empty).toContain(copy.views.documents.emptyInputs)
+  expect(empty).toContain(copy.views.documents.emptyOutputs)
+  expect(empty).not.toContain(copy.evidence.unknown)
+
+  const failed = renderWithIntl(<StudioDocuments clientId={clientId} documents={null} outputs={null} />, lang)
+  expect(failed).toContain(copy.readUnavailable)
+  expect(failed).not.toContain(copy.views.documents.emptyInputs)
 })
 
 it.each(['en', 'zh-HK'])('shows the member’s own Google Drive card for the act/edit path in %s', lang => {

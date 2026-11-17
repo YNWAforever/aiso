@@ -449,6 +449,12 @@
     "briefTemporary": "This is a private brief discussion. Composer drafts are not saved; sending saves the message to this brand workspace.",
     "connections": {
       "disconnected": "Not connected",
+      "notConfigured": "Not configured",
+      "settingsUnavailable": "Settings unavailable",
+      "statusUnavailable": "Status unavailable",
+      "statusSyncUnavailable": "Sync status unavailable",
+      "planned": "Planned",
+      "readScopeNote": "Only saved connection status is shown. This page does not query any provider.",
       "searchConsoleTitle": "Google Search Console",
       "hkEndpointPending": "Hong Kong endpoint pending verification",
       "completenessPending": "Data completeness requires verification",
@@ -483,6 +489,26 @@
       "driveNoticeConnected": "Google Drive connected.",
       "driveNoticeFailed": "Google Drive was not connected.",
       "driveNoticeScope": "Allow access to files Fimmick AISO creates, then try again."
+    },
+    "tools": {
+      "groups": {
+        "audit": "Scan and improve",
+        "auditBody": "Checks, fixes and reports from saved work.",
+        "monitor": "Watch AI answers",
+        "monitorBody": "Visibility, questions, competitors and citations.",
+        "library": "Brand data and settings",
+        "libraryBody": "Facts, sources, reports and account settings.",
+        "admin": "Platform tools",
+        "adminBody": "Internal administration for this environment."
+      },
+      "entities": "Brand facts and approved inputs.",
+      "opportunities": "Prioritised gaps from saved scans.",
+      "observations": "What changed, with saved evidence.",
+      "sources": "Approved documents and imports.",
+      "prompts": "Questions tracked for AI visibility.",
+      "competitors": "Who appears beside the brand.",
+      "citations": "Sources AI answers cite.",
+      "admin": "Internal administration."
     },
     "nav": {
       "documents": "Documents & outputs",
@@ -523,6 +549,10 @@
         "sourceFlow": "View approved sources",
         "outputFlow": "View work items",
         "readScope": "Current approved, non-revoked version metadata only. Documents are not attached to an answer or model.",
+        "inputCount": "{count, plural, one {# input} other {# inputs}}",
+        "outputCount": "{count, plural, one {# output} other {# outputs}}",
+        "emptyInputs": "No approved brand inputs yet.",
+        "emptyOutputs": "No work outputs yet.",
         "approvedAt": "Approved: {date}",
         "importedAt": "Imported: {date}",
         "updatedAt": "Updated: {date}",

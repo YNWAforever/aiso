@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, type MouseEvent } from 'react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowUpRight, Ellipsis, FileText, Lock, MessageSquare, Unplug } from 'lucide-react'
+import { ArrowUpRight, Ellipsis, FileText, Lock, MessageSquare } from 'lucide-react'
 import { useStudioSession, type StudioThread } from '@/components/dashboard/StudioSession'
 import { groupThreads, matchesThread, relativeTime } from '@/lib/conversation-studio/thread-list'
 import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
@@ -12,6 +12,7 @@ import type { StudioConnection, StudioDriveConnection, StudioOutputs } from '@/l
 import type { StudioDfsBrandSettings } from '@/lib/conversation-studio/dfs-query'
 import type { StudioFirecrawlBrandSettings } from '@/lib/conversation-studio/firecrawl-query'
 import { buildStudioTools } from '@/lib/conversation-studio/navigation'
+import { gscConnectionStatus, type ConnectionTone } from '@/lib/conversation-studio/connection-view'
 import { studioSkill } from '@/lib/conversation-studio/skills'
 import { StudioConnectAssistant } from '@/components/dashboard/StudioConnectAssistant'
 import { StudioSectionHeader } from '@/components/dashboard/StudioSectionHeader'
@@ -115,20 +116,42 @@ export function StudioDocuments({ clientId, documents, outputs, showTabs = false
   const lang = useLocale()
   const base = `/${lang}/dashboard/${clientId}`
   return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="documents" showTabs={showTabs} title={t('nav.documents')} description={t('views.documents.description')} />
-    <section className="space-y-3" aria-labelledby="studio-brand-documents"><div className="as-section-heading"><h2 id="studio-brand-documents">{t('views.documents.inputs')}</h2><Link className="underline" href={`${base}/sources`}>{t('views.documents.sourceFlow')}</Link></div>
+    <section className="space-y-3" aria-labelledby="studio-brand-documents"><div className="as-section-heading"><div className="flex flex-wrap items-baseline gap-2"><h2 id="studio-brand-documents">{t('views.documents.inputs')}</h2>{documents && <span className="as-small as-muted">{t('views.documents.inputCount', { count: documents.items.length })}</span>}</div><Link className="underline" href={`${base}/sources`}>{t('views.documents.sourceFlow')}</Link></div>
       <p className="as-muted as-small">{t('views.documents.readScope')}</p>
-      {documents === null ? <p className="as-note">{t('readUnavailable')}</p> : !documents.items.length ? <p className="as-muted">{t('evidence.unknown')}</p> : <ul className="as-record-list">{documents.items.map(doc => <li key={doc.id}><Link className="as-record-link" href={`${base}/sources`}>
+      {documents === null ? <p className="as-note">{t('readUnavailable')}</p> : !documents.items.length ? <p className="as-muted">{t('views.documents.emptyInputs')}</p> : <ul className="as-record-list">{documents.items.map(doc => <li key={doc.id}><Link className="as-record-link" href={`${base}/sources`}>
         <FileText className="size-5 shrink-0 as-blue" aria-hidden="true" /><span className="min-w-0"><span className="block font-semibold">{doc.label}</span><span className="as-small as-muted block">{t('evidence.approvedVersion', { version: doc.versionNumber })} · {t('views.documents.approvedAt', { date: doc.approvedAt })}</span><span className="as-small as-muted block">{t('views.documents.importedAt', { date: doc.importedAt })}</span></span><ArrowUpRight className="size-4 shrink-0 ml-auto" aria-hidden="true" />
       </Link></li>)}</ul>}
       {documents?.truncated && <p className="as-note">{t('evidence.documentsTruncated')}</p>}
     </section>
-    <section className="space-y-3" aria-labelledby="studio-work-outputs"><div className="as-section-heading"><h2 id="studio-work-outputs">{t('views.documents.outputs')}</h2><Link className="underline" href={`${base}/tasks`}>{t('views.documents.outputFlow')}</Link></div>
-      {outputs === null ? <p className="as-note">{t('readUnavailable')}</p> : !outputs.items.length ? <p className="as-muted">{t('evidence.unknown')}</p> : <ul className="as-record-list">{outputs.items.map(item => <li key={item.id}><Link className="as-record-link" href={`${base}/work-items/${encodeURIComponent(item.id)}/versions`}>
+    <section className="space-y-3" aria-labelledby="studio-work-outputs"><div className="as-section-heading"><div className="flex flex-wrap items-baseline gap-2"><h2 id="studio-work-outputs">{t('views.documents.outputs')}</h2>{outputs && <span className="as-small as-muted">{t('views.documents.outputCount', { count: outputs.items.length })}</span>}</div><Link className="underline" href={`${base}/tasks`}>{t('views.documents.outputFlow')}</Link></div>
+      {outputs === null ? <p className="as-note">{t('readUnavailable')}</p> : !outputs.items.length ? <p className="as-muted">{t('views.documents.emptyOutputs')}</p> : <ul className="as-record-list">{outputs.items.map(item => <li key={item.id}><Link className="as-record-link" href={`${base}/work-items/${encodeURIComponent(item.id)}/versions`}>
         <FileText className="size-5 shrink-0 as-blue" aria-hidden="true" /><span className="min-w-0"><span className="block font-semibold">{item.title}</span><span className="as-small as-muted block">{t('views.documents.draftRevision', { revision: item.revision })} · {t('views.documents.updatedAt', { date: item.updatedAt })}</span></span><ArrowUpRight className="size-4 shrink-0 ml-auto" aria-hidden="true" />
       </Link></li>)}</ul>}
       {outputs?.truncated && <p className="as-note">{t('views.documents.outputsTruncated')}</p>}
     </section>
   </main>
+}
+
+function ConnectionRow({ id, title, status, tone, tag, action, children }: {
+  id: string
+  title: string
+  status: string
+  tone: ConnectionTone
+  tag?: string
+  action?: ReactNode
+  children?: ReactNode
+}) {
+  return <li className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+    <div className="min-w-0 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 id={id} className="font-semibold">{title}</h2>
+        <span className={tone === 'ok' ? 'as-badge as-badge-blue' : tone === 'neutral' ? 'as-badge' : 'as-badge as-badge-amber'}>{status}</span>
+        {tag && <span className="as-badge">{tag}</span>}
+      </div>
+      {children}
+    </div>
+    {action && <div className="flex flex-wrap gap-2 sm:justify-end">{action}</div>}
+  </li>
 }
 
 function DfsSettings({ clientId, settings }: { clientId: string; settings: StudioDfsBrandSettings }) {
@@ -148,16 +171,14 @@ function DfsSettings({ clientId, settings }: { clientId: string; settings: Studi
       setState('saved')
     } catch { setState('error') }
   }
-  return <section className="as-card space-y-3" aria-labelledby="studio-dfs-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-dfs-title">{t('evidence.dataForSeo')}</h2>
-    <p className="as-badge">{t(enabled ? 'connections.dfsEnabled' : 'connections.dfsDisabled')}</p>
-    <p className="as-badge as-pending">{t('connections.dfsSerpPending')}</p>
-    {!settings.credentialsConfigured && <p className="as-badge">{t('connections.disconnected')}</p>}
-    <p className="as-muted">{t('connections.dfsSettingsNote')}</p>
-    <button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={toggle}>{t(enabled ? 'connections.dfsDisable' : 'connections.dfsEnable')}</button>
+  return <ConnectionRow id="studio-dfs-title" title={t('evidence.dataForSeo')} status={t(!settings.credentialsConfigured ? 'connections.notConfigured' : enabled ? 'connections.dfsEnabled' : 'connections.dfsDisabled')} tone={settings.credentialsConfigured && enabled ? 'ok' : 'neutral'} tag={t('connections.planned')}
+    action={<button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={toggle}>{t(enabled ? 'connections.dfsDisable' : 'connections.dfsEnable')}</button>}>
+    <p className="as-small as-muted">{t('connections.dfsSettingsNote')}</p>
+    <p className="as-small as-muted">{t('connections.dfsSerpPending')}</p>
+    <p className="as-small as-muted">{t('honesty.mentionsCoverage')}</p>
     {state === 'saved' && <p className="as-note">{t('connections.dfsSettingsSaved')}</p>}
     {state === 'error' && <p role="alert" className="as-note">{t('connections.dfsSettingsError')}</p>}
-    <p className="as-muted">{t('honesty.mentionsCoverage')}</p>
-  </section>
+  </ConnectionRow>
 }
 
 function FirecrawlSettings({ clientId, settings }: { clientId: string; settings: StudioFirecrawlBrandSettings }) {
@@ -177,14 +198,12 @@ function FirecrawlSettings({ clientId, settings }: { clientId: string; settings:
       setState('saved')
     } catch { setState('error') }
   }
-  return <section className="as-card space-y-3" aria-labelledby="studio-firecrawl-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-firecrawl-title">{t('evidence.firecrawl')}</h2>
-    <p className="as-badge">{t(enabled ? 'connections.firecrawlEnabled' : 'connections.firecrawlDisabled')}</p>
-    {!settings.keyConfigured && <p className="as-badge">{t('connections.disconnected')}</p>}
-    <p className="as-muted">{t('connections.firecrawlSettingsNote')}</p>
-    <button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={toggle}>{t(enabled ? 'connections.firecrawlDisable' : 'connections.firecrawlEnable')}</button>
+  return <ConnectionRow id="studio-firecrawl-title" title={t('evidence.firecrawl')} status={t(!settings.keyConfigured ? 'connections.notConfigured' : enabled ? 'connections.firecrawlEnabled' : 'connections.firecrawlDisabled')} tone={settings.keyConfigured && enabled ? 'ok' : 'neutral'}
+    action={<button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={toggle}>{t(enabled ? 'connections.firecrawlDisable' : 'connections.firecrawlEnable')}</button>}>
+    <p className="as-small as-muted">{t('connections.firecrawlSettingsNote')}</p>
     {state === 'saved' && <p className="as-note">{t('connections.firecrawlSettingsSaved')}</p>}
     {state === 'error' && <p role="alert" className="as-note">{t('connections.firecrawlSettingsError')}</p>}
-  </section>
+  </ConnectionRow>
 }
 
 export type StudioDriveNotice = 'connected' | 'failed' | 'scope'
@@ -208,50 +227,80 @@ function DriveConnectionCard({ clientId, drive, notice }: { clientId: string; dr
       setState(data?.googleRevoked === false ? 'removeInGoogle' : 'idle')
     } catch { setState('error') }
   }
-  return <section className="as-card space-y-3" aria-labelledby="studio-drive-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-drive-title">{t('connections.driveTitle')}</h2>
+  const action = status === 'active'
+    ? <button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={disconnect}>{t('connections.driveDisconnect')}</button>
+    : <a href={connectHref} className="as-button inline-flex items-center gap-2 px-3">{t(status === 'needs_reconnect' ? 'connections.driveReconnect' : 'connections.driveConnect')}</a>
+  return <ConnectionRow id="studio-drive-title" title={t('connections.driveTitle')} status={status === 'active' ? t('connections.driveConnected') : status === 'needs_reconnect' ? t('connections.driveReconnectNeeded') : t('connections.disconnected')} tone={status === 'active' ? 'ok' : status === 'needs_reconnect' ? 'pending' : 'neutral'} action={action}>
     {notice === 'connected' && <p role="status" className="as-note">{t('connections.driveNoticeConnected')}</p>}
     {(notice === 'failed' || notice === 'scope') && <p role="alert" className="as-note">{t(notice === 'scope' ? 'connections.driveNoticeScope' : 'connections.driveNoticeFailed')}</p>}
-    <p className="as-badge">{status === 'active'
-      ? (drive.googleEmail ? t('connections.driveConnectedAs', { email: drive.googleEmail }) : t('connections.driveConnected'))
-      : status === 'needs_reconnect' ? t('connections.driveReconnectNeeded') : t('connections.disconnected')}</p>
-    <p className="as-muted">{t('connections.driveScope')}</p>
-    {status === 'active'
-      ? <button type="button" className="as-button px-3" disabled={state === 'saving'} onClick={disconnect}>{t('connections.driveDisconnect')}</button>
-      : <a href={connectHref} className="as-button inline-flex items-center gap-2 px-3">{t(status === 'needs_reconnect' ? 'connections.driveReconnect' : 'connections.driveConnect')}</a>}
+    {status === 'active' && drive.googleEmail && <p className="as-small as-muted">{t('connections.driveConnectedAs', { email: drive.googleEmail })}</p>}
+    <p className="as-small as-muted">{t('connections.driveScope')}</p>
     {state === 'error' && <p role="alert" className="as-note">{t('connections.driveDisconnectError')}</p>}
     {state === 'removeInGoogle' && <p role="status" className="as-note">{t('connections.driveRemoveInGoogle')}</p>}
-  </section>
+  </ConnectionRow>
 }
 
 export function StudioConnections({ clientId, connection, driveNotice, showTabs = false }: { clientId: string; connection: StudioConnection; driveNotice?: StudioDriveNotice; showTabs?: boolean }) {
   const t = useTranslations('conversationStudio')
   const lang = useLocale()
-  const state = connection.state
+  const gsc = gscConnectionStatus(connection)
   return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="connections" showTabs={showTabs} title={t('nav.connections')} description={t('views.connections.description')} />
-    <div className="as-connection-grid">
-      <section className="as-card space-y-3" aria-labelledby="studio-gsc-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-gsc-title">{t('connections.searchConsoleTitle')}</h2>
-        <p className="as-badge">{t(`sources.${connection.sourceStatus}`)}</p>
-        <p>{state ? t(`evidence.sync.${state.kind}`) : t('honesty.pending')}</p>
-        {state && 'dataThrough' in state && state.dataThrough && <p className="as-muted as-small">{t('evidence.dataThrough')}: {state.dataThrough}</p>}
-        <p className="as-muted">{t('connections.completenessPending')}</p><p className="as-note">{t('connections.savedOnly')}</p>
-        <Link href={`/${lang}/dashboard/${clientId}/assets`} className="as-button inline-flex items-center gap-2 px-3">{t('connections.viewScope')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link>
-      </section>
+    <ul className="as-record-list">
+      <ConnectionRow id="studio-gsc-title" title={t('connections.searchConsoleTitle')} status={t(gsc.labelKey)} tone={gsc.tone} action={<Link href={`/${lang}/dashboard/${clientId}/assets`} className="as-button inline-flex items-center gap-2 px-3">{t('connections.viewScope')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link>}>
+        <p className="as-small as-muted">{t('sources.notQueried')}</p>
+        {gsc.dataThrough && <p className="as-small as-muted">{t('evidence.dataThrough')}: {gsc.dataThrough}</p>}
+        {gsc.showCompleteness && <p className="as-small as-muted">{t('connections.completenessPending')}</p>}
+      </ConnectionRow>
       {connection.dfs
         ? <DfsSettings clientId={clientId} settings={connection.dfs} />
-        : <section className="as-card space-y-3" aria-labelledby="studio-dfs-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-dfs-title">{t('evidence.dataForSeo')}</h2><p className="as-badge as-pending">{t('connections.hkEndpointPending')}</p><p>{t('connections.disconnected')}</p><p className="as-muted">{t('honesty.mentionsCoverage')}</p></section>}
+        : <ConnectionRow id="studio-dfs-title" title={t('evidence.dataForSeo')} status={t('connections.settingsUnavailable')} tone="neutral" tag={t('connections.planned')}>
+          <p className="as-small as-muted">{t('readUnavailable')}</p>
+        </ConnectionRow>}
       {connection.firecrawl
         ? <FirecrawlSettings clientId={clientId} settings={connection.firecrawl} />
-        : <section className="as-card space-y-3" aria-labelledby="studio-firecrawl-title"><Unplug className="size-5 as-blue" aria-hidden="true" /><h2 id="studio-firecrawl-title">{t('evidence.firecrawl')}</h2><p className="as-badge">{t('connections.disconnected')}</p><p className="as-muted">{t('connections.firecrawlScope')}</p></section>}
+        : <ConnectionRow id="studio-firecrawl-title" title={t('evidence.firecrawl')} status={t('connections.settingsUnavailable')} tone="neutral">
+          <p className="as-small as-muted">{t('readUnavailable')}</p>
+        </ConnectionRow>}
       {connection.drive && <DriveConnectionCard clientId={clientId} drive={connection.drive} notice={driveNotice} />}
-    </div>
+    </ul>
+    <p className="as-small as-muted">{t('connections.readScopeNote')}</p>
   </main>
+}
+
+const STUDIO_TOOL_GROUPS = [
+  { key: 'audit', items: ['overview', 'scan', 'results', 'improve', 'opportunities'] },
+  { key: 'monitor', items: ['monitor', 'roi', 'observations', 'prompts', 'competitors', 'citations'] },
+  { key: 'library', items: ['entities', 'sources', 'reports', 'account'] },
+  { key: 'admin', items: ['admin'] },
+] as const
+
+const TOOL_NAV_DESCRIPTIONS: Record<string, string> = {
+  overview: 'nav_overview_desc', scan: 'nav_scan_desc', results: 'nav_results_desc', improve: 'nav_improve_desc',
+  monitor: 'nav_monitor_desc', roi: 'nav_roi_desc', reports: 'nav_reports_desc', account: 'nav_account_desc',
 }
 
 export function StudioTools({ clientId, features, admin, mcpEnabled = false, showTabs = false }: { clientId: string; features: NavFeatures; admin: boolean; mcpEnabled?: boolean; showTabs?: boolean }) {
   const t = useTranslations('conversationStudio')
   const dashboard = useTranslations('dashboard')
   const lang = useLocale()
-  return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="tools" showTabs={showTabs} title={t('nav.tools')} description={t('views.tools.description')} /><div className="as-tool-grid">{buildStudioTools({ lang, clientId, features, admin, conversationStudio: true }).map(tool => <Link key={tool.key} href={tool.href} className="as-card as-tool flex items-center gap-3">
-    <span className="min-w-0 flex-1 font-semibold">{dashboard(tool.labelKey)}</span>{tool.locked && <Lock className="size-4 shrink-0" aria-label={t('planRequired')} />}{tool.badge && <span className="as-badge">{tool.badge}</span>}<ArrowUpRight className="size-4 shrink-0 as-blue" aria-hidden="true" />
-  </Link>)}</div>{mcpEnabled && <StudioConnectAssistant clientId={clientId} />}</main>
+  const tools = buildStudioTools({ lang, clientId, features, admin, conversationStudio: true })
+  return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="tools" showTabs={showTabs} title={t('nav.tools')} description={t('views.tools.description')} />
+    <div className="space-y-6">{STUDIO_TOOL_GROUPS.map(group => {
+      const items = tools.filter(tool => (group.items as readonly string[]).includes(tool.key))
+      if (!items.length) return null
+      return <section key={group.key} aria-labelledby={`studio-tools-${group.key}`} className="space-y-3">
+        <div className="space-y-1"><h2 id={`studio-tools-${group.key}`}>{t(`tools.groups.${group.key}`)}</h2><p className="as-small as-muted">{t(`tools.groups.${group.key}Body`)}</p></div>
+        <div className="as-tool-grid">{items.map(tool => {
+          const navKey = TOOL_NAV_DESCRIPTIONS[tool.key]
+          return <Link key={tool.key} href={tool.href} className="as-card as-tool flex items-start gap-3">
+            <span className="min-w-0 flex-1"><span className="block font-semibold">{dashboard(tool.labelKey)}</span><span className="as-small as-muted mt-1 block">{navKey ? dashboard(navKey) : t(`tools.${tool.key}`)}</span></span>
+            {tool.locked && <Lock className="size-4 shrink-0" aria-label={t('planRequired')} />}
+            {tool.badge && <span className="as-badge">{tool.badge}</span>}
+            <ArrowUpRight className="size-4 shrink-0 as-blue" aria-hidden="true" />
+          </Link>
+        })}</div>
+      </section>
+    })}</div>
+    {mcpEnabled && <StudioConnectAssistant clientId={clientId} />}
+  </main>
 }
