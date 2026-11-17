@@ -2746,6 +2746,8 @@
   "generatedWork": {
     "reviewDraftEvidence": "查看證據，開始私人草稿",
     "draftEvidenceNotice": "草稿資格會另外按最新已保存嘅監測同掃描證據檢查，唔係按呢啲生成建議判斷。",
+    "actionTitle": "下一步",
+    "selectedScan": "目前掃描",
     "title": "已生成的建議",
     "generateImprove": "生成審閱建議",
     "checkStatus": "查看已儲存的生成狀態",
