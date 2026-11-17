@@ -50,6 +50,32 @@ describe('BrandToday', () => {
     expect(html).toContain('detailsIntro')
   })
 
+  it('labels the onboarding handoff as a first task and shows the path', async () => {
+    const workspace = home({
+      nextStep: { kind: 'confirm_prompts', labelKey: 'configure', href: '/__locale__/dashboard/c1/prompts' },
+      gettingStarted: { done: 1, steps: [{ key: 'brand', state: 'done' }, { key: 'scan', state: 'current' }, { key: 'fixes', state: 'todo' }, { key: 'questions', state: 'todo' }] },
+    })
+    const html = await render({ workspace, lang: 'en', chatEnabled: false, clientReportsOnline: true })
+    expect(html).toContain('firstTask.caption')
+    expect(html).not.toContain('actionCaption')
+    expect(html).toContain('firstTask.why.questions')
+    expect(html).toContain('firstTask.path.questions')
+    expect(html).toContain('firstTask.path.baseline')
+    expect(html).toContain('aria-current="step"')
+  })
+
+  it('shows the honest note for a first change without pretending a baseline exists', async () => {
+    const workspace = home({
+      nextStep: { kind: 'confirm_prompts', labelKey: 'configure', href: '/__locale__/dashboard/c1/prompts' },
+      priorities: { state: 'ready', priorities: [], primaryAction: { checkKey: 'c1_robots', bucket: 'core', assessment: 'fail', pointsAtStake: 6 }, needsEvidence: [], observedFindings: 1 },
+      gettingStarted: { done: 2, steps: [{ key: 'brand', state: 'done' }, { key: 'scan', state: 'done' }, { key: 'fixes', state: 'current' }, { key: 'questions', state: 'todo' }] },
+    })
+    const html = await render({ workspace, lang: 'en', chatEnabled: false, clientReportsOnline: true })
+    expect(html).toContain('firstTask.caption')
+    expect(html).toContain('firstTask.firstChangeNote')
+    expect(html).not.toContain('firstTask.pathLabel')
+  })
+
   it('hides the composer when Chat is not enabled and marks the account home', async () => {
     const html = await render({ workspace: home(), lang: 'en', chatEnabled: false, clientReportsOnline: true, accountHome: true })
     expect(html).not.toContain('today-ask')

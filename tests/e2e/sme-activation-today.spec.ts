@@ -44,6 +44,11 @@ for (const lang of ['en', 'zh-HK'] as const) for (const width of [320, 390, 768,
         await page.keyboard.press('Tab')
         await expect(links.nth(1)).toBeFocused()
       }
+      if (state === 'setup') {
+        await expect(hero).toContainText(copy.firstTask.caption)
+        await expect(hero).toContainText(copy.firstTask.why.questions)
+        await expect(hero.getByRole('list', { name: copy.firstTask.pathLabel })).toBeVisible()
+      }
       if (state === 'recorded') {
         await expect(hero).toContainText(copy.savedWork.status.delivered)
         await expect(hero).not.toContainText(/verified|已驗證|verified_live/i)

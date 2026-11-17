@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { ArrowRight, ChevronDown, FileText, Radio, ScanSearch, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, FileText, Radio, ScanSearch, Sparkles } from 'lucide-react'
 import { Illustration } from '@/components/ui/illustration'
 import { MonthlyReportEntry } from '@/components/reports/MonthlyReportEntry'
 import { OverviewStats } from '@/components/dashboard/overview/OverviewStats'
@@ -33,6 +33,10 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
   const explanations = getCheckExplanations(lang)
 
   const action = view.action
+  const firstTask = view.firstTask
+  const firstTaskSteps = firstTask?.kind === 'questions' || firstTask?.kind === 'baseline'
+    ? ['questions', 'baseline', 'change'] as const
+    : null
   const actionSentence = action.kind === 'saved_work'
     ? t('savedWork.continue', { title: action.title })
     : action.kind === 'fix'
@@ -73,10 +77,11 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <Illustration name={view.illustration} className="h-14 w-20 shrink-0" />
         <div className="min-w-0 flex-1">
-          <h2 id="today-action-heading" className="text-xs font-bold uppercase tracking-wider text-primary-accessible">{t('actionCaption')}</h2>
+          <h2 id="today-action-heading" className="text-xs font-bold uppercase tracking-wider text-primary-accessible">{t(firstTask ? 'firstTask.caption' : 'actionCaption')}</h2>
           <p className="mt-1 text-base font-semibold text-foreground">{actionSentence}</p>
           {actionDetail && <p className="mt-0.5 text-sm text-muted-foreground">{actionDetail}</p>}
           {actionReason && <p className="mt-0.5 text-sm text-muted-foreground">{actionReason}</p>}
+          {firstTask && <p className="mt-1 text-sm text-muted-foreground">{t(`firstTask.why.${firstTask.kind}`)}</p>}
         </div>
         {action.kind !== 'none' && <Link
           href={action.href}
@@ -87,6 +92,19 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
           <ArrowRight aria-hidden="true" className="size-4" />
         </Link>}
       </div>
+      {firstTaskSteps && <ol aria-label={t('firstTask.pathLabel')} className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-primary/20 pt-3 text-xs">
+        {firstTaskSteps.map((taskStep, index) => {
+          const current = taskStep === firstTask?.kind
+          const done = firstTask?.kind === 'baseline' && taskStep === 'questions'
+          return <li key={taskStep} aria-current={current ? 'step' : undefined} className={`flex items-center gap-1.5 ${current ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+            <span aria-hidden="true" className={`flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${done ? 'bg-tone-success-soft text-tone-success-fg' : current ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+              {done ? <Check className="size-3" /> : index + 1}
+            </span>
+            {t(`firstTask.path.${taskStep}`)}
+          </li>
+        })}
+      </ol>}
+      {firstTask?.kind === 'first_change' && <p className="mt-3 border-t border-primary/20 pt-3 text-sm text-muted-foreground">{t('firstTask.firstChangeNote')}</p>}
       {view.savedWork?.state === 'ready' && action.kind !== 'saved_work' && (
         view.savedWork.href === action.href
           ? <p className="mt-3 text-sm text-muted-foreground">{view.savedWork.title} · {t(`savedWork.status.${view.savedWork.status}`)}</p>

@@ -81,6 +81,29 @@ describe('buildTodayView', () => {
     const view = buildTodayView(home({ gettingStarted: { done: 1, steps: [{ key: 'brand', state: 'done' }, { key: 'scan', state: 'current' }, { key: 'fixes', state: 'todo' }, { key: 'questions', state: 'todo' }] } }), { lang: 'en' })
     expect(view.setup).toEqual({ remaining: 3, currentKey: 'scan' })
   })
+
+  const firstRun: WorkspaceHome['gettingStarted'] = { done: 1, steps: [{ key: 'brand', state: 'done' }, { key: 'scan', state: 'current' }, { key: 'fixes', state: 'todo' }, { key: 'questions', state: 'todo' }] }
+
+  it('frames the one onboarding handoff while the first-run checklist is open', () => {
+    const questions = buildTodayView(home({ nextStep: { kind: 'confirm_prompts', href: '/en/dashboard/c1/prompts', labelKey: 'configure' }, gettingStarted: firstRun }), { lang: 'en' })
+    expect(questions.firstTask).toEqual({ kind: 'questions' })
+    const baseline = buildTodayView(home({ nextStep: { kind: 'start_run', href: '/en/dashboard/c1?step=monitor#first-monitoring', labelKey: 'start' }, gettingStarted: firstRun }), { lang: 'en' })
+    expect(baseline.firstTask).toEqual({ kind: 'baseline', blocked: false })
+    const blocked = buildTodayView(home({ nextStep: { kind: 'monitoring_status', href: '/en/dashboard/c1?step=monitor#first-monitoring', labelKey: 'status', reasonKey: 'paused' }, gettingStarted: firstRun }), { lang: 'en' })
+    expect(blocked.firstTask).toEqual({ kind: 'baseline', blocked: true })
+    const firstChange = buildTodayView(home({ nextStep: { kind: 'confirm_prompts', href: '/en/dashboard/c1/prompts', labelKey: 'configure' }, priorities: { primaryAction: fixPriority }, health, gettingStarted: firstRun }), { lang: 'en' })
+    expect(firstChange.firstTask).toEqual({ kind: 'first_change' })
+  })
+
+  it('does not call an established brand’s ordinary action a first task', () => {
+    const view = buildTodayView(home({ nextStep: { kind: 'confirm_prompts', href: '/en/dashboard/c1/prompts', labelKey: 'configure' }, priorities: { primaryAction: fixPriority }, health }), { lang: 'en' })
+    expect(view.firstTask).toBeNull()
+  })
+
+  it('keeps review steps out of the onboarding framing', () => {
+    const view = buildTodayView(home({ nextStep: { kind: 'review_opportunity', href: '/en/dashboard/c1/opportunities', labelKey: 'opportunities' }, gettingStarted: firstRun }), { lang: 'en' })
+    expect(view.firstTask).toBeNull()
+  })
 })
 
 const savedTask = (status: TaskRow['status'] = 'draft', id = 'work-1'): TaskRow => ({ id, title: `Repair ${id}`, status, checkKey: null, versionNumber: status === 'draft' ? null : 2, updatedAt: '2026-11-14T00:00:00Z' })

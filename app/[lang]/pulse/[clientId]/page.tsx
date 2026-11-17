@@ -3,7 +3,7 @@ import {notFound} from 'next/navigation'
 import {requireAuth} from '@/lib/auth'
 import {loadOwnedPulse} from '@/lib/workspace/load-owned-pulse'
 import {buildPulseView} from '@/lib/view-models/pulse'
-import {ObservedPulseView} from '@/components/pulse/ObservedPulseView'
+import {PulseReportView} from '@/components/pulse/PulseReportView'
 import {ShareOfVoiceBenchmark} from '@/components/pulse/ShareOfVoiceBenchmark'
 import {db} from '@/lib/db'
 import {readShareOfVoice,type ShareOfVoiceView} from '@/lib/pulse/share-of-voice'
@@ -18,5 +18,5 @@ export default async function PulsePage({params}:{params:Promise<{lang:string;cl
  let sov:{state:'ok'|'error';view:ShareOfVoiceView|null}
  try{sov={state:'ok',view:await readShareOfVoice(db(),profile.account_id,clientId)}}catch{console.error('[pulse-view] share of voice read failed');sov={state:'error',view:null}}
  const sovCopy=(lang==='zh-HK'?zhHK:en).shareOfVoice
- return <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 sm:px-6"><h1 className="mb-4 text-2xl font-bold">{owned.client.brand_name} · {copy.title}</h1><Link href={`/${lang}/dashboard/${clientId}?step=monitor`} className="mb-5 inline-flex min-h-11 items-center text-sm text-primary-accessible underline">{copy.back}</Link><Link href={`/${lang}/dashboard/${clientId}/prompts`} className="mb-5 ml-4 inline-flex min-h-11 items-center text-sm text-primary-accessible underline">{copy.prompts}</Link><ObservedPulseView view={buildPulseView(owned)} lang={lang}/><ShareOfVoiceBenchmark state={sov.state} view={sov.view} copy={sovCopy} lang={lang} clientId={clientId}/></main>
+ return <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 sm:px-6"><h1 className="mb-4 text-2xl font-bold">{owned.client.brand_name} · {copy.title}</h1><nav aria-label={copy.title} className="mb-5 flex flex-wrap gap-4"><Link href={`/${lang}/dashboard/${clientId}?step=monitor`} className="inline-flex min-h-11 items-center text-sm text-primary-accessible underline">{copy.back}</Link><Link href={`/${lang}/dashboard/${clientId}/prompts`} className="inline-flex min-h-11 items-center text-sm text-primary-accessible underline">{copy.prompts}</Link></nav><PulseReportView view={buildPulseView(owned)} lang={lang}/><ShareOfVoiceBenchmark state={sov.state} view={sov.view} copy={sovCopy} lang={lang} clientId={clientId}/></main>
 }

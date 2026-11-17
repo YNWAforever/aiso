@@ -2647,6 +2647,17 @@
   "pulseView": {
     "title": "AI 可見度觀測",
     "intro": "已儲存的答案觀測，並非供應商請求成功率或歸因改善成效。",
+    "report": {
+      "eyebrow": "AI 能見度基準",
+      "whatChanged": "有咩變化",
+      "changeUnavailable": "暫時未有可比較嘅上一週。第一次基準就係起點。",
+      "next": "下一步做咩",
+      "nextBaseline": "開始第一次基準",
+      "nextImprove": "睇改善工作",
+      "nextRetry": "開啟監測",
+      "nextBody": "用未被提及嘅問題做證據，等下一週可比較時再檢查。",
+      "evidence": "證據與方法"
+    },
     "empty": "未有可用的觀測資料。",
     "error": "此部分暫時無法載入，請稍後重新整理。",
     "freshness": "資料新鮮度：未知",
@@ -5551,6 +5562,21 @@
     "summary": "一件要做嘅事、一個提問方法，其餘放喺詳情。",
     "actionCaption": "你嘅下一步",
     "actionNone": "最新已保存嘅掃描冇需要處理嘅事項。",
+    "firstTask": {
+      "caption": "你嘅第一個任務",
+      "why": {
+        "questions": "先確認 AI 應該問咩，第一次基準先會有意義。",
+        "baseline": "第一次基準會俾你一個起點，之後先可以比較。",
+        "first_change": "由已保存掃描入面最高價值嘅檢查開始。"
+      },
+      "pathLabel": "首次流程",
+      "path": {
+        "questions": "確認問題",
+        "baseline": "第一次基準",
+        "change": "第一次改善"
+      },
+      "firstChangeNote": "喺下一個可比較基準出現之前，我哋唔會聲稱改善咗。"
+    },
     "fixSentence": "建議先處理：{check}",
     "fixDetail": "最多值 {n} 分",
     "askLabel": "或者直接問 AI",
