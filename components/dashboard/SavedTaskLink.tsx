@@ -7,7 +7,7 @@ import { ArrowRight, NotebookPen } from 'lucide-react'
  * calling page so the row keeps the surrounding card's voice in both locales.
  */
 export type SavedTaskLinkProps =
-  | { state: 'ready'; href: string; title: string; when: string | null; label: string }
+  | { state: 'ready'; href: string; title: string; detail: string; when: string | null; label: string }
   | { state: 'unavailable'; label: string }
 
 export function SavedTaskLink(props: SavedTaskLinkProps) {
@@ -23,6 +23,7 @@ export function SavedTaskLink(props: SavedTaskLinkProps) {
     <span className="min-w-0 flex-1">
       <span className="block text-xs font-semibold uppercase tracking-wider text-primary-accessible">{props.label}</span>
       <span className="mt-0.5 block break-words">{props.title}</span>
+      <span className="mt-0.5 block truncate text-xs font-normal text-muted-foreground" title={props.detail}>{props.detail}</span>
     </span>
     {props.when && <span className="shrink-0 text-xs font-medium text-muted-foreground">{props.when}</span>}
     <ArrowRight aria-hidden="true" className="size-4 shrink-0" />

@@ -85,12 +85,27 @@ describe('BrandToday', () => {
   it('puts the saved discussion for this task back on the card', async () => {
     const html = await render({
       workspace: home(), lang: 'en', chatEnabled: true, clientReportsOnline: true,
-      savedDiscussion: { state: 'ready', thread: { id: '22222222-2222-4222-8222-222222222222', title: 'Why the brand was missed', updatedAt: '2026-11-15T00:00:00Z', turnCount: 2, skill: 'visibility_now', visibility: 'private', mine: true } },
+      savedDiscussion: { state: 'ready', thread: { id: '22222222-2222-4222-8222-222222222222', title: 'Why the brand was missed', updatedAt: '2026-11-15T00:00:00Z', turnCount: 2, outcomeExcerpt: 'Saved answer excerpt', skill: 'visibility_now', visibility: 'private', mine: true } },
     })
     expect(html).toContain('savedDiscussion.label')
     expect(html).toContain('Why the brand was missed')
+    expect(html).toContain('Saved answer excerpt')
     expect(html).toContain('href="/en/dashboard/c1/studio?thread=22222222-2222-4222-8222-222222222222"')
     expect(html).not.toContain('savedDiscussion.unavailable')
+  })
+
+  it('shows the stored result on the Fix card instead of a generic discussion label', async () => {
+    const html = await render({
+      workspace: home({
+        nextStep: { kind: 'monitoring_status', href: '/en/dashboard/c1?step=monitor', labelKey: 'start' },
+        priorities: { state: 'ready', priorities: [], primaryAction: { checkKey: 'c1_robots', bucket: 'core', assessment: 'fail', pointsAtStake: 6 }, needsEvidence: [], observedFindings: 1 },
+      }),
+      lang: 'en', chatEnabled: true, clientReportsOnline: true,
+      savedDiscussion: { state: 'ready', thread: { id: '22222222-2222-4222-8222-222222222222', title: 'Robots fix notes', updatedAt: '2026-11-15T00:00:00Z', turnCount: 2, outcomeExcerpt: 'Saved answer excerpt', skill: 'improve_page', visibility: 'private', mine: true } },
+    })
+    expect(html).toContain('savedDiscussion.recorded')
+    expect(html).toContain('Saved answer excerpt')
+    expect(html).not.toContain('savedDiscussion.label')
   })
 
   it('names a failed saved-discussion read instead of showing an empty card', async () => {

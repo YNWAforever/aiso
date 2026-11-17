@@ -41,7 +41,7 @@ it('loads the saved discussion for the same task the SME home hands to Chat', as
   vi.stubEnv('FEATURE_SME_COPILOT_UI', '1')
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
   mocks.today.mockReturnValue({ chatTask: 'pulse' })
-  mocks.savedTask.mockResolvedValue({ state: 'ready', thread: { id: 'thread-a', title: 'Saved answer', updatedAt: '2026-11-17T00:00:00Z', turnCount: 1, skill: 'visibility_now', visibility: 'private', mine: true } })
+  mocks.savedTask.mockResolvedValue({ state: 'ready', thread: { id: 'thread-a', title: 'Saved answer', updatedAt: '2026-11-17T00:00:00Z', turnCount: 1, outcomeExcerpt: null, skill: 'visibility_now', visibility: 'private', mine: true } })
   const page = await render({ step: 'home' })
   expect(mocks.savedTask).toHaveBeenCalledExactlyOnceWith({ accountId: 'account-a', profileId: 'profile-a', clientId: 'client-a', task: 'pulse' })
   expect(page.props.savedDiscussion).toMatchObject({ state: 'ready', thread: { id: 'thread-a' } })

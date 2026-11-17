@@ -2659,6 +2659,8 @@
       "askAi": "Ask AI about this report",
       "askPrompt": "Using this week's saved answers, explain why my brand was missed and what I should review first. Do not invent measurements.",
       "savedDiscussion": "Your saved discussion",
+      "savedTurnOne": "1 turn",
+      "savedTurnCount": "{count} turns",
       "savedDiscussionUnavailable": "Saved discussion could not be read.",
       "evidence": "Evidence and method"
     },
@@ -5615,6 +5617,8 @@
     "oneBrandEyebrow": "Your brand",
     "savedDiscussion": {
       "label": "Your saved discussion",
+      "recorded": "Recorded result",
+      "turnCount": "{count, plural, one {# turn} other {# turns}}",
       "unavailable": "Saved discussion could not be read."
     },
     "savedWork": {

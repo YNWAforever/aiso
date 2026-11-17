@@ -29,10 +29,10 @@ const improve = '40000000-0000-4000-8000-000000000005'
 const legacy = '40000000-0000-4000-8000-000000000006'
 const foreign = '40000000-0000-4000-8000-000000000007'
 
-function turn(threadId: string, profileId: string, position: number, task: string, brand = client) {
+function turn(threadId: string, profileId: string, position: number, task: string, brand = client, reply: unknown = {}) {
   return state.pg!.query(
-    'insert into studio_thread_turns(id,thread_id,account_id,client_id,profile_id,position,task) values(gen_random_uuid(),$1,$2,$3,$4,$5,$6)',
-    [threadId, brand === foreignClient ? otherAccount : account, brand, profileId, position, task],
+    'insert into studio_thread_turns(id,thread_id,account_id,client_id,profile_id,position,task,reply) values(gen_random_uuid(),$1,$2,$3,$4,$5,$6,$7::jsonb)',
+    [threadId, brand === foreignClient ? otherAccount : account, brand, profileId, position, task, JSON.stringify(reply)],
   )
 }
 
@@ -60,7 +60,7 @@ beforeAll(async () => {
     create table studio_threads(id uuid primary key, account_id uuid, client_id uuid, profile_id uuid, title text,
       skill text, visibility text, archived_at timestamptz, updated_at timestamptz);
     create table studio_thread_turns(id uuid primary key, thread_id uuid, account_id uuid, client_id uuid,
-      profile_id uuid, position int, task text);
+      profile_id uuid, position int, task text, reply jsonb);
   `)
   await thread(own, me, { title: 'Own pulse', skill: 'visibility_now', updatedAt: '2026-11-16T00:00:00Z' })
   await thread(shared, teammate, { title: 'Shared pulse', skill: 'visibility_now', updatedAt: '2026-11-18T00:00:00Z', visibility: 'shared' })
@@ -71,7 +71,7 @@ beforeAll(async () => {
   await thread(foreign, me, { title: 'Foreign pulse', skill: 'visibility_now', updatedAt: '2026-11-21T00:00:00Z', brand: foreignClient })
   await turn(own, me, 1, 'pulse')
   await turn(shared, teammate, 1, 'pulse')
-  await turn(shared, teammate, 2, 'pulse')
+  await turn(shared, teammate, 2, 'pulse', client, { observations: [{ excerpt: '**Shared answer line**' }] })
   await turn(privateOther, teammate, 1, 'pulse')
   await turn(archived, me, 1, 'pulse')
   await turn(improve, me, 1, 'improve')
@@ -86,7 +86,7 @@ it('returns the newest visible saved discussion for the exact task', async () =>
   const read = await loadSavedTaskThread({ accountId: account, profileId: me, clientId: client, task: 'pulse' })
   expect(read).toMatchObject({
     state: 'ready',
-    thread: { id: shared, title: 'Shared pulse', turnCount: 2, skill: 'visibility_now', visibility: 'shared', mine: false },
+    thread: { id: shared, title: 'Shared pulse', turnCount: 2, outcomeExcerpt: 'Shared answer line', skill: 'visibility_now', visibility: 'shared', mine: false },
   })
   if (read.state === 'ready') expect(Date.parse(read.thread.updatedAt)).toBe(Date.parse('2026-11-18T00:00:00Z'))
 })

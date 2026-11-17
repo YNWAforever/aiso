@@ -2659,6 +2659,8 @@
       "askAi": "問 AI 呢份報告",
       "askPrompt": "用今個星期已儲存嘅答案，解釋我嘅品牌點解未被提及，同埋我應該先檢查咩。唔好自行創作數字。",
       "savedDiscussion": "你嘅已儲存討論",
+      "savedTurnOne": "1 輪",
+      "savedTurnCount": "共 {count} 輪",
       "savedDiscussionUnavailable": "暫時讀取唔到已儲存嘅討論。",
       "evidence": "證據與方法"
     },
@@ -5615,6 +5617,8 @@
     "oneBrandEyebrow": "你嘅品牌",
     "savedDiscussion": {
       "label": "你嘅已儲存討論",
+      "recorded": "已記錄結果",
+      "turnCount": "共 {count} 輪",
       "unavailable": "暫時讀取唔到已儲存嘅討論。"
     },
     "savedWork": {
