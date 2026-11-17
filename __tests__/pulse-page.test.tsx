@@ -1,4 +1,5 @@
 import {beforeEach,expect,it,vi} from 'vitest'
+vi.mock('server-only',()=>({}))
 const mocks=vi.hoisted(()=>({auth:vi.fn(),load:vi.fn()}))
 vi.mock('@/lib/auth',()=>({requireAuth:mocks.auth}))
 vi.mock('@/lib/workspace/load-owned-pulse',()=>({loadOwnedPulse:mocks.load}))

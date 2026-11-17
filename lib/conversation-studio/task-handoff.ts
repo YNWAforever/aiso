@@ -10,6 +10,7 @@ import { STUDIO_PROMPT_LIMIT } from './live-types'
  */
 export const STUDIO_TASK_PARAM = 'task'
 export const STUDIO_ASK_PARAM = 'ask'
+export const STUDIO_THREAD_PARAM = 'thread'
 
 export function readStudioTask(value: unknown): StudioHomeTemplate | null {
   return typeof value === 'string' && (STUDIO_HOME_TEMPLATES as readonly string[]).includes(value)
@@ -36,4 +37,10 @@ export function studioTaskHref(input: {
   if (task) params.set(STUDIO_TASK_PARAM, task)
   const base = `/${input.lang}/dashboard/${encodeURIComponent(input.clientId)}/studio`
   return params.size ? `${base}?${params.toString()}` : base
+}
+
+/** The return path: reopen the exact saved Studio thread rather than a new one. */
+export function studioThreadHref(input: { lang: string; clientId: string; threadId: string }): string {
+  const base = `/${input.lang}/dashboard/${encodeURIComponent(input.clientId)}/studio`
+  return input.threadId ? `${base}?${STUDIO_THREAD_PARAM}=${encodeURIComponent(input.threadId)}` : base
 }

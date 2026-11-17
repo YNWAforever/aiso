@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STUDIO_HOME_TEMPLATES } from '@/lib/conversation-studio/home'
-import { readStudioAsk, readStudioTask, studioTaskHref } from '@/lib/conversation-studio/task-handoff'
+import { readStudioAsk, readStudioTask, studioTaskHref, studioThreadHref } from '@/lib/conversation-studio/task-handoff'
 
 const clientId = '11111111-1111-4111-8111-111111111111'
 const base = `/en/dashboard/${clientId}/studio`
@@ -30,5 +30,11 @@ describe('studio task handoff', () => {
   it('encodes both path and question components', () => {
     const href = studioTaskHref({ lang: 'zh-HK', clientId: 'brand & co', task: 'improve', ask: '點解？' })
     expect(href).toBe(`/zh-HK/dashboard/brand%20%26%20co/studio?ask=${encodeURIComponent('點解？')}&task=improve`)
+  })
+
+  it('opens the exact saved thread for the return path', () => {
+    const threadId = '22222222-2222-4222-8222-222222222222'
+    expect(studioThreadHref({ lang: 'en', clientId, threadId })).toBe(`${base}?thread=${threadId}`)
+    expect(studioThreadHref({ lang: 'zh-HK', clientId: 'brand & co', threadId })).toBe(`/zh-HK/dashboard/brand%20%26%20co/studio?thread=${threadId}`)
   })
 })

@@ -87,22 +87,28 @@ describe('buildTodayView', () => {
   it('frames the one onboarding handoff while the first-run checklist is open', () => {
     const questions = buildTodayView(home({ nextStep: { kind: 'confirm_prompts', href: '/en/dashboard/c1/prompts', labelKey: 'configure' }, gettingStarted: firstRun }), { lang: 'en' })
     expect(questions.firstTask).toEqual({ kind: 'questions' })
+    expect(questions.chatTask).toBe('pulse')
     const baseline = buildTodayView(home({ nextStep: { kind: 'start_run', href: '/en/dashboard/c1?step=monitor#first-monitoring', labelKey: 'start' }, gettingStarted: firstRun }), { lang: 'en' })
     expect(baseline.firstTask).toEqual({ kind: 'baseline', blocked: false })
+    expect(baseline.chatTask).toBe('pulse')
     const blocked = buildTodayView(home({ nextStep: { kind: 'monitoring_status', href: '/en/dashboard/c1?step=monitor#first-monitoring', labelKey: 'status', reasonKey: 'paused' }, gettingStarted: firstRun }), { lang: 'en' })
     expect(blocked.firstTask).toEqual({ kind: 'baseline', blocked: true })
+    expect(blocked.chatTask).toBe('pulse')
     const firstChange = buildTodayView(home({ nextStep: { kind: 'confirm_prompts', href: '/en/dashboard/c1/prompts', labelKey: 'configure' }, priorities: { primaryAction: fixPriority }, health, gettingStarted: firstRun }), { lang: 'en' })
     expect(firstChange.firstTask).toEqual({ kind: 'first_change' })
+    expect(firstChange.chatTask).toBe('improve')
   })
 
   it('does not call an established brand’s ordinary action a first task', () => {
     const view = buildTodayView(home({ nextStep: { kind: 'confirm_prompts', href: '/en/dashboard/c1/prompts', labelKey: 'configure' }, priorities: { primaryAction: fixPriority }, health }), { lang: 'en' })
     expect(view.firstTask).toBeNull()
+    expect(view.chatTask).toBe('improve')
   })
 
   it('keeps review steps out of the onboarding framing', () => {
     const view = buildTodayView(home({ nextStep: { kind: 'review_opportunity', href: '/en/dashboard/c1/opportunities', labelKey: 'opportunities' }, gettingStarted: firstRun }), { lang: 'en' })
     expect(view.firstTask).toBeNull()
+    expect(view.chatTask).toBeNull()
   })
 })
 

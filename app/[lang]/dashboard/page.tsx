@@ -5,6 +5,8 @@ import { loadOwnedPortfolio } from '@/lib/workspace/load-owned-portfolio'
 import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 import { buildPortfolio } from '@/lib/view-models/portfolio'
 import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
+import { buildTodayView } from '@/lib/view-models/today'
+import { loadSavedTaskThread, type SavedTaskRead } from '@/lib/conversation-studio/saved-task'
 import type { MonthlyReportHomeEntry } from '@/lib/view-models/workspace-home'
 import { currentMonthReport } from '@/lib/monthly-report/report-entry'
 import { listMonthlyReports } from '@/lib/monthly-report/store'
@@ -76,13 +78,22 @@ export default async function DashboardPage({params}: {params:Promise<{lang:stri
         <p className="mt-3 text-sm text-muted-foreground">{todayT('loadErrorBody')}</p>
       </main>
     }
-    if (workspace) return <BrandToday
-      workspace={workspace}
-      lang={lang}
-      chatEnabled={isConversationStudioEnabled(client.id)}
-      clientReportsOnline={entitlement.features.client_reports_online}
-      accountHome
-    />
+    if (workspace) {
+      const chatEnabled = isConversationStudioEnabled(client.id)
+      let savedDiscussion: SavedTaskRead | null = null
+      if (chatEnabled) {
+        const today = buildTodayView(workspace, { lang, client_reports_online: entitlement.features.client_reports_online })
+        if (today.chatTask) savedDiscussion = await loadSavedTaskThread({ accountId: profile.account_id, profileId: profile.id, clientId: client.id, task: today.chatTask })
+      }
+      return <BrandToday
+        workspace={workspace}
+        lang={lang}
+        chatEnabled={chatEnabled}
+        clientReportsOnline={entitlement.features.client_reports_online}
+        savedDiscussion={savedDiscussion}
+        accountHome
+      />
+    }
   }
   return <PortfolioView portfolio={portfolio} lang={lang} creationControl={creationControl}
     activation={buildActivationProgress(activation)} firstRunScanId={await pendingClaimScanId()}/>

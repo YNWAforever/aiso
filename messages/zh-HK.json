@@ -2658,6 +2658,8 @@
       "nextBody": "用未被提及嘅問題做證據，等下一週可比較時再檢查。",
       "askAi": "問 AI 呢份報告",
       "askPrompt": "用今個星期已儲存嘅答案，解釋我嘅品牌點解未被提及，同埋我應該先檢查咩。唔好自行創作數字。",
+      "savedDiscussion": "你嘅已儲存討論",
+      "savedDiscussionUnavailable": "暫時讀取唔到已儲存嘅討論。",
       "evidence": "證據與方法"
     },
     "empty": "未有可用的觀測資料。",
@@ -5611,6 +5613,10 @@
     "loadError": "未能開啟此品牌",
     "loadErrorBody": "未能讀取品牌記錄，請由品牌組合再試。",
     "oneBrandEyebrow": "你嘅品牌",
+    "savedDiscussion": {
+      "label": "你嘅已儲存討論",
+      "unavailable": "暫時讀取唔到已儲存嘅討論。"
+    },
     "savedWork": {
       "continue": "繼續處理：{title}",
       "recorded": "查看交付記錄：{title}",

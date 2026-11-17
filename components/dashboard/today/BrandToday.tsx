@@ -8,7 +8,10 @@ import { ScoreTrend } from '@/components/dashboard/overview/ScoreTrend'
 import { PillarScoreCards } from '@/components/PillarScoreCards'
 import { RunProgress } from '@/components/pulse/RunProgress'
 import { TodayAsk } from '@/components/dashboard/today/TodayAsk'
+import { SavedTaskLink } from '@/components/dashboard/SavedTaskLink'
 import { getCheckExplanations } from '@/lib/checkExplanations'
+import { relativeTime } from '@/lib/conversation-studio/thread-list'
+import type { SavedTaskRead } from '@/lib/conversation-studio/saved-task'
 import { buildTodayView } from '@/lib/view-models/today'
 import type { WorkspaceHome } from '@/lib/view-models/workspace-home'
 
@@ -18,12 +21,14 @@ import type { WorkspaceHome } from '@/lib/view-models/workspace-home'
  * tools) is behind one disclosure. Reads the existing WorkspaceHome projection
  * and never fetches or writes.
  */
-export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOnline, accountHome = false }: {
+export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOnline, accountHome = false, savedDiscussion = null }: {
   workspace: WorkspaceHome
   lang: string
   chatEnabled: boolean
   clientReportsOnline: boolean
   accountHome?: boolean
+  /** Latest saved Studio discussion for this card's task; loaded by the page. */
+  savedDiscussion?: SavedTaskRead | null
 }) {
   const t = await getTranslations('today')
   const w = await getTranslations('workspaceHome')
@@ -37,9 +42,6 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
   const firstTaskSteps = firstTask?.kind === 'questions' || firstTask?.kind === 'baseline'
     ? ['questions', 'baseline', 'change'] as const
     : null
-  const chatTask = firstTask?.kind === 'questions' || firstTask?.kind === 'baseline'
-    ? 'pulse'
-    : action.kind === 'fix' || firstTask?.kind === 'first_change' ? 'improve' : null
   const actionSentence = action.kind === 'saved_work'
     ? t('savedWork.continue', { title: action.title })
     : action.kind === 'fix'
@@ -119,6 +121,17 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
       {view.savedWork?.state === 'unavailable' && <p className="mt-3 text-sm text-muted-foreground">
         {t('savedWork.unavailable')} <Link href={view.savedWork.href} prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('savedWork.viewTasks')}</Link>
       </p>}
+      {action.kind !== 'saved_work' && view.savedWork?.state !== 'ready' && savedDiscussion?.state === 'ready' && <SavedTaskLink
+        state="ready"
+        href={`${base}/studio?thread=${encodeURIComponent(savedDiscussion.thread.id)}`}
+        title={savedDiscussion.thread.title}
+        when={relativeTime(savedDiscussion.thread.updatedAt, new Date(), lang)}
+        label={t('savedDiscussion.label')}
+      />}
+      {action.kind !== 'saved_work' && view.savedWork?.state !== 'ready' && savedDiscussion?.state === 'unavailable' && <SavedTaskLink
+        state="unavailable"
+        label={t('savedDiscussion.unavailable')}
+      />}
     </section>
 
     {chatEnabled && <TodayAsk
@@ -128,7 +141,7 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
       placeholder={t('askPlaceholder')}
       cta={t('askCta')}
       hint={t('askHint')}
-      task={chatTask}
+      task={view.chatTask}
     />}
 
     <section aria-label={t('eyebrow')} className="grid gap-3 sm:grid-cols-3">
