@@ -100,21 +100,24 @@ export function VisibilityView({ view, lang, now }: { view: PulseView; lang: str
         </div>
       </section>
 
-      <section aria-label={copy.statsLabel} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <section aria-label={copy.statsLabel} className="grid grid-cols-3 gap-2 sm:gap-3">
         <StatCard
           label={copy.platforms}
           value={hasNumbers ? String(overview.platformCount) : '—'}
           href="#platform-grid-heading"
+          compactOnMobile
         />
         <StatCard
           label={copy.questions}
           value={overview.activeQuestions === null ? '—' : String(overview.activeQuestions)}
           href={`${base}/prompts`}
+          compactOnMobile
         />
         <StatCard
           label={copy.missed}
           value={hasNumbers ? String(overview.missedGroups.length) : '—'}
           href={`${base}/observations`}
+          compactOnMobile
         />
       </section>
 

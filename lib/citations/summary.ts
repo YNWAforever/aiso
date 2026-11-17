@@ -1,4 +1,4 @@
-import type { CitationDomain, CitationReport } from './report'
+import type { CitationDomain, CitationReport, CitationWeek } from './report'
 
 /**
  * The citation page used to open with a paragraph containing all three counts
@@ -13,6 +13,8 @@ export type CitationSummary = {
   /** Share of answers that listed at least one source; null when there are none. */
   citedShare: number | null
   topDomains: CitationDomain[]
+  /** Oldest first; empty when the report predates the weekly series. */
+  weekly: CitationWeek[]
 }
 
 export function summarizeCitations(report: CitationReport): CitationSummary {
@@ -25,5 +27,6 @@ export function summarizeCitations(report: CitationReport): CitationSummary {
     unrecorded,
     citedShare: total > 0 ? Math.round((withCitations / total) * 100) : null,
     topDomains: [...report.domains].sort((a, b) => b.citations - a.citations || a.domain.localeCompare(b.domain)).slice(0, 3),
+    weekly: report.weekly ?? [],
   }
 }

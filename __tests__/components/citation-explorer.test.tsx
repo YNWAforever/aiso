@@ -39,6 +39,18 @@ describe('CitationExplorer', () => {
     expect(html).toContain('Search capability or a search request does not guarantee returned citations.')
   })
 
+  it('shows a weekly citation trend only when at least two weeks were recorded', () => {
+    const html = render()
+    expect(html).toContain('Weekly citations')
+    expect(html).toContain('Citations counted in saved answers across 2 weeks.')
+    expect(html).toContain('role="img"')
+    const oneWeek = buildCitationReport({
+      context: { ownedDomains: ['fimmick.com'], competitors: [] },
+      answers: [answer({ provider_citations: [{ url: 'https://fimmick.com/loans', title: 'Our loans' }] })],
+    })
+    expect(render(oneWeek)).not.toContain('Weekly citations')
+  })
+
   it('lists questions where a competitor is cited and the brand is not', () => {
     const html = render()
     expect(html).toContain('Questions where competitors are cited and you are not')

@@ -91,6 +91,13 @@ it.each(['en', 'zh-HK'])('marks a partial sample and keeps the numbers in %s', l
   expect(html).toContain(copy.visibility.noComparison)
 })
 
+it('keeps the three supporting numbers in one compact row on phones', () => {
+  const html = render('ready', 'en')
+  expect(html).toContain('grid-cols-3')
+  expect(html).toMatch(/gap-2 p-3 sm:gap-3 sm:p-5/)
+  expect(html).toMatch(/text-2xl[^"]*sm:text-3xl/)
+})
+
 it('shows the missed question, platform and named competitor', () => {
   const html = render('ready', 'zh-HK')
   expect(html).toContain('FOTOMAX 邊度有分店？')

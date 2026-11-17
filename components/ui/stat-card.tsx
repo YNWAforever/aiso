@@ -18,13 +18,15 @@ export interface StatCardProps {
   trend?: readonly number[]
   href?: string
   className?: string
+  /** Tighter padding and number size below `sm`; desktop stays unchanged. */
+  compactOnMobile?: boolean
 }
 
 /**
  * One number, its direction and its recent trend. The delta is arrow + sign +
  * colour, and its full sentence is in the accessible name.
  */
-export function StatCard({ label, value, delta, deltaText, invertDelta, trend, href, className }: StatCardProps) {
+export function StatCard({ label, value, delta, deltaText, invertDelta, trend, href, className, compactOnMobile }: StatCardProps) {
   const t = useTranslations('visuals')
   const direction = delta == null ? null : delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
   const good = direction === 'flat' || direction == null ? null : (direction === 'up') !== Boolean(invertDelta)
@@ -33,9 +35,9 @@ export function StatCard({ label, value, delta, deltaText, invertDelta, trend, h
 
   const body = (
     <>
-      <span className="text-sm font-medium text-muted-foreground">{label}</span>
-      <div className="flex items-end justify-between gap-3">
-        <span className="text-3xl font-black tabular-nums leading-none text-foreground">{value}</span>
+      <span className={cn('font-medium text-muted-foreground', compactOnMobile ? 'text-xs sm:text-sm' : 'text-sm')}>{label}</span>
+      <div className={cn('flex items-end justify-between', compactOnMobile ? 'gap-2 sm:gap-3' : 'gap-3')}>
+        <span className={cn('font-black tabular-nums leading-none text-foreground', compactOnMobile ? 'text-2xl sm:text-3xl' : 'text-3xl')}>{value}</span>
         {trend && trend.length > 1 && <Sparkline points={trend} label={label} />}
       </div>
       {direction && (
@@ -51,7 +53,11 @@ export function StatCard({ label, value, delta, deltaText, invertDelta, trend, h
     </>
   )
 
-  const classes = cn('flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-e1', className)
+  const classes = cn(
+    'flex flex-col rounded-xl border border-border bg-card shadow-e1',
+    compactOnMobile ? 'gap-2 p-3 sm:gap-3 sm:p-5' : 'gap-3 p-5',
+    className,
+  )
   return href
     ? <Link href={href} className={cn(classes, 'card-interactive')}>{body}</Link>
     : <div className={classes}>{body}</div>
