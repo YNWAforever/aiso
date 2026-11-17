@@ -144,6 +144,18 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
           ) : null}
         </section>
       ) : null}
+      {!(smeCopilot || features.agent_recs) && scanChoices && scanChoices.length > 0 && typeof clientId === 'string' ? (
+        <section aria-label={generated('selectedScan')} className="rounded-xl border border-border bg-card p-4 sm:p-5">
+          <ScanPicker
+            lang={lang}
+            action={`/${lang}/dashboard/${encodeURIComponent(clientId)}`}
+            step="improve"
+            scans={scanChoices}
+            selectedScanId={scan.id}
+            className="mb-0"
+          />
+        </section>
+      ) : null}
       {receipt && statusSections.length > 0 ? (
         <section aria-labelledby="improve-status-heading" className="rounded-xl border border-border bg-card p-4 sm:p-5">
           <h2 id="improve-status-heading" className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{generated('statusTitle')}</h2>

@@ -110,6 +110,15 @@ it('keeps the selected scan, picker and actions in one panel',()=>{
   expect(html).toContain(en.generatedWork.actionTitle)
   expect(html).toContain(en.generatedWork.selectedScan)
 })
+it('keeps the saved-scan picker visible when the action panel is locked',()=>{
+  hooks.locale='en';hooks.cursor=0
+  const free=resolveCommercialEntitlement({plan:'free',status:'active'}).features
+  const scanChoices=[{id:'scan-a',domain:'example.com',score:30,grade:'C',created_at:'2026-10-15'}]
+  const html=renderToStaticMarkup(ImproveStep({scan:baseScan,features:free,recommendations:[],progress:[],competitors:[],scanChoices}))
+  expect(html).toContain('workspace-scan-picker')
+  expect(html).toContain('value="scan-a" selected=""')
+  expect(html).not.toContain(en.generatedWork.actionTitle)
+})
 it('puts drafts before evidence and keeps both disclosures closed',()=>{
   hooks.locale='en';hooks.cursor=0
   const recommendations=Array.from({length:6},(_,index)=>({...recommendation,id:`rec-${index}`,recommendation:`Saved review action ${index+1}`}))
