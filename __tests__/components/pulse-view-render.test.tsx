@@ -18,6 +18,12 @@ it.each(['en','zh-HK'])('answers baseline, change and next action in reading ord
  expect(html).toContain(copy.report.evidence)
  expect(html).toContain(`?step=improve`)
  expect(html).toContain(copy.report.nextBody)
+ expect(html).toContain(copy.report.askAi)
+ const handoff = html.match(/href="([^"]*\/studio\?[^"]*)"/)?.[1]?.replace(/&amp;/g, '&')
+ expect(handoff).toBeTruthy()
+ const handoffUrl = new URL(handoff!, 'https://fixture.invalid')
+ expect(handoffUrl.searchParams.get('task')).toBe('pulse')
+ expect(handoffUrl.searchParams.get('ask')).toBe(copy.report.askPrompt)
 })
 
 it.each(['en','zh-HK'])('offers a baseline action without inventing a value when empty in %s',lang=>{
@@ -28,6 +34,7 @@ it.each(['en','zh-HK'])('offers a baseline action without inventing a value when
  expect(html).toContain(`?step=monitor`)
  expect(html).not.toContain('0%')
  expect(html).not.toContain(copy.report.nextBody)
+ expect(html).not.toContain(copy.report.askAi)
 })
 
 it.each(['en','zh-HK'])('keeps a read failure separate from an empty baseline in %s',lang=>{

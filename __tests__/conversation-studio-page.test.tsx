@@ -19,7 +19,7 @@ import { emptyStudioEvidence } from '@/__tests__/helpers/studio-evidence'
 import { emptyStudioOpportunities, savedStudioOpportunities } from '@/__tests__/helpers/studio-opportunities'
 
 const clientId = '11111111-1111-4111-8111-111111111111'
-const render = (id = clientId) => Page({ params: Promise.resolve({ lang: 'en', clientId: id }), searchParams: Promise.resolve({}) })
+const render = (id = clientId, search: { ask?: string; task?: string } = {}) => Page({ params: Promise.resolve({ lang: 'en', clientId: id }), searchParams: Promise.resolve(search) })
 beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '1')
@@ -206,6 +206,19 @@ it('R3: a platform admin with a live grant opens another account’s brand, with
   expect(mocks.evidence).toHaveBeenLastCalledWith('account-b', clientId)
   expect(mocks.binding).not.toHaveBeenCalled()
   expect(mocks.attachments).not.toHaveBeenCalled()
+})
+
+it('carries the action question and task into the chat without writing', async () => {
+  const page = await render(clientId, { ask: '  Why was this missed?  ', task: 'pulse' })
+  expect(page.type).toBe(ConversationStudio)
+  expect(page.props.initialDraft).toBe('Why was this missed?')
+  expect(page.props.initialTask).toBe('pulse')
+})
+
+it('drops an unknown task and a blank question before rendering the chat', async () => {
+  const page = await render(clientId, { ask: '   ', task: 'not-a-task' })
+  expect(page.props.initialDraft).toBeUndefined()
+  expect(page.props.initialTask).toBeNull()
 })
 
 it('R3 A1: anyone else gets the same 404 for another account’s brand', async () => {

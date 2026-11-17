@@ -17,16 +17,18 @@ import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
 import type { StudioAttachCandidate } from '@/lib/conversation-studio/live-types'
 import { bindingMatchesDomain } from '@/lib/integrations/search-console/binding'
 import type { StudioSourceStatus } from '@/lib/conversation-studio/home'
+import { readStudioAsk, readStudioTask } from '@/lib/conversation-studio/task-handoff'
 
 export default async function StudioPage({ params, searchParams }: {
   params: Promise<{ lang: string; clientId: string }>
-  searchParams: Promise<{ ask?: string }>
+  searchParams: Promise<{ ask?: string; task?: string }>
 }) {
   const { lang, clientId } = await params
-  // The Today composer carries one question in. It only prefills the draft; the
-  // user still presses Send, so quota and writes keep their existing path.
-  const { ask } = await searchParams
-  const initialDraft = typeof ask === 'string' ? ask.slice(0, 1000) : undefined
+  // Action cards carry one question and the task it is about. Both only prefill;
+  // the user still presses Send, so quota and writes keep their existing path.
+  const { ask, task } = await searchParams
+  const initialDraft = readStudioAsk(ask)
+  const initialTask = readStudioTask(task)
   const profile = await requireAuth(lang)
   if (!isConversationStudioEnabled(clientId)) redirect(`/${lang}/dashboard/${encodeURIComponent(clientId)}?step=home`)
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(clientId)) notFound()
@@ -94,7 +96,7 @@ export default async function StudioPage({ params, searchParams }: {
     streaming: isFeatureEnabled('studio_streaming'),
     ...(liveUsage ? { remaining: liveUsage.remaining, week: liveUsage.week } : {}),
   } : undefined
-  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} smeCopilot={isSmeCopilotUiEnabled()} brandDomain={brand.domain ?? null} features={resolveCommercialEntitlement(profile.accounts).features} />
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} initialTask={initialTask} smeCopilot={isSmeCopilotUiEnabled()} brandDomain={brand.domain ?? null} features={resolveCommercialEntitlement(profile.accounts).features} />
 }
 
 /**

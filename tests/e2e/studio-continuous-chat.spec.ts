@@ -21,7 +21,7 @@ type AnswerRequest = { prompt: string; platforms: string[]; language: string; th
 
 // These isolated responses model the published HTTP contract. They do not prove
 // live model execution or database isolation; backend and release checks do that.
-async function fixture(page: Page, lang: string, options: { holdList?: boolean; holdAppend?: boolean; loseAnswer?: boolean; pendingAnswer?: boolean; initialAsk?: string; preclaimError?: boolean; holdDetailRead?: number; failDetailRead?: number; holdAnswerResponse?: boolean; detailSnapshotAtRelease?: boolean; detailTitle?: string } = {}) {
+async function fixture(page: Page, lang: string, options: { holdList?: boolean; holdAppend?: boolean; loseAnswer?: boolean; pendingAnswer?: boolean; initialAsk?: string; preclaimError?: boolean; holdDetailRead?: number; failDetailRead?: number; holdAnswerResponse?: boolean; detailSnapshotAtRelease?: boolean; detailTitle?: string; initialTask?: string } = {}) {
   const directory = process.env.STUDIO_HTML_DIR ?? '.next/component-fixtures/STUDIO'
   const js = readFileSync(`${directory}/chat-fixture.js`, 'utf8')
   const css = readFileSync(`${directory}/chat-build.css`, 'utf8')
@@ -109,6 +109,7 @@ async function fixture(page: Page, lang: string, options: { holdList?: boolean; 
   })
   const params = new URLSearchParams()
   if (options.initialAsk) params.set('ask', options.initialAsk)
+  if (options.initialTask) params.set('task', options.initialTask)
   await page.goto(`${origin}/${lang}/dashboard/${clientId}/studio${params.size ? `?${params}` : ''}`)
   await expect(page.locator('#studio-composer')).toBeVisible()
   return { copy: (lang === 'en' ? en : zh).conversationStudio, threads, requests, answers, unexpected, releaseList: listGate.release, releaseAppend: appendGate.release, appendStarted: appendStarted.promise, releaseDetail: detailGate.release, detailStarted: detailStarted.promise, releaseAnswer: answerGate.release, answerStarted: answerStarted.promise, completePending: () => pending?.() }
@@ -300,6 +301,16 @@ for (const lang of ['en', 'zh-HK']) {
     expect(state.answers).toHaveLength(1)
     expect(state.answers[0].prompt).toBe('An edited question without a public URL.')
     expect(state.unexpected).toEqual([])
+  })
+
+  test(`action-card handoff opens the same task and still waits for explicit Send in ${lang}`, async ({ page }) => {
+    const state = await fixture(page, lang, { initialAsk: 'Why was my brand missed this week?', initialTask: 'pulse' })
+    const composer = page.locator('#studio-composer')
+    const chip = state.copy.skillChip.label.replace('{skill}', state.copy.templates.pulse.label)
+    await expect(composer).toHaveValue('Why was my brand missed this week?')
+    await expect(page.getByText(chip, { exact: true })).toBeVisible()
+    await expect(page.locator('button[type=submit]')).toBeEnabled()
+    expect(state.requests.filter(request => request.method !== 'GET')).toEqual([])
   })
 
   test(`Shift+Enter and composition keep text local; an ordinary URL question starts no research providers in ${lang}`, async ({ page }) => {

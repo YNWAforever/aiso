@@ -2,19 +2,22 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { studioTaskHref } from '@/lib/conversation-studio/task-handoff'
+import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 
 /**
  * The Today composer: one question, one button. It never writes by itself — it
  * opens Chat with the question filled in, so the save/quota behaviour stays the
  * conversation's existing one.
  */
-export function TodayAsk({ lang, clientId, label, placeholder, cta, hint }: {
+export function TodayAsk({ lang, clientId, label, placeholder, cta, hint, task = null }: {
   lang: string
   clientId: string
   label: string
   placeholder: string
   cta: string
   hint: string
+  task?: StudioHomeTemplate | null
 }) {
   const [value, setValue] = useState('')
   const router = useRouter()
@@ -24,7 +27,7 @@ export function TodayAsk({ lang, clientId, label, placeholder, cta, hint }: {
         event.preventDefault()
         const question = value.trim()
         if (!question) return
-        router.push(`/${lang}/dashboard/${encodeURIComponent(clientId)}/studio?ask=${encodeURIComponent(question)}`)
+        router.push(studioTaskHref({ lang, clientId, task, ask: question }))
       }}
       className="rounded-2xl border border-border bg-card p-5 shadow-e1 sm:p-6"
     >

@@ -109,8 +109,10 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
 type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; opportunities?: StudioOpportunities; live?: StudioLiveConfig; sourceStatus?: StudioSourceStatus; inspector?: StudioInspectorReads; attachCandidates?: StudioAttachCandidate[] | null
   /** R3 A1 staff view: saved evidence only. No provider, Google or LIVE call, no attach, nothing saved. */
   staffView?: boolean
-  /** A question carried in from the Today composer; prefills the home draft only. */
+  /** A question carried in from an action card; prefills the home draft only. */
   initialDraft?: string
+  /** The task that question is about, so Chat opens on the same unit as the card. */
+  initialTask?: StudioHomeTemplate | null
   /** Approved SME copilot IA: question-first landing and one-tap skills. */
   smeCopilot?: boolean
   /** Slice 4 action skills: the brand's domain (scan) and plan features (gates). */
@@ -118,7 +120,7 @@ type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; o
   features?: PlanFeatures }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
-  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft}><StudioConversation {...props} /></StudioSessionProvider>
+  return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft} initialTask={props.initialTask}><StudioConversation {...props} /></StudioSessionProvider>
 }
 function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features, initialDraft = '' }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
