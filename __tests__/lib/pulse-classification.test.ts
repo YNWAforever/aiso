@@ -23,7 +23,7 @@ describe('saved-answer classification budget',()=>{
     const operation=classifySavedAnswers({accountId:'account',clientId:'client'},'original-run',45_000,classifier)
     await vi.advanceTimersByTimeAsync(15_000)
     expect(await operation).toBe(1)
-    expect(classifier).toHaveBeenCalledWith({answer:'Frozen Brand is terrible.',brandName:'Frozen Brand',competitors:[]})
+    expect(classifier).toHaveBeenCalledWith({answer:'Frozen Brand is terrible.',brandName:'Frozen Brand',brandAliases:[],competitors:[]})
     expect(fixture.writes).toHaveLength(1)
     expect(fixture.writes[0]).toContain('failed')
     expect(fixture.writes[0]).toContain('unknown')

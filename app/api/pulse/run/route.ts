@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
   const sql = db()
 
-  let client: { account_id: string; brand_name: string; competitors: CompetitorRef[]; industry: string | null }
+  let client: { account_id: string; brand_name: string; brand_aliases: string[]; competitors: CompetitorRef[]; industry: string | null }
   let platforms: string[]
   try {
     const rows = await sql`
@@ -119,9 +119,18 @@ export async function POST(req: NextRequest) {
       where client_id = ${clientId} and account_id = ${String(row.account_id)} and archived_at is null
       order by created_at, id
     `
+    // The brand identity editor is the owner's explicit statement of the names
+    // Pulse should recognize; clients.brand_name stays the display fallback.
+    const entityRows = await sql`
+      select display_name, aliases from client_entities
+      where client_id = ${clientId} and account_id = ${String(row.account_id)}
+      limit 1
+    `
+    const entity = entityRows[0] as { display_name?: unknown; aliases?: unknown } | undefined
     client = {
       account_id: String(row.account_id),
-      brand_name: String(row.brand_name ?? ''),
+      brand_name: typeof entity?.display_name === 'string' && entity.display_name.trim() ? entity.display_name : String(row.brand_name ?? ''),
+      brand_aliases: Array.isArray(entity?.aliases) ? entity.aliases.filter((alias): alias is string => typeof alias === 'string') : [],
       industry: (row.industry as string | null) ?? null,
       competitors: mergeCompetitorRefs(row.competitors as unknown[] | null, competitorRows),
     }
@@ -239,6 +248,7 @@ export async function POST(req: NextRequest) {
         const analysis = await analyseAnswer({
           answer: response.answer,
           brandName: client.brand_name,
+          brandAliases: client.brand_aliases,
           competitors: client.competitors,
         })
 
@@ -267,7 +277,7 @@ export async function POST(req: NextRequest) {
             ${analysis.brandMentioned}, ${analysis.sentiment}, ${analysis.mentionPosition},
             ${analysis.competitorsMentioned}::text[], ${scanWeek}::date,
             ${analysis.classificationStatus},${analysis.method},${analysis.version},${JSON.stringify(analysis.matchedText)}::jsonb,
-            ${response.providerCitations == null ? null : JSON.stringify(response.providerCitations)}::jsonb,${response.grounding ?? null},${response.searchEvidence?JSON.stringify(response.searchEvidence):null}::jsonb,${response.requestedModel??null},${response.providerEvidence?.actualModel??null},${response.providerEvidence?.requestId??null},${new Date().toISOString()}::timestamptz,${JSON.stringify({question:prompt.question,category:prompt.category,language:prompt.language??null,market:prompt.market??null,contextVersion:'2026-10-03.v1'})}::jsonb,${JSON.stringify({name:client.brand_name,competitors:client.competitors})}::jsonb,${response.providerEvidence?JSON.stringify({promptTokens:response.providerEvidence.promptTokens,completionTokens:response.providerEvidence.completionTokens,costUsd:response.providerEvidence.costUsd}):null}::jsonb,${response.providerEvidence?.providerFinishReason??null},'2026-10-11.v1'
+            ${response.providerCitations == null ? null : JSON.stringify(response.providerCitations)}::jsonb,${response.grounding ?? null},${response.searchEvidence?JSON.stringify(response.searchEvidence):null}::jsonb,${response.requestedModel??null},${response.providerEvidence?.actualModel??null},${response.providerEvidence?.requestId??null},${new Date().toISOString()}::timestamptz,${JSON.stringify({question:prompt.question,category:prompt.category,language:prompt.language??null,market:prompt.market??null,contextVersion:'2026-10-03.v1'})}::jsonb,${JSON.stringify({name:client.brand_name,aliases:client.brand_aliases,competitors:client.competitors})}::jsonb,${response.providerEvidence?JSON.stringify({promptTokens:response.providerEvidence.promptTokens,completionTokens:response.providerEvidence.completionTokens,costUsd:response.providerEvidence.costUsd}):null}::jsonb,${response.providerEvidence?.providerFinishReason??null},'2026-10-11.v1'
           where exists(select 1 from clients where id = ${clientId} and account_id = ${client.account_id})
             and not exists (
               select 1 from pulse_metrics saved where saved.client_id = ${clientId} and saved.prompt_id = ${prompt.id}

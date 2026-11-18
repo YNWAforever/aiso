@@ -11,14 +11,19 @@ export async function repairLegacyClassifications(scope:PulseScope,input:{observ
  if(input.runId!==undefined)return repairSavedRunClassifications(scope,{...input,runId:input.runId},classifier)
  if(!input.observationIds.length||input.observationIds.length>50||new Set(input.observationIds).size!==input.observationIds.length||input.observationIds.some(id=>!uuid.test(id))||!/^[a-zA-Z0-9:_-]{8,128}$/.test(input.intentKey)||input.deadlineAt<=Date.now()||input.deadlineAt>Date.now()+120000)throw new Error('INVALID_LEGACY_REPAIR')
  const sql=db()
- const rows=await sql`select m.id,m.raw_answer,m.classification_status,c.brand_name,c.competitors from pulse_metrics m join clients c on c.id=m.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and m.id=any(${input.observationIds}::uuid[]) and m.run_item_id is null`
+ const rows=await sql`select m.id,m.raw_answer,m.classification_status,coalesce(e.display_name,c.brand_name) as brand_name,
+   coalesce(e.aliases,'[]'::jsonb) as brand_aliases,c.competitors
+  from pulse_metrics m join clients c on c.id=m.client_id
+  left join client_entities e on e.account_id=c.account_id and e.client_id=c.id
+  where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and m.id=any(${input.observationIds}::uuid[]) and m.run_item_id is null`
  if(rows.length!==input.observationIds.length)throw new Error('LEGACY_REPAIR_NOT_FOUND')
  if(classifier===analyseAnswer&&!process.env.OPENROUTER_API_KEY)throw new Error('PROVIDER_NOT_CONFIGURED')
  let classified=0,failed=0,unchanged=0
  for(const row of rows){
   if(row.classification_status==='classified'||typeof row.raw_answer!=='string'||!row.raw_answer.trim()){unchanged++;continue}
   if(Date.now()+16000>=input.deadlineAt){failed++;continue}
-  const token=randomUUID(),answer=row.raw_answer,answerHash=createHash('sha256').update(answer).digest('hex'),context={name:String(row.brand_name),competitors:row.competitors??[],basis:'current-repair-context',schemaVersion:'2026-10-11.v1'}
+  const brandName=String(row.brand_name),brandAliases=Array.isArray(row.brand_aliases)?row.brand_aliases.filter((alias):alias is string=>typeof alias==='string'):[]
+  const token=randomUUID(),answer=row.raw_answer,answerHash=createHash('sha256').update(answer).digest('hex'),context={name:brandName,aliases:brandAliases,competitors:row.competitors??[],basis:'current-repair-context',schemaVersion:'2026-10-11.v1'}
   const [,claimed]=await sql.transaction([
    sql`select id from clients where id=${scope.clientId}::uuid and account_id=${scope.accountId} for no key update`,
    sql`insert into pulse_legacy_classification_attempts(account_id,client_id,observation_id,intent_key,answer_hash,context,lease_token,lease_until)
@@ -30,7 +35,7 @@ export async function repairLegacyClassifications(scope:PulseScope,input:{observ
   ])
   if(!claimed[0]){unchanged++;continue}
   let result:AnswerAnalysisV2,timer:ReturnType<typeof setTimeout>|undefined
-  try{result=await Promise.race([classifier({answer,brandName:context.name,competitors:context.competitors as string[]}),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Classifier deadline')),15000)})])}catch{result={...naiveAnalysis(answer,context.name),classificationStatus:'failed',method:'legacy-repair-exception',version:ANALYSIS_VERSION}}finally{clearTimeout(timer)}
+  try{result=await Promise.race([classifier({answer,brandName,brandAliases,competitors:context.competitors as string[]}),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Classifier deadline')),15000)})])}catch{result={...naiveAnalysis(answer,brandName,context.competitors as string[],brandAliases),classificationStatus:'failed',method:'legacy-repair-exception',version:ANALYSIS_VERSION}}finally{clearTimeout(timer)}
   const [,committed]=await sql.transaction([
    sql`select id from clients where id=${scope.clientId}::uuid and account_id=${scope.accountId} for no key update`,
    sql`with projected as (update pulse_metrics m set classification_status=${result.classificationStatus},classifier_method=${result.method},classifier_version=${result.version},brand_mentioned=${result.brandMentioned},sentiment=${result.sentiment},mention_position=${result.mentionPosition},competitors_mentioned=${result.competitorsMentioned}::text[],matched_text=${JSON.stringify(result.matchedText)}::jsonb

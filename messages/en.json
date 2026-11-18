@@ -501,7 +501,7 @@
         "admin": "Platform tools",
         "adminBody": "Internal administration for this environment."
       },
-      "entities": "Brand facts and approved inputs.",
+      "entities": "Brand names, aliases and approved inputs.",
       "opportunities": "Prioritised gaps from saved scans.",
       "observations": "What changed, with saved evidence.",
       "sources": "Approved documents and imports.",
@@ -2647,6 +2647,10 @@
   "pulseView": {
     "title": "Observed AI visibility",
     "intro": "Stored answer observations, not provider attempt-success rates or attributed improvements.",
+    "brandNamesTitle": "Brand names AI should recognize",
+    "brandNamesCurrent": "Currently recognized: {names}",
+    "brandNamesBody": "Pulse uses these names to decide whether an answer mentions your brand. Add the Chinese name or other spellings your customers use.",
+    "brandNamesEdit": "Edit brand names and aliases",
     "report": {
       "eyebrow": "AI visibility baseline",
       "whatChanged": "What changed",
@@ -2830,15 +2834,15 @@
     "retry": "Try again"
   },
   "entities": {
-    "title": "Brand identity",
-    "description": "Keep one private brand identity for this client. These names are unverified and do not change your brand name or scanner results.",
+    "title": "Brand names & aliases",
+    "description": "Tell Pulse which names count as your brand when it reads AI answers. The display name is always recognized; aliases are additional spellings such as the Chinese name. They do not change your website or scanner results.",
     "privateLabel": "Private workspace",
     "unverified": "Unverified",
     "unsaved": "Unsaved draft",
     "saved": "Saved privately",
-    "displayName": "Display name",
-    "aliases": "Aliases",
-    "aliasesHelp": "One alias per line. Up to 20 aliases, with up to 120 characters per name.",
+    "displayName": "Brand name used by Pulse",
+    "aliases": "Also recognized as",
+    "aliasesHelp": "One alias per line, for example 信和 or Sino Group. Up to 20 aliases, with up to 120 characters per name. New Pulse runs use them; earlier answers keep their classification.",
     "save": "Save identity",
     "saving": "Saving…",
     "reload": "Discard draft and reload latest",
