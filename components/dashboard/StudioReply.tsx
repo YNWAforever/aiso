@@ -2,6 +2,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import { platformName } from '@/lib/brand-month/labels'
+import { studioDate } from '@/lib/conversation-studio/format-date'
 import { ScanEvidencePanel } from '@/components/result/ScanEvidencePanel'
 import { buildDashboardNav } from '@/lib/dashboard-nav'
 import type { OpenStudioEvidence, StudioEvidence, StudioOpportunitySuggestion, StudioReply } from '@/lib/conversation-studio/types'
@@ -106,9 +108,13 @@ export function StudioReplyView({ reply, clientId, readOnly = false, number = 1,
         <p className="whitespace-pre-wrap">{suggestion.action}</p>
         <p className="as-muted as-small">{t('sourcesTitle')}</p>
         <ul className="flex flex-wrap gap-2">{suggestion.evidenceRefs.map(ref => <li key={`${ref.kind}-${ref.id}-${ref.checkKey ?? ''}`} className="as-badge [overflow-wrap:anywhere]">
-          {t(ref.kind === 'pulse-metric' ? 'coverage.pulse' : 'coverage.scan')}: <code>{ref.id}{ref.checkKey ? ` · ${ref.checkKey}` : ''}</code>
+          {t(ref.kind === 'pulse-metric' ? 'coverage.pulse' : 'coverage.scan')}
         </li>)}</ul>
-        {suggestion.recordedAt && <p className="as-muted as-small">{t('recordedAt')}: <time dateTime={suggestion.recordedAt}>{suggestion.recordedAt}</time></p>}
+        {/* Record ids are the audit trail, not reading material: kept, but behind a disclosure. */}
+        <details className="as-muted as-small"><summary>{t('evidence.technicalDetails')}</summary>
+          <ul>{suggestion.evidenceRefs.map(ref => <li key={`${ref.kind}-${ref.id}-${ref.checkKey ?? ''}`} className="[overflow-wrap:anywhere]"><code>{ref.id}{ref.checkKey ? ` · ${ref.checkKey}` : ''}</code></li>)}</ul>
+        </details>
+        {suggestion.recordedAt && <p className="as-muted as-small">{t('recordedAt')}: <time dateTime={suggestion.recordedAt}>{studioDate(suggestion.recordedAt, lang, true)}</time></p>}
         {clientId && !readOnly && <OpportunityDraftAction clientId={clientId} suggestion={suggestion} locale={lang} />}
       </li>)}</ul> : <p className="as-note">{studio(`templates.opportunity.${reply.opportunities.state}`)}</p>}
     </>}
@@ -121,7 +127,7 @@ export function StudioReplyView({ reply, clientId, readOnly = false, number = 1,
       <ul className="space-y-3">{reply.observations.map((item, index) => <li key={item.id} className="as-result space-y-2">
         <p className="as-result-kicker">{t('savedObservation')}</p>
         <h3>{item.question}</h3>
-        <div className="flex flex-wrap gap-2"><span className="as-badge">{item.platform} · {item.scanWeek}</span><span className={item.result === 'success' ? 'as-badge as-badge-blue' : 'as-badge as-badge-amber'}>{t(item.result === 'success' ? 'classified' : 'incomplete')}</span></div>
+        <div className="flex flex-wrap gap-2"><span className="as-badge">{platformName(item.platform)} · {studioDate(item.scanWeek, lang)}</span><span className={item.result === 'success' ? 'as-badge as-badge-blue' : 'as-badge as-badge-amber'}>{t(item.result === 'success' ? 'classified' : 'incomplete')}</span></div>
         <p>{t('brandMention')}: {t(item.brandMentioned === true ? 'mentionYes' : item.brandMentioned === false ? 'mentionNo' : 'unknown')}</p>
         {item.excerpt ? <><p className="as-note">{t('historicalQuote')}</p><blockquote className="whitespace-pre-wrap border-l-2 pl-3">{item.excerpt}</blockquote></> : <p className="as-note">{t('answerMissing')}</p>}
         <button type="button" className="as-button px-3" onClick={event => onOpenEvidence?.(event.currentTarget, `source-${index}`)} aria-haspopup="dialog">{t('open')} [{index + 1}]</button>
@@ -136,7 +142,8 @@ export function StudioReplyView({ reply, clientId, readOnly = false, number = 1,
 export function StudioSavedEvidence({ reply, evidence, id, liveEnabled = false }: { reply: StudioReply; evidence: StudioEvidence; id: string; liveEnabled?: boolean }) {
   const t = useTranslations('conversationStudio.evidence')
   const live = useTranslations('conversationStudio.live')
-  const date = (value: string | null) => value ? <time dateTime={value}>{value}</time> : t('unknown')
+  const lang = useLocale()
+  const date = (value: string | null) => value ? <time dateTime={value}>{studioDate(value, lang, true)}</time> : t('unknown')
   return <div className="space-y-3">
     <section id={`${id}-saved`} tabIndex={-1} className="space-y-3">
       <h3>{t('coverageTitle')}</h3>
@@ -150,8 +157,8 @@ export function StudioSavedEvidence({ reply, evidence, id, liveEnabled = false }
         <h3>{t('sourcesTitle')}</h3>
         {reply.observations.length === 0 && !reply.scan && <p>{t('noSources')}</p>}
         <ul className="space-y-4">{reply.observations.map((item, index) => <li id={`${id}-source-${index}`} tabIndex={-1} key={item.id} className="as-divider space-y-1 pt-3">
-          <p>{item.platform} · {item.scanWeek}</p><p>{item.question}</p>
-          <p>[{index + 1}] {t('observationId')}: {item.id}</p>
+          <p>[{index + 1}] {platformName(item.platform)} · {studioDate(item.scanWeek, lang)}</p><p>{item.question}</p>
+          <details className="as-muted as-small"><summary>{t('technicalDetails')}</summary><p className="[overflow-wrap:anywhere]">{t('observationId')}: {item.id}</p></details>
           <p>{t('recordedAt')}: {date(item.recordedAt)} · {t('collectedAt')}: {date(item.collectedAt)}</p>
           <p>{t('model')}: {item.model ?? t('unknown')} · {t('market')}: {item.market ?? t('unknown')}</p>
           <p>{t('search')}: {t(item.searchEvidence?.execution === 'confirmed' ? 'searchConfirmed' : 'searchUnknown')}</p>
@@ -159,7 +166,8 @@ export function StudioSavedEvidence({ reply, evidence, id, liveEnabled = false }
             {t(link.kind === 'provider-citation' ? 'providerCitation' : 'textLink')}: <a href={link.url} target="_blank" rel="noopener noreferrer" className="underline">{link.title || link.url}</a><span className="as-small as-muted block">{link.url}</span>
           </li>)}</ul> : <p>{t('citationsMissing')}</p>}
         </li>)}</ul>
-        {reply.scan && <p id={`${id}-scan`} tabIndex={-1} className="mt-3">{t('scanId')}: {reply.scan.id} · {t('recordedAt')}: {date(reply.scan.recordedAt)}</p>}
+        {reply.scan && <div id={`${id}-scan`} tabIndex={-1} className="mt-3"><p>{t('latestScan')} · {t('recordedAt')}: {date(reply.scan.recordedAt)}</p>
+          <details className="as-muted as-small"><summary>{t('technicalDetails')}</summary><p className="[overflow-wrap:anywhere]">{t('scanId')}: {reply.scan.id}</p></details></div>}
       </section>
       <p className="as-note my-3">{liveEnabled ? live('savedScope') : t('liveLimit')}</p>
     </section>
