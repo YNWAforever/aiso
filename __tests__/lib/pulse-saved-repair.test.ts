@@ -40,18 +40,20 @@ beforeAll(async()=>{
  create table accounts(id uuid primary key);
  create table clients(id uuid primary key,account_id uuid references accounts(id),brand_name text,competitors text[],unique(id,account_id));
  create table prompt_bank(id uuid primary key);
+create table client_entities(client_id uuid primary key references clients(id),account_id uuid references accounts(id),
+ display_name text not null,aliases jsonb not null default '[]'::jsonb,revision int not null default 1);
  create table pulse_metrics(id uuid primary key default gen_random_uuid(),client_id uuid references clients(id),
   prompt_id uuid constraint pulse_metrics_prompt_id_fkey references prompt_bank(id),raw_answer text,brand_mentioned boolean,
   sentiment text,mention_position int,competitors_mentioned text[],provider_citations jsonb,platform text,scan_week date,created_at timestamptz not null default now());
  create table pulse_weekly_summary(client_id uuid,scan_week date,platform text,total_queries int,brand_mentions int,sov_score numeric,avg_sentiment_score numeric,top_competitors jsonb,created_at timestamptz default now(),unique nulls not distinct(client_id,scan_week,platform));
- grant select,insert,update on accounts,clients,prompt_bank,pulse_metrics,pulse_weekly_summary to aeo_app;
+ grant select,insert,update on accounts,clients,prompt_bank,pulse_metrics,pulse_weekly_summary,client_entities to aeo_app;
  `)
  for(const migration of ['057_pulse_run_ledger.sql','058_pulse_classification_repair.sql','065_pulse_run_identity_and_repair.sql'])await state.pg.exec(readFileSync(resolve(process.cwd(),'supabase/migrations',migration),'utf8'))
  await state.pg.exec('alter table pulse_item_attempts add column provider_citations jsonb')
 })
 afterAll(async()=>{await state.pg?.close()})
 async function seedRun(count=1){
- await state.pg!.exec('truncate accounts,clients,prompt_bank,pulse_runs,pulse_run_items,pulse_item_attempts,pulse_metrics,pulse_classification_attempts,pulse_legacy_classification_attempts,pulse_weekly_summary')
+ await state.pg!.exec('truncate accounts,clients,client_entities,prompt_bank,pulse_runs,pulse_run_items,pulse_item_attempts,pulse_metrics,pulse_classification_attempts,pulse_legacy_classification_attempts,pulse_weekly_summary')
  await state.pg!.query('insert into accounts values($1)',[account])
  await state.pg!.query("insert into clients values($1,$2,'Changed Current Brand','{}')",[client,account])
  await state.pg!.query("insert into pulse_runs(id,account_id,client_id,manifest,scan_week,purpose,status) values($1,$2,$3,$4,$5,'canonical','partial')",[run,account,client,JSON.stringify({brand:{name:'Frozen Brand',competitors:['Frozen Competitor']},items:Array.from({length:count},(_,n)=>({id:idFor('4',n+1)}))}),week])
@@ -122,13 +124,20 @@ describe('versioned repair of saved run answers',()=>{
   const before=(await state.pg!.query('select raw_answer,provider_citations,provider_request_id from pulse_item_attempts')).rows
   const classifier=classify()
   expect(await repairLegacyClassifications(scope,input(),classifier)).toEqual({classified:1,unchanged:0,failed:0})
-  expect(classifier).toHaveBeenCalledWith({answer:'A retained answer with citations.',brandName:'Frozen Brand',competitors:[{name:'Frozen Competitor',aliases:[]}]})
+  expect(classifier).toHaveBeenCalledWith({answer:'A retained answer with citations.',brandName:'Frozen Brand',brandAliases:[],competitors:[{name:'Frozen Competitor',aliases:[]}]})
   expect((await state.pg!.query('select raw_answer,provider_citations,provider_request_id from pulse_item_attempts')).rows).toEqual(before)
   expect((await state.pg!.query('select attempt_count,classification_attempt_count,accepted_attempt_id,classification_status from pulse_run_items')).rows).toEqual([{attempt_count:1,classification_attempt_count:3,accepted_attempt_id:attempt,classification_status:'classified'}])
   expect((await state.pg!.query('select attempt_number,status from pulse_classification_attempts order by attempt_number')).rows).toEqual([{attempt_number:1,status:'fallback'},{attempt_number:2,status:'fallback'},{attempt_number:3,status:'fallback'}])
   const journal=(await state.pg!.query('select context,status from pulse_legacy_classification_attempts')).rows[0]
   expect(journal).toMatchObject({context:{basis:'run-manifest',version:ANALYSIS_VERSION,acceptedAttemptId:attempt},status:'classified'})
   expect((await state.pg!.query('select total_queries,brand_mentions,sov_score from pulse_weekly_summary where platform is null')).rows).toEqual([{total_queries:1,brand_mentions:0,sov_score:'0.00'}])
+ })
+ it('uses the brand identity names and aliases instead of a stale manifest',async()=>{
+  await state.pg!.query(`insert into client_entities(client_id,account_id,display_name,aliases,revision)
+   values($1,$2,$3,$4::jsonb,1)`,[client,account,'信和',JSON.stringify(['Sino Group'])])
+  const classifier=classify()
+  expect(await repairLegacyClassifications(scope,input(),classifier)).toEqual({classified:1,unchanged:0,failed:0})
+  expect(classifier).toHaveBeenCalledWith({answer:'A retained answer with citations.',brandName:'信和',brandAliases:['Sino Group'],competitors:[{name:'Frozen Competitor',aliases:[]}]})
  })
  it('does not spend twice for concurrent or repeated repair intents',async()=>{
   let release!:(value:ReturnType<ReturnType<typeof classify>> extends Promise<infer T>?T:never)=>void

@@ -167,7 +167,8 @@ export default async function DashboardPage({
       title={t(smeCopilot ? 'step_monitor_sme_title' : 'step_monitor_title')}
       description={smeCopilot ? t('step_monitor_sme_body') : t('step_monitor_body')}
     >
-      <MonitorStep features={features} lang={lang} clientId={clientId} view={buildPulseView(owned)} now={new Date()} />
+      <MonitorStep features={features} lang={lang} clientId={clientId} view={buildPulseView(owned)} now={new Date()}
+        brandIdentity={owned.brandIdentity ?? { name: owned.client.brand_name, aliases: [] }} />
     </WhatAiSaysPage>
   }
 

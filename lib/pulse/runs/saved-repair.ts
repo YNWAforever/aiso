@@ -17,10 +17,13 @@ export async function repairSavedRunClassifications(scope:PulseScope,input:Input
  if(!input.observationIds.length){await finalizeSavedRun(scope,input.runId,true);return{classified:0,unchanged:0,failed:0}}
  const sql=db()
  const rows=await sql`select m.id,i.id as item_id,i.accepted_attempt_id,i.classification_status,i.classification_attempt_count,i.classification_lease_until,
-   a.raw_answer,a.classifier_version,r.manifest->'brand' as brand,r.scan_week,r.purpose
+   a.raw_answer,a.classifier_version,r.manifest->'brand' as brand,r.scan_week,r.purpose,
+    coalesce(e.display_name,r.manifest->'brand'->>'name') as brand_name,
+    coalesce(e.aliases,'[]'::jsonb) as brand_aliases
   from pulse_metrics m join pulse_run_items i on i.id=m.run_item_id and i.client_id=m.client_id
   join pulse_runs r on r.id=i.run_id and r.account_id=i.account_id and r.client_id=i.client_id
   join pulse_item_attempts a on a.id=i.accepted_attempt_id and a.item_id=i.id and a.account_id=i.account_id and a.client_id=i.client_id
+  left join client_entities e on e.account_id=i.account_id and e.client_id=i.client_id
   where r.id=${input.runId}::uuid and r.account_id=${scope.accountId} and r.client_id=${scope.clientId}::uuid
    and m.id=any(${input.observationIds}::uuid[]) and m.raw_answer=a.raw_answer and i.status='succeeded'`
  if(rows.length!==input.observationIds.length)throw new Error('LEGACY_REPAIR_NOT_FOUND')
@@ -30,10 +33,12 @@ export async function repairSavedRunClassifications(scope:PulseScope,input:Input
   if(classifier===analyseAnswer&&!process.env.OPENROUTER_API_KEY)throw new Error('PROVIDER_NOT_CONFIGURED')
   if(Date.now()+16000>=input.deadlineAt){failed++;continue}
   const brand=row.brand as {name?:unknown;competitors?:unknown[];competitorRefs?:{name?:unknown;aliases?:unknown}[]}
-  if(typeof brand?.name!=='string'||!brand.name.trim()||typeof row.raw_answer!=='string'||!row.raw_answer.trim())throw new Error('LEGACY_REPAIR_NOT_FOUND')
+  const brandName=typeof row.brand_name==='string'&&row.brand_name.trim()?row.brand_name:String(brand?.name??'')
+  if(!brandName||typeof row.raw_answer!=='string'||!row.raw_answer.trim())throw new Error('LEGACY_REPAIR_NOT_FOUND')
+  const brandAliases=Array.isArray(row.brand_aliases)?row.brand_aliases.filter((alias):alias is string=>typeof alias==='string'):[]
   const answer=row.raw_answer,answerHash=createHash('sha256').update(answer).digest('hex'),token=randomUUID()
   const competitors=mergeCompetitorRefs(brand.competitors,brand.competitorRefs??[])
-  const context={basis:'run-manifest',version:ANALYSIS_VERSION,runId:input.runId,acceptedAttemptId:row.accepted_attempt_id,name:brand.name,competitors}
+  const context={basis:'run-manifest',version:ANALYSIS_VERSION,runId:input.runId,acceptedAttemptId:row.accepted_attempt_id,name:brandName,aliases:brandAliases,competitors}
   const [,claimed]=await sql.transaction([
    sql`select id from pulse_run_items where id=${row.item_id}::uuid and run_id=${input.runId}::uuid and account_id=${scope.accountId} and client_id=${scope.clientId}::uuid for update`,
    sql`insert into pulse_legacy_classification_attempts(account_id,client_id,observation_id,intent_key,answer_hash,context,lease_token,lease_until)
@@ -50,8 +55,8 @@ export async function repairSavedRunClassifications(scope:PulseScope,input:Input
   ])
   if(!claimed[0]){unchanged++;continue}
   let result:AnswerAnalysisV2,timer:ReturnType<typeof setTimeout>|undefined
-  try{result=await Promise.race([classifier({answer,brandName:brand.name,competitors}),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Classifier deadline')),15000)})])}
-  catch{result={...naiveAnalysis(answer,brand.name,competitors),classificationStatus:'failed',method:'saved-repair-exception',version:ANALYSIS_VERSION}}
+  try{result=await Promise.race([classifier({answer,brandName,brandAliases,competitors}),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Classifier deadline')),15000)})])}
+  catch{result={...naiveAnalysis(answer,brandName,competitors,brandAliases),classificationStatus:'failed',method:'saved-repair-exception',version:ANALYSIS_VERSION}}
   finally{clearTimeout(timer)}
   if(result.version!==ANALYSIS_VERSION){
    await sql`update pulse_legacy_classification_attempts set status='failed',analysis=${JSON.stringify({diagnosticReason:'stale_classifier_version',version:ANALYSIS_VERSION})}::jsonb,finished_at=now()

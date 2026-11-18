@@ -9,8 +9,9 @@ export type AnswerAnalysisV2 = {
   /** Normalized literal excerpts, never consumer ranking. */
   matchedText:string[];mentionPosition:number|null;competitorsMentioned:string[]
 }
-// v5: an absent configured spelling is a deterministic negative; literal presence still needs semantic assessment.
-export const ANALYSIS_VERSION='2026-10-15.v5'
+// v6: the brand's configured aliases are first-class match forms; absence is
+// deterministic only when none of them appears.
+export const ANALYSIS_VERSION='2026-11-18.v6'
 const normalize=(value:string)=>value.normalize('NFKC').normalize('NFC')
 const latinWord=(value:string|undefined)=>!!value&&/[\p{Script=Latin}\p{N}\p{M}_]/u.test(value)
 const latin=(value:string|undefined)=>!!value&&/\p{Script=Latin}/u.test(value)
@@ -60,6 +61,31 @@ export function literalBrandEvidence(answer:string,brandName:string):{text:strin
   return null
 }
 /**
+ * The owner's configured spellings of their own brand. The display name is
+ * always a form; aliases are explicit, never inferred from the answer.
+ */
+export function brandForms(brandName:string,brandAliases:readonly string[]=[]):string[]{
+  const forms:string[]=[],seen=new Set<string>()
+  for(const candidate of [brandName,...brandAliases]){
+    const value=normalize(candidate??'').trim()
+    if(!value)continue
+    const key=value.toLowerCase()
+    if(seen.has(key))continue
+    seen.add(key)
+    forms.push(value)
+  }
+  return forms
+}
+/** First configured spelling found in the answer, earliest source position wins across forms. */
+function literalBrandEvidenceAny(answer:string,forms:readonly string[]):{text:string;position:number}|null{
+  let best:{text:string;position:number}|null=null
+  for(const form of forms){
+    const match=literalBrandEvidence(answer,form)
+    if(match&&(!best||match.position<best.position))best=match
+  }
+  return best
+}
+/**
  * A competitor as the matcher sees it. A plain string is a name with no
  * aliases, which is what manifests written before 061 carry. Aliases are the
  * owner's configured spellings (`competitors.aliases`), never inferred.
@@ -72,28 +98,28 @@ const refsOf=(competitors:readonly CompetitorMatch[])=>competitors
 const literalCompetitors=(answer:string,competitors:readonly CompetitorMatch[])=>
   refsOf(competitors).filter(ref=>ref.forms.some(form=>literalBrandEvidence(answer,form))).map(ref=>ref.name)
 
-export function naiveAnalysis(answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[]):AnswerAnalysisV2{
-  const match=literalBrandEvidence(answer,brandName)
+export function naiveAnalysis(answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[],brandAliases:readonly string[]=[]):AnswerAnalysisV2{
+  const match=literalBrandEvidenceAny(answer,brandForms(brandName,brandAliases))
   return {classificationStatus:'fallback',method:'literal-evidence-abstention',version:ANALYSIS_VERSION,
     brandMentioned:null,sentiment:'unknown',matchedText:match?[match.text]:[],mentionPosition:match?.position??null,
     competitorsMentioned:[...new Set(literalCompetitors(answer,competitors))].slice(0,10)}
 }
-/** The positive literal guard makes absence decisive under the same configured-name contract. */
-export function literalAbsenceAnalysis(answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[]):AnswerAnalysisV2|null{
-  if(!answer.trim()||!fold(normalize(brandName)).folded.split(new RegExp(`${SEPARATORS}+`,'u')).some(Boolean))return null
-  const evidence=naiveAnalysis(answer,brandName,competitors)
+/** The positive literal guard makes absence decisive under the same configured-name contract, aliases included. */
+export function literalAbsenceAnalysis(answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[],brandAliases:readonly string[]=[]):AnswerAnalysisV2|null{
+  if(!answer.trim()||!brandForms(brandName,brandAliases).some(form=>fold(form).folded.split(new RegExp(`${SEPARATORS}+`,'u')).some(Boolean)))return null
+  const evidence=naiveAnalysis(answer,brandName,competitors,brandAliases)
   if(evidence.matchedText.length)return null
   return {...evidence,classificationStatus:'classified',method:'literal-absence',brandMentioned:false,providerUsage:null}
 }
-/** Validate classifier output against saved text; only configured aliases are used, never inferred ones. */
-export function coerceAnalysis(value:unknown,answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[]):AnswerAnalysisV2|null{
+/** Validate classifier output against saved text; only configured forms are used, never inferred ones. */
+export function coerceAnalysis(value:unknown,answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[],brandAliases:readonly string[]=[]):AnswerAnalysisV2|null{
   if(!value||typeof value!=='object')return null
   const row=value as Record<string,unknown>
   if((typeof row.brand_mentioned!=='boolean'&&row.brand_mentioned!==null)
     ||!Array.isArray(row.competitors_mentioned)||row.competitors_mentioned.some(c=>typeof c!=='string'))return null
   const allowed=['positive','neutral','negative','not_mentioned','unknown']
   if(typeof row.sentiment!=='string'||!allowed.includes(row.sentiment))return null
-  const match=literalBrandEvidence(answer,brandName)
+  const match=literalBrandEvidenceAny(answer,brandForms(brandName,brandAliases))
   if(row.brand_mentioned===null&&row.sentiment!=='unknown')return null
   if(row.brand_mentioned&&(!match||!['positive','neutral','negative','unknown'].includes(row.sentiment)))return null
   // A classifier-named spelling of a configured competitor is reported under
@@ -103,7 +129,7 @@ export function coerceAnalysis(value:unknown,answer:string,brandName:string,comp
     .map(c=>c.trim().slice(0,120)).filter(c=>literalBrandEvidence(answer,c))
     .map(c=>canonical.get(c.toLowerCase())??c)
   const competitorsMentioned=[...new Set([...named,...literalCompetitors(answer,competitors)])].slice(0,10)
-  if(row.brand_mentioned===null)return {...naiveAnalysis(answer,brandName,competitors),
+  if(row.brand_mentioned===null)return {...naiveAnalysis(answer,brandName,competitors,brandAliases),
     competitorsMentioned,diagnosticReason:'brand_identity_uncertain'}
   return {classificationStatus:'classified',method:'openrouter-json-literal-guard',version:ANALYSIS_VERSION,
     brandMentioned:row.brand_mentioned,sentiment:row.brand_mentioned?row.sentiment as AnswerAnalysisV2['sentiment']:'unknown',

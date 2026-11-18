@@ -76,6 +76,14 @@ describe('Pulse classifier provider contract',()=>{
     expect(result).toMatchObject({classificationStatus:'fallback',brandMentioned:null,diagnosticReason:'provider_error',providerUsage:null})
     expect(JSON.stringify(result)).not.toContain('PRIVATE')
   })
+  it('tells the provider which aliases belong to the brand and accepts alias evidence',async()=>{
+    provider.reply='{"brand_mentioned":true,"sentiment":"positive","competitors_mentioned":[]}'
+    expect(await analyseAnswer({answer:'我推薦信和。',brandName:'Sino Group',brandAliases:['信和']}))
+      .toMatchObject({classificationStatus:'classified',brandMentioned:true,matchedText:['信和']})
+    const options=vi.mocked(callOpenRouter).mock.calls[0][0]
+    const prompt=String(options.messages.at(-1)?.content)
+    expect(prompt).toContain('Sino Group (also written: 信和)')
+  })
   it('does not charge the provider for an empty saved answer',async()=>{
     expect(await analyseAnswer({answer:' \n ',brandName:'Fimmick'}))
       .toMatchObject({classificationStatus:'fallback',diagnosticReason:'empty_answer',providerUsage:null})

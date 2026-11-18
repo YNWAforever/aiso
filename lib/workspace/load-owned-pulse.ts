@@ -6,6 +6,8 @@ import type { ClientOverview, PromptBankItem } from '@/lib/types'
 export type PulseRead<T> = {status:'ok'|'error';data:T}
 export type OwnedPulse = {
  client:{id:string;brand_name:string}
+ /** The names Pulse matches: the identity display name and its configured aliases. */
+ brandIdentity?:{name:string;aliases:string[]}
  observations:PulseRead<Record<string,unknown>[]>
  missed:PulseRead<ClientOverview['missedOpportunities']>
  prompts:PulseRead<Pick<PromptBankItem,'id'|'question'|'category'|'language'|'is_active'>[]>
@@ -18,8 +20,14 @@ async function read<T>(name:string,work:()=>Promise<T>,empty:T):Promise<PulseRea
 export async function loadOwnedPulse({clientId,profile,withSignals=false}:{clientId:string;profile:{account_id:string};/** Monitor's competitor and alert panels. */withSignals?:boolean}):Promise<OwnedPulse|null>{
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId))return null
  const sql=db();const accountId=profile.account_id
- const clients=await sql`select id,brand_name from clients where id = ${clientId} and account_id = ${accountId} limit 1`
+ const clients=await sql`select c.id,c.brand_name,
+   coalesce((select e.display_name from client_entities e where e.client_id=c.id and e.account_id=c.account_id),c.brand_name) as identity_name,
+   coalesce((select e.aliases from client_entities e where e.client_id=c.id and e.account_id=c.account_id),'[]'::jsonb) as identity_aliases
+  from clients c where c.id = ${clientId} and c.account_id = ${accountId} limit 1`
  if(!clients[0])return null
+ const identity=clients[0] as {id:string;brand_name:string;identity_name?:unknown;identity_aliases?:unknown}
+ const brandIdentity={name:typeof identity.identity_name==='string'&&identity.identity_name.trim()?identity.identity_name:identity.brand_name,
+   aliases:Array.isArray(identity.identity_aliases)?identity.identity_aliases.filter((alias):alias is string=>typeof alias==='string'):[]}
  const [observations,missed,prompts]=await Promise.all([
   read('observations',async()=>attachManifestCoverage(sql,accountId,[clientId],await sql`
    with recent_weeks as (
@@ -79,5 +87,5 @@ export async function loadOwnedPulse({clientId,profile,withSignals=false}:{clien
    return{enabled:config?.enabled_sov===true||config?.enabled_wow===true,lastAt:at instanceof Date?at.toISOString():typeof at==='string'?at:null}
   },{enabled:false,lastAt:null}),
  ])
- return{client:{id:clients[0].id as string,brand_name:clients[0].brand_name as string},observations,missed,prompts,competitors,alerts}
+ return{client:{id:clients[0].id as string,brand_name:clients[0].brand_name as string},brandIdentity,observations,missed,prompts,competitors,alerts}
 }

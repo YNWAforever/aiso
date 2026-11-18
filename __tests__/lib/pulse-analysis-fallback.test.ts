@@ -1,7 +1,7 @@
 import {describe,it,expect,vi} from 'vitest'
 vi.mock('@/lib/openrouter',()=>({callOpenRouter:vi.fn(async()=>{throw new Error('Synthetic outage')})}))
 import {naiveAnalysis,analyseAnswer} from '@/lib/pulse/analysis'
-import {coerceAnalysis} from '@/lib/pulse/analysis-fallback'
+import {coerceAnalysis,literalAbsenceAnalysis} from '@/lib/pulse/analysis-fallback'
 
 describe('uncertain Pulse classification',()=>{
   it('validated negative sentiment stays negative and never uses a character offset as rank',()=>{
@@ -114,5 +114,16 @@ describe('uncertain Pulse classification',()=>{
   it('classifier outage keeps uncertainty and literal evidence',async()=>{
     expect(await analyseAnswer({answer:'Fimmick is terrible.',brandName:'Fimmick'}))
       .toMatchObject({classificationStatus:'fallback',sentiment:'unknown',brandMentioned:null})
+  })
+  it('recognizes an explicitly configured brand alias as the same brand',()=>{
+    expect(naiveAnalysis('我推薦信和置業。','Sino Group',[],['信和','信和置業']))
+      .toMatchObject({brandMentioned:null,matchedText:['信和']})
+    expect(coerceAnalysis({brand_mentioned:true,sentiment:'positive',competitors_mentioned:[]},'我推薦信和。','Sino Group',[],['信和']))
+      .toMatchObject({classificationStatus:'classified',brandMentioned:true,matchedText:['信和']})
+  })
+  it('does not make absence decisive when an alias might still identify the brand',()=>{
+    expect(literalAbsenceAnalysis('我推薦信和。','Sino Group',[],['信和'])).toBeNull()
+    expect(literalAbsenceAnalysis('Another company.','Sino Group',[],['信和']))
+      .toMatchObject({brandMentioned:false,method:'literal-absence'})
   })
 })

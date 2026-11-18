@@ -501,7 +501,7 @@
         "admin": "平台工具",
         "adminBody": "呢個環境嘅內部管理。"
       },
-      "entities": "品牌事實同已批准輸入。",
+      "entities": "品牌名稱、別名同已批准輸入。",
       "opportunities": "由已保存掃描整理嘅優先缺口。",
       "observations": "有已保存證據嘅變化。",
       "sources": "已批准文件同匯入。",
@@ -2647,6 +2647,10 @@
   "pulseView": {
     "title": "AI 可見度觀測",
     "intro": "已儲存的答案觀測，並非供應商請求成功率或歸因改善成效。",
+    "brandNamesTitle": "AI 應該識別嘅品牌名稱",
+    "brandNamesCurrent": "目前識別：{names}",
+    "brandNamesBody": "Pulse 會用呢啲名稱判斷答案有冇提及你嘅品牌。可以加入客戶常用嘅中文名或其他寫法。",
+    "brandNamesEdit": "編輯品牌名稱及別名",
     "report": {
       "eyebrow": "AI 能見度基準",
       "whatChanged": "有咩變化",
@@ -2830,15 +2834,15 @@
     "retry": "重試"
   },
   "entities": {
-    "title": "品牌識別資料",
-    "description": "為此客戶保留一份私人品牌識別資料。這些名稱尚未驗證，不會更改品牌名稱或掃描結果。",
+    "title": "品牌名稱及別名",
+    "description": "告訴 Pulse 讀 AI 答案時邊啲名稱算你嘅品牌。顯示名稱一定會識別；別名係額外寫法，例如中文名。呢啲設定唔會改網站或掃描結果。",
     "privateLabel": "私人工作區",
     "unverified": "尚未驗證",
     "unsaved": "尚未儲存的草稿",
     "saved": "已私人儲存",
-    "displayName": "顯示名稱",
-    "aliases": "別名",
-    "aliasesHelp": "每行一個別名，最多 20 個，每個名稱最多 120 個字元。",
+    "displayName": "Pulse 使用嘅品牌名稱",
+    "aliases": "同時識別為",
+    "aliasesHelp": "每行一個別名，例如「信和」或「Sino Group」。最多 20 個，每個名稱最多 120 個字元。新嘅 Pulse 監測會使用；之前收集嘅答案會保留原有分類。",
     "save": "儲存識別資料",
     "saving": "儲存中…",
     "reload": "捨棄草稿並重新載入最新版本",

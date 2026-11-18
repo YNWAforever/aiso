@@ -64,6 +64,8 @@ beforeAll(async () => {
       trial_ends_at timestamptz,override_plan text,override_expires_at timestamptz);
     create table clients(id uuid primary key,account_id uuid references accounts(id),brand_name text,
       domain text,industry text,status text,competitors text[],created_at timestamptz default now(),unique(id,account_id));
+    create table client_entities(client_id uuid primary key references clients(id),account_id uuid references accounts(id),
+      display_name text,aliases jsonb not null default '[]'::jsonb,revision int not null default 1);
     create table prompt_bank(id uuid primary key,client_id uuid references clients(id),question text,
       category text,language text,market text,is_active boolean default true,monitoring jsonb);
     create table pulse_metrics(id uuid primary key default gen_random_uuid(),client_id uuid references clients(id),

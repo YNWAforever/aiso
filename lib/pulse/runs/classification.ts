@@ -7,7 +7,7 @@ import {mergeCompetitorRefs,type CompetitorRef} from '@/lib/competitors/schema'
 import type {PulseScope} from './schema'
 
 export type ClassificationLease=PulseScope & {id:string;runId:string;attemptId:string;token:string;fence:number;
-  classificationAttemptId:string;answer:string;brandName:string;competitors:CompetitorRef[]}
+  classificationAttemptId:string;answer:string;brandName:string;brandAliases:string[];competitors:CompetitorRef[]}
 export async function claimClassifications(scope:PulseScope,runId:string,deadlineAt:number):Promise<ClassificationLease[]>{
   if(!Number.isFinite(deadlineAt)||deadlineAt<=Date.now()||deadlineAt>Date.now()+120_000)throw new Error('Invalid classification deadline')
   const sql=db(),token=randomUUID()
@@ -35,15 +35,23 @@ export async function claimClassifications(scope:PulseScope,runId:string,deadlin
       select id,accepted_attempt_id,account_id,client_id,classification_attempt_count,classification_lease_token,classification_fence from leased
       returning id,item_id
     ) select i.id,i.accepted_attempt_id,i.classification_fence,s.id as classification_attempt_id,a.raw_answer,
+      coalesce(e.display_name,r.manifest->'brand'->>'name') as brand_name,
+      coalesce(e.aliases,'[]'::jsonb) as brand_aliases,
       r.manifest->'brand' as brand from leased i join started s on s.item_id=i.id
-      join pulse_item_attempts a on a.id=i.accepted_attempt_id join pulse_runs r on r.id=i.run_id`,
+      join pulse_item_attempts a on a.id=i.accepted_attempt_id join pulse_runs r on r.id=i.run_id
+      left join client_entities e on e.account_id=i.account_id and e.client_id=i.client_id`,
   ])
-  return rows.map(row=>({...scope,id:String(row.id),runId,attemptId:String(row.accepted_attempt_id),token,
-    fence:Number(row.classification_fence),classificationAttemptId:String(row.classification_attempt_id),answer:String(row.raw_answer),
-    brandName:(row.brand as {name:string}).name,
-    // Manifests written before 061 carry only plain names; refs add the aliases.
-    competitors:mergeCompetitorRefs((row.brand as {competitors?:unknown[]}).competitors,
-      ((row.brand as {competitorRefs?:unknown}).competitorRefs as {name?:unknown;aliases?:unknown}[]|undefined)??[])}))
+  return rows.map(row=>{
+    const manifestBrand=row.brand as {name?:unknown;competitors?:unknown[];competitorRefs?:unknown}
+    const brandName=typeof row.brand_name==='string'&&row.brand_name.trim()?row.brand_name:String(manifestBrand.name??'')
+    return {...scope,id:String(row.id),runId,attemptId:String(row.accepted_attempt_id),token,
+      fence:Number(row.classification_fence),classificationAttemptId:String(row.classification_attempt_id),answer:String(row.raw_answer),
+      brandName,
+      brandAliases:Array.isArray(row.brand_aliases)?row.brand_aliases.filter((alias):alias is string=>typeof alias==='string'):[],
+      // Manifests written before 061 carry only plain names; refs add the aliases.
+      competitors:mergeCompetitorRefs(manifestBrand.competitors,
+        (manifestBrand.competitorRefs as {name?:unknown;aliases?:unknown}[]|undefined)??[])}
+  })
 }
 export async function commitClassification(item:ClassificationLease,result:AnswerAnalysisV2):Promise<boolean>{
   const sql=db(),serialized=JSON.stringify(result)
@@ -79,9 +87,9 @@ export async function classifySavedAnswers(scope:PulseScope,runId:string,deadlin
     let result:AnswerAnalysisV2
     let timer:ReturnType<typeof setTimeout>|undefined
     try{
-      result=await Promise.race([classifier({answer:item.answer,brandName:item.brandName,competitors:item.competitors}),
+      result=await Promise.race([classifier({answer:item.answer,brandName:item.brandName,brandAliases:item.brandAliases,competitors:item.competitors}),
         new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Classifier deadline')),Math.min(15_000,Math.max(1,deadlineAt-Date.now()-2_000)))})])
-    }catch{result={...naiveAnalysis(item.answer,item.brandName,item.competitors),classificationStatus:'failed',method:'classifier-exception',version:ANALYSIS_VERSION}}
+    }catch{result={...naiveAnalysis(item.answer,item.brandName,item.competitors,item.brandAliases),classificationStatus:'failed',method:'classifier-exception',version:ANALYSIS_VERSION}}
     finally{clearTimeout(timer)}
     return commitClassification(item,result)
   }))
