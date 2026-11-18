@@ -178,3 +178,19 @@ describe('MembersPanel removal', () => {
     expect(render({ members: full })).not.toContain(en.members.capReached)
   })
 })
+
+describe('members never shows an internal id and confirms removal in-product', () => {
+  it.each(['en', 'zh-HK'])('names a member with no name or email as unnamed, not by id, in %s', lang => {
+    const copy = (lang === 'en' ? en : zh).members
+    const html = render({ members: [baseProps.members[0], { profileId: OTHER, displayName: null, approver: false, active: true, joinedAt: '2026-09-05T00:00:00.000000Z' } as never] }, lang)
+    expect(html).not.toContain(OTHER)
+    expect(html).toContain(copy.unnamedMember)
+  })
+  it('uses the accessible confirm dialog, never window.confirm, across the dashboard', async () => {
+    const { readFileSync, readdirSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)])
+    const offenders = walk('components/dashboard').filter(file => /\.tsx?$/.test(file) && readFileSync(file, 'utf8').includes('window.confirm'))
+    expect(offenders).toEqual([])
+  })
+})

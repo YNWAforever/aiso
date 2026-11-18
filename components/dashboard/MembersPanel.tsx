@@ -1,6 +1,7 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, useRef, useState } from 'react'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useLocale, useTranslations } from 'next-intl'
 import type { AccountInvitation, AccountMember } from '@/lib/members/store'
 
@@ -37,6 +38,10 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<{ profileId: string; name: string } | null>(null)
+  const removeReturn = useRef<HTMLButtonElement | null>(null)
+  // A person is never named by their internal id.
+  const nameOf = (person: { displayName?: string | null; email?: string | null }) => person.displayName || person.email || t('unnamedMember')
 
   // Counted the way the server counts it (lib/members/store.ts): members plus
   // invitations that are still live. An expired one occupies no slot, because
@@ -134,7 +139,7 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
           {people.map(person => (
             <li key={person.profileId} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
               <span className="font-medium text-foreground">
-                {person.displayName || person.email || person.profileId}
+                {nameOf(person)}
               </span>
               {person.profileId === self && (
                 <span className="rounded bg-secondary px-2 py-0.5 text-xs font-semibold text-foreground">
@@ -149,16 +154,14 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
               {person.profileId !== self && (
                 <button
                   type="button"
-                  onClick={() => {
-                    const name = person.displayName || person.email || person.profileId
-                    // Removing cuts a colleague's access immediately; ask first.
-                    if (person.active && !window.confirm(t('removeConfirm', { name }))) return
-                    void setActive(person.profileId, !person.active)
+                  onClick={event => {
+                    // Removing cuts a colleague's access immediately; ask first. Restore needs no confirm.
+                    if (!person.active) { void setActive(person.profileId, true); return }
+                    removeReturn.current = event.currentTarget
+                    setRemoving({ profileId: person.profileId, name: nameOf(person) })
                   }}
                   disabled={busy !== null}
-                  aria-label={person.active
-                    ? t('removeNamed', { name: person.displayName || person.email || person.profileId })
-                    : t('restoreNamed', { name: person.displayName || person.email || person.profileId })}
+                  aria-label={t(person.active ? 'removeNamed' : 'restoreNamed', { name: nameOf(person) })}
                   className={`${CONTROL} ml-auto font-semibold disabled:opacity-60 ${person.active ? 'border border-tone-danger/40 bg-tone-danger-soft text-tone-danger-fg' : 'bg-secondary text-foreground'}`}
                 >
                   {busy === person.profileId
@@ -169,6 +172,10 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
             </li>
           ))}
         </ul>
+        <ConfirmDialog open={removing !== null} onOpenChange={open => { if (!open) setRemoving(null) }} destructive returnFocusRef={removeReturn}
+          title={removing ? t('removeConfirmTitle', { name: removing.name }) : ''} description={t('removeConfirmBody')}
+          confirmLabel={t('remove')}
+          onConfirm={async () => { if (removing) await setActive(removing.profileId, false) }} />
         {/* Membership is not permission to approve. Saying so here is what
             keeps this panel honest: an account can have two members and still
             be unable to approve anything. */}

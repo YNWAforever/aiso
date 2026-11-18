@@ -114,6 +114,8 @@ type StudioNavigation = { activeId: string | null; version: number }
 
 function useSessionState(clientId?: string, initialDraft = '') {
   const [threads, setThreads] = useState<StudioThread[]>([])
+  // The one archive that can still be undone (the API accepts archived:false; no list shows archived threads).
+  const [archivedUndo, setArchivedUndo] = useState<{ threadId: string; title: string; failed: boolean } | null>(null)
   const [navigation, setNavigationState] = useState<StudioNavigation>({ activeId: null, version: 0 })
   const navigationIntent = useRef(navigation)
   // Record intent before React can flush an older commit's passive URL effect.
@@ -318,11 +320,24 @@ function useSessionState(clientId?: string, initialDraft = '') {
     return { ok: true }
   }
 
+  /** Archive and remember it so the person can undo straight away. */
+  async function archiveThread(id: string, title: string): Promise<boolean> {
+    const result = await updateThread(id, { archived: true })
+    if (result.ok) setArchivedUndo({ threadId: id, title, failed: false })
+    return result.ok
+  }
+  async function undoArchive(): Promise<boolean> {
+    if (!archivedUndo) return false
+    const result = await updateThread(archivedUndo.threadId, { archived: false })
+    setArchivedUndo(result.ok ? null : { ...archivedUndo, failed: true })
+    return result.ok
+  }
+
   // Keep mutable refs private to their owning hook. Consumers use actions.
   return { threads, setThreads, activeId: navigation.activeId, navigationVersion: navigation.version,
     setActiveId: (activeId: string | null) => { setNavigation(previous => ({ activeId, version: previous.version + 1 })); setFeedback(null) },
     selectThread, refreshThread: (id: string) => loadThread(id, true), refreshingThreadId,
-    selectionError: readErrorId === navigation.activeId, saveThread, saveTurn, saveLive, updateThread, hydrated, readFailed,
+    selectionError: readErrorId === navigation.activeId, saveThread, saveTurn, saveLive, updateThread, archiveThread, undoArchive, archivedUndo, dismissArchivedUndo: () => setArchivedUndo(null), hydrated, readFailed,
     feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, busy,
     allocateId, allocateThreadId,
     isInFlight: () => inFlight.current,

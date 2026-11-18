@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, type RefObject } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -15,9 +15,11 @@ export interface ConfirmDialogProps {
   destructive?: boolean
   /** May be async; the dialog stays open and busy until it settles, and closes only on success. */
   onConfirm: () => void | Promise<void>
+  /** Where focus goes when the dialog closes, when the element that opened it (e.g. a menu item) is gone. */
+  returnFocusRef?: RefObject<HTMLElement | null>
 }
 
-export function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel, cancelLabel, destructive, onConfirm }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel, cancelLabel, destructive, onConfirm, returnFocusRef }: ConfirmDialogProps) {
   const t = useTranslations('ui')
   const [busy, setBusy] = useState(false)
 
@@ -33,7 +35,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
 
   return (
     <Dialog open={open} onOpenChange={next => { if (!busy) onOpenChange(next) }}>
-      <DialogContent hideClose role="alertdialog">
+      <DialogContent hideClose role="alertdialog" onCloseAutoFocus={event => { const target = returnFocusRef?.current; if (target && target.isConnected) { event.preventDefault(); target.focus() } }}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

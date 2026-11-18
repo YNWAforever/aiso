@@ -2,11 +2,13 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, type MouseEvent, type ReactNode } from 'react'
+import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { studioDate } from '@/lib/conversation-studio/format-date'
 import { ArrowUpRight, Ellipsis, FileText, Lock, MessageSquare } from 'lucide-react'
 import { useStudioSession, type StudioThread } from '@/components/dashboard/StudioSession'
+import { StudioArchiveUndo } from '@/components/dashboard/StudioArchiveUndo'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { groupThreads, matchesThread, relativeTime } from '@/lib/conversation-studio/thread-list'
 import type { StudioInspectorReads } from '@/lib/conversation-studio/types'
 import type { StudioConnection, StudioDriveConnection, StudioOutputs } from '@/lib/conversation-studio/secondary'
@@ -38,7 +40,10 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
   }
   // Archived discussions leave every list (threadActions.archivedNote); keep the
   // optimistic row from lingering until the next reload.
-  const visible = session.threads.filter(thread => !thread.archived && matchesThread(thread, query, skillLabel(thread.skill)))
+  const listed = session.threads.filter(thread => !thread.archived)
+  const visible = listed.filter(thread => matchesThread(thread, query, skillLabel(thread.skill)))
+  const [archiving, setArchiving] = useState<{ id: string; title: string } | null>(null)
+  const archiveReturn = useRef<HTMLElement | null>(null)
   async function act(id: string, patch: { title?: string; pinned?: boolean; archived?: boolean; visibility?: 'private' | 'shared' }) {
     setActionFailed(false)
     const result = await session.updateThread(id, patch)
@@ -61,14 +66,23 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
   return <main className="as-page space-y-6"><StudioSectionHeader clientId={clientId} active="threads" showTabs={showTabs} title={t('threadsTitle')} description={t('views.threads.description')} />
     <div className="flex flex-wrap items-end gap-3">
       <button type="button" className="as-button as-primary px-4" onClick={() => { session.setActiveId(null); session.setNewDraft(''); session.setNewTemplate(null); router.push(base) }}>{t('newThread')}</button>
-      {session.hydrated && !session.readFailed && session.threads.length > 0 && <div className="min-w-0 flex-1 space-y-1">
+      {session.hydrated && !session.readFailed && listed.length > 0 && <div className="min-w-0 flex-1 space-y-1">
         <label htmlFor="studio-thread-search" className="as-muted as-small block font-semibold">{t('threadSearch.label')}</label>
         <input id="studio-thread-search" type="search" value={query} onChange={event => setQuery(event.target.value)} className="as-search block w-full min-w-0" />
       </div>}
     </div>
-    {session.hydrated && !session.readFailed && session.threads.length > 0 && <p className="as-small as-muted">{query.trim() ? t('threadSearch.resultCount', { count: visible.length }) : t('threadsCount', { count: session.threads.length })}</p>}
+    {session.hydrated && !session.readFailed && listed.length > 0 && <p className="as-small as-muted">{query.trim() ? t('threadSearch.resultCount', { count: visible.length }) : t('threadsCount', { count: listed.length })}</p>}
     {actionFailed && <p role="alert" className="as-note">{t('threadActions.failed')}</p>}
-    {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : !session.threads.length
+    <StudioArchiveUndo />
+    <ConfirmDialog open={archiving !== null} onOpenChange={open => { if (!open) setArchiving(null) }} destructive returnFocusRef={archiveReturn}
+      title={t('threadActions.archiveConfirmTitle')} description={archiving ? t('threadActions.archiveConfirmBody', { title: archiving.title }) : undefined}
+      confirmLabel={t('threadActions.archive')} cancelLabel={t('threadActions.cancel')}
+      onConfirm={async () => {
+        if (!archiving) return
+        setActionFailed(false)
+        if (!await session.archiveThread(archiving.id, archiving.title)) setActionFailed(true)
+      }} />
+    {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted" aria-busy="true">{t('loadingThreads')}</p> : !listed.length
       ? <div className="as-empty space-y-2"><MessageSquare aria-hidden="true" className="as-blue mx-auto" /><h2>{t('recentThreadsEmpty')}</h2><p className="as-muted">{t('views.threads.empty')}</p></div>
       : !visible.length ? <p className="as-muted" role="status">{t('threadSearch.noMatch', { query: query.trim() })}</p>
       : groupThreads(visible, now).map(group => <section key={group.key} aria-labelledby={`studio-threads-${group.key}`} className="space-y-2">
@@ -96,7 +110,7 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
                     <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" aria-pressed={thread.pinned} onClick={event => { closeMenu(event); void act(thread.id, { pinned: !thread.pinned }) }}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
                     <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" aria-pressed={thread.visibility === 'shared'} onClick={event => { closeMenu(event); void act(thread.id, { visibility: thread.visibility === 'shared' ? 'private' : 'shared' }) }}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
                     <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); startRename(thread) }}>{t('threadActions.rename')}</button>
-                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); if (window.confirm(t('threadActions.archiveConfirm', { title: thread.title }))) void act(thread.id, { archived: true }) }}>{t('threadActions.archive')}</button>
+                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { archiveReturn.current = event.currentTarget.closest('details')?.querySelector('summary') ?? null; closeMenu(event); setArchiving({ id: thread.id, title: thread.title }) }}>{t('threadActions.archive')}</button>
                   </div>
                 </details>
                 : null}

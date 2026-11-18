@@ -30,6 +30,8 @@ import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type
 import { relativeTime } from '@/lib/conversation-studio/thread-list'
 import type { StudioThreadUpdateInput } from '@/lib/conversation-studio/threads-types'
 import Link from 'next/link'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { StudioArchiveUndo } from '@/components/dashboard/StudioArchiveUndo'
 import { platformName } from '@/lib/brand-month/labels'
 import './conversation-studio.css'
 
@@ -48,13 +50,15 @@ function boundedTitle(value: string): string {
   return wordEnd > 0 ? clipped.slice(0, wordEnd) : clipped
 }
 
-export function StudioThreadHeader({ thread, attachment, onHome, originTitle, onOpenOrigin, onUpdate, onArchived, homeLabel }: {
+export function StudioThreadHeader({ thread, attachment, onHome, originTitle, onOpenOrigin, onUpdate, onArchive, onArchived, homeLabel }: {
   thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState' | 'visibility' | 'turnCount' | 'updatedAt' | 'branchOf'> & { pinned?: boolean; mine?: boolean }
   attachment?: StudioAttachCandidate | null
   onHome: () => void
   originTitle?: string | null
   onOpenOrigin?: () => void
   onUpdate?: (patch: StudioThreadUpdateInput) => Promise<boolean>
+  /** Archives through the session so the archive can be undone; falls back to a plain update. */
+  onArchive?: () => Promise<boolean>
   onArchived?: () => void
   /** The area's name as the shell shows it ("Back to Chat" in the copilot IA). */
   homeLabel?: string
@@ -64,6 +68,8 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
   const [renaming, setRenaming] = useState(false)
   const [titleDraft, setTitleDraft] = useState(thread.title)
   const [actionFailed, setActionFailed] = useState(false)
+  const [confirmingArchive, setConfirmingArchive] = useState(false)
+  const menuSummary = useRef<HTMLElement>(null)
   const when = relativeTime(thread.updatedAt, new Date(), lang)
   async function patch(next: StudioThreadUpdateInput) {
     if (!onUpdate) return false
@@ -76,16 +82,25 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
     <div className="flex flex-wrap items-start justify-between gap-2">
       <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{homeLabel ?? t('title')}</button>
       {onUpdate && thread.mine && <details className="as-thread-menu">
-        <summary className="as-button inline-flex items-center justify-center px-3" aria-label={t('threadActions.label')}><Ellipsis className="size-4" aria-hidden="true" /></summary>
+        <summary ref={menuSummary} className="as-button inline-flex items-center justify-center px-3" aria-label={t('threadActions.label')}><Ellipsis className="size-4" aria-hidden="true" /></summary>
         <div role="group" aria-label={t('threadActions.label')} className="as-thread-menu-panel" onClick={event => event.currentTarget.closest('details')?.removeAttribute('open')}>
           <button type="button" aria-pressed={thread.pinned} onClick={() => void patch({ pinned: !thread.pinned })}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
           <button type="button" aria-pressed={thread.visibility === 'shared'} onClick={() => void patch({ visibility: thread.visibility === 'shared' ? 'private' : 'shared' })}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
           <button type="button" onClick={() => { setRenaming(true); setTitleDraft(thread.title); setActionFailed(false) }}>{t('threadActions.rename')}</button>
-          <button type="button" onClick={() => { if (window.confirm(t('threadActions.archiveConfirm', { title: thread.title }))) void patch({ archived: true }).then(ok => { if (ok) onArchived?.() }) }}>{t('threadActions.archive')}</button>
+          <button type="button" onClick={() => setConfirmingArchive(true)}>{t('threadActions.archive')}</button>
         </div>
       </details>}
       {onUpdate && !thread.mine && <span className="as-badge">{t('sharedReadOnlyBody')}</span>}
     </div>
+    <ConfirmDialog open={confirmingArchive} onOpenChange={setConfirmingArchive} destructive returnFocusRef={menuSummary}
+      title={t('threadActions.archiveConfirmTitle')} description={t('threadActions.archiveConfirmBody', { title: thread.title })}
+      confirmLabel={t('threadActions.archive')} cancelLabel={t('threadActions.cancel')}
+      onConfirm={async () => {
+        setActionFailed(false)
+        const ok = onArchive ? await onArchive() : await patch({ archived: true })
+        if (ok) onArchived?.()
+        else setActionFailed(true)
+      }} />
     {actionFailed && <p role="alert" className="as-note">{t('threadActions.failed')}</p>}
     {renaming && <form className="flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); const title = titleDraft.trim(); if (!title) return; void patch({ title }).then(ok => { if (ok) setRenaming(false) }) }}>
       <label className="min-w-0 flex-1 space-y-1 text-sm"><span className="as-muted as-small block font-semibold">{t('threadActions.rename')}</span><input className="as-search block w-full min-w-0" value={titleDraft} maxLength={200} onChange={event => setTitleDraft(event.target.value)} autoFocus /></label>
@@ -136,7 +151,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const [confirmingLive, setConfirmingLive] = useState<{ prompt: string; task: StudioHomeTemplate | null } | null>(null)
   const [attachment, setAttachment] = useState<StudioAttachCandidate | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, refreshThread, refreshingThreadId, selectionError, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId, hydrated, readFailed, updateThread } = useStudioSession()
+  const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, refreshThread, refreshingThreadId, selectionError, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId, hydrated, readFailed, updateThread, archiveThread } = useStudioSession()
   const [filter, setFilter] = useState<StudioFilter>('all')
   const [lastThreadId, setLastThreadId] = useState<string | null>(null)
   const lastThreadKey = clientId ? `aiso:studio:last-thread:${clientId}` : null
@@ -609,6 +624,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           </>}
           {embedded && basePath && !staffView && <Link href={`${basePath}/studio/connections`} className="underline">{t('manageConnections')}</Link>}
         </div>
+        <StudioArchiveUndo />
         {continueSection}
         <details className="as-disclosure" open>
           {/* The summary is the section heading, so the label is not shown twice. */}
@@ -657,7 +673,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </details>}
         {scopeNote}
       </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
-        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} onUpdate={current.mine && !staffView ? async patch => (await updateThread(current.id, patch)).ok : undefined} onArchived={openHome} homeLabel={smeCopilot ? t('sections.backToChat') : undefined} />
+        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} onUpdate={current.mine && !staffView ? async patch => (await updateThread(current.id, patch)).ok : undefined} onArchive={() => archiveThread(current.id, current.title)} onArchived={openHome} homeLabel={smeCopilot ? t('sections.backToChat') : undefined} />
         {current.saveState === 'failed' && <p role="alert" className="as-note">{t('saveFailed')}</p>}
         <h2 className="sr-only">{t('conversationLabel')}</h2>
         {/* Reserve the rail column only when the rail renders; one thread used to leave an empty 240px gap. */}

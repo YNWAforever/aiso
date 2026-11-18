@@ -66,6 +66,38 @@ for (const lang of ['en', 'zh-HK']) {
     expect(unexpectedRequests(requests)).toEqual([])
   })
 
+  test(`archive asks in a dialog, returns focus on cancel, and can be undone in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang)
+    const title = 'Discussion to archive'
+    await page.locator('#studio-composer').fill(title)
+    await page.locator('button[type="submit"]').click()
+    await expect.poll(() => new URL(page.url()).searchParams.get('thread')).toMatch(/^[a-f0-9-]{36}$/)
+    const header = page.locator('#studio-discussion > header')
+    const menu = header.getByLabel(copy.threadActions.label, { exact: true }).first()
+    await menu.click()
+    await header.getByRole('button', { name: copy.threadActions.archive, exact: true }).click()
+    const dialog = page.getByRole('alertdialog', { name: copy.threadActions.archiveConfirmTitle })
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText(title)
+    expect((await new AxeBuilder({ page }).include('[role="alertdialog"]').analyze()).violations).toEqual([])
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    // The menu item that opened the dialog is gone; focus lands on the menu button instead.
+    await expect(menu).toBeFocused()
+    await menu.click()
+    await header.getByRole('button', { name: copy.threadActions.archive, exact: true }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: copy.threadActions.archive, exact: true }).click()
+    const undo = page.getByRole('status').filter({ hasText: copy.threadActions.archivedNotice.replace('{title}', title) })
+    await expect(undo).toBeVisible()
+    await expect(page.locator('#studio-discussion')).toHaveCount(0)
+    await undo.getByRole('button', { name: copy.threadActions.undo, exact: true }).click()
+    await expect(undo).toHaveCount(0)
+    await page.reload()
+    await navigate(page, copy.threadsTitle, copy)
+    await expect(page.getByRole('main').getByText(title, { exact: true }).first()).toBeVisible()
+    expect(unexpectedRequests(requests)).toEqual([])
+  })
+
   test(`native account navigation wins over an older saved-thread URL effect in ${lang}`, async ({ page }) => {
     const { requests } = await fixture(page, lang, '?switchAtCommit=1')
     await expect(page.locator('html')).toHaveAttribute('data-scope-probe', 'armed')
