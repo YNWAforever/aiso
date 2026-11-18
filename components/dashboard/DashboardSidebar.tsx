@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { LogOut, Wrench, Brain, Settings, Lock, LayoutDashboard, MessageSquare, ScanSearch, Radio, FileText, Settings2, Home, Menu, X, type LucideIcon } from 'lucide-react'
+import { planDisplayName } from '@/lib/format/plan-name'
 import type { CommercialEntitlement } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 import { buildDashboardNav, locateDashboard, type SectionKey } from '@/lib/dashboard-nav'
@@ -143,7 +144,7 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
             <div className="mb-1.5 flex items-center justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plan_label')}</p>
               <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-black text-primary-accessible">
-                {plan.charAt(0).toUpperCase() + plan.slice(1)}
+                {planDisplayName(plan, lang)}
               </span>
             </div>
             <Link href={`/${lang}/dashboard/settings`} onClick={() => setNavigationOpen(false)}
@@ -161,8 +162,9 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
               </span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] font-medium text-foreground">{profile.display_name || profile.email || 'User'}</p>
-              <p className="text-[10px] text-muted-foreground">{plan}</p>
+              <p className="truncate text-[11px] font-medium text-foreground">{profile.display_name || profile.email || t('account_fallback')}</p>
+              {/* The plan's display name, never the stored id ("pro"). */}
+              <p className="text-[10px] text-muted-foreground">{planDisplayName(plan, lang)}</p>
             </div>
             {profile.is_admin && (
               <Link href={`/admin?lang=${lang}`} className="inline-flex size-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground" title={t('admin')} aria-label={t('admin')}>

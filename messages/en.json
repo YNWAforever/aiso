@@ -1519,6 +1519,7 @@
     "theme_switch_light": "Switch to light mode",
     "plan_starter": "Starter",
     "plan_pro": "Pro",
+    "account_fallback": "Your account",
     "plan_enterprise": "Enterprise",
     "upgrade_title": "Pro feature",
     "upgrade_body": "Edit your prompt bank on the Pro plan.",
@@ -5738,5 +5739,12 @@
     "upgrade_title": "Scan + Pulse report is available on Pro",
     "upgrade_body": "Upgrade to combine the website scan with Pulse visibility.",
     "upgrade_cta": "View plans"
+  },
+  "planNames": {
+    "free": "Free",
+    "basic": "Basic",
+    "pro": "Pro",
+    "enterprise": "Enterprise",
+    "partner": "Partner"
   }
 }

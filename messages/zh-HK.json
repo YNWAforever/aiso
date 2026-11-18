@@ -1519,6 +1519,7 @@
     "theme_switch_light": "切換至淺色模式",
     "plan_starter": "入門版",
     "plan_pro": "專業版",
+    "account_fallback": "你的帳戶",
     "plan_enterprise": "企業版",
     "upgrade_title": "專業版功能",
     "upgrade_body": "升級至專業版以編輯提示語庫。",
@@ -5738,5 +5739,12 @@
     "upgrade_title": "Pro 提供掃描 + Pulse 報告",
     "upgrade_body": "升級後可結合網站掃描同 Pulse 可見度。",
     "upgrade_cta": "查看方案"
+  },
+  "planNames": {
+    "free": "免費",
+    "basic": "基本版",
+    "pro": "專業版",
+    "enterprise": "企業版",
+    "partner": "合作夥伴"
   }
 }

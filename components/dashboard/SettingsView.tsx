@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { planDisplayName } from '@/lib/format/plan-name'
 import type { ReactNode } from 'react'
 import { getPlanDefinition, type PlanId } from '@/lib/plans/catalog'
 import en from '@/messages/en.json'
@@ -25,7 +26,7 @@ export function SettingsView({lang,plan,status,hasStripe,billingDetails,children
   children?:ReactNode
 }) {
   const copy=(lang==='zh-HK'?zhHK:en).settings
-  const label=plan==='free'?copy.free:plan.charAt(0).toUpperCase()+plan.slice(1)
+  const label=planDisplayName(plan,lang)
   const price=getPlanDefinition(plan).monthlyPriceUsd
   return <main className="mx-auto w-full min-w-0 max-w-5xl space-y-8 break-words px-4 py-8 sm:px-6">
     <header><h1 className="text-2xl font-bold text-foreground">{copy.title}</h1><p className="mt-3 text-sm text-muted-foreground">{copy.intro}</p></header>
