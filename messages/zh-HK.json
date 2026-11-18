@@ -2,7 +2,7 @@
   "conversationStudio": {
     "answerLabel": "AISO · 回答",
     "scopeNote": "證據範圍與限制",
-    "localeLabel": "香港 · 繁體中文",
+    "localeLabel": "香港市場",
     "heroEyebrow": "品牌工作室",
     "title": "開始工作",
     "description": "直接問，或選一個範本。把研究變成下一份有來源、可以交付的成果。",
@@ -295,7 +295,7 @@
         "unknownVersion": "未記錄版本"
       }
     },
-    "localeBadge": "香港 · 繁中",
+    "localeBadge": "香港市場",
     "followUpLabel": "繼續這個討論",
     "savedDataLabel": "AISO 已保存資料",
     "templatesDescription": "每個範本都有明確成果",

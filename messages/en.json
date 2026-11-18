@@ -2,7 +2,7 @@
   "conversationStudio": {
     "answerLabel": "AISO · Answer",
     "scopeNote": "Evidence scope and limits",
-    "localeLabel": "Hong Kong · Traditional Chinese",
+    "localeLabel": "Hong Kong market",
     "heroEyebrow": "YOUR BRAND WORKSPACE",
     "title": "Start work",
     "description": "Ask directly, or choose a template. Turn research into your next sourced, deliverable result.",
@@ -295,7 +295,7 @@
         "unknownVersion": "an unrecorded version"
       }
     },
-    "localeBadge": "Hong Kong · Traditional Chinese",
+    "localeBadge": "Hong Kong market",
     "followUpLabel": "Continue this discussion",
     "savedDataLabel": "Data saved in AISO",
     "templatesDescription": "Every template has a clear outcome",
