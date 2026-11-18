@@ -24,7 +24,7 @@ type Props = {
   competitors: AgentCompetitor[]
   scanChoices?: ScanChoice[]
 }
-type Attempt={state:'pending'|'running'|'complete'|'error'|'unavailable';generation?:AgentGenerationReceipt|null;checking?:boolean}
+type Attempt={state:'pending'|'running'|'complete'|'error'|'unavailable';generation?:AgentGenerationReceipt|null;checking?:boolean;reason?:string}
 function numericRows<T extends object>(rows:T[],section:Parameters<typeof normalizeAgentNumbers>[1]):T[]{
   return rows.flatMap(row=>{try{return[normalizeAgentNumbers(row,section)]}catch{return[]}})
 }
@@ -95,7 +95,7 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
       if(result.scanId!==scan.id||!['complete','running','unavailable','error'].includes(String(result.state)))throw new Error('Unavailable generation')
       const generation=readAgentGeneration(result.generation)
       if(result.generation!=null&&!generation||generation&&generation.state!==result.state||!response.ok&&result.state!=='error'&&result.state!=='unavailable')throw new Error('Unavailable generation')
-      setAttempts(current=>({...current,[key]:{state:result.state as Attempt['state'],generation}}))
+      setAttempts(current=>({...current,[key]:{state:result.state as Attempt['state'],generation,reason:typeof result.error==='string'?result.error:undefined}}))
       if(active.current===key&&(result.state==='complete'||result.state==='running'))router.refresh()
     }catch{
       setAttempts(current=>({...current,[key]:{state:'error',generation:receipt}}))
@@ -129,6 +129,8 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
               ) : null}
             </div>
           </div>
+          {/* "Unavailable" is a definite answer with a reason; never leave the button looking like it did nothing. */}
+          {attempt?.state==='unavailable' && <p role="status" className="mt-4 rounded-lg border border-border bg-card p-3 text-sm text-foreground">{generated(attempt.reason==='EXTERNAL_AGENT_CONFIGURED'?'unavailableReason.external':attempt.reason==='NOT_FOUND'?'unavailableReason.scanMissing':attempt.reason==='UPGRADE_REQUIRED'?'unavailableReason.notInPlan':'unavailableReason.other')}</p>}
           <p className="mt-4 text-xs leading-relaxed text-muted-foreground">{smeCopilot ? generated('draftEvidenceNotice') : generated('improveActionNotice')}</p>
           {scanChoices && scanChoices.length > 0 && typeof clientId === 'string' ? (
             <div className="mt-4 border-t border-primary/20 pt-4">

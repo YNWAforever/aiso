@@ -1899,7 +1899,8 @@
       "loading": "載入中…",
       "errorTitle": "此頁未能載入",
       "errorBody": "資料沒有遺失，請稍後再試。",
-      "retry": "再試一次"
+      "retry": "再試一次",
+      "backToBrands": "返回你的品牌"
     },
     "upgrade": {
       "cta": "查看方案",
@@ -2799,6 +2800,12 @@
     "moreTitle": "更多分析",
     "title": "已生成的建議",
     "generateImprove": "生成審閱建議",
+    "unavailableReason": {
+      "external": "此品牌的掃描會傳送到你自己的代理，所以不會在這裡產生建議。",
+      "scanMissing": "這個掃描已無法使用。請選擇另一個掃描或執行新掃描。",
+      "notInPlan": "你的方案不包括產生建議。請查看方案以加入此功能。",
+      "other": "暫時未能為這個掃描產生建議，請稍後再試。"
+    },
     "checkStatus": "查看已儲存的生成狀態",
     "checkingStatus": "正在查看已儲存的生成狀態…",
     "refreshStatus": "重新整理已儲存結果",

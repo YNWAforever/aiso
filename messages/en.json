@@ -1899,7 +1899,8 @@
       "loading": "Loading…",
       "errorTitle": "This page did not load",
       "errorBody": "Nothing was lost. Try again in a moment.",
-      "retry": "Try again"
+      "retry": "Try again",
+      "backToBrands": "Back to your brands"
     },
     "upgrade": {
       "cta": "See plans",
@@ -2799,6 +2800,12 @@
     "moreTitle": "More analyses",
     "title": "Generated work",
     "generateImprove": "Generate review suggestions",
+    "unavailableReason": {
+      "external": "This brand sends its scans to your own agent, so suggestions are not generated here.",
+      "scanMissing": "This scan is no longer available. Choose another scan or run a new one.",
+      "notInPlan": "Generating suggestions is not included in your plan. See Plans to add it.",
+      "other": "Suggestions cannot be generated for this scan right now. Try again later."
+    },
     "checkStatus": "Check saved generation",
     "checkingStatus": "Checking saved generation…",
     "refreshStatus": "Refresh saved results",
