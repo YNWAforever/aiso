@@ -716,7 +716,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               <StudioReplyView clientId={clientId} readOnly={staffView || !current.mine} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={turnSaveState === 'saved' ? () => branchThread(current, current.turns[index]) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
               {/* This existing export saves the stored summary, not the model reply. */}
               {clientId && current.mine && !staffView && current.saveState === 'persisted' && turnSaveState === 'saved' && position !== undefined
-                && (features?.platform_access.length ?? 1) > 0 && <StudioSaveToDocs clientId={clientId} threadId={current.id} position={position} />}
+                && (features?.platform_access?.length ?? 1) > 0 && <StudioSaveToDocs clientId={clientId} threadId={current.id} position={position} />}
               </details>}
               <StudioGscSnapshotView gsc={gsc} />
               <StudioDfsSnapshotView dfs={dfs} />
