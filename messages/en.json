@@ -2552,6 +2552,7 @@
     "evidenceDetails": "Evidence details",
     "nextStep": {
       "configure": "Confirm monitoring questions",
+      "configureNeedsPro": "See plans to confirm monitoring questions (Pro)",
       "start": "Start first monitoring",
       "repair": "Review or repair monitoring",
       "results": "Review answers and citations",

@@ -26,7 +26,7 @@ export type OwnedWorkspace = {
   progress: WorkspaceRead<AgentProgress[]>
   competitors: WorkspaceRead<AgentCompetitor[]>
   monitoring?:WorkspaceRead<PulseAvailability|null>
-  setup?:WorkspaceRead<{active:number;contextConfirmed:boolean}|null>
+  setup?:WorkspaceRead<{active:number;contextConfirmed:boolean;canEditPrompts?:boolean}|null>
   maintenance?:WorkspaceRead<MaintenanceSnapshot|null>
   /** The same rows as history, newest first, with their evidence. */
   trend?: WorkspaceRead<TrendScan[]>
@@ -127,7 +127,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId, withTaskCo
         and to_jsonb(m)->>'classification_status'='classified'
       order by m.scan_week desc, m.id desc limit 10
     ` as ClientOverview['missedOpportunities'], []),
-    read('setup',async()=>{const rows=await sql`select p.language,p.market from prompt_bank p join clients c on c.id=p.client_id and c.account_id=${accountId} where p.client_id=${clientId} and c.account_id=${accountId} and p.is_active=true`;return{active:rows.length,contextConfirmed:rows.length>0&&rows.every(row=>isPromptLanguage(row.language)&&isPromptMarket(row.market))}},null),
+    read('setup',async()=>{const rows=await sql`select p.language,p.market from prompt_bank p join clients c on c.id=p.client_id and c.account_id=${accountId} where p.client_id=${clientId} and c.account_id=${accountId} and p.is_active=true`;return{active:rows.length,contextConfirmed:rows.length>0&&rows.every(row=>isPromptLanguage(row.language)&&isPromptMarket(row.market)),canEditPrompts:features.edit_prompts}},null),
     read('maintenance',()=>loadMaintenanceSnapshot(accountId,clientId,features.platform_access.length>0),null),
     read('monitoring',async()=>(await readUserPulseOptions({accountId,clientId})).availability,null),
     // Only whether any task was ever saved: the getting-started checklist's third step.

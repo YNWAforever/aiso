@@ -22,3 +22,14 @@ describe('T33 primary action from confirmed monitoring and work state',()=>{
  it.each(['review-source','open-draft'])('saved %s work precedes complete results',kind=>expect(projectPrimaryNextStep({...base,daily:{state:'complete',nextActions:[{kind,path:kind==='review-source'?'/sources?source=s&version=v':'/opportunities?draft=d'}]} as never})).toMatchObject({kind:'review_work',labelKey:'work'}))
  it('cannot create an external or cross-client work link',()=>expect(projectPrimaryNextStep({...base,daily:{state:'complete',nextActions:[{kind:'open-draft',path:'//foreign.example/p'}]} as never})).toMatchObject({kind:'review_results',href:'/en/dashboard/owned/observations'}))
 })
+
+describe('a plan that cannot edit questions is never sent to a locked page', () => {
+  it('routes confirm_prompts to plans with a label that says why', () => {
+    const step = projectPrimaryNextStep({ lang: 'en', clientId: 'c', setup: { active: 0, contextConfirmed: false, canEditPrompts: false }, daily: null })
+    expect(step).toMatchObject({ kind: 'confirm_prompts', labelKey: 'configureNeedsPro', href: '/en/pricing' })
+  })
+  it('keeps the prompts page for plans that can edit, and when the plan is unknown', () => {
+    expect(projectPrimaryNextStep({ lang: 'en', clientId: 'c', setup: { active: 0, contextConfirmed: false, canEditPrompts: true }, daily: null }).href).toBe('/en/dashboard/c/prompts')
+    expect(projectPrimaryNextStep({ lang: 'en', clientId: 'c', setup: { active: 0, contextConfirmed: false }, daily: null }).href).toBe('/en/dashboard/c/prompts')
+  })
+})

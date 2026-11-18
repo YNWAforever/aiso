@@ -2552,6 +2552,7 @@
     "evidenceDetails": "證據詳情",
     "nextStep": {
       "configure": "確認監測問題",
+      "configureNeedsPro": "查看方案以確認監測問題（專業版）",
       "start": "開始首次監測",
       "repair": "查看或修復監測",
       "results": "查看回答與引用",
