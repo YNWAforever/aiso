@@ -47,8 +47,8 @@ magic-link / Google only, so the review rendered the same production components 
 | Studio action panel | The "Scan record: {uuid}" scope line is no longer shown (a month scope still is). The saved discussion prompt keeps the scan reference for audit. |
 | Mobile Studio | The top bar drops the duplicate market chip on phones; "Choose documents" no longer wraps. |
 
-## Still open — needs an owner decision
+## Decided — keep as is
 
-1. **Inline links in Studio are 44 px boxes** (`#aiso-studio a` in `conversation-studio.css`),
-   which breaks sentences such as "Open sources". `studio-shell.spec.ts` requires every link to
-   be ≥ 44 px, so changing it is a deliberate rule change, not a bug fix.
+- **Inline links in Studio stay 44 px boxes** (`#aiso-studio a` in `conversation-studio.css`).
+  Owner decision (2026-11-18): keep the 44 px target rule that `studio-shell.spec.ts` enforces,
+  even though it breaks sentences such as "Open sources" across lines.
