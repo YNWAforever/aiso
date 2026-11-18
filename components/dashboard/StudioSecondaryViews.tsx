@@ -35,7 +35,9 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
     const task = skill ? studioSkill(skill)?.task : null
     return task ? t(`templates.${task}.label`) : null
   }
-  const visible = session.threads.filter(thread => matchesThread(thread, query, skillLabel(thread.skill)))
+  // Archived discussions leave every list (threadActions.archivedNote); keep the
+  // optimistic row from lingering until the next reload.
+  const visible = session.threads.filter(thread => !thread.archived && matchesThread(thread, query, skillLabel(thread.skill)))
   async function act(id: string, patch: { title?: string; pinned?: boolean; archived?: boolean; visibility?: 'private' | 'shared' }) {
     setActionFailed(false)
     const result = await session.updateThread(id, patch)
@@ -93,7 +95,7 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
                     <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" aria-pressed={thread.pinned} onClick={event => { closeMenu(event); void act(thread.id, { pinned: !thread.pinned }) }}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
                     <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" aria-pressed={thread.visibility === 'shared'} onClick={event => { closeMenu(event); void act(thread.id, { visibility: thread.visibility === 'shared' ? 'private' : 'shared' }) }}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
                     <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); startRename(thread) }}>{t('threadActions.rename')}</button>
-                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); void act(thread.id, { archived: true }) }}>{t('threadActions.archive')}</button>
+                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); if (window.confirm(t('threadActions.archiveConfirm', { title: thread.title }))) void act(thread.id, { archived: true }) }}>{t('threadActions.archive')}</button>
                   </div>
                 </details>
                 : null}

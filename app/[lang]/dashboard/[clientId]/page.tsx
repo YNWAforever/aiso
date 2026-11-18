@@ -433,8 +433,13 @@ export default async function DashboardPage({
             </div>)}
         {step === 'results' && !scan && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
-            <p className="text-sm text-dash-text mb-1">{t('no_scan_selected')}</p>
-            <p className="text-xs text-dash-muted">{t('no_scan_selected_body')}</p>
+            <h2 className="text-base font-semibold text-dash-text mb-1">{t('no_scan_selected')}</h2>
+            <p className="mx-auto max-w-md text-sm text-dash-muted">{t('no_scan_selected_body')}</p>
+            {/* Never a dead end: the empty state always offers the next step. */}
+            <Link href={`/${lang}/dashboard/${clientId}?step=scan`}
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {t('run_new_scan')}
+            </Link>
           </div>
         )}
 

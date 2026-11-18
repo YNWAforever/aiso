@@ -39,7 +39,8 @@
       "unshare": "Make private",
       "archive": "Archive",
       "failed": "That change was not saved. The discussion is unchanged.",
-      "archivedNote": "Archived discussions stay readable by their creator but leave every list."
+      "archivedNote": "Archived discussions stay readable by their creator but leave every list.",
+      "archiveConfirm": "Archive \"{title}\"? It will leave every discussion list and cannot be restored from here."
     },
     "templatesTitle": "Skills",
     "conversationLabel": "Brand evidence conversation",
@@ -212,7 +213,8 @@
       "unavailable": "The AI reply could not be confirmed. Read the saved reply again without making another model request.",
       "remaining": "LIVE answers left this week for this brand: {count}. Failed or unknown provider attempts still use quota.",
       "remainingComposer": "{count} of {cap} LIVE answers left for this brand this week.",
-      "savedOnly": "Weekly LIVE answers for this brand are used. Send still saves an evidence-only answer; LIVE resumes next Monday.",
+      "savedOnly": "You have used this week's AI replies for this brand. You can still send: the answer will use saved evidence only. AI replies reset next Monday.",
+      "selectPlatform": "Select at least one AI model above to get an AI reply.",
       "confirmTitle": "Send to more than one model?",
       "confirmCost": "This send asks {count} models and uses {count} answer units from the weekly cap of {cap}.",
       "confirmSend": "Send to {count} models",
@@ -286,12 +288,12 @@
     "followUpSend": "Send message",
     "followUpPlaceholder": "Ask a follow-up, or start a new discussion with selected content…",
     "sources": {
-      "bound": "Search Console · Bound",
+      "bound": "Search Console · Connected",
       "unbound": "Search Console · Not connected",
       "reconnect": "Search Console · Reconnect required",
-      "rebind": "Search Console · Binding needs verification",
+      "rebind": "Search Console · Check the connected property",
       "unavailable": "Search Console · Pending verification",
-      "notQueried": "Binding status only; no search data queried."
+      "notQueried": "Connection status only. Search data is read when you ask a question."
     },
     "gsc": {
       "title": "Search Console · Hong Kong",
@@ -454,10 +456,10 @@
       "statusUnavailable": "Status unavailable",
       "statusSyncUnavailable": "Sync status unavailable",
       "planned": "Planned",
-      "readScopeNote": "Only saved connection status is shown. This page does not query any provider.",
+      "readScopeNote": "This page shows the last saved status of each connection.",
       "searchConsoleTitle": "Google Search Console",
       "hkEndpointPending": "Hong Kong endpoint pending verification",
-      "completenessPending": "Data completeness requires verification",
+      "completenessPending": "Some days may still be missing",
       "viewScope": "View connection scope",
       "savedOnly": "Saved binding and sync status only. No search data query, sync or Hong Kong filter ran here.",
       "firecrawlScope": "Public page URL, retrieval time and cited passages; currently not connected. No pages were retrieved.",
@@ -648,7 +650,7 @@
       "deltaFlat": "No change vs the previous saved week",
       "openThread": "Start with this week",
       "openThreadPrompt": "Explain the AI visibility change for the week of {week}, using only saved observations.",
-      "scopeNote": "From the saved weekly rollup. This view does not call a provider.",
+      "scopeNote": "Based on your saved weekly AI checks.",
       "emptyTitle": "No saved weeks yet",
       "empty": "It appears after a saved weekly run.",
       "unavailable": "The weekly rollup could not be read."
@@ -1532,7 +1534,7 @@
     "add_first_brand_body": "Track your Share of Voice across ChatGPT, Google AI, Perplexity, Claude, and Gemini. Each brand gets a full diagnostic dashboard with 20 AI readiness checks and agent analysis.",
     "recent_scans": "Recent Scans",
     "step_scan_title": "Run a scan",
-    "step_scan_body": "Enter any URL to run a 20-check diagnostic. We'll assess how visible your content is to AI search engines like ChatGPT, Claude, and Gemini. Free for everyone — no subscription needed.",
+    "step_scan_body": "Enter any URL to run a 20-check diagnostic. We'll assess how visible your content is to AI search engines like ChatGPT, Claude, and Gemini.",
     "step_results_title": "Scan results",
     "step_results_body": "Your full diagnostic report. Each of the 20 checks shows a pass, warn, or fail status with an explanation of why it matters and how to fix it. Open any check to see the details.",
     "step_improve_title": "Improve with AI agents",
@@ -1589,6 +1591,9 @@
     "scanning": "Scanning...",
     "run_scan": "Run Scan",
     "scan_failed": "Scan failed",
+    "scan_failed_retry": "The scan could not start. Check the URL and try again.",
+    "scan_failed_busy": "Too many scans in a short time. Wait a minute, then try again.",
+    "scan_failed_unavailable": "Scanning is temporarily unavailable. Please try again in a few minutes.",
     "scan_unreachable": "We could not reach that website. Check the address and try again; nothing was saved.",
     "network_error": "Network error. Please try again.",
     "how_it_works": "How it works",
@@ -3845,6 +3850,11 @@
     "invitedOn": "Invited",
     "expiresOn": "Expires",
     "remove": "Remove",
+    "removeConfirm": "Remove {name} from this account? They lose access straight away. You can restore them later.",
+    "removeNamed": "Remove {name}",
+    "restoreNamed": "Restore {name}",
+    "removedNotice": "Member removed. They can no longer reach this account.",
+    "restoredNotice": "Member restored.",
     "removing": "Removing",
     "restore": "Restore",
     "restoring": "Restoring",
@@ -5569,7 +5579,7 @@
   "today": {
     "eyebrow": "Today",
     "title": "Today",
-    "summary": "One thing to do, one way to ask. Everything else is under details.",
+    "summary": "Your next step for this brand, and a quick way to ask AI. Scores and history are under Details.",
     "actionCaption": "Your next action",
     "actionNone": "The latest saved scan has nothing to action.",
     "firstTask": {
@@ -5656,7 +5666,8 @@
     "shareableReports": "Shareable reports",
     "monthlyReport": "Monthly report",
     "allBrands": "All brands"
-  },
+  }
+,
   "combinedReport": {
     "meta_title": "Scan + Pulse report",
     "title": "Scan + Pulse report",

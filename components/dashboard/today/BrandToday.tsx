@@ -155,9 +155,11 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
           className="group min-w-0 rounded-2xl border border-border bg-card p-4 shadow-e1 transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <span className="block text-xs font-medium text-muted-foreground">{label}</span>
-          <span className="mt-1 block truncate text-2xl font-black tabular-nums text-foreground">
-            {metric.value ?? stateCopy ?? t('metrics.empty')}
-          </span>
+          {/* A real number is the headline; a missing-data state is quieter, so
+              "Could not read" never shouts louder than an actual result. */}
+          {metric.value != null
+            ? <span className="mt-1 block truncate text-2xl font-black tabular-nums text-foreground">{metric.value}</span>
+            : <span className="mt-2 block text-base font-semibold text-muted-foreground group-hover:text-foreground">{stateCopy ?? t('metrics.empty')}</span>}
           {metric.key === 'report' && metric.value && statusLabel && <span className="mt-0.5 block text-xs text-muted-foreground">{statusLabel}</span>}
         </Link>
       })}

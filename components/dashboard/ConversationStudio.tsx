@@ -30,6 +30,7 @@ import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type
 import { relativeTime } from '@/lib/conversation-studio/thread-list'
 import type { StudioThreadUpdateInput } from '@/lib/conversation-studio/threads-types'
 import Link from 'next/link'
+import { platformName } from '@/lib/brand-month/labels'
 import './conversation-studio.css'
 
 const templateIcons = { opportunity: Search, improve: FilePenLine, brief: NotebookPen, competitors: ScanSearch, pulse: Activity, report: FileText }
@@ -74,11 +75,11 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
       <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
       {onUpdate && thread.mine && <details className="as-thread-menu">
         <summary className="as-button inline-flex items-center justify-center px-3" aria-label={t('threadActions.label')}><Ellipsis className="size-4" aria-hidden="true" /></summary>
-        <div role="group" aria-label={t('threadActions.label')} className="as-thread-menu-panel">
+        <div role="group" aria-label={t('threadActions.label')} className="as-thread-menu-panel" onClick={event => event.currentTarget.closest('details')?.removeAttribute('open')}>
           <button type="button" aria-pressed={thread.pinned} onClick={() => void patch({ pinned: !thread.pinned })}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
           <button type="button" aria-pressed={thread.visibility === 'shared'} onClick={() => void patch({ visibility: thread.visibility === 'shared' ? 'private' : 'shared' })}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
           <button type="button" onClick={() => { setRenaming(true); setTitleDraft(thread.title); setActionFailed(false) }}>{t('threadActions.rename')}</button>
-          <button type="button" onClick={() => void patch({ archived: true }).then(ok => { if (ok) onArchived?.() })}>{t('threadActions.archive')}</button>
+          <button type="button" onClick={() => { if (window.confirm(t('threadActions.archiveConfirm', { title: thread.title }))) void patch({ archived: true }).then(ok => { if (ok) onArchived?.() }) }}>{t('threadActions.archive')}</button>
         </div>
       </details>}
       {onUpdate && !thread.mine && <span className="as-badge">{t('sharedReadOnlyBody')}</span>}
@@ -200,7 +201,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const branchOrigin = current?.branchOf ? threads.find(thread => thread.id === current.branchOf!.threadId) ?? null : null
   const inspectedTurn = inspection?.navigationVersion === navigationVersion ? current?.turns.find(turn => turn.id === inspection.turnId) : undefined
   const draft = current?.draft ?? newDraft
-  const liveReady = Boolean(live && live.cap > 0 && platforms.length && !liveExhausted && liveRemaining !== 0)
+  // Whether LIVE can run at all; an empty platform selection must not lock the
+  // picker, or the user can never tick a platform again without reloading.
+  const liveAvailable = Boolean(live && live.cap > 0 && live.platforms.length && !liveExhausted && liveRemaining !== 0)
+  const liveReady = liveAvailable && platforms.length > 0
   const sendBlocked = busy || conversationPending || Boolean(current && (!current.turnsLoaded || current.turnsError))
   const home = !current
   const basePath = clientId ? `/${language}/dashboard/${encodeURIComponent(clientId)}` : null
@@ -486,10 +490,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         {!smeCopilot && <span className="as-badge">{t('localeBadge')}</span>}
         {live && <details className="as-platform-picker">
           <summary>{t('live.selector', { count: platforms.length })}</summary>
-          <fieldset className="space-y-2" disabled={busy || !liveReady}>
+          <fieldset className="space-y-2" disabled={busy || !liveAvailable}>
             <legend className="as-muted as-small font-semibold">{t('live.platforms')}</legend>
             <div className="flex flex-wrap gap-2">{live.platforms.map(platform => <label key={platform} className="as-platform flex items-center gap-2 px-3">
-              <input type="checkbox" checked={platforms.includes(platform)} onChange={event => { setConfirmingLive(null); setPlatforms(previous => event.target.checked ? [...previous, platform] : previous.filter(item => item !== platform)) }} />{platform}
+              <input type="checkbox" checked={platforms.includes(platform)} onChange={event => { setConfirmingLive(null); setPlatforms(previous => event.target.checked ? [...previous, platform] : previous.filter(item => item !== platform)) }} />{platformName(platform)}
             </label>)}</div>
           </fieldset>
         </details>}
@@ -512,7 +516,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     </div>}
     {!live && attachment && <p className="as-muted as-small">{t('attach.savedNote')}</p>}
     {live && liveRemaining !== null && <p className="as-muted as-small">{t('live.remainingComposer', { count: liveRemaining, cap: live.cap })}</p>}
-    {live && !liveReady && <p role="status" className="as-note">{t(liveExhausted || liveRemaining === 0 ? 'live.savedOnly' : !live.platforms.length ? 'live.upgrade' : 'live.disabled')}</p>}
+    {live && !liveReady && <p role="status" className="as-note">{t(liveExhausted || liveRemaining === 0 ? 'live.savedOnly' : !live.platforms.length ? 'live.upgrade' : liveAvailable ? 'live.selectPlatform' : 'live.disabled')}</p>}
     {liveReady && smeCopilot && <p className="as-muted as-small">{executionPreview}</p>}
     {liveReady && !smeCopilot && <p className="as-muted as-small">{t('live.usesQuota', { count: platforms.length, cap: live!.cap })}</p>}
     {!live && !smeCopilot && <p className="as-note">{t('featureShellNote')}</p>}
@@ -601,12 +605,9 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </div>
         {continueSection}
         <details className="as-disclosure" open>
-          <summary className="as-muted as-small font-semibold">{t('templatesTitle')}</summary>
-          <section aria-labelledby="studio-templates-title" className="mt-3 space-y-3">
-          <div className="as-section-heading">
-            <h2 id="studio-templates-title">{t('templatesTitle')}</h2>
-            <p className="as-muted as-small">{t('templatesDescription')}</p>
-          </div>
+          {/* The summary is the section heading, so the label is not shown twice. */}
+          <summary><h2 id="studio-templates-title" className="inline">{t('templatesTitle')}</h2> <span className="as-muted as-small">{t('templatesDescription')}</span></summary>
+          <section aria-labelledby="studio-templates-title" className="mt-1 space-y-3 pb-3">
           {smeCopilot ? <div className="space-y-3">
             <div className="as-template-grid">{COPILOT_PRIMARY.map(skillButton)}</div>
             <details className="as-note as-disclosure">

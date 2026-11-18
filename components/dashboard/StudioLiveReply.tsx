@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl'
 import type { OpenStudioEvidence } from '@/lib/conversation-studio/types'
 import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { safeEvidenceUrl } from '@/lib/pulse/provider-citations'
+import { platformName } from '@/lib/brand-month/labels'
 import { StudioMarkdown } from './StudioMarkdown'
 
 export function StudioLiveReplyView({ reply, pending, error, stream, number = 1, cap = 10, onOpenEvidence, onRefresh, refreshing = false, onStop, onRetry }: {
@@ -50,7 +51,7 @@ export function StudioLiveReplyView({ reply, pending, error, stream, number = 1,
     {partial.length > 0 && <div role="status" aria-live="polite" className="space-y-3">
       <p className="as-note">{t('streaming')}</p>
       {partial.map(([platform, text]) => <div key={platform} className="space-y-1">
-        <h4 className="font-semibold">{platform}</h4>
+        <h4 className="font-semibold">{platformName(platform)}</h4>
         {text ? <div className="as-answer-body"><StudioMarkdown text={text} /></div> : <p className="as-note">{t('streamingPending')}</p>}
       </div>)}
     </div>}
@@ -66,12 +67,12 @@ export function StudioLiveReplyView({ reply, pending, error, stream, number = 1,
         : t('attachIncluded', { label: reply.attachment.label, version: reply.attachment.versionNumber })}</p>}
       <ul className="space-y-3">{reply.answers.map((item, index) => <li key={item.platform} className="as-live-answer space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h4 className="font-semibold">{item.platform}</h4>
+          <h4 className="font-semibold">{platformName(item.platform)}</h4>
           <span className={item.coverage === 'present' ? 'as-badge as-badge-blue' : item.coverage === 'missing' ? 'as-badge as-badge-amber' : 'as-badge'}>{t('coverage')}: {t(`status.${item.coverage}`)}</span>
         </div>
         {item.answer ? <div className="as-answer-body"><StudioMarkdown text={item.answer} /></div> : <p className="as-note">{t('missing')}</p>}
         <div className="as-result-actions">
-          <button type="button" className="as-button px-3" aria-haspopup="dialog" onClick={event => onOpenEvidence?.(event.currentTarget, `live-${index}`)}>{evidence('open')} · {item.platform}</button>
+          <button type="button" className="as-button px-3" aria-haspopup="dialog" onClick={event => onOpenEvidence?.(event.currentTarget, `live-${index}`)}>{evidence('open')} · {platformName(item.platform)}</button>
           {item.answer && <button type="button" className="as-button px-3" onClick={() => void copyAnswer(item.platform, item.answer!)}>{t(copied === item.platform ? 'copied' : 'copy')}</button>}
           {copyFailed === item.platform && <span role="status" className="as-muted as-small">{t('copyFailed')}</span>}
         </div>
@@ -89,7 +90,7 @@ export function StudioLiveEvidence({ reply, id }: { reply?: StudioLiveReply; id:
     <p className="as-note">{t('unverified')}</p>
     {!reply && <p>{evidence('unknown')}</p>}
     {reply && <ul className="space-y-4">{reply.answers.map((item, index) => <li key={item.platform} id={`${id}-live-${index}`} tabIndex={-1} className="as-divider space-y-1 pt-3">
-      <p className="font-semibold">{item.platform}</p>
+      <p className="font-semibold">{platformName(item.platform)}</p>
       <p>{t('coverage')}: {t(`status.${item.coverage}`)}</p>
       {!item.answer && <p className="as-note">{t('missing')}</p>}
         <p>{t('model')}: {item.model}</p>

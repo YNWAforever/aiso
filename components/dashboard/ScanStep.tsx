@@ -92,7 +92,9 @@ export function ScanStep({ lang, clientId, scan, scanHistory, client, quota = { 
         const reached = scanLimitFrom(res.status, data)
         if (reached) { setLimit(reached); setLoading(false); submitting.current = false; return }
         const key = getDashboardScanErrorKey(res.status, data)
-        setError(key ? t(key) : (data.error || t('scan_failed')))
+        // Never show the API's raw (English, internal) error text: translate the
+        // known status classes and fall back to a generic, actionable message.
+        setError(t(key ?? (res.status === 429 ? 'scan_failed_busy' : res.status >= 500 ? 'scan_failed_unavailable' : 'scan_failed_retry')))
         setLoading(false)
         submitting.current = false
         return

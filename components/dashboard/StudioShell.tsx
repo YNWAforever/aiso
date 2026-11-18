@@ -37,6 +37,7 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
   const router = useRouter()
   const base = `/${lang}/dashboard/${clientId}/studio`
   const session = useStudioSession()
+  const recent = session.threads.filter(thread => !thread.archived)
   const [menuOpen, setMenuOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const menu = useRef<HTMLButtonElement>(null)
@@ -83,8 +84,8 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
       </li>)}</ul></nav>
       <section className="as-recent space-y-2" aria-labelledby="studio-recent-title">
         <h2 id="studio-recent-title">{t('recentThreadsTitle')}</h2>
-        {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted as-small" aria-busy="true">{t('loadingThreads')}</p> : session.threads.length ? <><ul>{session.threads.slice(0, RECENT_LIMIT).map(thread => <li key={thread.id}><button type="button" className="as-thread w-full px-2 text-left" aria-pressed={discussion && session.activeId === thread.id} onClick={() => openThread(thread.id)}><span className="block truncate">{thread.title}</span><span className="as-muted as-small">{(thread.saveState === 'persisted' && relativeTime(thread.updatedAt, new Date(), lang)) || t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></button></li>)}</ul>
-          {session.threads.length > RECENT_LIMIT && <Link href={`${base}/threads`} className="as-small block px-2 underline" onClick={closeMenu}>{t('allThreads')}</Link>}</> : <p className="as-muted as-small">{t('recentThreadsEmpty')}</p>}
+        {session.readFailed ? <p className="as-note">{t('readUnavailable')}</p> : !session.hydrated ? <p className="as-muted as-small" aria-busy="true">{t('loadingThreads')}</p> : recent.length ? <><ul>{recent.slice(0, RECENT_LIMIT).map(thread => <li key={thread.id}><button type="button" className="as-thread w-full px-2 text-left" aria-pressed={discussion && session.activeId === thread.id} onClick={() => openThread(thread.id)}><span className="block truncate">{thread.title}</span><span className="as-muted as-small">{(thread.saveState === 'persisted' && relativeTime(thread.updatedAt, new Date(), lang)) || t(thread.saveState === 'persisted' ? 'privateLabel' : 'temporaryLabel')}</span></button></li>)}</ul>
+          {recent.length > RECENT_LIMIT && <Link href={`${base}/threads`} className="as-small block px-2 underline" onClick={closeMenu}>{t('allThreads')}</Link>}</> : <p className="as-muted as-small">{t('recentThreadsEmpty')}</p>}
       </section>
       <footer className="as-sidefoot as-muted as-small space-y-2"><p>{t('sidebarScope')} · {t('sidebarFlow')}</p>{staff
         ? <Link href={`/admin?lang=${lang}&view=brands`} className="flex items-center gap-2 underline">{t('staff.backToAdmin')}<ArrowUpRight className="size-4" aria-hidden="true" /></Link>

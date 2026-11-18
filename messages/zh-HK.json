@@ -39,7 +39,8 @@
       "unshare": "改為私人",
       "archive": "封存",
       "failed": "變更未儲存，討論維持不變。",
-      "archivedNote": "已封存的討論仍可由建立者開啟，但不會顯示於任何清單。"
+      "archivedNote": "已封存的討論仍可由建立者開啟，但不會顯示於任何清單。",
+      "archiveConfirm": "要封存「{title}」嗎？它將不會再顯示於任何討論清單，亦無法在此還原。"
     },
     "templatesTitle": "技能",
     "conversationLabel": "品牌證據對話",
@@ -213,6 +214,7 @@
       "remaining": "此品牌本週尚餘即時回答單位：{count}。失敗或結果不明的供應商嘗試亦會使用配額。",
       "remainingComposer": "此品牌本週尚餘 {count}/{cap} 次即時回答。",
       "savedOnly": "此品牌本週即時回答已用完。你仍可傳送，系統會保存僅用已儲存證據的答案；即時回答將於下週一恢復。",
+      "selectPlatform": "請在上方至少選擇一個 AI 模型，才能取得 AI 回答。",
       "confirmTitle": "要向多個模型傳送？",
       "confirmCost": "這次傳送會向 {count} 個模型提問，並使用 {count} 個回答單位（每週上限 {cap}）。",
       "confirmSend": "向 {count} 個模型傳送",
@@ -286,12 +288,12 @@
     "followUpSend": "傳送訊息",
     "followUpPlaceholder": "繼續追問，或把選定內容另開討論…",
     "sources": {
-      "bound": "Search Console · 已綁定",
+      "bound": "Search Console · 已連接",
       "unbound": "Search Console · 未連接",
       "reconnect": "Search Console · 需要重新連接",
-      "rebind": "Search Console · 綁定待核實",
+      "rebind": "Search Console · 請檢查已連接嘅資源",
       "unavailable": "Search Console · 待核實",
-      "notQueried": "只顯示綁定狀態，本次未查詢搜尋資料。"
+      "notQueried": "只顯示連接狀態；你提問時先會讀取搜尋資料。"
     },
     "gsc": {
       "title": "Search Console · 香港",
@@ -454,10 +456,10 @@
       "statusUnavailable": "暫時未能讀取狀態",
       "statusSyncUnavailable": "暫時未能讀取同步狀態",
       "planned": "計劃中",
-      "readScopeNote": "只顯示已儲存嘅連接狀態；呢頁唔會查詢任何供應商。",
+      "readScopeNote": "呢頁顯示每個連接最近儲存嘅狀態。",
       "searchConsoleTitle": "Google Search Console",
       "hkEndpointPending": "香港端點待核實",
-      "completenessPending": "資料完整度需驗證",
+      "completenessPending": "部分日子嘅資料可能仍未齊",
       "viewScope": "查看連接範圍",
       "savedOnly": "只讀取已儲存的綁定及同步狀態。本次未查詢搜尋資料，未執行同步或香港篩選。",
       "firecrawlScope": "公開頁面 URL、擷取時間、引用段落；目前未連接，沒有擷取頁面。",
@@ -648,7 +650,7 @@
       "deltaFlat": "與上一個已保存週次相同",
       "openThread": "用呢週數據開始",
       "openThreadPrompt": "只用已保存觀察，解釋 {week} 呢週嘅 AI 能見度變化。",
-      "scopeNote": "數據來自已儲存嘅每週彙總；呢頁唔會呼叫供應商。",
+      "scopeNote": "根據你已儲存嘅每週 AI 檢查。",
       "emptyTitle": "仲未有已保存週次",
       "empty": "每週監測保存後會顯示。",
       "unavailable": "暫時未能讀取每週數據。"
@@ -1532,7 +1534,7 @@
     "add_first_brand_body": "追蹤你在 ChatGPT、Google AI、Perplexity、Claude 及 Gemini 的聲音份額。每個品牌都有完整診斷儀表板，包含 20 項 AI 就緒檢查及代理分析。",
     "recent_scans": "最近掃描",
     "step_scan_title": "執行掃描",
-    "step_scan_body": "輸入任何網址即可執行 20 項檢查診斷。我們會評估你的內容在 ChatGPT、Claude、Gemini 等 AI 搜尋引擎的可見度。所有人免費使用，無需訂閱。",
+    "step_scan_body": "輸入任何網址即可執行 20 項檢查診斷。我們會評估你的內容在 ChatGPT、Claude、Gemini 等 AI 搜尋引擎的可見度。",
     "step_results_title": "掃描結果",
     "step_results_body": "你的完整診斷報告。20 項檢查每項都會顯示通過、警告或未通過狀態，並解釋其重要性及修復方法。展開任何檢查即可查看詳情。",
     "step_improve_title": "以 AI 代理改善",
@@ -1589,6 +1591,9 @@
     "scanning": "掃描中…",
     "run_scan": "執行掃描",
     "scan_failed": "掃描失敗",
+    "scan_failed_retry": "未能開始掃描，請檢查網址後再試。",
+    "scan_failed_busy": "短時間內掃描次數過多，請稍候一分鐘再試。",
+    "scan_failed_unavailable": "掃描服務暫時無法使用，請過幾分鐘再試。",
     "scan_unreachable": "未能連接該網站。請檢查網址後再試；本次掃描未有儲存。",
     "network_error": "網絡錯誤，請再試一次。",
     "how_it_works": "使用方法",
@@ -3845,6 +3850,11 @@
     "invitedOn": "邀請於",
     "expiresOn": "失效於",
     "remove": "移除",
+    "removeConfirm": "要從此帳戶移除 {name} 嗎？對方會即時失去存取權，你之後可以還原。",
+    "removeNamed": "移除 {name}",
+    "restoreNamed": "還原 {name}",
+    "removedNotice": "已移除成員，對方無法再存取此帳戶。",
+    "restoredNotice": "已還原成員。",
     "removing": "移除中",
     "restore": "恢復",
     "restoring": "恢復中",
@@ -5569,7 +5579,7 @@
   "today": {
     "eyebrow": "今日",
     "title": "今日",
-    "summary": "一件要做嘅事、一個提問方法，其餘放喺詳情。",
+    "summary": "呢個品牌嘅下一步，同埋向 AI 提問嘅捷徑。分數同記錄喺「詳情」入面。",
     "actionCaption": "你嘅下一步",
     "actionNone": "最新已保存嘅掃描冇需要處理嘅事項。",
     "firstTask": {
@@ -5656,7 +5666,8 @@
     "shareableReports": "可分享報告",
     "monthlyReport": "月度報告",
     "allBrands": "全部品牌"
-  },
+  }
+,
   "combinedReport": {
     "meta_title": "掃描 + Pulse 報告",
     "title": "掃描 + Pulse 報告",

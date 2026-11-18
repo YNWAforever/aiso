@@ -77,7 +77,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
   const homeHref = useCallback((id: string) => brandHomeHref({ lang, clientId: id, conversationStudio, smeCopilot }), [lang, conversationStudio, smeCopilot])
   const signOutHref = `/${lang}/auth/logout?next=${encodeURIComponent(`${pathname}${searchParams?.size ? `?${searchParams}` : ''}`)}`
 
-  // Brands ??Brand ??Section ??Page. The last crumb is the current page.
+  // Brands › Brand › Section › Page. The last crumb is the current page.
   const crumbs: { label: string; href: string }[] = [{ label: shell('brands'), href: root }]
   if (clientId) crumbs.push({ label: brand?.name ?? shell('brands'), href: homeHref(clientId) })
   // Resolve against every section, so a hidden one's pages (legacy Monitor's
@@ -97,9 +97,9 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
   const commands = useMemo<CommandItem[]>(() => [
     ...nav.flatMap(s => [
       { id: `section-${s.key}`, label: t(s.labelKey), group: shell('group_go'), href: s.href },
-      ...s.items.filter(i => i.href !== s.href).map(i => ({ id: `item-${s.key}-${i.key}`, label: `${t(s.labelKey)} ??${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
+      ...s.items.filter(i => i.href !== s.href).map(i => ({ id: `item-${s.key}-${i.key}`, label: `${t(s.labelKey)} › ${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
     ]),
-    ...(accountSection?.items ?? []).map(i => ({ id: `account-${i.key}`, label: `${t('nav_account')} ??${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
+    ...(accountSection?.items ?? []).map(i => ({ id: `account-${i.key}`, label: `${t('nav_account')} › ${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
     ...(brands ?? []).map(b => ({ id: `brand-${b.id}`, label: b.name, keywords: b.domain ? [b.domain] : [], group: shell('group_brands'), href: homeHref(b.id) })),
     { id: 'action-scan', label: shell('action_scan'), group: shell('group_actions'), href: clientId ? `${root}/${clientId}?step=scan${scanId ? `&scanId=${encodeURIComponent(scanId)}` : ''}` : `/${lang}#scan` },
     ...(clientId ? [{ id: 'action-report', label: shell('action_report'), group: shell('group_actions'), href: `${root}/${clientId}/reports/new${scanQuery}` }] : []),
@@ -166,7 +166,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
         >
           <Search aria-hidden="true" className="size-4" />
           <span className="sr-only sm:not-sr-only">{shell('search')}</span>
-          <kbd aria-hidden="true" className="hidden rounded border border-border px-1 text-[11px] font-medium sm:inline">?</kbd>
+          <kbd aria-hidden="true" className="hidden rounded border border-border px-1 text-[11px] font-medium sm:inline">⌘K</kbd>
         </button>
         <NotificationBell key={unreadCount ?? 'unknown'} initialCount={unreadCount} lang={lang} />
         {smeCopilot && profile && <MenuButton
