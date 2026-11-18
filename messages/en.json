@@ -759,7 +759,6 @@
       "pending": "The request is still pending. Check its saved record; no completed conversation has been saved for it.",
       "notAllowed": "This action is not allowed by your current access or plan.",
       "checkRecords": "Check saved records",
-      "scopeScan": "Scan record: {scanId}",
       "scopeMonth": "Hong Kong calendar month: {month}",
       "summaryScope": "The conversation is a separate summary of saved evidence loaded when it is saved. It may use newer records and is not proof of this exact action’s result.",
       "retrySave": "Retry saving conversation only",

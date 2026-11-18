@@ -44,7 +44,7 @@ magic-link / Google only, so the review rendered the same production components 
 | Notifications | The bell's accessible name includes the unread count. |
 | Today | The setup checklist marks finished steps as done (not links) and highlights the current one. |
 | Honesty note | `featureShellNote` rewritten in plain language with owner sign-off: "AI replies are not switched on for this brand yet. You can still ask: answers use your latest scan, your saved weekly AI checks and any approved document you attach." The guardrail test pins the new text. |
-| Studio action panel | The "Scan record: {uuid}" scope line is no longer shown (a month scope still is). The saved discussion prompt keeps the scan reference for audit. |
+| Studio action panel | The "Scan record: {uuid}" scope line is no longer shown, either under the action or in the discussion it saves (a month scope still is). The scan itself stays on its own record. |
 | Mobile Studio | The top bar drops the duplicate market chip on phones; "Choose documents" no longer wraps. |
 
 ## Decided — keep as is

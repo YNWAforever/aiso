@@ -60,11 +60,13 @@ export function useStudioActions({ clientId, brandName, brandDomain, features, e
     try { await appendOnly(id, context) } finally { writing.current = false; setBusy(false) }
   }
   async function saveAction(outcome: ActionOutcome) {
-    const { skillId, scanId, month } = outcome.scope
+    const { skillId, month } = outcome.scope
     const task: StudioHomeTemplate = skillId === 'monthly_report' ? 'report' : 'improve'
     const label = t(skillId === 'scan_brand' ? 'skills.scan_brand.label' : `skills.${skillId}.actionLabel`)
-    const scopeText = month ? t('actions.scopeMonth', { month }) : t('actions.scopeScan', { scanId: scanId ?? '' })
-    const prompt = [t(`skills.${skillId}.turnPrompt`), scopeText, t('actions.summaryScope')].join('\n')
+    // A month is meaningful to the reader; a scan record id is not, so it is left out
+    // of the saved discussion (the scan itself stays on its own record).
+    const scopeText = month ? t('actions.scopeMonth', { month }) : null
+    const prompt = [t(`skills.${skillId}.turnPrompt`), scopeText, t('actions.summaryScope')].filter(Boolean).join('\n')
     const title = label.slice(0, 200).replace(/[\uD800-\uDBFF]$/u, '')
     const threadId = allocateThreadId()
     const turn: StudioTurn = { id: allocateId(), requestId: crypto.randomUUID(), prompt, task, reply: composeSavedReply(prompt, HOME_TASKS[task].capability, evidenceForHomeTask(evidence, task)) }
