@@ -344,7 +344,9 @@ for (const lang of ['en', 'zh-HK']) {
     const inspector = page.getByRole('dialog', { name: copy.evidence.panelTitle })
     await expect(inspector.getByRole('link', { name: 'Bread', exact: true })).toHaveAttribute('href', 'https://example.com/bread')
     await expect(inspector).toContainText('30000000-0000-4000-8000-000000000001')
-    await expect(inspector).toContainText('2026-10-27T03:00:00Z')
+    // Readable for people; the exact instant stays machine-readable.
+    await expect(inspector.locator('time[datetime="2026-10-27T03:00:00Z"]').first()).toBeAttached()
+    await expect(inspector).not.toContainText('2026-10-27T03:00:00Z')
     await expect(inspector).toContainText(copy.evidence.searchUnknown)
     await expect(inspector).toContainText(copy.evidence.status.missing)
     await expect(inspector).toContainText(copy.evidence.status.unsupported)
@@ -506,7 +508,8 @@ for (const lang of ['en', 'zh-HK']) {
     await inspector.hover()
     await page.mouse.wheel(0, 250)
     await expect.poll(() => inspector.evaluate(el => el.scrollTop)).toBeGreaterThan(0)
-    const lastLink = inspector.getByRole('link').last()
+    // The last focusable control: "Technical details" disclosures now follow the links.
+    const lastLink = inspector.locator('a[href], summary').last()
     await lastLink.focus()
     await page.keyboard.press('Tab')
     await expect(close).toBeFocused()
