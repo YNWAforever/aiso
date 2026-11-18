@@ -81,7 +81,8 @@ for (const lang of ['en', 'zh-HK']) {
     await card.getByRole('button', { name: copy.actions.open, exact: true }).click()
     await card.getByRole('button', { name: copy.actions.runNow, exact: true }).click()
     await expect(month.getByRole('button', { name: copy.actions.open, exact: true })).toBeDisabled()
-    expect(paid).toBe(1)
+    // The scan POST is issued asynchronously after the click: poll, never read once.
+    await expect.poll(() => paid).toBe(1)
     finish()
     await expect(card.getByText(copy.actions.save.retry, { exact: true })).toBeVisible()
     await expect(card.getByRole('link', { name: copy.actions.openResult })).toHaveAttribute('href', `/en/dashboard/${client}?step=results&scanId=${scanB}`.replace('/en/', `/${lang}/`))

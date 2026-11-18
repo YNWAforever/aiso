@@ -768,7 +768,8 @@ for (const lang of ['en', 'zh-HK']) {
     await page.locator('button[type="submit"]').click()
     await page.getByRole('button', { name: copy.live.confirmSend.replace('{count}', '2'), exact: true }).click()
     await expect(page.getByRole('log')).toBeVisible()
-    expect(liveRequests).toHaveLength(1)
+    // The model request is sent only after the turn is saved (async): poll, never read once.
+    await expect.poll(() => liveRequests.length).toBe(1)
     expect(liveRequests[0].platforms).toEqual(['gemini-flash', 'gpt-4o'])
   })
 
