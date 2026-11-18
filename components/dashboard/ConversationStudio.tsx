@@ -345,9 +345,14 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     // Persist the user turn before any provider or research request.
     const saved = await saveTurn(id, turn.id, { prompt, task, reply: turn.reply, requestId: turn.requestId, language: language === 'zh-HK' ? 'zh-HK' : 'en', attached: turn.attached ?? null })
     if (!saved.ok) {
-      // Put the unsent question back in the box (unless something new was typed) so it can be resent.
+      // Only a definite refusal (4xx: nothing was saved) puts the question — and its skill —
+      // back in the box: a fresh send mints a new requestId, so doing that after an unknown
+      // outcome could save the message twice. An unknown outcome is read back instead; the
+      // session merge reconciles by requestId, so a committed append shows up as saved.
+      const definite = Boolean(saved.error)
       setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id)
-        ? { ...thread, draft: thread.draft.trim() ? thread.draft : prompt, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: undefined, gsc: undefined, dfs: undefined, firecrawl: undefined } : item) } : thread))
+        ? { ...thread, ...(definite && !thread.draft.trim() ? { draft: prompt, template: task } : {}), turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: undefined, gsc: undefined, dfs: undefined, firecrawl: undefined } : item) } : thread))
+      if (!definite && !id.startsWith('local-')) void refreshThread(id)
       return
     }
     setFeedback({ id: turn.id, threadId: saved.threadId, key: 'followUpSent' })
@@ -709,7 +714,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               <p>{t(`templates.${task}.limit`)}</p>
             </div>}
             <div className="min-w-0 space-y-4">
-              {turnSaveState === 'failed' && <p role="alert" className="as-note">{t('messageNotSent')}</p>}
+              {turnSaveState === 'failed' && <p role="alert" className="as-note">{t(current.saveError ? 'messageNotSent' : 'messageUnconfirmed')}</p>}
               {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} cap={live?.cap} refreshing={busy || refreshingThreadId === current.id} onRefresh={current.mine ? () => void refreshThread(current.id) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} onStop={live?.streaming && liveTurn.pending && busy ? stopAnswer : undefined} onRetry={current.mine && liveTurn.error && liveTurn.error !== 'STUDIO_QUOTA_EXCEEDED' ? () => retryPrompt(prompt, task ?? null) : undefined} />}
               {turnSaveState !== 'failed' && <details className="as-note as-saved-context" open={!liveTurn}>
                 <summary>{t('savedContextDetails')}</summary>

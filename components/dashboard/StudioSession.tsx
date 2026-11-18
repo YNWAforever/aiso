@@ -302,7 +302,7 @@ function useSessionState(clientId?: string, initialDraft = '') {
 
   function markTurnFailed(turnId: number, error?: string) {
     setThreads(previous => previous.map(thread => thread.turns.some(turn => turn.id === turnId)
-      ? { ...thread, saveState: 'failed', saveError: error ?? thread.saveError, turns: thread.turns.map(turn => turn.id === turnId ? { ...turn, saveState: 'failed' } : turn) }
+      ? { ...thread, saveState: 'failed', saveError: error, turns: thread.turns.map(turn => turn.id === turnId ? { ...turn, saveState: 'failed' } : turn) }
       : thread))
   }
 

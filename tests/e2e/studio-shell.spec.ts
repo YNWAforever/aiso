@@ -98,6 +98,27 @@ for (const lang of ['en', 'zh-HK']) {
     expect(unexpectedRequests(requests)).toEqual([])
   })
 
+  test(`a refused message returns to the box; an unconfirmed one is read back, never resent blind, in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang)
+    await page.locator('#studio-composer').fill('First saved question')
+    await page.locator('button[type="submit"]').click()
+    await expect.poll(() => new URL(page.url()).searchParams.get('thread')).toMatch(/^[a-f0-9-]{36}$/)
+    const composer = page.locator('#studio-composer')
+    // Definite refusal (409): nothing was saved, so the question comes back to resend.
+    await page.evaluate(() => localStorage.setItem('studio-fail-next-append', 'refused'))
+    await composer.fill('Refused follow-up')
+    await page.locator('button[type="submit"]').click()
+    await expect(page.getByText(copy.messageNotSent, { exact: true })).toBeVisible()
+    await expect(composer).toHaveValue('Refused follow-up')
+    // Unknown outcome (network): the box stays empty and the discussion is read back.
+    await composer.fill('Unconfirmed follow-up')
+    await page.evaluate(() => localStorage.setItem('studio-fail-next-append', 'network'))
+    await page.locator('button[type="submit"]').click()
+    await expect(page.getByText(copy.messageUnconfirmed, { exact: true }).first()).toBeVisible()
+    await expect(composer).toHaveValue('')
+    expect(unexpectedRequests(requests)).toEqual([])
+  })
+
   test(`native account navigation wins over an older saved-thread URL effect in ${lang}`, async ({ page }) => {
     const { requests } = await fixture(page, lang, '?switchAtCommit=1')
     await expect(page.locator('html')).toHaveAttribute('data-scope-probe', 'armed')

@@ -787,6 +787,7 @@
     "sending": "Replying…",
     "savedContextDetails": "Saved-record summary",
     "messageNotSent": "This message could not be confirmed as saved, so it was not sent to a model. Your question is back in the message box: send it again when you are ready.",
+    "messageUnconfirmed": "We could not confirm this message was saved, so it was not sent to a model. The discussion has been read again; if the message still shows as not saved, copy your question from above and send it again.",
     "saveLimits": {
       "threads": "This brand has reached its limit of 200 saved discussions for you, and archived ones count too. This question was not saved.",
       "turns": "This discussion has reached its limit of 50 messages. Start a new discussion to keep going.",
