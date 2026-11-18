@@ -2,6 +2,7 @@ import {RunProgress} from '@/components/pulse/RunProgress'
 import {PulseCoverage} from '@/components/pulse/PulseCoverage'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { formatDisplayDate } from '@/lib/format/date'
 import { ArrowRight, BarChart3, ChevronDown, Clock, FileText, Gauge, ListChecks, MapPin, MessageSquareText, ScanSearch, Sparkles } from 'lucide-react'
 import { MONITOR_VISIBLE } from '@/lib/dashboard-nav'
 import { RevealObserver } from '@/components/visuals/reveal/RevealObserver'
@@ -24,12 +25,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
   // Flush-left with the text above them (no horizontal padding), 44px tall for touch.
   const linkClass = 'inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-primary-accessible underline decoration-primary/30 underline-offset-4 transition-colors hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
   // Readable Hong Kong time instead of a raw ISO/UTC string ("2026-11-18 03:47:12 UTC").
-  const when = (value: string) => {
-    const date = new Date(value)
-    if (!Number.isFinite(date.getTime())) return value
-    const text = new Intl.DateTimeFormat(lang === 'zh-HK' ? 'zh-HK' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Hong_Kong' }).format(date)
-    return lang === 'zh-HK' ? `${text}（香港時間）` : `${text} HKT`
-  }
+  const when = (value: string) => formatDisplayDate(value, lang, { withTime: true, zoneLabel: true })
   const cardClass = 'flex min-w-0 flex-col rounded-2xl border border-dash-border bg-dash-surface p-5 shadow-sm sm:p-6'
   function panel(title: string, section: { state: HomeDto['visibility']['state']; observedAt: string|null }, children: ReactNode, className = '') {
     return <section className={`${cardClass} ${className}`}>

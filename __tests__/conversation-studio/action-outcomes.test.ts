@@ -42,3 +42,22 @@ describe('Studio action outcome boundary', () => {
     expect((await requestStudioAction(scan, request({}, 503))).phase).toBe('unknown')
   })
 })
+
+describe('definite refusals are told apart from unknown outcomes', () => {
+  it.each([
+    [scan, 429, { error: 'AUTHENTICATED_SCAN_LIMIT_REACHED' }, 'limit'],
+    [improve, 404, { error: 'NOT_FOUND' }, 'notFound'],
+    [improve, 400, { error: 'Valid scanId required' }, 'notFound'],
+    [improve, 409, { error: 'EXTERNAL_AGENT_CONFIGURED' }, 'external'],
+    [month, 403, { error: 'UPGRADE_REQUIRED' }, 'notAllowed'],
+  ] as const)('%s %i is rejected as %s, never "may already have run"', async (scope, status, body, reason) => {
+    const result = await requestStudioAction(scope, request(body, status))
+    expect(result).toMatchObject({ phase: 'rejected', reason })
+  })
+  it.each(['GENERATION_FAILED', 'GENERATION_OUTCOME_UNKNOWN'])('keeps a generation 409 %s unknown: a model call may have started', async error => {
+    expect((await requestStudioAction(improve, request({ error }, 409))).phase).toBe('unknown')
+  })
+  it('keeps 5xx unknown', async () => {
+    expect((await requestStudioAction(scan, request({ error: 'boom' }, 503))).phase).toBe('unknown')
+  })
+})

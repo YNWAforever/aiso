@@ -16,6 +16,7 @@ import { CLAIM_INTENT_COOKIE, verifyScanClaimIntent } from '@/lib/security/scan-
 import { PortfolioView } from '@/components/dashboard/PortfolioView'
 import { AddBrandWizard } from '@/components/dashboard/AddBrandWizard'
 import { BrandToday } from '@/components/dashboard/today/BrandToday'
+import { LoadError } from '@/components/dashboard/states/LoadError'
 import { isConversationStudioEnabled, isSmeCopilotUiEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 
@@ -38,7 +39,7 @@ export default async function DashboardPage({params}: {params:Promise<{lang:stri
   try {
     owned = await loadOwnedPortfolio({profile})
   } catch {
-    return <main className="px-6 py-12"><h1 className="text-xl font-bold text-foreground">{t('loadErrorTitle')}</h1><p className="mt-3 text-sm text-muted-foreground">{t('loadErrorBody')}</p></main>
+    return <LoadError title={t('loadErrorTitle')} body={t('loadErrorBody')} retryHref={`/${lang}/dashboard`} />
   }
   const portfolio = buildPortfolio(owned)
   // Activation is secondary content: a failed read reports itself as unavailable
@@ -73,10 +74,7 @@ export default async function DashboardPage({params}: {params:Promise<{lang:stri
         workspace = buildWorkspaceHome(owned, monthlyReport)
       }
     } catch {
-      return <main className="px-6 py-12">
-        <h1 className="text-xl font-bold text-foreground">{todayT('loadError')}</h1>
-        <p className="mt-3 text-sm text-muted-foreground">{todayT('loadErrorBody')}</p>
-      </main>
+      return <LoadError title={todayT('loadError')} body={todayT('loadErrorBody')} retryHref={`/${lang}/dashboard`} />
     }
     if (workspace) {
       const chatEnabled = isConversationStudioEnabled(client.id)
@@ -92,6 +90,7 @@ export default async function DashboardPage({params}: {params:Promise<{lang:stri
         clientReportsOnline={entitlement.features.client_reports_online}
         savedDiscussion={savedDiscussion}
         accountHome
+        creationControl={creationControl}
       />
     }
   }

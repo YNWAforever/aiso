@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ReceiptText } from 'lucide-react'
+import { planDisplayName } from '@/lib/format/plan-name'
 import type { ClientBillingViewData } from '@/lib/billing/client-view'
 
 type BillingData = ClientBillingViewData & { plan: string }
@@ -80,7 +81,7 @@ export function BillingView({ lang }: { lang: string }) {
       ? t('mode_included')
       : t('mode_not_opened')
   // Show "Pro", not the stored id "pro"; and "November 2026", not "2026-11".
-  const planName = data.plan === 'free' ? t('plan_free') : data.plan.charAt(0).toUpperCase() + data.plan.slice(1)
+  const planName = planDisplayName(data.plan, lang)
   const [year, month] = data.monthKey.split('-').map(Number)
   const monthName = year && month
     ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)))

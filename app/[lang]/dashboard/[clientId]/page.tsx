@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { LoadError } from '@/components/dashboard/states/LoadError'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
 import { loadOwnedPulse } from '@/lib/workspace/load-owned-pulse'
 import { buildPulseView } from '@/lib/view-models/pulse'
@@ -123,10 +124,7 @@ export default async function DashboardPage({
     try {
       owned = await loadOwnedWorkspace({ clientId, profile, scanId, withTaskCount: true, ...(smeCopilot ? { withSavedWork: true } : {}) })
     } catch {
-      return <div className="flex-1 px-6 py-16 text-center">
-        <h1 className="mb-2 text-lg font-bold text-dash-text">{t('workspace_load_error_title')}</h1>
-        <p className="text-sm text-dash-muted">{t('workspace_load_error_body')}</p>
-      </div>
+      return <LoadError title={t('workspace_load_error_title')} body={t('workspace_load_error_body')} retryHref={`/${lang}/dashboard/${clientId}`} backHref={`/${lang}/dashboard`} />
     }
     if (!owned) notFound()
     // This month's deliverable, when one exists. Best-effort: a report read must
@@ -160,7 +158,7 @@ export default async function DashboardPage({
   if (step === 'monitor') {
     let owned
     try { owned = await loadOwnedPulse({ clientId, profile, withSignals: true }) } catch {
-      return <main className="px-6 py-12"><h1 className="text-xl font-bold">{t('workspace_load_error_title')}</h1><p className="mt-3">{t('workspace_load_error_body')}</p></main>
+      return <LoadError title={t('workspace_load_error_title')} body={t('workspace_load_error_body')} retryHref={`/${lang}/dashboard/${clientId}?step=monitor`} backHref={`/${lang}/dashboard`} />
     }
     if (!owned) notFound()
     return <WhatAiSaysPage
@@ -320,10 +318,7 @@ export default async function DashboardPage({
   if (clientMissing) notFound()
   if (loadError || !workspace) {
     return (
-      <div className="flex-1 px-6 py-16 text-center">
-        <h1 className="text-lg font-bold text-dash-text mb-1.5">{t('workspace_load_error_title')}</h1>
-        <p className="text-sm text-dash-muted max-w-md mx-auto">{t('workspace_load_error_body')}</p>
-      </div>
+      <LoadError title={t('workspace_load_error_title')} body={t('workspace_load_error_body')} retryHref={`/${lang}/dashboard/${clientId}?step=${encodeURIComponent(step)}`} backHref={`/${lang}/dashboard`} />
     )
   }
 

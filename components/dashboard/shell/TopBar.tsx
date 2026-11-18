@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Check, ChevronDown, ChevronRight, CircleHelp, LogOut, Search, Wrench } from 'lucide-react'
+import { planDisplayName } from '@/lib/format/plan-name'
 import type { CommandItem } from '@/components/ui/command-palette'
 import { NotificationBell } from '@/components/dashboard/NotificationBell'
 import { MenuButton } from '@/components/dashboard/shell/MenuButton'
@@ -179,8 +180,8 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
           {close => (
             <div className="flex min-w-56 flex-col">
               <div className="px-2 pb-2 pt-1">
-                <p className="truncate text-sm font-semibold text-foreground">{profile.displayName || profile.email || 'User'}</p>
-                <p className="text-xs text-muted-foreground">{t(`plan_label`)}: {profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)}</p>
+                <p className="truncate text-sm font-semibold text-foreground">{profile.displayName || profile.email || t('account_fallback')}</p>
+                <p className="text-xs text-muted-foreground">{t(`plan_label`)}: {planDisplayName(profile.plan, lang)}</p>
               </div>
               <ul className="border-t border-border pt-1">
                 {(accountSection?.items ?? []).map(item => (

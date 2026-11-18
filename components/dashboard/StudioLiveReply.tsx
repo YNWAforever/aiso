@@ -95,9 +95,13 @@ export function StudioLiveEvidence({ reply, id }: { reply?: StudioLiveReply; id:
       <p className="font-semibold">{platformName(item.platform)}</p>
       <p>{t('coverage')}: {t(`status.${item.coverage}`)}</p>
       {!item.answer && <p className="as-note">{t('missing')}</p>}
-        <p>{t('model')}: {item.model}</p>
-        <p><time dateTime={item.startedAt}>{studioDate(item.startedAt, locale, true)}</time> · {t('duration', { ms: item.durationMs })}</p>
-        <p>{t('finish')}: {item.finishReason ?? t('unknown')}</p>
+        <p><time dateTime={item.startedAt}>{studioDate(item.startedAt, locale, true)}</time></p>
+        {/* Model id, timing and finish reason are for audit, not for reading the answer. */}
+        <details className="as-muted as-small"><summary>{evidence('technicalDetails')}</summary>
+          <p className="[overflow-wrap:anywhere]">{t('model')}: {item.model}</p>
+          <p>{t('duration', { ms: item.durationMs })}</p>
+          <p>{t('finish')}: {item.finishReason ?? t('unknown')}</p>
+        </details>
         <p>{t('grounding')}: {t(`groundingValues.${item.grounding}`)}</p>
         <p>{t('search')}: {t(item.searchEvidence.execution === 'confirmed' ? 'confirmed' : 'searchUnknown')}</p>
         {item.citations.length ? <ul>{item.citations.map(citation => {

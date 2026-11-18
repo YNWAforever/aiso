@@ -87,8 +87,9 @@ export function ScanStep({ lang, clientId, scan, scanHistory, client, quota = { 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: scanUrl.trim(), industry: industry || undefined, region: region || undefined, clientId }),
       })
-      const data = await res.json()
-      if (!res.ok) {
+      // A timed-out or proxied 5xx can answer with HTML; that is not a network error.
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data) {
         const reached = scanLimitFrom(res.status, data)
         if (reached) { setLimit(reached); setLoading(false); submitting.current = false; return }
         const key = getDashboardScanErrorKey(res.status, data)

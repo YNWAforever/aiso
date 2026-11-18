@@ -92,7 +92,7 @@ export function useStudioActions({ clientId, brandName, brandDomain, features, e
     trackFunnelEvent({ name: 'skill_action_confirmed', locale })
     try {
       const outcome = await requestStudioAction(scope)
-      patch(id, { ...outcome, error: outcome.phase === 'rejected' ? t('actions.notAllowed') : undefined })
+      patch(id, { ...outcome, error: outcome.phase === 'rejected' ? t(`actions.refused.${outcome.reason ?? 'notAllowed'}`) : undefined })
       if (outcome.phase === 'done') { trackFunnelEvent({ name: 'skill_action_completed', locale }); await saveAction(outcome) }
       else if (outcome.phase !== 'pending') trackFunnelEvent({ name: 'skill_action_failed', locale })
     } finally { writing.current = false; setBusy(false) }

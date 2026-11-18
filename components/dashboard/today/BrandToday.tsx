@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { getTranslations } from 'next-intl/server'
 import { ArrowRight, Check, ChevronDown, CheckCircle2, Circle, FileText, Radio, ScanSearch, Sparkles } from 'lucide-react'
 import { Illustration } from '@/components/ui/illustration'
@@ -21,12 +22,17 @@ import type { WorkspaceHome } from '@/lib/view-models/workspace-home'
  * tools) is behind one disclosure. Reads the existing WorkspaceHome projection
  * and never fetches or writes.
  */
-export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOnline, accountHome = false, savedDiscussion = null }: {
+export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOnline, accountHome = false, savedDiscussion = null, creationControl = null }: {
   workspace: WorkspaceHome
   lang: string
   chatEnabled: boolean
   clientReportsOnline: boolean
   accountHome?: boolean
+  /**
+   * Account home with one brand: the portfolio's add-brand control (shown only while the
+   * plan has room), so a second brand is never reachable only by typing /onboarding.
+   */
+  creationControl?: ReactNode
   /** Latest saved Studio discussion for this card's task; loaded by the page. */
   savedDiscussion?: SavedTaskRead | null
 }) {
@@ -72,7 +78,10 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
 
   return <main className="mx-auto w-full min-w-0 max-w-5xl break-words space-y-6 px-4 py-8 sm:px-6">
     <header>
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary-accessible">{accountHome ? t('oneBrandEyebrow') : t('eyebrow')}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary-accessible">{accountHome ? t('oneBrandEyebrow') : t('eyebrow')}</p>
+        {accountHome && creationControl && <div className="[&_a]:min-h-11">{creationControl}</div>}
+      </div>
       <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground">{view.brandName}</h1>
       {view.domain && <p className="mt-1 text-sm font-medium text-muted-foreground">{view.domain}</p>}
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">{t('summary')}</p>

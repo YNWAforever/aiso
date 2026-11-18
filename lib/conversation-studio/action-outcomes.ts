@@ -2,7 +2,9 @@ import { scanUrlFor } from './skill-actions'
 
 export type StudioActionId = 'scan_brand' | 'improve_page' | 'monthly_report'
 export type ActionScope = { skillId: StudioActionId; clientId: string; scanId?: string; month?: string; domain?: string }
-export type ActionOutcome = { phase: 'done' | 'pending' | 'unknown' | 'rejected'; scope: ActionScope }
+/** Why a request was definitely refused (nothing ran), so the person sees the real reason and next step. */
+export type ActionRefusal = 'notAllowed' | 'limit' | 'notFound' | 'external'
+export type ActionOutcome = { phase: 'done' | 'pending' | 'unknown' | 'rejected'; scope: ActionScope; reason?: ActionRefusal }
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
 
 /** One explicit operation, one POST. A lost acknowledgement is never permission to repeat it. */
@@ -17,8 +19,17 @@ export async function requestStudioAction(scope: ActionScope, request: typeof fe
       : scope.skillId === 'improve_page'
         ? await request(`${path}/agents/generate`, { ...init, headers, body: JSON.stringify({ scanId: scope.scanId }) })
         : await request(`${path}/months/${encodeURIComponent(scope.month ?? '')}`, init)
-    if (response.status === 403) return { phase: 'rejected', scope }
+    if (response.status === 403) return { phase: 'rejected', scope, reason: 'notAllowed' }
     if (response.status === 202) return { phase: 'pending', scope }
+    // Definite refusals: these answers are returned before any work starts, so the action
+    // did not run. A 409 from generation can follow a started model call and stays unknown,
+    // except EXTERNAL_AGENT_CONFIGURED, which is decided before anything starts.
+    if (response.status === 429) return { phase: 'rejected', scope, reason: 'limit' }
+    if (response.status === 400 || response.status === 404) return { phase: 'rejected', scope, reason: 'notFound' }
+    if (response.status === 409) {
+      const error = await response.clone().json().then(body => (body as { error?: unknown })?.error, () => undefined)
+      if (error === 'EXTERNAL_AGENT_CONFIGURED') return { phase: 'rejected', scope, reason: 'external' }
+    }
     if (!response.ok) return unknown
     const data: unknown = await response.json()
     if (!data || typeof data !== 'object') return unknown
