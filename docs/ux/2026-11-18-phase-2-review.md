@@ -71,11 +71,28 @@ Severity: **H** user is stuck or misled about money/data · **M** confusing or e
 
 ### Load-sensitive tests (not fixed, recorded honestly)
 
-In one parallel run, 2 zh-HK desktop cases failed on timing assertions (a request not yet
-recorded when asserted): `conversation-studio` "composer shows remaining LIVE answers…"
-and `studio-action-outcomes` "scan outcome stays exact…". Both then passed 20/20 in isolation
-(`--repeat-each=5`). The root cause is not established; they are flagged rather than called
-flakes.
+These failed once in a full parallel run and then passed every time they ran on their own.
+No root cause is established, so they are recorded here rather than called flakes:
+
+- **zh-HK desktop timing assertions.** In one run, 2 cases failed because a request had not
+  been recorded yet when the test checked for it: `conversation-studio` "composer shows
+  remaining LIVE answers…" and `studio-action-outcomes` "scan outcome stays exact…". Both
+  then passed 20/20 with `--repeat-each=5`.
+- **`conversation-studio` "IME, accessibility and reflow" (en, desktop).** In the final 10-spec
+  run, axe reported `color-contrast` with dark ink on a dark background (#17263e on
+  #0d1320). That pair looks like a snapshot taken mid-way through a theme transition. The
+  failure did not reproduce in 128 further runs: the whole spec (108/108) and 20/20 repeats
+  of the test.
+
+## Verification (final code)
+
+| Check | Result |
+| --- | --- |
+| `npx tsc --noEmit` | clean |
+| `npm run lint` | 0 errors, 0 warnings |
+| `npm run test:unit` | 9,646 passed; 2 failed only because the clone is shallow (migration-contract tests diff against an old commit; they pass in CI) |
+| Playwright, fresh build + regenerated fixtures, chromium + mobile: `conversation-studio`, `studio-shell`, `studio-continuous-chat`, `studio-reply-scroll`, `studio-action-outcomes`, `app-shell`, `c8a-workspace-home`, `c8b-portfolio`, `c8g-settings`, `sme-activation-today` | **443 passed, 5 failed**. 4 were two inspector assertions that still expected the raw ISO date and treated the last link as the last focusable control; both were updated in `2760270` and now pass 8/8. The fifth is the IME case above. |
+| `conversation-studio` rerun after `2760270` | 108/108 |
 
 ## Needs a human smoke test (Vercel preview, signed in)
 
