@@ -48,7 +48,7 @@ function boundedTitle(value: string): string {
   return wordEnd > 0 ? clipped.slice(0, wordEnd) : clipped
 }
 
-export function StudioThreadHeader({ thread, attachment, onHome, originTitle, onOpenOrigin, onUpdate, onArchived }: {
+export function StudioThreadHeader({ thread, attachment, onHome, originTitle, onOpenOrigin, onUpdate, onArchived, homeLabel }: {
   thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState' | 'visibility' | 'turnCount' | 'updatedAt' | 'branchOf'> & { pinned?: boolean; mine?: boolean }
   attachment?: StudioAttachCandidate | null
   onHome: () => void
@@ -56,6 +56,8 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
   onOpenOrigin?: () => void
   onUpdate?: (patch: StudioThreadUpdateInput) => Promise<boolean>
   onArchived?: () => void
+  /** The area's name as the shell shows it ("Back to Chat" in the copilot IA). */
+  homeLabel?: string
 }) {
   const t = useTranslations('conversationStudio')
   const lang = useLocale()
@@ -72,7 +74,7 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
   }
   return <header className="space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
+      <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{homeLabel ?? t('title')}</button>
       {onUpdate && thread.mine && <details className="as-thread-menu">
         <summary className="as-button inline-flex items-center justify-center px-3" aria-label={t('threadActions.label')}><Ellipsis className="size-4" aria-hidden="true" /></summary>
         <div role="group" aria-label={t('threadActions.label')} className="as-thread-menu-panel" onClick={event => event.currentTarget.closest('details')?.removeAttribute('open')}>
@@ -118,12 +120,14 @@ type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; o
   smeCopilot?: boolean
   /** Slice 4 action skills: the brand's domain (scan) and plan features (gates). */
   brandDomain?: string | null
-  features?: PlanFeatures }
+  features?: PlanFeatures
+  /** False when the plan or rollout has no Search Console: say nothing, rather than "Pending verification". */
+  searchConsoleOffered?: boolean }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
   return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft}><StudioConversation {...props} /></StudioSessionProvider>
 }
-function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features, initialDraft = '', initialTask = null }: Props & { embedded?: boolean }) {
+function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features, initialDraft = '', initialTask = null, searchConsoleOffered = true }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
@@ -482,7 +486,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           <span className="as-badge">{t('skillChip.label', { skill: t(`templates.${(current ? current.template : newTemplate)!}.label`) })}</span>
           <button type="button" onClick={() => updateDraft(draft, null)} className="as-button px-2 text-sm">{t('skillChip.clear')}</button>
         </>}
-        {!staffView && <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>}
+        {!staffView && <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 whitespace-nowrap px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>}
         {attachment && <>
           <span className="as-badge">{t('attach.badge')} · {attachment.label}</span>
           <button type="button" onClick={() => setAttachment(null)} className="as-button px-2 text-sm">{t('attach.clear')}</button>
@@ -599,8 +603,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         {composerForm}
         <div className="as-source-bar" aria-label={t('savedDataLabel')}>
           <span className="inline-flex items-center gap-2"><span className="as-source-dot" aria-hidden="true" />{t('savedDataLabel')}</span>
-          <span className={sourceStatus === 'bound' ? 'as-muted' : 'as-source-status'}>{t(`sources.${sourceStatus}`)}</span>
-          <span className="as-muted">{t('sources.notQueried')}</span>
+          {searchConsoleOffered && <>
+            <span className={sourceStatus === 'bound' ? 'as-muted' : 'as-source-status'}>{t(`sources.${sourceStatus}`)}</span>
+            <span className="as-muted">{t('sources.notQueried')}</span>
+          </>}
           {embedded && basePath && !staffView && <Link href={`${basePath}/studio/connections`} className="underline">{t('manageConnections')}</Link>}
         </div>
         {continueSection}
@@ -651,10 +657,11 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </details>}
         {scopeNote}
       </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
-        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} onUpdate={current.mine && !staffView ? async patch => (await updateThread(current.id, patch)).ok : undefined} onArchived={openHome} />
+        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} onUpdate={current.mine && !staffView ? async patch => (await updateThread(current.id, patch)).ok : undefined} onArchived={openHome} homeLabel={smeCopilot ? t('sections.backToChat') : undefined} />
         {current.saveState === 'failed' && <p role="alert" className="as-note">{t('saveFailed')}</p>}
         <h2 className="sr-only">{t('conversationLabel')}</h2>
-        <div className="as-discussion-grid as-has-rail">
+        {/* Reserve the rail column only when the rail renders; one thread used to leave an empty 240px gap. */}
+        <div className={`as-discussion-grid${!staffView && visibleThreads.length > 1 ? ' as-has-rail' : ''}`}>
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
           {!current.turnsLoaded && !current.turnsError && <p className="as-muted as-small">{t('loadingThreads')}</p>}
           {current.turnsError && <p role="alert" className="as-note">{t('readUnavailable')} <button type="button" className="as-button px-3" onClick={() => void refreshThread(current.id)}>{t('retry')}</button></p>}

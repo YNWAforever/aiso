@@ -96,7 +96,7 @@ export function StudioShell({ children, clientId, brandName, brands, features, a
         <nav aria-label={ui('breadcrumbs')} className="as-breadcrumb"><Link href={base} onClick={() => session.setActiveId(null)}>{brandName}</Link><span aria-hidden="true">/</span><span aria-current="page">{t(discussion ? 'discussionTitle' : current.key)}</span></nav>
         <div className="flex flex-wrap items-center gap-2">
           <span className="as-locale"><Globe2 className="size-3.5" aria-hidden="true" />{t('localeLabel')}</span>
-          <button type="button" className="as-button inline-flex items-center gap-2 px-3" onClick={() => setPaletteOpen(true)} aria-label={dashboard('shell.search')}><Search className="size-4" aria-hidden="true" /><span className="as-small">⌘K</span></button>
+          <button type="button" className="as-button inline-flex min-w-11 items-center justify-center gap-2 px-3" onClick={() => setPaletteOpen(true)} aria-label={dashboard('shell.search')}><Search className="size-4" aria-hidden="true" /><span className="as-small as-kbd-hint" aria-hidden="true">⌘K</span></button>
           <Link href={pathname.replace(`/${lang}/`, `/${otherLang}/`)} className="as-button inline-flex items-center px-3" hrefLang={otherLang}>{t('otherLanguage')}</Link>
         </div>
       </header>

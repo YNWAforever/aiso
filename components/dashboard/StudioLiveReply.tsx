@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import { studioDate } from '@/lib/conversation-studio/format-date'
 import type { OpenStudioEvidence } from '@/lib/conversation-studio/types'
 import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { safeEvidenceUrl } from '@/lib/pulse/provider-citations'
@@ -85,6 +86,7 @@ export function StudioLiveReplyView({ reply, pending, error, stream, number = 1,
 export function StudioLiveEvidence({ reply, id }: { reply?: StudioLiveReply; id: string }) {
   const t = useTranslations('conversationStudio.live')
   const evidence = useTranslations('conversationStudio.evidence')
+  const locale = useLocale()
   return <section className="space-y-3">
     <h3>{t('unverifiedTitle')}</h3>
     <p className="as-note">{t('unverified')}</p>
@@ -94,7 +96,7 @@ export function StudioLiveEvidence({ reply, id }: { reply?: StudioLiveReply; id:
       <p>{t('coverage')}: {t(`status.${item.coverage}`)}</p>
       {!item.answer && <p className="as-note">{t('missing')}</p>}
         <p>{t('model')}: {item.model}</p>
-        <p><time dateTime={item.startedAt}>{item.startedAt}</time> · {t('duration', { ms: item.durationMs })}</p>
+        <p><time dateTime={item.startedAt}>{studioDate(item.startedAt, locale, true)}</time> · {t('duration', { ms: item.durationMs })}</p>
         <p>{t('finish')}: {item.finishReason ?? t('unknown')}</p>
         <p>{t('grounding')}: {t(`groundingValues.${item.grounding}`)}</p>
         <p>{t('search')}: {t(item.searchEvidence.execution === 'confirmed' ? 'confirmed' : 'searchUnknown')}</p>

@@ -132,7 +132,9 @@ for (const lang of ['en', 'zh-HK']) {
     const inspector = page.getByRole('dialog', { name: copy.evidence.panelTitle })
     await expect(inspector).toContainText(copy.live.searchUnknown)
     await expect(inspector).toContainText('mock-live-model')
-    await expect(inspector).toContainText('2026-10-28T00:00:00Z')
+    // The start time is shown readably (Hong Kong time); the exact instant stays machine-readable.
+    await expect(inspector.locator('time[datetime="2026-10-28T00:00:00Z"]').first()).toBeVisible()
+    await expect(inspector).not.toContainText('2026-10-28T00:00:00Z')
     await expect(inspector.getByRole('link', { name: 'Live source' }).first()).toHaveAttribute('href', 'https://source.example/live')
     await expect(inspector.getByRole('link', { name: 'Unsafe' })).toHaveCount(0)
     await expect(page.locator('#studio-inspected-live-0')).toBeFocused()

@@ -43,7 +43,7 @@ export function MenuButton({ label, button, children, align = 'start', className
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen(value => !value)}
-        className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="inline-flex min-h-11 min-w-11 max-w-full items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         {button}
       </button>

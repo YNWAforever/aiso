@@ -27,7 +27,25 @@ magic-link / Google only, so the review rendered the same production components 
 | Mobile shell | `h-screen` hid the bottom of the scroll area behind iOS Safari's toolbar. | `h-dvh`, as Studio already used. |
 | Today | Internal design copy shown to users ("One thing to do, one way to ask…"); failure states ("Could not read") rendered as large bold headline numbers. | User-facing summary; missing-data states rendered quieter than real values. |
 
-## Open — recommended next
+## Fixed in the follow-up
+
+| Area | Fix |
+| --- | --- |
+| Studio dates | Documents, evidence inspector and live-reply times shown as readable dates (Hong Kong time) via `lib/conversation-studio/format-date.ts`; the exact instant stays in `<time dateTime>`. The document version id is de-emphasised. |
+| Overview (legacy IA) | Raw "… UTC" strings shown in Hong Kong time; the always-"unknown" "Next scheduled work" line removed. |
+| Brand cards | "Freshness: unknown" only when there is no observed date. |
+| Billing | Plan shown as "Pro", not "pro"; month as "November 2026", not "2026-11"; plain-language charge hint; "Try again" after a failed load. |
+| Settings | One Billing section: the fix-pack/invoice link moved next to the Stripe portal link. |
+| Naming | In the copilot IA the in-thread back button reads "Back to Chat" and the Studio error page heading reads "Chat". |
+| Search Console | Plans or rollouts without Search Console no longer see "Search Console · Pending verification". |
+| Discussion layout | The 240 px rail column is reserved only when the rail renders; while evidence is open it takes that column instead of wrapping below the conversation. |
+| Headings | Scan, Results, Local visibility and the load-error state now have an `h1`. |
+| Top bar | Brand switcher, avatar, help and their menu rows are 44 px; ⌘K hint hidden on touch devices. |
+| Notifications | The bell's accessible name includes the unread count. |
+| Today | The setup checklist marks finished steps as done (not links) and highlights the current one. |
+| Mobile Studio | The top bar drops the duplicate market chip on phones; "Choose documents" no longer wraps. |
+
+## Still open — needs an owner decision
 
 1. **Studio honesty note is pinned.** `conversationStudio.featureShellNote` ("Live model answers
    stay off until LIVE is enabled…") is jargon but asserted verbatim by
@@ -35,17 +53,5 @@ magic-link / Google only, so the review rendered the same production components 
 2. **Inline links in Studio are 44 px boxes** (`#aiso-studio a` in `conversation-studio.css`),
    which breaks sentences such as "Open sources". `studio-shell.spec.ts` requires every link to
    be ≥ 44 px, so changing it is a deliberate rule change, not a bug fix.
-3. **Raw timestamps / ids** in Studio (`StudioSecondaryViews`, `StudioEvidenceInspector`,
-   `StudioActionPanel` "Scan record: {uuid}", `StudioLiveReply` `finishReason`), Billing
-   ("2026-11", raw plan id) and the legacy Overview ("… UTC", "Freshness: unknown" on every card).
-4. **One place, three names**: "Start work", "Chat" and "Studio" label the same area; the
-   in-thread back button and error h1 use `title` ("Start work") while the shell says "Chat".
-5. **Plans without Search Console** see "Search Console · Pending verification" — needs a
-   `not_entitled` state or the source bar hidden.
-6. **Discussion layout** always reserves a 240 px rail column (`as-has-rail`) even when no rail renders.
-7. **Settings** has two "Billing" sections; **Scan / Results / Local visibility** steps render
-   their title as `<p>` (no h1); top-bar menu buttons are 36 px (`MenuButton.tsx`).
-8. **Today setup checklist** lists all four steps with no done/current state.
-9. **Notification bell** does not announce the unread count to screen readers.
-10. Mobile Studio composer: "Choose documents" wraps to two lines and the locale chip takes its
-    own row; the top bar's ⌘K hint is meaningless on touch devices.
+3. Studio action panel still prints the scan record id ("Scan record: {uuid}") as its scope line;
+   it is the audit reference for the run, so removing it is a product call.

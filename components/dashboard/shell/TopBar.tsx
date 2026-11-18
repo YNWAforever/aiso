@@ -123,7 +123,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
                       href={homeHref(b.id)}
                       onClick={close}
                       aria-current={b.id === clientId ? 'true' : undefined}
-                      className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-foreground hover:bg-secondary"
+                      className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-foreground hover:bg-secondary"
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{b.name}</span>
@@ -134,7 +134,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
                   </li>
                 ))}
               </ul>
-              <Link href={root} onClick={close} className="mt-1 flex min-h-10 items-center rounded-lg border-t border-border px-2 text-sm font-semibold text-foreground hover:bg-secondary">
+              <Link href={root} onClick={close} className="mt-1 flex min-h-11 items-center rounded-lg border-t border-border px-2 text-sm font-semibold text-foreground hover:bg-secondary">
                 {shell('all_brands')}
               </Link>
             </div>
@@ -166,7 +166,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
         >
           <Search aria-hidden="true" className="size-4" />
           <span className="sr-only sm:not-sr-only">{shell('search')}</span>
-          <kbd aria-hidden="true" className="hidden rounded border border-border px-1 text-[11px] font-medium sm:inline">⌘K</kbd>
+          <kbd aria-hidden="true" className="hidden rounded border border-border px-1 text-[11px] font-medium sm:inline pointer-coarse:hidden">⌘K</kbd>
         </button>
         <NotificationBell key={unreadCount ?? 'unknown'} initialCount={unreadCount} lang={lang} />
         {smeCopilot && profile && <MenuButton
@@ -211,7 +211,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
                 { href: `/${lang}/contact`, label: shell('help_contact') },
               ].map(link => (
                 <li key={link.href}>
-                  <Link href={link.href} onClick={close} className="flex min-h-10 items-center rounded-lg px-2 text-sm text-foreground hover:bg-secondary">{link.label}</Link>
+                  <Link href={link.href} onClick={close} className="flex min-h-11 items-center rounded-lg px-2 text-sm text-foreground hover:bg-secondary">{link.label}</Link>
                 </li>
               ))}
               <li className="mt-1 border-t border-border px-2 pb-1 pt-2 text-xs text-muted-foreground">{shell('help_shortcuts')}</li>

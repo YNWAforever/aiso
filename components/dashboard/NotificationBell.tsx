@@ -82,7 +82,7 @@ export function NotificationBell({ initialCount, lang = 'en' }: { initialCount: 
 
   return (
     <div ref={ref} className="relative">
-      <button ref={trigger} type="button" onClick={handleOpen} className="relative min-h-11 min-w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition" aria-label={count === null ? `${t('title')}: ${t('unknown')}` : t('title')} aria-expanded={open} aria-controls={panelId}>
+      <button ref={trigger} type="button" onClick={handleOpen} className="relative min-h-11 min-w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition" aria-label={count === null ? `${t('title')}: ${t('unknown')}` : count > 0 ? t('titleWithCount', { count }) : t('title')} aria-expanded={open} aria-controls={panelId}>
         <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
         {count !== null && count > 0 && <span className="absolute top-0 right-0 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{count > 9 ? '9+' : count}</span>}
         {count === null && <span aria-hidden="true" className="absolute top-0 right-0 text-xs">?</span>}

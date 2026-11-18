@@ -19,7 +19,8 @@ export function BrandCard({client,lang}: Props) {
       <p className="text-xs font-semibold text-muted-foreground">{copy.visibility}</p>
       {visibility.state !== 'error' && visibility.data ? <p className="mt-2 text-2xl font-bold text-foreground">{Number(visibility.data.sovScore.toFixed(1))}%</p> : <p className="mt-2 text-sm text-muted-foreground">{visibility.state === 'error' ? copy.visibilityError : copy.visibilityEmpty}</p>}
       {visibility.state==='partial'&&<p className="mt-2 text-sm">{copy.visibilityPartial}</p>}<PulseCoverage coverage={visibility.coverage} lang={lang}/><p className="mt-2 text-xs text-muted-foreground">{copy.observedAt}: {formatScanDate(visibility.observedAt,lang)}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{copy.freshnessUnknown}</p>
+      {/* Only when there is no observed date at all; otherwise the date says it. */}
+      {!visibility.observedAt && <p className="mt-1 text-xs text-muted-foreground">{copy.freshnessUnknown}</p>}
     </div>
   </Link>
 }

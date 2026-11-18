@@ -86,6 +86,10 @@
 #aiso-studio .as-topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--as-line); }
 #aiso-studio .as-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; color: var(--as-muted); }
 #aiso-studio .as-breadcrumb span:last-child { color: var(--as-ink); }
+/* On a phone the market chip repeats the composer's own and pushed the top bar onto
+   two rows; a keyboard-shortcut hint means nothing on a touch screen. */
+@media (max-width: 640px) { #aiso-studio .as-topbar .as-locale { display: none; } }
+@media (pointer: coarse) { #aiso-studio .as-kbd-hint { display: none; } }
 #aiso-studio .as-locale { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--as-line); border-radius: 999px; padding: 4px 10px; background: var(--as-panel); color: var(--as-muted); font-size: 12px; }
 
 #aiso-studio .as-threads { border: 1px solid var(--as-line); border-radius: 12px; background: var(--as-side); }
@@ -236,6 +240,9 @@
 #aiso-studio .as-discussion-grid.as-has-rail { grid-template-columns: minmax(0, 1fr) 240px; }
 #aiso-studio .as-thread-rail { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 #aiso-studio .as-thread-rail .as-thread { padding: 8px 4px; }
+/* While evidence is open, it takes the side column next to the reply that opened it
+   instead of wrapping below the whole conversation; the rail returns on close. */
+#aiso-studio .as-discussion-grid.as-has-rail:has(.as-inspector) .as-thread-rail { display: none; }
 @media (max-width: 1100px) {
   #aiso-studio .as-discussion-grid.as-has-rail { grid-template-columns: minmax(0, 1fr); }
   #aiso-studio .as-thread-rail { display: none; }
