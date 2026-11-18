@@ -43,15 +43,13 @@ magic-link / Google only, so the review rendered the same production components 
 | Top bar | Brand switcher, avatar, help and their menu rows are 44 px; ⌘K hint hidden on touch devices. |
 | Notifications | The bell's accessible name includes the unread count. |
 | Today | The setup checklist marks finished steps as done (not links) and highlights the current one. |
+| Honesty note | `featureShellNote` rewritten in plain language with owner sign-off: "AI replies are not switched on for this brand yet. You can still ask: answers use your latest scan, your saved weekly AI checks and any approved document you attach." The guardrail test pins the new text. |
 | Mobile Studio | The top bar drops the duplicate market chip on phones; "Choose documents" no longer wraps. |
 
 ## Still open — needs an owner decision
 
-1. **Studio honesty note is pinned.** `conversationStudio.featureShellNote` ("Live model answers
-   stay off until LIVE is enabled…") is jargon but asserted verbatim by
-   `__tests__/conversation-studio/guardrails.test.ts`; rewording needs the owner's sign-off.
-2. **Inline links in Studio are 44 px boxes** (`#aiso-studio a` in `conversation-studio.css`),
+1. **Inline links in Studio are 44 px boxes** (`#aiso-studio a` in `conversation-studio.css`),
    which breaks sentences such as "Open sources". `studio-shell.spec.ts` requires every link to
    be ≥ 44 px, so changing it is a deliberate rule change, not a bug fix.
-3. Studio action panel still prints the scan record id ("Scan record: {uuid}") as its scope line;
+2. Studio action panel still prints the scan record id ("Scan record: {uuid}") as its scope line;
    it is the audit reference for the run, so removing it is a product call.

@@ -17,7 +17,7 @@
       "connections": "Search, retrieval and Drive connection status.",
       "tools": "The full directory of existing tools."
     },
-    "featureShellNote": "Studio is available. Live model answers stay off until LIVE is enabled; work from saved evidence and templates meanwhile.",
+    "featureShellNote": "AI replies are not switched on for this brand yet. You can still ask: answers use your latest scan, your saved weekly AI checks and any approved document you attach.",
     "threadsTitle": "Discussions",
     "threadsCount": "{count, plural, one {# discussion} other {# discussions}}",
     "newThread": "Start a new discussion",

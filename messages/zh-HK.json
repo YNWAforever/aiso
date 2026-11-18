@@ -17,7 +17,7 @@
       "connections": "搜尋、擷取同 Drive 嘅連接狀態。",
       "tools": "原有功能嘅完整入口。"
     },
-    "featureShellNote": "已可進入開始工作。即時模型回答尚未開啟；期間請用已儲存證據及範本。",
+    "featureShellNote": "此品牌尚未開啟 AI 即時回答。你仍然可以提問：答案會根據最新掃描、已儲存嘅每週 AI 檢查，以及你附加嘅已核准文件。",
     "threadsTitle": "討論串",
     "threadsCount": "{count} 個討論",
     "newThread": "開始新討論",
