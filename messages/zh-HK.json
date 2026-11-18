@@ -11,11 +11,11 @@
       "backToChat": "返回對話"
     },
     "chatMore": {
-      "threads": "接住之前嘅工作，搵返所有討論。",
+      "threads": "延續之前的工作，查看所有討論。",
       "weekly": "睇每週 AI 能見度同變化。",
-      "documents": "已核准嘅品牌資料同工作成果。",
-      "connections": "搜尋、擷取同 Drive 嘅連接狀態。",
-      "tools": "原有功能嘅完整入口。"
+      "documents": "已核准的品牌資料及工作成果。",
+      "connections": "搜尋、擷取及 Drive 的連接狀態。",
+      "tools": "原有功能的完整入口。"
     },
     "featureShellNote": "此品牌尚未開啟 AI 即時回答。你仍然可以提問：答案會根據最新掃描、已儲存的每週 AI 檢查，以及你附加的已核准文件。",
     "threadsTitle": "討論串",
@@ -228,7 +228,7 @@
       "streaming": "正在生成答案…",
       "streamingPending": "等候模型開始回覆…",
       "exhausted": "此品牌本週 {cap} 次 AI 回覆配額已用完。你的問題已保存，並附上根據已儲存證據的答案。AI 回覆會於星期一上午 8 時（香港時間）重置。",
-      "unavailable": "暫未能確認 AI 回覆。可重新讀取已保存回覆，唔會再次呼叫模型。",
+      "unavailable": "暫未能確認 AI 回覆。可重新讀取已保存的回覆，不會再次呼叫模型。",
       "remaining": "此品牌本週尚餘 AI 回覆：{count} 次。失敗或未能確認的回覆亦會計算在內。",
       "remainingComposer": "此品牌本週尚餘 {count}/{cap} 次 AI 回覆。",
       "savedOnly": "此品牌本週即時回答已用完。你仍可傳送，系統會保存僅用已儲存證據的答案；即時回答會於星期一上午 8 時（香港時間）恢復。",
@@ -267,8 +267,8 @@
       "attachUnavailable": "這份文件已不再核准使用，因此沒有傳送任何內容至 AI 模型。",
       "attachIncluded": "已將附加的核准來源傳送給每個所選模型：{label}（第 {version} 版）。",
       "attachTruncated": "受輸入上限所限，附加來源只傳送部分內容：{included} / {total} 項。token 用量仍然適用。",
-      "answerUnknown": "呢次模型請求結果未明。可重新讀取已保存回覆；系統唔會自動重複發送。",
-      "answerConflict": "呢條訊息已有另一個回覆請求。請重新讀取已保存回覆。",
+      "answerUnknown": "這次模型請求的結果未明。可重新讀取已保存的回覆；系統不會自動重複發送。",
+      "answerConflict": "這條訊息已有另一個回覆請求。請重新讀取已保存的回覆。",
       "refreshReply": "重新讀取回覆",
       "refreshingReply": "正在讀取…",
       "modelDetails": "模型及來源"
@@ -309,7 +309,7 @@
       "bound": "Search Console · 已連接",
       "unbound": "Search Console · 未連接",
       "reconnect": "Search Console · 需要重新連接",
-      "rebind": "Search Console · 請檢查已連接嘅資源",
+      "rebind": "Search Console · 請檢查已連接的資源",
       "unavailable": "Search Console · 暫時未能取得狀態",
       "notQueried": "只顯示連接狀態；你提問時先會讀取搜尋資料。"
     },
@@ -474,10 +474,10 @@
       "statusUnavailable": "暫時未能讀取狀態",
       "statusSyncUnavailable": "暫時未能讀取同步狀態",
       "planned": "計劃中",
-      "readScopeNote": "呢頁顯示每個連接最近儲存嘅狀態。",
+      "readScopeNote": "此頁顯示每個連接最近儲存的狀態。",
       "searchConsoleTitle": "Google Search Console",
       "hkEndpointPending": "香港端點待核實",
-      "completenessPending": "部分日子嘅資料可能仍未齊",
+      "completenessPending": "部分日子的資料可能仍未齊全",
       "viewScope": "查看連接範圍",
       "savedOnly": "只讀取已儲存的綁定及同步狀態。本次未查詢搜尋資料，未執行同步或香港篩選。",
       "firecrawlScope": "公開頁面 URL、擷取時間、引用段落；目前未連接，沒有擷取頁面。",
@@ -513,21 +513,21 @@
     "tools": {
       "groups": {
         "audit": "掃描與改善",
-        "auditBody": "由已保存工作整理嘅檢查、修正同報告。",
+        "auditBody": "由已保存工作整理的檢查、修正及報告。",
         "monitor": "追蹤 AI 回答",
         "monitorBody": "能見度、問題、競爭者同引用。",
         "library": "品牌資料與設定",
         "libraryBody": "品牌事實、來源、報告同帳戶設定。",
         "admin": "平台工具",
-        "adminBody": "呢個環境嘅內部管理。"
+        "adminBody": "此環境的內部管理。"
       },
       "entities": "品牌名稱、別名同已批准輸入。",
-      "opportunities": "由已保存掃描整理嘅優先缺口。",
-      "observations": "有已保存證據嘅變化。",
+      "opportunities": "由已保存掃描整理的優先缺口。",
+      "observations": "有已保存證據的變化。",
       "sources": "已批准文件同匯入。",
-      "prompts": "用嚟追蹤 AI 能見度嘅問題。",
-      "competitors": "同品牌一齊出現嘅對象。",
-      "citations": "AI 回答引用嘅來源。",
+      "prompts": "用來追蹤 AI 能見度的問題。",
+      "competitors": "與品牌一同出現的對象。",
+      "citations": "AI 回答引用的來源。",
       "admin": "內部管理。"
     },
     "nav": {
@@ -549,7 +549,7 @@
     "temporaryLabel": "未儲存",
     "loadingThreads": "正在載入已儲存討論…",
     "saveUnknownLabel": "未確認保存",
-    "saveFailed": "未能確認呢次修改有冇保存。請保持呢頁開啟以保留本地草稿，重新建立之前先查看已保存記錄。",
+    "saveFailed": "未能確認這次修改是否已保存。請保持此頁開啟以保留本地草稿，重新建立前請先查看已保存記錄。",
     "backToDashboard": "返回品牌概覽",
     "readUnavailable": "暫時未能載入已儲存記錄，請重新載入再試。",
     "planRequired": "需要升級方案",
@@ -571,7 +571,7 @@
         "readScope": "只顯示目前核准且未撤銷的版本資料；沒有將文件附加至回答或模型。",
         "inputCount": "{count} 項輸入",
         "outputCount": "{count} 項成果",
-        "emptyInputs": "仲未有已批准嘅品牌輸入。",
+        "emptyInputs": "尚未有已批准的品牌輸入。",
         "emptyOutputs": "仲未有工作成果。",
         "approvedAt": "核准：{date}",
         "importedAt": "匯入：{date}",
@@ -660,15 +660,15 @@
       "latestLabel": "最新已保存週次",
       "trendTitle": "已保存週次",
       "latest": "最新",
-      "noComparison": "未有上一個有回答嘅已保存週次可比較。",
+      "noComparison": "沒有上一個有回答的已保存週次可供比較。",
       "noAnswers": "最新一週未有回答記錄。",
       "noAnswersValue": "—",
       "deltaUp": "較上一個已保存週次高 {points} 個百分點",
       "deltaDown": "較上一個已保存週次低 {points} 個百分點",
       "deltaFlat": "與上一個已保存週次相同",
-      "openThread": "用呢週數據開始",
-      "openThreadPrompt": "只用已保存觀察，解釋 {week} 呢週嘅 AI 能見度變化。",
-      "scopeNote": "根據你已儲存嘅每週 AI 檢查。",
+      "openThread": "用這週數據開始",
+      "openThreadPrompt": "只用已保存的觀察，解釋 {week} 這週的 AI 能見度變化。",
+      "scopeNote": "根據你已儲存的每週 AI 檢查。",
       "emptyTitle": "仲未有已保存週次",
       "empty": "每週監測保存後會顯示。",
       "unavailable": "暫時未能載入每週檢查，請重新載入再試。"
@@ -695,9 +695,9 @@
       "banner": "員工檢視 · 已獲此帳戶授權。你的對話會私人儲存於此，並列入其活動紀錄；不會讀取即時回答、Search Console 或供應商數據。",
       "backToAdmin": "返回管理"
     },
-    "copilotEyebrow": "同你嘅品牌對話",
-    "copilotTitle": "你今日想 AI 幫你嘅品牌做咩？",
-    "copilotDescription": "揀一個任務，或者直接提問。傳送後由 AI 回覆，你可以喺同一個已保存對話繼續追問。",
+    "copilotEyebrow": "與你的品牌對話",
+    "copilotTitle": "今天想 AI 為你的品牌做甚麼？",
+    "copilotDescription": "選擇一個任務，或直接提問。傳送後由 AI 回覆，你可以在同一個已保存對話繼續追問。",
     "moreSkills": "更多技能",
     "oneTapHint": "填入問題，修改後再傳送。",
     "execution": {
@@ -705,14 +705,14 @@
       "readsSaved": "已保存記錄",
       "readsSearchDemand": "搜尋需求",
       "readsPublicPage": "一個公開網頁",
-      "readsNothing": "暫時冇新資料",
+      "readsNothing": "暫時沒有新資料",
       "readsKeywordDemand": "關鍵字需求"
     },
     "chatMoreTitle": "Chat 更多",
     "connectAssistant": {
       "title": "連接你的助理",
-      "body": "外部助理可以透過六個唯讀工具讀取呢個品牌嘅已保存記錄：品牌證據、掃描檢查、內容機會、品牌來源、待辦草稿同 Search Console 狀態。每次呼叫都會重新授權同記錄審計。",
-      "readOnly": "只讀。任何工具都唔可以寫入、發佈或修改。限制：每分鐘 30 次。",
+      "body": "外部助理可以透過六個唯讀工具讀取此品牌的已保存記錄：品牌證據、掃描檢查、內容機會、品牌來源、待辦草稿及 Search Console 狀態。每次呼叫都會重新授權並記錄審計。",
+      "readOnly": "唯讀。任何工具都不能寫入、發佈或修改。限制：每分鐘 30 次。",
       "mint": "產生 1 小時 token",
       "minting": "產生中…",
       "endpoint": "端點",
@@ -720,7 +720,7 @@
       "copy": "複製 token",
       "copied": "已複製",
       "failed": "未能產生 token，請再試。",
-      "unconfigured": "呢個部署仲未設定助理連接。"
+      "unconfigured": "此部署尚未設定助理連接。"
     },
     "examplesTitle": "試下問",
     "exampleOne": "客人揀同類品牌之前會問咩問題？",
@@ -729,79 +729,79 @@
     "skills": {
       "scan_brand": {
         "label": "掃描品牌網站",
-        "outcome": "用現有掃描引擎重跑全部 20 項檢查，結果會保存喺呢個品牌。",
+        "outcome": "用現有掃描引擎重新執行全部 20 項檢查，結果會保存在此品牌。",
         "confirmTitle": "會做咩？",
-        "confirmBody": "會完整掃描 {domain}，分數同檢查結果會保存喺呢個品牌。",
+        "confirmBody": "會完整掃描 {domain}，分數及檢查結果會保存在此品牌。",
         "run": "開始掃描",
         "running": "掃描中…",
         "done": "掃描完成 — 去檢查結果睇。",
         "failed": "掃描未能開始，請再試。",
         "needsDomain": "未設定品牌網域，請先去品牌設定填返。",
-        "turnPrompt": "掃描完成，整理最新嘅已保存紀錄。"
+        "turnPrompt": "掃描完成，整理最新的已保存紀錄。"
       },
       "improve_page": {
         "actionLabel": "生成優化建議",
-        "actionConfirmTitle": "用呢份已保存掃描生成建議？",
-        "actionConfirmBody": "會用所選已保存掃描，生成最多三個優化建議並保存為草稿，會用你方案嘅 AI 生成額度。",
+        "actionConfirmTitle": "用這份已保存掃描生成建議？",
+        "actionConfirmBody": "會用所選的已保存掃描，生成最多三個優化建議並保存為草稿，並會使用你方案的 AI 生成額度。",
         "run": "開始生成",
         "running": "生成中…",
-        "done": "生成工作已完成，請查看已保存嘅優化狀態。",
+        "done": "生成工作已完成，請查看已保存的優化狀態。",
         "failed": "未能開始生成，請再試。",
         "needsScan": "仲未有完整掃描，請先掃描品牌。",
-        "planRequired": "呢個動作需要 Pro 或以上方案。",
-        "pending": "已有生成進行緊，完成後會出現喺優化建議。",
-        "turnPrompt": "建議已生成，整理下一步要改嘅地方。",
-        "outcome": "用最新掃描生成最多三個可交付嘅修改建議。"
+        "planRequired": "此操作需要 Pro 或以上方案。",
+        "pending": "已有生成正在進行，完成後會出現在優化建議。",
+        "turnPrompt": "建議已生成，整理下一步要修改的地方。",
+        "outcome": "用最新掃描生成最多三個可交付的修改建議。"
       },
       "monthly_report": {
         "actionLabel": "記錄本月數字",
         "actionConfirmTitle": "會記錄咩？",
-        "actionConfirmBody": "會將所選月份已保存嘅分數、工作同監測數字，補成已到期但未記錄嘅快照，唔會覆寫已有快照。",
+        "actionConfirmBody": "會將所選月份已保存的分數、工作及監測數字，補記為已到期但未記錄的快照，不會覆寫已有快照。",
         "run": "記錄本月",
         "running": "記錄中…",
         "done": "月度記錄請求已確認，請查看月度記錄。",
         "failed": "未能記錄本月，請再試。",
-        "planRequired": "呢個動作需要 Pro 或以上方案。",
-        "turnPrompt": "本月已記錄，整理最新嘅已保存數字。",
-        "outcome": "把本月已保存嘅數字整理成月度記錄。"
+        "planRequired": "此操作需要 Pro 或以上方案。",
+        "turnPrompt": "本月已記錄，整理最新的已保存數字。",
+        "outcome": "把本月已保存的數字整理成月度記錄。"
       }
     },
     "actions": {
       "title": "動作",
-      "note": "每個動作都要你確認之後，先會執行現有工作；淨係撳一下唔會執行。",
+      "note": "每個操作都要你確認後才會執行現有工作；單擊不會執行。",
       "open": "開始",
       "runNow": "確認執行",
       "cancel": "取消",
       "openResult": "睇結果",
-      "unknown": "未能確認操作結果，工作可能已經執行。請先查看已保存記錄，再決定下一步，唔好直接重做。",
+      "unknown": "未能確認操作結果，工作可能已經執行。請先查看已保存記錄，再決定下一步，不要直接重做。",
       "refused": {
         "notAllowed": "你的方案或權限不包括這個操作，未有執行任何工作。",
         "limit": "你已達到此方案暫時的掃描上限，未有執行任何工作。請查看方案以進行更多掃描。",
         "notFound": "找不到這個操作需要的記錄，未有執行任何工作。請先執行新掃描。",
         "external": "此品牌的掃描會傳送到你自己的代理，所以建議不會在這裡建立，未有執行任何工作。"
       },
-      "pending": "請求仍在處理中，請查看相關記錄；今次未有保存任何已完成嘅對話。",
-      "notAllowed": "目前權限或方案未允許呢個操作。",
+      "pending": "請求仍在處理中，請查看相關記錄；這次未有保存任何已完成的對話。",
+      "notAllowed": "目前的權限或方案不允許此操作。",
       "checkRecords": "查看已保存記錄",
       "scopeMonth": "香港曆月：{month}",
-      "summaryScope": "對話係保存時另外讀取已保存證據而寫嘅摘要，可能用到較新記錄，唔係今次操作結果嘅證明。",
+      "summaryScope": "對話是在保存時另外讀取已保存證據而寫成的摘要，可能用到較新的記錄，並非這次操作結果的證明。",
       "retrySave": "只重試保存對話",
       "reloadHistory": "重新載入已保存對話記錄",
       "save": {
         "saving": "操作已完成，正在保存對話…",
-        "saved": "對話已另外保存，冇重做操作。",
-        "retry": "操作已完成，但未能確認對話有冇保存。只重試原本嘅保存請求，唔好重做操作。",
-        "unknown": "操作已完成，但未能確認對話有冇建立，佢可能已經存在。請重新載入記錄，唔好再建立一次。"
+        "saved": "對話已另外保存，沒有重做操作。",
+        "retry": "操作已完成，但未能確認對話是否已保存。只重試原本的保存請求，不要重做操作。",
+        "unknown": "操作已完成，但未能確認對話是否已建立，它可能已經存在。請重新載入記錄，不要再建立一次。"
       }
     },
     "sending": "正在回覆…",
     "savedContextDetails": "已保存資料摘要",
-    "messageNotSent": "呢條訊息未能確認保存，未有向模型發送。問題已放返入訊息框，準備好就可以再傳送。",
+    "messageNotSent": "這條訊息未能確認保存，未有向模型發送。問題已放回訊息框，準備好便可再次傳送。",
     "messageUnconfirmed": "未能確認這條訊息已保存，因此未有向模型發送。已重新讀取此討論；如果訊息仍顯示未保存，請從上面複製你的問題再傳送。",
     "saveLimits": {
-      "threads": "你喺呢個品牌已達 200 個已保存討論嘅上限，已封存嘅討論都計算在內。呢個問題未有保存。",
-      "turns": "呢個討論已達 50 條訊息嘅上限。請開始新討論繼續。",
-      "unconfirmed": "未能確認呢個討論已保存。為免重複保存，呢度唔會自動重試。請查看你嘅討論，或者開始新討論。"
+      "threads": "你在此品牌已達 200 個已保存討論的上限，已封存的討論亦計算在內。這個問題未有保存。",
+      "turns": "這個討論已達 50 條訊息的上限。請開始新討論繼續。",
+      "unconfirmed": "未能確認這個討論已保存。為免重複保存，這裏不會自動重試。請查看你的討論，或開始新討論。"
     }
   },
   "seo": {
@@ -5629,15 +5629,15 @@
   "today": {
     "eyebrow": "今日",
     "title": "今日",
-    "summary": "呢個品牌嘅下一步，同埋向 AI 提問嘅捷徑。分數同記錄喺「詳情」入面。",
-    "actionCaption": "你嘅下一步",
-    "actionNone": "最新已保存嘅掃描冇需要處理嘅事項。",
+    "summary": "此品牌的下一步，以及向 AI 提問的捷徑。分數及記錄在「詳情」內。",
+    "actionCaption": "你的下一步",
+    "actionNone": "最新的已保存掃描沒有需要處理的事項。",
     "firstTask": {
-      "caption": "你嘅第一個任務",
+      "caption": "你的第一個任務",
       "why": {
         "questions": "先確認 AI 應該問咩，第一次基準先會有意義。",
-        "baseline": "第一次基準會俾你一個起點，之後先可以比較。",
-        "first_change": "由已保存掃描入面最高價值嘅檢查開始。"
+        "baseline": "第一次基準會為你提供起點，之後才可以比較。",
+        "first_change": "由已保存掃描中最高價值的檢查開始。"
       },
       "pathLabel": "首次流程",
       "path": {
@@ -5645,12 +5645,12 @@
         "baseline": "第一次基準",
         "change": "第一次改善"
       },
-      "firstChangeNote": "喺下一個可比較基準出現之前，我哋唔會聲稱改善咗。"
+      "firstChangeNote": "在下一個可比較的基準出現前，我們不會聲稱已有改善。"
     },
     "fixSentence": "建議先處理：{check}",
     "fixDetail": "最多值 {n} 分",
     "askLabel": "或者直接問 AI",
-    "askPlaceholder": "例如：點解我喺 AI 搜尋度唔見咗？",
+    "askPlaceholder": "例如：為甚麼我在 AI 搜尋中不見了？",
     "askCta": "問",
     "askHint": "會帶你到對話並保留問題。",
     "skills": {
@@ -5675,15 +5675,15 @@
     "detailsIntro": "完整工作區：優先事項、網站健康、能見度、記錄及工具。",
     "monthlyTitle": "本月報告",
     "monthlyVersion": "版本 {n}",
-    "noScan": "仲未有已保存嘅掃描。",
+    "noScan": "尚未有已保存的掃描。",
     "loadError": "未能開啟此品牌",
     "loadErrorBody": "未能讀取品牌記錄，請由品牌組合再試。",
-    "oneBrandEyebrow": "你嘅品牌",
+    "oneBrandEyebrow": "你的品牌",
     "savedDiscussion": {
-      "label": "你嘅已儲存討論",
+      "label": "你的已儲存討論",
       "recorded": "已記錄結果",
       "turnCount": "共 {count} 輪",
-      "unavailable": "暫時讀取唔到已儲存嘅討論。"
+      "unavailable": "暫時未能讀取已儲存的討論。"
     },
     "savedWork": {
       "continue": "繼續處理：{title}",
