@@ -107,7 +107,7 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
       <button type="submit" className="as-button as-primary inline-flex min-h-11 items-center px-3 text-sm" disabled={!titleDraft.trim()}>{t('threadActions.save')}</button>
       <button type="button" className="as-button inline-flex min-h-11 items-center px-3 text-sm" onClick={() => setRenaming(false)}>{t('threadActions.cancel')}</button>
     </form>}
-    <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><div className="flex flex-wrap gap-2"><span className="as-badge">{t(thread.saveState === 'persisted' ? 'privateLabel' : thread.saveState === 'failed' ? 'saveUnknownLabel' : 'temporaryLabel')}</span>{thread.pinned && <span className="as-badge">{t('pinnedLabel')}</span>}{thread.visibility === 'shared' && <span className="as-badge">{t('sharedLabel')}</span>}</div></div>
+    <div className="as-section-heading"><p className="as-eyebrow">{t(thread.kind === 'brief' ? 'briefEyebrow' : 'discussionEyebrow')}</p><div className="flex flex-wrap gap-2">{/* One status badge: never "Private to you" on a shared or a teammate's thread. */}<span className="as-badge">{t(thread.saveState === 'failed' ? 'saveUnknownLabel' : thread.saveState !== 'persisted' ? 'temporaryLabel' : thread.visibility === 'shared' || thread.mine === false ? 'sharedLabel' : 'privateLabel')}</span>{thread.pinned && <span className="as-badge">{t('pinnedLabel')}</span>}</div></div>
     <h1 className="as-thread-heading" title={thread.title}>{thread.title}</h1>
     {(when || thread.turnCount) && <p className="as-muted as-small">{thread.turnCount ? `${t('turnCount', { count: thread.turnCount })}${when ? ' · ' : ''}` : ''}{when}</p>}
     {thread.branchOf && (originTitle && onOpenOrigin
@@ -149,6 +149,8 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const [liveRemaining, setLiveRemaining] = useState<number | null>(live?.remaining ?? null)
   const [liveExhausted, setLiveExhausted] = useState(live?.remaining === 0)
   const [confirmingLive, setConfirmingLive] = useState<{ prompt: string; task: StudioHomeTemplate | null } | null>(null)
+  // An attachment belongs to the discussion it was chosen in: opening another discussion
+  // or going home clears it, so it (and its token cost) is not carried into every later reply.
   const [attachment, setAttachment] = useState<StudioAttachCandidate | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const { busy, isInFlight, beginLive, endLive, threads, setThreads, activeId, navigationVersion, setActiveId, selectThread, saveThread, saveTurn, refreshThread, refreshingThreadId, selectionError, feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, allocateId, allocateThreadId, hydrated, readFailed, updateThread, archiveThread } = useStudioSession()
@@ -224,7 +226,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   // picker, or the user can never tick a platform again without reloading.
   const liveAvailable = Boolean(live && live.cap > 0 && live.platforms.length && !liveExhausted && liveRemaining !== 0)
   const liveReady = liveAvailable && platforms.length > 0
-  const sendBlocked = busy || conversationPending || Boolean(current && (!current.turnsLoaded || current.turnsError))
+  // A discussion whose creation was not confirmed cannot take more messages (it was never
+  // saved, and an unknown create is never retried); the failure note offers the way on.
+  const unsavedThread = Boolean(current && current.saveState === 'failed' && current.id.startsWith('local-'))
+  const sendBlocked = busy || conversationPending || unsavedThread || Boolean(current && (!current.turnsLoaded || current.turnsError))
   const home = !current
   const basePath = clientId ? `/${language}/dashboard/${encodeURIComponent(clientId)}` : null
   const actionPanel = useStudioActions({ clientId, brandName, brandDomain, features, evidence, enabled: smeCopilot && !staffView })
@@ -241,8 +246,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     previousNavigation.current = navigationVersion
   }, [activeId, navigationVersion])
 
-  function openHome() { setInspection(null); setActiveId(null) }
+  function openHome() { setInspection(null); setAttachment(null); setActiveId(null) }
   function openThread(id: string) { setInspection(null); selectThread(id) }
+  /** A person choosing another saved discussion: the attachment stays with the one it was picked in. */
+  function openOtherThread(id: string) { setAttachment(null); openThread(id) }
 
   /**
    * Stop an open SSE answer. The server still commits what it generated, so the
@@ -338,8 +345,9 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     // Persist the user turn before any provider or research request.
     const saved = await saveTurn(id, turn.id, { prompt, task, reply: turn.reply, requestId: turn.requestId, language: language === 'zh-HK' ? 'zh-HK' : 'en', attached: turn.attached ?? null })
     if (!saved.ok) {
+      // Put the unsent question back in the box (unless something new was typed) so it can be resent.
       setThreads(previous => previous.map(thread => thread.turns.some(item => item.id === turn.id)
-        ? { ...thread, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: undefined, gsc: undefined, dfs: undefined, firecrawl: undefined } : item) } : thread))
+        ? { ...thread, draft: thread.draft.trim() ? thread.draft : prompt, turns: thread.turns.map(item => item.id === turn.id ? { ...item, live: undefined, gsc: undefined, dfs: undefined, firecrawl: undefined } : item) } : thread))
       return
     }
     setFeedback({ id: turn.id, threadId: saved.threadId, key: 'followUpSent' })
@@ -538,7 +546,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     {live && !liveReady && <p role="status" className="as-note">{t(liveExhausted || liveRemaining === 0 ? 'live.savedOnly' : !live.platforms.length ? 'live.upgrade' : liveAvailable ? 'live.selectPlatform' : 'live.disabled')}</p>}
     {liveReady && smeCopilot && <p className="as-muted as-small">{executionPreview}</p>}
     {liveReady && !smeCopilot && <p className="as-muted as-small">{t('live.usesQuota', { count: platforms.length, cap: live!.cap })}</p>}
-    {!live && !smeCopilot && <p className="as-note">{t('featureShellNote')}</p>}
+    {!live && !smeCopilot && !staffView && <p className="as-note">{t('featureShellNote')}</p>}
     {!live && smeCopilot && <p className="as-muted as-small">{executionPreview}</p>}
     <p id="studio-composer-help" className="as-muted as-small">{t(live ? 'live.composerHelp' : 'composerHelp')}</p>
     {live && !home && (current?.turns.length ?? 0) > 0 && <p className="as-muted as-small">{t('live.continuityNote')}</p>}
@@ -575,7 +583,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
       <h2 id="studio-continue-title">{t('continueTitle')}</h2>
       {basePath && !staffView && <Link href={`${basePath}/studio/threads`} className="underline">{t('allThreads')}</Link>}
     </div>
-    {lastThread && <button type="button" onClick={() => openThread(lastThread.id)} className="as-thread as-resume flex w-full items-center justify-between gap-3 text-left">
+    {lastThread && <button type="button" onClick={() => openOtherThread(lastThread.id)} className="as-thread as-resume flex w-full items-center justify-between gap-3 text-left">
       <span className="min-w-0"><span className="as-badge">{t('resumeLast')}</span><span className="mt-1 block truncate font-semibold">{lastThread.title}</span><span className="as-muted as-small block">{threadMeta(lastThread)}</span></span>
       <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
     </button>}
@@ -589,7 +597,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
       </div>}
     </div> : <ul className="as-continue-list">
       {visibleThreads.filter(thread => thread.id !== lastThread?.id).slice(0, 6).map(thread => <li key={thread.id}>
-        <button type="button" onClick={() => openThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">
+        <button type="button" onClick={() => openOtherThread(thread.id)} className="as-thread flex w-full items-center justify-between gap-3 text-left">
           <span className="min-w-0"><span className="block truncate font-semibold">{thread.title}</span><span className="as-muted as-small block">{threadMeta(thread)}{thread.pinned ? ` · ${t('pinnedLabel')}` : ''}{thread.visibility === 'shared' ? ` · ${t('sharedLabel')}` : ''}</span>{thread.goal !== thread.title && <span className="sr-only">{thread.goal}</span>}</span>
           <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
         </button>
@@ -673,8 +681,14 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </details>}
         {scopeNote}
       </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
-        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} onUpdate={current.mine && !staffView ? async patch => (await updateThread(current.id, patch)).ok : undefined} onArchive={() => archiveThread(current.id, current.title)} onArchived={openHome} homeLabel={smeCopilot ? t('sections.backToChat') : undefined} />
-        {current.saveState === 'failed' && <p role="alert" className="as-note">{t('saveFailed')}</p>}
+        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openOtherThread(branchOrigin.id) : undefined} onUpdate={current.mine && !staffView ? async patch => (await updateThread(current.id, patch)).ok : undefined} onArchive={() => archiveThread(current.id, current.title)} onArchived={openHome} homeLabel={smeCopilot ? t('sections.backToChat') : undefined} />
+        {current.saveState === 'failed' && <div role="alert" className="as-note space-y-2">
+          <p>{t(current.saveError === 'STUDIO_THREAD_FULL' ? (unsavedThread ? 'saveLimits.threads' : 'saveLimits.turns') : unsavedThread ? 'saveLimits.unconfirmed' : 'saveFailed')}</p>
+          {(unsavedThread || current.saveError === 'STUDIO_THREAD_FULL') && <div className="flex flex-wrap gap-2">
+            <button type="button" className="as-button px-3 font-semibold" onClick={openHome}>{t('newThread')}</button>
+            {basePath && <Link className="as-button inline-flex items-center px-3" href={`${basePath}/studio/threads`}>{t('allThreads')}</Link>}
+          </div>}
+        </div>}
         <h2 className="sr-only">{t('conversationLabel')}</h2>
         {/* Reserve the rail column only when the rail renders; one thread used to leave an empty 240px gap. */}
         <div className={`as-discussion-grid${!staffView && visibleThreads.length > 1 ? ' as-has-rail' : ''}`}>
@@ -702,7 +716,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
               <StudioReplyView clientId={clientId} readOnly={staffView || !current.mine} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={turnSaveState === 'saved' ? () => branchThread(current, current.turns[index]) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
               {/* This existing export saves the stored summary, not the model reply. */}
               {clientId && current.mine && !staffView && current.saveState === 'persisted' && turnSaveState === 'saved' && position !== undefined
-                && <StudioSaveToDocs clientId={clientId} threadId={current.id} position={position} />}
+                && (features?.platform_access.length ?? 1) > 0 && <StudioSaveToDocs clientId={clientId} threadId={current.id} position={position} />}
               </details>}
               <StudioGscSnapshotView gsc={gsc} />
               <StudioDfsSnapshotView dfs={dfs} />
@@ -715,18 +729,18 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         {!staffView && visibleThreads.length > 1 && <aside className="as-thread-rail" aria-labelledby="studio-rail-title">
           <h2 id="studio-rail-title" className="as-muted as-small font-semibold">{t('recentThreadsTitle')}</h2>
           <ul>{visibleThreads.filter(thread => thread.id !== current.id).slice(0, 6).map(thread => <li key={thread.id}>
-            <button type="button" className="as-thread w-full px-2 text-left" onClick={() => openThread(thread.id)}><span className="block truncate">{thread.title}</span><span className="as-muted as-small block">{threadMeta(thread)}</span></button>
+            <button type="button" className="as-thread w-full px-2 text-left" onClick={() => openOtherThread(thread.id)}><span className="block truncate">{thread.title}</span><span className="as-muted as-small block">{threadMeta(thread)}</span></button>
           </li>)}</ul>
           {basePath && <Link href={`${basePath}/studio/threads`} className="as-small block px-2 underline">{t('allThreads')}</Link>}
         </aside>}
-        {inspection && inspectedTurn && <StudioEvidenceInspector reply={inspectedTurn.reply} evidence={evidenceForHomeTask(evidence, inspectedTurn.task)} liveReply={inspectedTurn.live?.reply} liveEnabled={Boolean(live)} gsc={inspectedTurn.gsc} dfs={inspectedTurn.dfs} firecrawl={inspectedTurn.firecrawl} reads={inspector} sourceStatus={sourceStatus} prompt={inspectedTurn.prompt} target={inspection.target} trigger={inspection.trigger} onClose={() => setInspection(null)} />}
+        {inspection && inspectedTurn && <StudioEvidenceInspector reply={inspectedTurn.reply} evidence={evidenceForHomeTask(evidence, inspectedTurn.task)} liveReply={inspectedTurn.live?.reply} liveEnabled={Boolean(live)} gsc={inspectedTurn.gsc} dfs={inspectedTurn.dfs} firecrawl={inspectedTurn.firecrawl} reads={inspector} sourceStatus={sourceStatus} searchConsoleOffered={searchConsoleOffered} prompt={inspectedTurn.prompt} target={inspection.target} trigger={inspection.trigger} onClose={() => setInspection(null)} />}
         </div>
         {current.mine ? composerForm : <p className="as-note">{t('sharedReadOnlyBody')}</p>}
         {scopeNote}
       </div>}
       <div className="as-toast" role="status" aria-live="polite" aria-atomic="true">{feedback && feedback.threadId === activeId && <span key={feedback.id}>{t(feedback.key)}</span>}</div>
       <footer className="as-divider space-y-2 pt-4">
-        <p className="as-small flex items-center gap-2 font-semibold"><Lock className="size-4 shrink-0" aria-hidden="true" />{t(current && !current.mine ? 'sharedLabel' : 'privateLabel')}</p>
+        <p className="as-small flex items-center gap-2 font-semibold"><Lock className="size-4 shrink-0" aria-hidden="true" />{t(current && (!current.mine || current.visibility === 'shared') ? 'sharedLabel' : 'privateLabel')}</p>
         <p className="as-muted as-small">{t('privacyBody')}</p>
       </footer>
     </main>

@@ -6,6 +6,7 @@ import { ConversationStudio, StudioThreadHeader } from '@/components/dashboard/C
 import { StudioAttachedSource } from '@/components/dashboard/StudioAttachedSource'
 import { StudioTurnTrace } from '@/components/dashboard/StudioTurnTrace'
 import { renderWithIntl } from '@/__tests__/helpers/intl'
+import { studioDate } from '@/lib/conversation-studio/format-date'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { emptyStudioEvidence, savedStudioEvidence, savedStudioScan } from '@/__tests__/helpers/studio-evidence'
@@ -326,12 +327,18 @@ it.each(['en', 'zh-HK'])('renders inspector rows from loaded metadata or explici
   for (const key of ['brandDocuments', 'searchConsole', 'dataForSeo', 'firecrawl'] as const) expect(unknown).toContain(copy.evidence[key])
   expect(unknown).toContain(copy.honesty.pending)
   expect(unknown).toContain(copy.evidence.notQueried)
-  expect(unknown.match(new RegExp(copy.connections.disconnected, 'g'))).toHaveLength(2)
+  // Not queried this turn is not the same as not connected.
+  expect(unknown.match(new RegExp(copy.evidence.notUsed, 'g'))).toHaveLength(2)
+  expect(unknown).not.toContain(copy.connections.disconnected)
+  const notOffered = renderWithIntl(<StudioEvidenceRows reads={{ documents: null, searchConsole: null }} sourceStatus="unavailable" searchConsoleOffered={false} />, lang)
+  expect(notOffered).not.toContain(copy.evidence.searchConsole)
+  expect(notOffered).not.toContain(copy.sources.unavailable)
   expect(unknown).not.toMatch(/<button|<a |Harbour|WI-DEMO/)
   const synced = renderWithIntl(<StudioEvidenceRows reads={{ documents: { items: [], truncated: false }, searchConsole: { kind: 'synced', dataThrough: '2026-10-26' } }} sourceStatus="bound" />, lang)
   expect(synced).toContain(copy.evidence.unknown)
   expect(synced).toContain(copy.evidence.sync.synced)
-  expect(synced).toContain('2026-10-26')
+  expect(synced).toContain(studioDate('2026-10-26', lang))
+  expect(synced).not.toContain('>2026-10-26<')
   expect(synced).toContain(copy.evidence.notQueried)
   expect(synced).not.toMatch(/clicks|impressions|rankings|<button/)
 })

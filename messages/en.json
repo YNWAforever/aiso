@@ -178,6 +178,7 @@
       "versionId": "Version ID",
       "documentsTruncated": "This source snapshot is limited; more sources may exist.",
       "notQueried": "Not queried this turn",
+      "notUsed": "Not used for this answer",
       "syncStatus": "Saved sync status",
       "dataThrough": "Saved data through",
       "turnScope": "Evidence for the selected answer; source and connection states were read when this page loaded. A Search Console snapshot appears only when this turn queried Hong Kong.",
@@ -214,11 +215,11 @@
       "pending": "Waiting for selected models…",
       "streaming": "Generating answer…",
       "streamingPending": "Waiting for the first words…",
-      "exhausted": "This brand has used its {cap} AI replies for the week. Your conversation remains saved and the current draft stays in this tab for you to continue after the reset.",
+      "exhausted": "This brand has used its {cap} AI replies for the week. Your question was saved with an answer from saved evidence. AI replies reset on Monday at 8am Hong Kong time.",
       "unavailable": "The AI reply could not be confirmed. Read the saved reply again without making another model request.",
       "remaining": "LIVE answers left this week for this brand: {count}. Failed or unknown provider attempts still use quota.",
       "remainingComposer": "{count} of {cap} LIVE answers left for this brand this week.",
-      "savedOnly": "You have used this week's AI replies for this brand. You can still send: the answer will use saved evidence only. AI replies reset next Monday.",
+      "savedOnly": "You have used this week's AI replies for this brand. You can still send: the answer will use saved evidence only. AI replies reset on Monday at 8am Hong Kong time.",
       "selectPlatform": "Select at least one AI model above to get an AI reply.",
       "confirmTitle": "Send to more than one model?",
       "confirmCost": "This send asks {count} models and uses {count} answer units from the weekly cap of {cap}.",
@@ -761,6 +762,12 @@
       "cancel": "Cancel",
       "openResult": "Open result",
       "unknown": "We could not confirm the outcome. The action may already have run. Check saved records before starting anything again.",
+      "refused": {
+        "notAllowed": "Your plan or access does not include this action. Nothing was run.",
+        "limit": "You have reached this plan's scan limit for now. Nothing was run. See Plans to scan more.",
+        "notFound": "The record this action needs could not be found. Nothing was run. Run a new scan first.",
+        "external": "This brand sends its scans to your own agent, so suggestions are not created here. Nothing was run."
+      },
       "pending": "The request is still pending. Check its saved record; no completed conversation has been saved for it.",
       "notAllowed": "This action is not allowed by your current access or plan.",
       "checkRecords": "Check saved records",
@@ -777,7 +784,12 @@
     },
     "sending": "Replying…",
     "savedContextDetails": "Saved-record summary",
-    "messageNotSent": "This message could not be confirmed as saved, so it was not sent to a model. Your question is kept above."
+    "messageNotSent": "This message could not be confirmed as saved, so it was not sent to a model. Your question is back in the message box: send it again when you are ready.",
+    "saveLimits": {
+      "threads": "This brand has reached its limit of 200 saved discussions for you, and archived ones count too. This question was not saved.",
+      "turns": "This discussion has reached its limit of 50 messages. Start a new discussion to keep going.",
+      "unconfirmed": "We could not confirm this discussion was saved. To avoid saving it twice, it is not retried here. Check your discussions, or start a new one."
+    }
   },
   "seo": {
     "home": {

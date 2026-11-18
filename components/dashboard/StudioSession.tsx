@@ -50,6 +50,11 @@ export type StudioThread = {
   draft: string
   template: StudioHomeTemplate | null
   saveState: 'persisted' | 'unsaved' | 'failed'
+  /**
+   * Why the last save failed, when the server said so ('STUDIO_THREAD_FULL', …).
+   * Absent when the outcome is unknown (network loss), which is never retried.
+   */
+  saveError?: string
   turnsLoaded: boolean
   turnsError?: boolean
   /** Server metadata projection for list items; local unsaved threads have none. */
@@ -240,7 +245,10 @@ function useSessionState(clientId?: string, initialDraft = '') {
     if (existing) return existing
     const creation = createStudioThread(clientId, input).then(result => {
       if (!result.ok || !result.data?.thread || typeof result.data.thread.id !== 'string' || !result.data.thread.id || result.data.thread.id.startsWith('local-')) {
-        setThreads(previous => previous.map(thread => thread.id === localId ? { ...thread, saveState: 'failed' } : thread))
+        // A definite client-error answer (4xx) means nothing was created; anything else
+        // (5xx, network) is unknown and stays unknown — create has no idempotency key.
+        const definite = !result.ok && result.status >= 400 && result.status < 500
+        setThreads(previous => previous.map(thread => thread.id === localId ? { ...thread, saveState: 'failed', saveError: definite ? result.error : undefined } : thread))
         return null
       }
       const record = result.data.thread
@@ -261,7 +269,7 @@ function useSessionState(clientId?: string, initialDraft = '') {
     return creation
   }
 
-  async function saveTurn(threadIdHint: string, turnId: number, input: StudioTurnCreateInput): Promise<{ ok: true; position: number; threadId: string } | { ok: false }> {
+  async function saveTurn(threadIdHint: string, turnId: number, input: StudioTurnCreateInput): Promise<{ ok: true; position: number; threadId: string } | { ok: false; error?: string }> {
     if (!clientId) return { ok: false }
     const pending = pendingCreates.current.get(threadIdHint)
     const threadId = pending ? await pending : threadIdHint
@@ -271,8 +279,8 @@ function useSessionState(clientId?: string, initialDraft = '') {
     }
     const result = await appendStudioTurn(clientId, threadId, input)
     if (!result.ok) {
-      markTurnFailed(turnId)
-      return { ok: false }
+      markTurnFailed(turnId, result.status >= 400 && result.status < 500 ? result.error : undefined)
+      return { ok: false, error: result.status >= 400 && result.status < 500 ? result.error : undefined }
     }
     const record = result.data.turn
     setThreads(previous => previous.map(thread => {
@@ -292,9 +300,9 @@ function useSessionState(clientId?: string, initialDraft = '') {
     return { ok: true, position: record.position, threadId }
   }
 
-  function markTurnFailed(turnId: number) {
+  function markTurnFailed(turnId: number, error?: string) {
     setThreads(previous => previous.map(thread => thread.turns.some(turn => turn.id === turnId)
-      ? { ...thread, saveState: 'failed', turns: thread.turns.map(turn => turn.id === turnId ? { ...turn, saveState: 'failed' } : turn) }
+      ? { ...thread, saveState: 'failed', saveError: error ?? thread.saveError, turns: thread.turns.map(turn => turn.id === turnId ? { ...turn, saveState: 'failed' } : turn) }
       : thread))
   }
 
