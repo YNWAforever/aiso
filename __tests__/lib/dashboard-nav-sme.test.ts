@@ -86,6 +86,8 @@ describe('SME copilot IA: location', () => {
     expect(locateDashboard('/en/dashboard/settings', null, true)).toEqual({ section: 'account', item: 'account', clientId: null })
     expect(locateDashboard('/en/dashboard/billing', null, true)).toEqual({ section: 'account', item: 'billing', clientId: null })
     expect(locateDashboard('/en/dashboard/this-month', null, true)).toEqual({ section: 'reports', item: 'this-month', clientId: null })
+    expect(locateDashboard('/en/dashboard/billing', null)).toEqual({ section: 'settings', item: 'account', clientId: null })
+    expect(locateDashboard('/en/dashboard/this-month', null)).toEqual({ section: 'reports', item: null, clientId: null })
   })
 
   it('keeps the legacy mapping untouched when the flag is off', () => {

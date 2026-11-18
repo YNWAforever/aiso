@@ -45,8 +45,10 @@ export default async function StudioPage({ params, searchParams }: {
     }
   } catch {
     const t = await getTranslations('conversationStudio')
+    const nav = await getTranslations('dashboard')
     return <main className="mx-auto w-full max-w-3xl space-y-4 p-6">
-      <h1 className="text-2xl font-bold">{t('title')}</h1>
+      {/* Name the area as the sidebar does: "Chat" in the copilot IA. */}
+      <h1 className="text-2xl font-bold">{isSmeCopilotUiEnabled() ? nav('nav_chat') : t('title')}</h1>
       <p role="alert">{t('loadError')}</p>
       <a href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/studio`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 underline">{t('retry')}</a>
     </main>
@@ -96,7 +98,7 @@ export default async function StudioPage({ params, searchParams }: {
     streaming: isFeatureEnabled('studio_streaming'),
     ...(liveUsage ? { remaining: liveUsage.remaining, week: liveUsage.week } : {}),
   } : undefined
-  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} initialTask={initialTask} smeCopilot={isSmeCopilotUiEnabled()} brandDomain={brand.domain ?? null} features={resolveCommercialEntitlement(profile.accounts).features} />
+  return <ConversationStudio key={clientId} clientId={clientId} brandName={brand.brand_name} evidence={evidence} opportunities={opportunities} live={live} sourceStatus={sourceStatus} inspector={inspector} attachCandidates={attachCandidates} initialDraft={initialDraft} initialTask={initialTask} smeCopilot={isSmeCopilotUiEnabled()} brandDomain={brand.domain ?? null} features={resolveCommercialEntitlement(profile.accounts).features} searchConsoleOffered={isFeatureEnabled('search_console') && Boolean(resolveCommercialEntitlement(profile.accounts).features.search_console)} />
 }
 
 /**

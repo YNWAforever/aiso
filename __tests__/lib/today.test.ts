@@ -79,7 +79,8 @@ describe('buildTodayView', () => {
 
   it('counts the unfinished setup steps that remain', () => {
     const view = buildTodayView(home({ gettingStarted: { done: 1, steps: [{ key: 'brand', state: 'done' }, { key: 'scan', state: 'current' }, { key: 'fixes', state: 'todo' }, { key: 'questions', state: 'todo' }] } }), { lang: 'en' })
-    expect(view.setup).toEqual({ remaining: 3, currentKey: 'scan' })
+    expect(view.setup).toMatchObject({ remaining: 3, currentKey: 'scan' })
+    expect(view.setup?.steps.map(step => step.state)).toEqual(['done', 'current', 'todo', 'todo'])
   })
 
   const firstRun: WorkspaceHome['gettingStarted'] = { done: 1, steps: [{ key: 'brand', state: 'done' }, { key: 'scan', state: 'current' }, { key: 'fixes', state: 'todo' }, { key: 'questions', state: 'todo' }] }

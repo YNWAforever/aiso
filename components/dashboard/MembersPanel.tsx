@@ -97,6 +97,7 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
         setError(say(body?.error)); return
       }
       setPeople(current => current.map(p => (p.profileId === profileId ? { ...p, active } : p)))
+      setNotice(t(active ? 'restoredNotice' : 'removedNotice'))
     } catch {
       setError(t('errors.MEMBERS_UNAVAILABLE'))
     } finally {
@@ -148,9 +149,17 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
               {person.profileId !== self && (
                 <button
                   type="button"
-                  onClick={() => setActive(person.profileId, !person.active)}
+                  onClick={() => {
+                    const name = person.displayName || person.email || person.profileId
+                    // Removing cuts a colleague's access immediately; ask first.
+                    if (person.active && !window.confirm(t('removeConfirm', { name }))) return
+                    void setActive(person.profileId, !person.active)
+                  }}
                   disabled={busy !== null}
-                  className={`${CONTROL} ml-auto bg-secondary font-semibold text-foreground disabled:opacity-60`}
+                  aria-label={person.active
+                    ? t('removeNamed', { name: person.displayName || person.email || person.profileId })
+                    : t('restoreNamed', { name: person.displayName || person.email || person.profileId })}
+                  className={`${CONTROL} ml-auto font-semibold disabled:opacity-60 ${person.active ? 'border border-tone-danger/40 bg-tone-danger-soft text-tone-danger-fg' : 'bg-secondary text-foreground'}`}
                 >
                   {busy === person.profileId
                     ? (person.active ? t('removing') : t('restoring'))

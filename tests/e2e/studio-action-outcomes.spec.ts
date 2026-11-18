@@ -95,7 +95,10 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(card.getByText(copy.actions.save.saved, { exact: true })).toBeVisible()
     await expect(question).toBeFocused()
     expect(appends).toHaveLength(2); expect(appends[1]).toBe(appends[0])
-    expect(JSON.parse(appends[0]).prompt).toContain(scanB)
+    // The exact scan is carried by the result link above; the saved discussion text
+    // deliberately leaves the scan record id out (owner decision, 2026-11-18).
+    expect(JSON.parse(appends[0]).prompt).toContain(copy.skills.scan_brand.turnPrompt)
+    expect(JSON.parse(appends[0]).prompt).not.toContain(scanB)
     expect(JSON.parse(appends[0]).requestId).toMatch(/^[0-9a-f-]{36}$/)
     expect(creates()).toBe(1); expect(paid).toBe(1)
     await expect(card.getByRole('button', { name: copy.actions.runNow })).toHaveCount(0)

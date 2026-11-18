@@ -293,8 +293,8 @@ it.each(['en', 'zh-HK'])('renders live disabled/plan states and safe, unverified
   const copy = studioCopy.live
   const ui = (cap: number, platforms = ['gemini-flash']) => renderWithIntl(<ConversationStudio brandName="Brand" clientId="brand-id" evidence={emptyStudioEvidence} live={{ cap, platforms }} />, lang)
   expect(ui(0)).toContain(copy.disabled)
-  expect(ui(2)).toContain('gemini-flash')
-  expect(ui(2)).not.toContain('gpt-4o')
+  expect(ui(2)).toContain('/>Gemini</label>')
+  expect(ui(2)).not.toContain('/>ChatGPT</label>')
   expect(ui(2, [])).toContain(copy.upgrade)
   expect(ui(2)).toContain(copy.temporaryCap)
   expect(ui(0)).not.toContain(studioCopy.featureShellNote)

@@ -23,12 +23,19 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
   const base = `/${lang}/dashboard/${workspace.client.id}`
   // Flush-left with the text above them (no horizontal padding), 44px tall for touch.
   const linkClass = 'inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-primary-accessible underline decoration-primary/30 underline-offset-4 transition-colors hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+  // Readable Hong Kong time instead of a raw ISO/UTC string ("2026-11-18 03:47:12 UTC").
+  const when = (value: string) => {
+    const date = new Date(value)
+    if (!Number.isFinite(date.getTime())) return value
+    const text = new Intl.DateTimeFormat(lang === 'zh-HK' ? 'zh-HK' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Hong_Kong' }).format(date)
+    return lang === 'zh-HK' ? `${text}（香港時間）` : `${text} HKT`
+  }
   const cardClass = 'flex min-w-0 flex-col rounded-2xl border border-dash-border bg-dash-surface p-5 shadow-sm sm:p-6'
   function panel(title: string, section: { state: HomeDto['visibility']['state']; observedAt: string|null }, children: ReactNode, className = '') {
     return <section className={`${cardClass} ${className}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="text-lg font-bold text-dash-text">{title}</h2>
-        <p className="inline-flex items-center gap-1.5 text-xs text-dash-muted"><Clock aria-hidden="true" className="size-3.5 shrink-0" />{section.observedAt ? <>{copy.observedAt}: <time dateTime={section.observedAt}>{section.observedAt.replace('T', ' ').replace('.000Z', ' UTC')}</time></> : copy.noDate}</p>
+        <p className="inline-flex items-center gap-1.5 text-xs text-dash-muted"><Clock aria-hidden="true" className="size-3.5 shrink-0" />{section.observedAt ? <>{copy.observedAt}: <time dateTime={section.observedAt}>{when(section.observedAt)}</time></> : copy.noDate}</p>
       </div>
       <details className="group mt-1 text-xs text-dash-muted">
         <summary className="inline-flex min-h-6 cursor-pointer list-none items-center gap-1 rounded hover:text-dash-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{copy.evidenceDetails}<ChevronDown aria-hidden="true" className="size-3.5 transition-transform group-open:rotate-180 motion-reduce:transition-none" /></summary>
@@ -81,8 +88,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       <summary id="daily-work-heading" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg text-lg font-bold text-dash-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{copy.daily.title}<ChevronDown aria-hidden="true" className="size-5 shrink-0 text-dash-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" /></summary>
       <p className="text-dash-text">{copy.daily.states[workspace.dailyWork.state]}</p>
       {workspace.dailyWork.coverage&&<p className="text-dash-muted">{copy.daily.coverage.replace('{succeeded}',String(workspace.dailyWork.coverage.succeeded)).replace('{expected}',String(workspace.dailyWork.coverage.expected)).replace('{failed}',String(workspace.dailyWork.coverage.failed)).replace('{pending}',String(workspace.dailyWork.coverage.pending)).replace('{blocked}',String(workspace.dailyWork.coverage.blocked)).replace('{classified}',String(workspace.dailyWork.coverage.classified))}</p>}
-      <p className="text-dash-muted">{copy.daily.lastComplete}: {workspace.dailyWork.lastCompleteAt??copy.daily.unknown}</p>
-      <p className="text-dash-muted">{copy.daily.nextDue}: {copy.daily.unknown}</p>
+      <p className="text-dash-muted">{copy.daily.lastComplete}: {workspace.dailyWork.lastCompleteAt ? when(workspace.dailyWork.lastCompleteAt) : copy.daily.unknown}</p>
       {workspace.dailyWork.partialReads&&<p>{copy.daily.partialReads}</p>}
       <ol>{workspace.dailyWork.nextActions.map(action=><li key={`${action.kind}:${action.path}`}><Link className={linkClass} href={`${base}${action.path}`}>{copy.daily.actions[action.kind]}</Link></li>)}</ol>
       <p className="text-sm text-dash-muted">{copy.daily.manual}</p>
@@ -136,7 +142,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       </li>)}</ul>)}
       {panel(copy.history, workspace.history, <ul className="divide-y divide-dash-border">{workspace.history.data?.map(scan => <li key={scan.id} className="py-2 first:pt-0">
         <Link className={linkClass} href={`${base}?step=results&scanId=${encodeURIComponent(scan.id)}`}>{copy.openScan}: {scan.score===null?(scan.displayState==='failed'?(lang==='zh-HK'?zhHK:en).portfolio.scanIncomplete:(lang==='zh-HK'?zhHK:en).portfolio.scanUnknown):`${scan.score} / 100 · ${scan.grade??'—'}`}</Link>
-        <p className="text-xs text-dash-muted"><time dateTime={scan.created_at}>{scan.created_at.replace('T', ' ').replace('.000Z', ' UTC')}</time></p>
+        <p className="text-xs text-dash-muted"><time dateTime={scan.created_at}>{when(scan.created_at)}</time></p>
       </li>)}</ul>)}
     </div>
     <section aria-labelledby="local-visibility-heading" className={`${cardClass} mt-5 sm:flex-row sm:items-center sm:gap-5`}>

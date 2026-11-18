@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import { studioDate } from '@/lib/conversation-studio/format-date'
 import { useRef } from 'react'
 import { StudioSavedEvidence } from '@/components/dashboard/StudioReply'
 import { StudioLiveEvidence } from '@/components/dashboard/StudioLiveReply'
@@ -15,6 +16,7 @@ import { StudioFirecrawlSnapshotView } from '@/components/dashboard/StudioFirecr
 
 export function StudioEvidenceRows({ reads, sourceStatus, gsc, dfs, firecrawl }: { reads: StudioInspectorReads; sourceStatus: StudioSourceStatus; gsc?: StudioGscRead; dfs?: StudioDfsRead; firecrawl?: StudioFirecrawlRead }) {
   const t = useTranslations('conversationStudio')
+  const locale = useLocale()
   const sync = reads.searchConsole
   return <div className="as-evidence-rows">
     <section className="space-y-2">
@@ -25,9 +27,9 @@ export function StudioEvidenceRows({ reads, sourceStatus, gsc, dfs, firecrawl }:
         <ul className="space-y-3">{reads.documents.items.map(item => <li key={item.versionId} className="space-y-1">
           <p className="font-semibold">{item.label}</p>
           <p>{t('evidence.approvedVersion', { version: item.versionNumber })}</p>
-          <p>{t('evidence.approvedAt')}: <time dateTime={item.approvedAt}>{item.approvedAt}</time></p>
-          <p>{t('evidence.importedAt')}: <time dateTime={item.importedAt}>{item.importedAt}</time></p>
-          <p>{t('evidence.versionId')}: {item.versionId}</p>
+          <p>{t('evidence.approvedAt')}: <time dateTime={item.approvedAt}>{studioDate(item.approvedAt, locale, true)}</time></p>
+          <p>{t('evidence.importedAt')}: <time dateTime={item.importedAt}>{studioDate(item.importedAt, locale, true)}</time></p>
+          <p className="as-muted as-small [overflow-wrap:anywhere]">{t('evidence.versionId')}: {item.versionId}</p>
         </li>)}</ul>
         {reads.documents.truncated && <p className="as-note">{t('evidence.documentsTruncated')}</p>}
       </>}

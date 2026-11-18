@@ -30,6 +30,7 @@ import { StudioSessionProvider, useOptionalStudioSession, useStudioSession, type
 import { relativeTime } from '@/lib/conversation-studio/thread-list'
 import type { StudioThreadUpdateInput } from '@/lib/conversation-studio/threads-types'
 import Link from 'next/link'
+import { platformName } from '@/lib/brand-month/labels'
 import './conversation-studio.css'
 
 const templateIcons = { opportunity: Search, improve: FilePenLine, brief: NotebookPen, competitors: ScanSearch, pulse: Activity, report: FileText }
@@ -47,7 +48,7 @@ function boundedTitle(value: string): string {
   return wordEnd > 0 ? clipped.slice(0, wordEnd) : clipped
 }
 
-export function StudioThreadHeader({ thread, attachment, onHome, originTitle, onOpenOrigin, onUpdate, onArchived }: {
+export function StudioThreadHeader({ thread, attachment, onHome, originTitle, onOpenOrigin, onUpdate, onArchived, homeLabel }: {
   thread: Pick<StudioThread, 'title' | 'goal' | 'week' | 'kind' | 'sourceTitle' | 'saveState' | 'visibility' | 'turnCount' | 'updatedAt' | 'branchOf'> & { pinned?: boolean; mine?: boolean }
   attachment?: StudioAttachCandidate | null
   onHome: () => void
@@ -55,6 +56,8 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
   onOpenOrigin?: () => void
   onUpdate?: (patch: StudioThreadUpdateInput) => Promise<boolean>
   onArchived?: () => void
+  /** The area's name as the shell shows it ("Back to Chat" in the copilot IA). */
+  homeLabel?: string
 }) {
   const t = useTranslations('conversationStudio')
   const lang = useLocale()
@@ -71,14 +74,14 @@ export function StudioThreadHeader({ thread, attachment, onHome, originTitle, on
   }
   return <header className="space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{t('title')}</button>
+      <button type="button" onClick={onHome} className="as-button inline-flex items-center gap-2 px-3"><ArrowLeft className="size-4" aria-hidden="true" />{homeLabel ?? t('title')}</button>
       {onUpdate && thread.mine && <details className="as-thread-menu">
         <summary className="as-button inline-flex items-center justify-center px-3" aria-label={t('threadActions.label')}><Ellipsis className="size-4" aria-hidden="true" /></summary>
-        <div role="group" aria-label={t('threadActions.label')} className="as-thread-menu-panel">
+        <div role="group" aria-label={t('threadActions.label')} className="as-thread-menu-panel" onClick={event => event.currentTarget.closest('details')?.removeAttribute('open')}>
           <button type="button" aria-pressed={thread.pinned} onClick={() => void patch({ pinned: !thread.pinned })}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
           <button type="button" aria-pressed={thread.visibility === 'shared'} onClick={() => void patch({ visibility: thread.visibility === 'shared' ? 'private' : 'shared' })}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
           <button type="button" onClick={() => { setRenaming(true); setTitleDraft(thread.title); setActionFailed(false) }}>{t('threadActions.rename')}</button>
-          <button type="button" onClick={() => void patch({ archived: true }).then(ok => { if (ok) onArchived?.() })}>{t('threadActions.archive')}</button>
+          <button type="button" onClick={() => { if (window.confirm(t('threadActions.archiveConfirm', { title: thread.title }))) void patch({ archived: true }).then(ok => { if (ok) onArchived?.() }) }}>{t('threadActions.archive')}</button>
         </div>
       </details>}
       {onUpdate && !thread.mine && <span className="as-badge">{t('sharedReadOnlyBody')}</span>}
@@ -117,12 +120,14 @@ type Props = { brandName: string; evidence: StudioEvidence; clientId?: string; o
   smeCopilot?: boolean
   /** Slice 4 action skills: the brand's domain (scan) and plan features (gates). */
   brandDomain?: string | null
-  features?: PlanFeatures }
+  features?: PlanFeatures
+  /** False when the plan or rollout has no Search Console: say nothing, rather than "Pending verification". */
+  searchConsoleOffered?: boolean }
 export function ConversationStudio(props: Props) {
   const session = useOptionalStudioSession()
   return session ? <StudioConversation {...props} embedded /> : <StudioSessionProvider key={props.clientId ?? props.brandName} clientId={props.clientId} initialDraft={props.initialDraft}><StudioConversation {...props} /></StudioSessionProvider>
 }
-function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features, initialDraft = '', initialTask = null }: Props & { embedded?: boolean }) {
+function StudioConversation({ brandName, evidence, clientId, opportunities, live, sourceStatus = 'unavailable', inspector = { documents: null, searchConsole: null }, attachCandidates = null, embedded = false, staffView = false, smeCopilot = false, brandDomain = null, features, initialDraft = '', initialTask = null, searchConsoleOffered = true }: Props & { embedded?: boolean }) {
   const t = useTranslations('conversationStudio')
   const language = useLocale()
   const [platforms, setPlatforms] = useState<string[]>(live?.platforms.slice(0, 1) ?? [])
@@ -200,7 +205,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
   const branchOrigin = current?.branchOf ? threads.find(thread => thread.id === current.branchOf!.threadId) ?? null : null
   const inspectedTurn = inspection?.navigationVersion === navigationVersion ? current?.turns.find(turn => turn.id === inspection.turnId) : undefined
   const draft = current?.draft ?? newDraft
-  const liveReady = Boolean(live && live.cap > 0 && platforms.length && !liveExhausted && liveRemaining !== 0)
+  // Whether LIVE can run at all; an empty platform selection must not lock the
+  // picker, or the user can never tick a platform again without reloading.
+  const liveAvailable = Boolean(live && live.cap > 0 && live.platforms.length && !liveExhausted && liveRemaining !== 0)
+  const liveReady = liveAvailable && platforms.length > 0
   const sendBlocked = busy || conversationPending || Boolean(current && (!current.turnsLoaded || current.turnsError))
   const home = !current
   const basePath = clientId ? `/${language}/dashboard/${encodeURIComponent(clientId)}` : null
@@ -478,7 +486,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
           <span className="as-badge">{t('skillChip.label', { skill: t(`templates.${(current ? current.template : newTemplate)!}.label`) })}</span>
           <button type="button" onClick={() => updateDraft(draft, null)} className="as-button px-2 text-sm">{t('skillChip.clear')}</button>
         </>}
-        {!staffView && <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>}
+        {!staffView && <button type="button" onClick={() => setPickerOpen(open => !open)} disabled={!clientId} aria-expanded={pickerOpen} aria-controls="studio-attach-picker" className="as-button inline-flex items-center gap-2 whitespace-nowrap px-3 disabled:opacity-60"><Paperclip className="size-4" aria-hidden="true" />{t('chooseDocuments')}</button>}
         {attachment && <>
           <span className="as-badge">{t('attach.badge')} · {attachment.label}</span>
           <button type="button" onClick={() => setAttachment(null)} className="as-button px-2 text-sm">{t('attach.clear')}</button>
@@ -486,10 +494,10 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         {!smeCopilot && <span className="as-badge">{t('localeBadge')}</span>}
         {live && <details className="as-platform-picker">
           <summary>{t('live.selector', { count: platforms.length })}</summary>
-          <fieldset className="space-y-2" disabled={busy || !liveReady}>
+          <fieldset className="space-y-2" disabled={busy || !liveAvailable}>
             <legend className="as-muted as-small font-semibold">{t('live.platforms')}</legend>
             <div className="flex flex-wrap gap-2">{live.platforms.map(platform => <label key={platform} className="as-platform flex items-center gap-2 px-3">
-              <input type="checkbox" checked={platforms.includes(platform)} onChange={event => { setConfirmingLive(null); setPlatforms(previous => event.target.checked ? [...previous, platform] : previous.filter(item => item !== platform)) }} />{platform}
+              <input type="checkbox" checked={platforms.includes(platform)} onChange={event => { setConfirmingLive(null); setPlatforms(previous => event.target.checked ? [...previous, platform] : previous.filter(item => item !== platform)) }} />{platformName(platform)}
             </label>)}</div>
           </fieldset>
         </details>}
@@ -512,7 +520,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
     </div>}
     {!live && attachment && <p className="as-muted as-small">{t('attach.savedNote')}</p>}
     {live && liveRemaining !== null && <p className="as-muted as-small">{t('live.remainingComposer', { count: liveRemaining, cap: live.cap })}</p>}
-    {live && !liveReady && <p role="status" className="as-note">{t(liveExhausted || liveRemaining === 0 ? 'live.savedOnly' : !live.platforms.length ? 'live.upgrade' : 'live.disabled')}</p>}
+    {live && !liveReady && <p role="status" className="as-note">{t(liveExhausted || liveRemaining === 0 ? 'live.savedOnly' : !live.platforms.length ? 'live.upgrade' : liveAvailable ? 'live.selectPlatform' : 'live.disabled')}</p>}
     {liveReady && smeCopilot && <p className="as-muted as-small">{executionPreview}</p>}
     {liveReady && !smeCopilot && <p className="as-muted as-small">{t('live.usesQuota', { count: platforms.length, cap: live!.cap })}</p>}
     {!live && !smeCopilot && <p className="as-note">{t('featureShellNote')}</p>}
@@ -595,18 +603,17 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         {composerForm}
         <div className="as-source-bar" aria-label={t('savedDataLabel')}>
           <span className="inline-flex items-center gap-2"><span className="as-source-dot" aria-hidden="true" />{t('savedDataLabel')}</span>
-          <span className={sourceStatus === 'bound' ? 'as-muted' : 'as-source-status'}>{t(`sources.${sourceStatus}`)}</span>
-          <span className="as-muted">{t('sources.notQueried')}</span>
+          {searchConsoleOffered && <>
+            <span className={sourceStatus === 'bound' ? 'as-muted' : 'as-source-status'}>{t(`sources.${sourceStatus}`)}</span>
+            <span className="as-muted">{t('sources.notQueried')}</span>
+          </>}
           {embedded && basePath && !staffView && <Link href={`${basePath}/studio/connections`} className="underline">{t('manageConnections')}</Link>}
         </div>
         {continueSection}
         <details className="as-disclosure" open>
-          <summary className="as-muted as-small font-semibold">{t('templatesTitle')}</summary>
-          <section aria-labelledby="studio-templates-title" className="mt-3 space-y-3">
-          <div className="as-section-heading">
-            <h2 id="studio-templates-title">{t('templatesTitle')}</h2>
-            <p className="as-muted as-small">{t('templatesDescription')}</p>
-          </div>
+          {/* The summary is the section heading, so the label is not shown twice. */}
+          <summary><h2 id="studio-templates-title" className="inline">{t('templatesTitle')}</h2> <span className="as-muted as-small">{t('templatesDescription')}</span></summary>
+          <section aria-labelledby="studio-templates-title" className="mt-1 space-y-3 pb-3">
           {smeCopilot ? <div className="space-y-3">
             <div className="as-template-grid">{COPILOT_PRIMARY.map(skillButton)}</div>
             <details className="as-note as-disclosure">
@@ -650,10 +657,11 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
         </details>}
         {scopeNote}
       </div> : <div id="studio-discussion" className={`space-y-5${inspectedTurn ? ' as-inspector-open' : ''}`}>
-        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} onUpdate={current.mine && !staffView ? async patch => (await updateThread(current.id, patch)).ok : undefined} onArchived={openHome} />
+        <StudioThreadHeader thread={current} attachment={attachment} onHome={openHome} originTitle={branchOrigin?.title ?? null} onOpenOrigin={branchOrigin ? () => openThread(branchOrigin.id) : undefined} onUpdate={current.mine && !staffView ? async patch => (await updateThread(current.id, patch)).ok : undefined} onArchived={openHome} homeLabel={smeCopilot ? t('sections.backToChat') : undefined} />
         {current.saveState === 'failed' && <p role="alert" className="as-note">{t('saveFailed')}</p>}
         <h2 className="sr-only">{t('conversationLabel')}</h2>
-        <div className="as-discussion-grid as-has-rail">
+        {/* Reserve the rail column only when the rail renders; one thread used to leave an empty 240px gap. */}
+        <div className={`as-discussion-grid${!staffView && visibleThreads.length > 1 ? ' as-has-rail' : ''}`}>
         <div role="log" aria-label={t('conversationLabel')} aria-live="polite" className="as-conversation space-y-8">
           {!current.turnsLoaded && !current.turnsError && <p className="as-muted as-small">{t('loadingThreads')}</p>}
           {current.turnsError && <p role="alert" className="as-note">{t('readUnavailable')} <button type="button" className="as-button px-3" onClick={() => void refreshThread(current.id)}>{t('retry')}</button></p>}

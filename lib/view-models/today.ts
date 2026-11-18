@@ -1,3 +1,4 @@
+import type { GettingStartedStep } from '@/lib/view-models/getting-started'
 import type { WorkspaceHome } from './workspace-home'
 import type { IllustrationName } from '@/components/ui/illustration'
 import { taskHref } from '@/lib/tasks/navigation'
@@ -61,7 +62,7 @@ export interface TodayView {
   /** At most three: AI visibility, scan score, this month's report. */
   metrics: TodayMetric[]
   /** Number of unfinished first-run steps; the brand step is already satisfied. */
-  setup: { remaining: number; currentKey: string } | null
+  setup: { remaining: number; currentKey: string; steps: GettingStartedStep[] } | null
   monthlyReport: WorkspaceHome['monthlyReport']
   links: {
     results: string | null
@@ -164,7 +165,7 @@ export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; 
 
   const steps = workspace.gettingStarted?.steps ?? null
   const current = steps?.find(step => step.state === 'current') ?? null
-  const setup = steps && current ? { remaining: steps.length - (workspace.gettingStarted?.done ?? 0), currentKey: current.key } : null
+  const setup = steps && current ? { remaining: steps.length - (workspace.gettingStarted?.done ?? 0), currentKey: current.key, steps } : null
 
   return {
     brandName: workspace.client.brand_name,

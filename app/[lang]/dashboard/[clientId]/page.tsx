@@ -72,7 +72,7 @@ async function StepHeader({ step, features }: { step: string; features: PlanFeat
 
   return (
     <div className="mb-6 pt-6 px-6">
-      <p className="text-lg font-bold text-dash-text mb-1.5">{i.title}</p>
+      <h1 className="text-lg font-bold text-dash-text mb-1.5">{i.title}</h1>
       <p className="text-[12px] text-dash-muted leading-relaxed max-w-2xl">{i.body}</p>
     </div>
   )
@@ -321,7 +321,7 @@ export default async function DashboardPage({
   if (loadError || !workspace) {
     return (
       <div className="flex-1 px-6 py-16 text-center">
-        <p className="text-lg font-bold text-dash-text mb-1.5">{t('workspace_load_error_title')}</p>
+        <h1 className="text-lg font-bold text-dash-text mb-1.5">{t('workspace_load_error_title')}</h1>
         <p className="text-sm text-dash-muted max-w-md mx-auto">{t('workspace_load_error_body')}</p>
       </div>
     )
@@ -424,7 +424,7 @@ export default async function DashboardPage({
           ? <ResultsStep scan={scan} lang={lang} clientId={clientId} />
           : <div className="space-y-4 rounded-xl border border-dash-border bg-dash-surface p-8">
               <p className="break-all text-sm text-dash-muted">{scan.domain}</p>
-              <h1 className="text-lg font-semibold text-dash-text">{portfolioT(scanDisplay?.state === 'failed' ? 'scanIncomplete' : 'scanUnknown')}</h1>
+              <h2 className="text-lg font-semibold text-dash-text">{portfolioT(scanDisplay?.state === 'failed' ? 'scanIncomplete' : 'scanUnknown')}</h2>
               <p className="text-sm text-dash-muted">{t(scanDisplay?.state === 'failed' ? 'scan_collection_failed_body' : 'scan_collection_unknown_body')}</p>
               <Link href={`/${lang}/dashboard/${clientId}?step=scan&scanId=${encodeURIComponent(scan.id)}`}
                 className="inline-flex min-h-11 items-center rounded-lg border border-dash-border px-4 text-sm font-medium text-dash-text hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -433,8 +433,13 @@ export default async function DashboardPage({
             </div>)}
         {step === 'results' && !scan && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
-            <p className="text-sm text-dash-text mb-1">{t('no_scan_selected')}</p>
-            <p className="text-xs text-dash-muted">{t('no_scan_selected_body')}</p>
+            <h2 className="text-base font-semibold text-dash-text mb-1">{t('no_scan_selected')}</h2>
+            <p className="mx-auto max-w-md text-sm text-dash-muted">{t('no_scan_selected_body')}</p>
+            {/* Never a dead end: the empty state always offers the next step. */}
+            <Link href={`/${lang}/dashboard/${clientId}?step=scan`}
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {t('run_new_scan')}
+            </Link>
           </div>
         )}
 

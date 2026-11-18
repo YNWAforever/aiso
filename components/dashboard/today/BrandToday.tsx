@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { ArrowRight, Check, ChevronDown, FileText, Radio, ScanSearch, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, CheckCircle2, Circle, FileText, Radio, ScanSearch, Sparkles } from 'lucide-react'
 import { Illustration } from '@/components/ui/illustration'
 import { MonthlyReportEntry } from '@/components/reports/MonthlyReportEntry'
 import { OverviewStats } from '@/components/dashboard/overview/OverviewStats'
@@ -155,9 +155,11 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
           className="group min-w-0 rounded-2xl border border-border bg-card p-4 shadow-e1 transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <span className="block text-xs font-medium text-muted-foreground">{label}</span>
-          <span className="mt-1 block truncate text-2xl font-black tabular-nums text-foreground">
-            {metric.value ?? stateCopy ?? t('metrics.empty')}
-          </span>
+          {/* A real number is the headline; a missing-data state is quieter, so
+              "Could not read" never shouts louder than an actual result. */}
+          {metric.value != null
+            ? <span className="mt-1 block truncate text-2xl font-black tabular-nums text-foreground">{metric.value}</span>
+            : <span className="mt-2 block text-base font-semibold text-muted-foreground group-hover:text-foreground">{stateCopy ?? t('metrics.empty')}</span>}
           {metric.key === 'report' && metric.value && statusLabel && <span className="mt-0.5 block text-xs text-muted-foreground">{statusLabel}</span>}
         </Link>
       })}
@@ -200,11 +202,18 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
           { key: 'scan', href: `${base}?step=scan` },
           { key: 'fixes', href: `${base}?step=improve` },
           { key: 'questions', href: `${base}?step=monitor` },
-        ] as const).map(step => <li key={step.key}>
-          <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline decoration-primary/30 underline-offset-4" href={step.href}>
-            {w(`gettingStarted.steps.${step.key}.title`)}
-          </Link>
-        </li>)}
+        ] as const).map(step => {
+          // Show progress: a finished step is a ticked line, not a link back to it.
+          const state = view.setup!.steps.find(item => item.key === step.key)?.state ?? 'todo'
+          const title = w(`gettingStarted.steps.${step.key}.title`)
+          return <li key={step.key}>
+            {state === 'done'
+              ? <span className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 aria-hidden="true" className="size-4 shrink-0 text-tone-success-fg" /><span className="line-through decoration-muted-foreground/40">{title}</span><span className="sr-only">: {w('gettingStarted.done')}</span></span>
+              : <Link aria-current={state === 'current' ? 'step' : undefined} className={`inline-flex min-h-11 items-center gap-2 text-sm underline decoration-primary/30 underline-offset-4 ${state === 'current' ? 'font-semibold text-primary-accessible' : 'text-foreground'}`} href={step.href}>
+                  <Circle aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />{title}
+                </Link>}
+          </li>
+        })}
       </ul>
     </details>}
 

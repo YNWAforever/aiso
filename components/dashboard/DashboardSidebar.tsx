@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { LogOut, Wrench, Brain, Settings, Lock, LayoutDashboard, MessageSquare, ScanSearch, Radio, FileText, Settings2, Home, type LucideIcon } from 'lucide-react'
+import { LogOut, Wrench, Brain, Settings, Lock, LayoutDashboard, MessageSquare, ScanSearch, Radio, FileText, Settings2, Home, Menu, X, type LucideIcon } from 'lucide-react'
 import type { CommercialEntitlement } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 import { buildDashboardNav, locateDashboard, type SectionKey } from '@/lib/dashboard-nav'
@@ -63,18 +63,19 @@ export function DashboardSidebar({ profile, entitlement, brandId, conversationSt
   return (
     <aside className="print:hidden w-full md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-border bg-card flex flex-col md:min-h-full">
 
-      <div className="px-5 py-4 border-b border-border">
+      {/* On mobile the menu toggle shares the logo row, so the shell spends one
+          row of chrome on navigation instead of two. */}
+      <div className="flex items-center justify-between gap-2 border-b border-border px-5 py-2 md:py-4">
         <Link href={`/${lang}/dashboard`} className="flex min-h-11 items-center gap-2.5">
           <div className="size-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
             <Brain className="size-4 text-primary-foreground" aria-hidden="true" />
           </div>
           <Wordmark className="font-black text-foreground text-sm" accentClassName="text-primary-accessible" />
         </Link>
+        <button type="button" aria-expanded={navigationOpen} aria-controls="workspace-sidebar-navigation" aria-label={t('toggle_navigation')} onClick={() => setNavigationOpen(open => !open)} className="inline-flex size-11 items-center justify-center rounded-lg border border-border text-foreground hover:bg-secondary md:hidden">
+          {navigationOpen ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
+        </button>
       </div>
-
-      <button type="button" aria-expanded={navigationOpen} aria-controls="workspace-sidebar-navigation" onClick={() => setNavigationOpen(open => !open)} className="mx-3 my-2 min-h-11 rounded-lg border border-border px-3 text-left text-sm font-semibold text-foreground md:hidden">
-        {t('toggle_navigation')}
-      </button>
       <div id="workspace-sidebar-navigation" className={`${navigationOpen ? 'flex' : 'hidden'} min-w-0 flex-1 flex-col max-h-[60dvh] overflow-y-auto md:max-h-none md:flex`}>
         <nav aria-label={t('workspace_navigation')} className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {nav.map(section => {

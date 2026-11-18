@@ -247,6 +247,10 @@ export function locateDashboard(pathname: string, step: string | null, smeCopilo
     if (third === 'this-month') return { section: 'reports', item: 'this-month', clientId: null }
   }
   if (third === 'settings') return { section: 'settings', item: 'account', clientId: null }
+  // Account-level pages are not brand ids: without these, Billing and This month
+  // lit "Overview" and the breadcrumb collapsed to the brand list.
+  if (third === 'billing') return { section: 'settings', item: 'account', clientId: null }
+  if (third === 'this-month') return { section: 'reports', item: null, clientId: null }
   const segment = parts[3]
   if (!segment) {
     const table = smeCopilot ? SME_STEP_LOCATION : STEP_LOCATION

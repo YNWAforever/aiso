@@ -77,7 +77,7 @@ it('keeps Firecrawl scrape-only, single-URL and markdown-only', () => {
 
 it('uses the durable account-week honesty strings from the Hazel pack', () => {
   expect(en.conversationStudio.featureShellNote).toBe(
-    'Studio is available. Live model answers stay off until LIVE is enabled; work from saved evidence and templates meanwhile.',
+    'AI replies are not switched on for this brand yet. You can still ask: answers use your latest scan, your saved weekly AI checks and any approved document you attach.',
   )
   expect(en.conversationStudio.live.temporaryCap).toBe(
     'Weekly LIVE answers use your account quota for this brand. The count persists across restarts and instances.',

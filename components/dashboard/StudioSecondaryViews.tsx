@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { studioDate } from '@/lib/conversation-studio/format-date'
 import { ArrowUpRight, Ellipsis, FileText, Lock, MessageSquare } from 'lucide-react'
 import { useStudioSession, type StudioThread } from '@/components/dashboard/StudioSession'
 import { groupThreads, matchesThread, relativeTime } from '@/lib/conversation-studio/thread-list'
@@ -35,7 +36,9 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
     const task = skill ? studioSkill(skill)?.task : null
     return task ? t(`templates.${task}.label`) : null
   }
-  const visible = session.threads.filter(thread => matchesThread(thread, query, skillLabel(thread.skill)))
+  // Archived discussions leave every list (threadActions.archivedNote); keep the
+  // optimistic row from lingering until the next reload.
+  const visible = session.threads.filter(thread => !thread.archived && matchesThread(thread, query, skillLabel(thread.skill)))
   async function act(id: string, patch: { title?: string; pinned?: boolean; archived?: boolean; visibility?: 'private' | 'shared' }) {
     setActionFailed(false)
     const result = await session.updateThread(id, patch)
@@ -93,7 +96,7 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
                     <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" aria-pressed={thread.pinned} onClick={event => { closeMenu(event); void act(thread.id, { pinned: !thread.pinned }) }}>{t(thread.pinned ? 'threadActions.unpin' : 'threadActions.pin')}</button>
                     <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" aria-pressed={thread.visibility === 'shared'} onClick={event => { closeMenu(event); void act(thread.id, { visibility: thread.visibility === 'shared' ? 'private' : 'shared' }) }}>{t(thread.visibility === 'shared' ? 'threadActions.unshare' : 'threadActions.share')}</button>
                     <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); startRename(thread) }}>{t('threadActions.rename')}</button>
-                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); void act(thread.id, { archived: true }) }}>{t('threadActions.archive')}</button>
+                    <button type="button" className="as-button flex min-h-11 w-full items-center justify-start px-3 text-left text-sm" onClick={event => { closeMenu(event); if (window.confirm(t('threadActions.archiveConfirm', { title: thread.title }))) void act(thread.id, { archived: true }) }}>{t('threadActions.archive')}</button>
                   </div>
                 </details>
                 : null}
@@ -119,13 +122,13 @@ export function StudioDocuments({ clientId, documents, outputs, showTabs = false
     <section className="space-y-3" aria-labelledby="studio-brand-documents"><div className="as-section-heading"><div className="flex flex-wrap items-baseline gap-2"><h2 id="studio-brand-documents">{t('views.documents.inputs')}</h2>{documents && <span className="as-small as-muted">{t('views.documents.inputCount', { count: documents.items.length })}</span>}</div><Link className="underline" href={`${base}/sources`}>{t('views.documents.sourceFlow')}</Link></div>
       <p className="as-muted as-small">{t('views.documents.readScope')}</p>
       {documents === null ? <p className="as-note">{t('readUnavailable')}</p> : !documents.items.length ? <p className="as-muted">{t('views.documents.emptyInputs')}</p> : <ul className="as-record-list">{documents.items.map(doc => <li key={doc.id}><Link className="as-record-link" href={`${base}/sources`}>
-        <FileText className="size-5 shrink-0 as-blue" aria-hidden="true" /><span className="min-w-0"><span className="block font-semibold">{doc.label}</span><span className="as-small as-muted block">{t('evidence.approvedVersion', { version: doc.versionNumber })} · {t('views.documents.approvedAt', { date: doc.approvedAt })}</span><span className="as-small as-muted block">{t('views.documents.importedAt', { date: doc.importedAt })}</span></span><ArrowUpRight className="size-4 shrink-0 ml-auto" aria-hidden="true" />
+        <FileText className="size-5 shrink-0 as-blue" aria-hidden="true" /><span className="min-w-0"><span className="block font-semibold">{doc.label}</span><span className="as-small as-muted block">{t('evidence.approvedVersion', { version: doc.versionNumber })} · {t('views.documents.approvedAt', { date: studioDate(doc.approvedAt, lang) })}</span><span className="as-small as-muted block">{t('views.documents.importedAt', { date: studioDate(doc.importedAt, lang) })}</span></span><ArrowUpRight className="size-4 shrink-0 ml-auto" aria-hidden="true" />
       </Link></li>)}</ul>}
       {documents?.truncated && <p className="as-note">{t('evidence.documentsTruncated')}</p>}
     </section>
     <section className="space-y-3" aria-labelledby="studio-work-outputs"><div className="as-section-heading"><div className="flex flex-wrap items-baseline gap-2"><h2 id="studio-work-outputs">{t('views.documents.outputs')}</h2>{outputs && <span className="as-small as-muted">{t('views.documents.outputCount', { count: outputs.items.length })}</span>}</div><Link className="underline" href={`${base}/tasks`}>{t('views.documents.outputFlow')}</Link></div>
       {outputs === null ? <p className="as-note">{t('readUnavailable')}</p> : !outputs.items.length ? <p className="as-muted">{t('views.documents.emptyOutputs')}</p> : <ul className="as-record-list">{outputs.items.map(item => <li key={item.id}><Link className="as-record-link" href={`${base}/work-items/${encodeURIComponent(item.id)}/versions`}>
-        <FileText className="size-5 shrink-0 as-blue" aria-hidden="true" /><span className="min-w-0"><span className="block font-semibold">{item.title}</span><span className="as-small as-muted block">{t('views.documents.draftRevision', { revision: item.revision })} · {t('views.documents.updatedAt', { date: item.updatedAt })}</span></span><ArrowUpRight className="size-4 shrink-0 ml-auto" aria-hidden="true" />
+        <FileText className="size-5 shrink-0 as-blue" aria-hidden="true" /><span className="min-w-0"><span className="block font-semibold">{item.title}</span><span className="as-small as-muted block">{t('views.documents.draftRevision', { revision: item.revision })} · {t('views.documents.updatedAt', { date: studioDate(item.updatedAt, lang) })}</span></span><ArrowUpRight className="size-4 shrink-0 ml-auto" aria-hidden="true" />
       </Link></li>)}</ul>}
       {outputs?.truncated && <p className="as-note">{t('views.documents.outputsTruncated')}</p>}
     </section>

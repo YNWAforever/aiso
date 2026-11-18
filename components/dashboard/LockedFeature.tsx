@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
 type Props = {
@@ -11,6 +13,9 @@ type Props = {
 
 export function LockedFeature({ feature, requiredPlan, price, children }: Props) {
   const t = useTranslations('dashboard')
+  const lang = useParams<{ lang?: string }>()?.lang ?? 'en'
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
   const planLabel = requiredPlan === 'Pro'
     ? t('plan_pro')
     : requiredPlan === 'Enterprise'
@@ -24,16 +29,28 @@ export function LockedFeature({ feature, requiredPlan, price, children }: Props)
     <p className="mt-1 text-xs text-muted-foreground">{t('locked_available', { plan: planLabel, price })}</p>
     <button
       type="button"
+      disabled={busy}
+      aria-busy={busy}
       onClick={async () => {
-        const res = await fetch('/api/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan: requiredPlan.toLowerCase() }),
-        })
-        const data = await res.json()
-        if (data.url) window.location.href = data.url
+        // One checkout per click, and never a silent dead button: any failure
+        // falls back to the pricing page, which carries every upgrade path.
+        if (busy) return
+        setBusy(true)
+        try {
+          const res = await fetch('/api/stripe/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan: requiredPlan.toLowerCase() }),
+          })
+          const data = res.ok ? await res.json().catch(() => null) : null
+          // Stripe Checkout is an external URL; the pricing fallback is internal.
+          if (typeof data?.url === 'string') window.location.href = data.url
+          else router.push(`/${lang}/pricing`)
+        } catch {
+          router.push(`/${lang}/pricing`)
+        }
       }}
-      className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {t('locked_upgrade', { plan: planLabel })}
     </button>

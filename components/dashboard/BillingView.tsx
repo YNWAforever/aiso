@@ -27,16 +27,18 @@ export function BillingView({ lang }: { lang: string }) {
   const [failed, setFailed] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  const [attempt, setAttempt] = useState(0)
+
   useEffect(() => {
     fetchBilling().then(result => {
       if (result === null) setFailed(true)
-      else setData(result)
+      else { setData(result); setFailed(false) }
       setLoading(false)
     }).catch(() => {
       setFailed(true)
       setLoading(false)
     })
-  }, [])
+  }, [attempt])
 
   const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
   const money = (amountCents: number, currency: string) =>
@@ -61,6 +63,13 @@ export function BillingView({ lang }: { lang: string }) {
     return (
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <p className="text-sm text-muted-foreground">{t('load_failed')}</p>
+        <button
+          type="button"
+          onClick={() => { setLoading(true); setAttempt(n => n + 1) }}
+          className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t('retry')}
+        </button>
       </div>
     )
   }
@@ -70,6 +79,12 @@ export function BillingView({ lang }: { lang: string }) {
     : data.mode === 'included'
       ? t('mode_included')
       : t('mode_not_opened')
+  // Show "Pro", not the stored id "pro"; and "November 2026", not "2026-11".
+  const planName = data.plan === 'free' ? t('plan_free') : data.plan.charAt(0).toUpperCase() + data.plan.slice(1)
+  const [year, month] = data.monthKey.split('-').map(Number)
+  const monthName = year && month
+    ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)))
+    : data.monthKey
 
   return (
     <div className="space-y-6">
@@ -77,7 +92,7 @@ export function BillingView({ lang }: { lang: string }) {
         <dl className="grid gap-4 sm:grid-cols-2">
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('plan_label')}</dt>
-            <dd className="mt-1 text-lg font-bold text-foreground">{data.plan}</dd>
+            <dd className="mt-1 text-lg font-bold text-foreground">{planName}</dd>
           </div>
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('mode_label')}</dt>
@@ -97,7 +112,7 @@ export function BillingView({ lang }: { lang: string }) {
       </section>
 
       <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-foreground">{t('month_title', { month: data.monthKey })}</h2>
+        <h2 className="text-lg font-bold text-foreground">{t('month_title', { month: monthName })}</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="rounded-lg bg-tone-success-soft p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-tone-success-fg">{t('reported_label')}</p>

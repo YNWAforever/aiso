@@ -77,7 +77,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
   const homeHref = useCallback((id: string) => brandHomeHref({ lang, clientId: id, conversationStudio, smeCopilot }), [lang, conversationStudio, smeCopilot])
   const signOutHref = `/${lang}/auth/logout?next=${encodeURIComponent(`${pathname}${searchParams?.size ? `?${searchParams}` : ''}`)}`
 
-  // Brands ??Brand ??Section ??Page. The last crumb is the current page.
+  // Brands › Brand › Section › Page. The last crumb is the current page.
   const crumbs: { label: string; href: string }[] = [{ label: shell('brands'), href: root }]
   if (clientId) crumbs.push({ label: brand?.name ?? shell('brands'), href: homeHref(clientId) })
   // Resolve against every section, so a hidden one's pages (legacy Monitor's
@@ -97,9 +97,9 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
   const commands = useMemo<CommandItem[]>(() => [
     ...nav.flatMap(s => [
       { id: `section-${s.key}`, label: t(s.labelKey), group: shell('group_go'), href: s.href },
-      ...s.items.filter(i => i.href !== s.href).map(i => ({ id: `item-${s.key}-${i.key}`, label: `${t(s.labelKey)} ??${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
+      ...s.items.filter(i => i.href !== s.href).map(i => ({ id: `item-${s.key}-${i.key}`, label: `${t(s.labelKey)} › ${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
     ]),
-    ...(accountSection?.items ?? []).map(i => ({ id: `account-${i.key}`, label: `${t('nav_account')} ??${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
+    ...(accountSection?.items ?? []).map(i => ({ id: `account-${i.key}`, label: `${t('nav_account')} › ${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
     ...(brands ?? []).map(b => ({ id: `brand-${b.id}`, label: b.name, keywords: b.domain ? [b.domain] : [], group: shell('group_brands'), href: homeHref(b.id) })),
     { id: 'action-scan', label: shell('action_scan'), group: shell('group_actions'), href: clientId ? `${root}/${clientId}?step=scan${scanId ? `&scanId=${encodeURIComponent(scanId)}` : ''}` : `/${lang}#scan` },
     ...(clientId ? [{ id: 'action-report', label: shell('action_report'), group: shell('group_actions'), href: `${root}/${clientId}/reports/new${scanQuery}` }] : []),
@@ -123,7 +123,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
                       href={homeHref(b.id)}
                       onClick={close}
                       aria-current={b.id === clientId ? 'true' : undefined}
-                      className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-foreground hover:bg-secondary"
+                      className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-foreground hover:bg-secondary"
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{b.name}</span>
@@ -134,7 +134,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
                   </li>
                 ))}
               </ul>
-              <Link href={root} onClick={close} className="mt-1 flex min-h-10 items-center rounded-lg border-t border-border px-2 text-sm font-semibold text-foreground hover:bg-secondary">
+              <Link href={root} onClick={close} className="mt-1 flex min-h-11 items-center rounded-lg border-t border-border px-2 text-sm font-semibold text-foreground hover:bg-secondary">
                 {shell('all_brands')}
               </Link>
             </div>
@@ -166,7 +166,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
         >
           <Search aria-hidden="true" className="size-4" />
           <span className="sr-only sm:not-sr-only">{shell('search')}</span>
-          <kbd aria-hidden="true" className="hidden rounded border border-border px-1 text-[11px] font-medium sm:inline">?</kbd>
+          <kbd aria-hidden="true" className="hidden rounded border border-border px-1 text-[11px] font-medium sm:inline pointer-coarse:hidden">⌘K</kbd>
         </button>
         <NotificationBell key={unreadCount ?? 'unknown'} initialCount={unreadCount} lang={lang} />
         {smeCopilot && profile && <MenuButton
@@ -211,7 +211,7 @@ export function TopBar({ lang, brands, unreadCount, features, conversationStudio
                 { href: `/${lang}/contact`, label: shell('help_contact') },
               ].map(link => (
                 <li key={link.href}>
-                  <Link href={link.href} onClick={close} className="flex min-h-10 items-center rounded-lg px-2 text-sm text-foreground hover:bg-secondary">{link.label}</Link>
+                  <Link href={link.href} onClick={close} className="flex min-h-11 items-center rounded-lg px-2 text-sm text-foreground hover:bg-secondary">{link.label}</Link>
                 </li>
               ))}
               <li className="mt-1 border-t border-border px-2 pb-1 pt-2 text-xs text-muted-foreground">{shell('help_shortcuts')}</li>

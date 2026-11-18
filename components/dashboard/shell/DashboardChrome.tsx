@@ -13,7 +13,7 @@ export function DashboardChrome({ children, sidebar, topbar, banner, conversatio
   const pathname = usePathname() ?? ''
   const studio = conversationStudio && /^\/(en|zh-HK)\/dashboard\/[a-f0-9-]{36}\/studio(?:\/|$)/i.test(pathname)
   if (studio && !smeCopilot) return <div className="h-dvh min-w-0 overflow-auto">{children}</div>
-  return <div className="flex flex-col h-screen bg-background overflow-hidden print:h-auto print:overflow-visible print:bg-white">
+  return <div className="flex flex-col h-dvh bg-background overflow-hidden print:h-auto print:overflow-visible print:bg-white">
     {banner}
     <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden print:block print:overflow-visible">
       {sidebar}
