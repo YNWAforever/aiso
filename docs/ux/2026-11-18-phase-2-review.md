@@ -69,20 +69,29 @@ Severity: **H** user is stuck or misled about money/data · **M** confusing or e
 | Locked flag pages (`/visibility`, `/outcomes`, `/enterprise`) bare text | Rare (flags off in production). |
 | Inspector beside the conversation between 900–1100 px with ≥ 2 threads | CSS order issue noted in Phase 1; low frequency. |
 
-### Load-sensitive tests (not fixed, recorded honestly)
+### Load-sensitive tests: root cause found and fixed
 
-These failed once in a full parallel run and then passed every time they ran on their own.
-No root cause is established, so they are recorded here rather than called flakes:
+- **zh-HK/en timing assertions** (`conversation-studio` "composer shows remaining LIVE
+  answers…", `studio-action-outcomes` "scan outcome stays exact…"). Both read a request
+  counter synchronously right after a click. But the model request (sent only after the turn
+  is saved) and the scan POST are asynchronous, so under parallel load the counter could
+  still be 0. Both now use `expect.poll`, which passed 80/80 across 10 repeats (`7c6e54c`).
+- **`conversation-studio` "IME, accessibility and reflow" (en, desktop).** In one run, axe
+  reported `color-contrast` with dark ink on a dark background (#17263e on #0d1320), which
+  looks like a snapshot taken mid-way through a theme transition. It did not reproduce in 128
+  further runs. Its root cause is not established.
 
-- **zh-HK desktop timing assertions.** In one run, 2 cases failed because a request had not
-  been recorded yet when the test checked for it: `conversation-studio` "composer shows
-  remaining LIVE answers…" and `studio-action-outcomes` "scan outcome stays exact…". Both
-  then passed 20/20 with `--repeat-each=5`.
-- **`conversation-studio` "IME, accessibility and reflow" (en, desktop).** In the final 10-spec
-  run, axe reported `color-contrast` with dark ink on a dark background (#17263e on
-  #0d1320). That pair looks like a snapshot taken mid-way through a theme transition. The
-  failure did not reproduce in 128 further runs: the whole spec (108/108) and 20/20 repeats
-  of the test.
+## Review follow-up (Codex on #305)
+
+Two findings on the "failed message returns to the box" change, both confirmed and fixed in
+`1eb6e82`:
+
+- **Duplicate on resend.** After an unknown outcome, restoring the question let a resend
+  mint a new `requestId` and save the message twice. Now only a definite refusal (4xx)
+  restores it; an unknown outcome is read back and reconciled by `requestId`.
+- **Lost skill.** The retried question lost its skill. Its skill is now restored with it.
+
+New e2e coverage for both paths, in en and zh-HK on desktop and mobile.
 
 ## Verification (final code)
 
