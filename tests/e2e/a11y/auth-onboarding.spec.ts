@@ -16,7 +16,8 @@ const COPY = {
     description: 'Brand description', competitors: 'Main competitors', finish: 'Go to my dashboard',
     add: 'Add', count0: '0 of 10', count1: '1 of 10', count10: '10 of 10',
     competitorLimit: 'You can add up to 10 competitors.',
-    completeError: 'Something went wrong',
+    // The fixture answers 500: a server failure, so the translated 'temporarily unavailable' copy.
+    completeError: 'Setup is temporarily unavailable. Your answers are kept here; try again in a minute.',
   },
   'zh-HK': {
     skip: '跳至主要內容', login: '登入你的儀表板', email: '工作電郵',
@@ -31,7 +32,7 @@ const COPY = {
     description: '品牌描述', competitors: '主要競爭對手', finish: '前往我的儀表板',
     add: '新增', count0: '0 / 10', count1: '1 / 10', count10: '10 / 10',
     competitorLimit: '最多可加入 10 個競爭對手。',
-    completeError: '發生錯誤，請再試一次',
+    completeError: '設定暫時無法使用。你的答案已保留在此，請稍後再試。',
   },
 } as const
 
