@@ -98,6 +98,36 @@ for (const lang of ['en', 'zh-HK']) {
     expect(unexpectedRequests(requests)).toEqual([])
   })
 
+  test(`an archived discussion can be restored later from Archived discussions in ${lang}`, async ({ page }) => {
+    const { copy, requests } = await fixture(page, lang)
+    const title = 'Discussion to restore later'
+    await page.locator('#studio-composer').fill(title)
+    await page.locator('button[type="submit"]').click()
+    await expect.poll(() => new URL(page.url()).searchParams.get('thread')).toMatch(/^[a-f0-9-]{36}$/)
+    const header = page.locator('#studio-discussion > header')
+    await header.getByLabel(copy.threadActions.label, { exact: true }).first().click()
+    await header.getByRole('button', { name: copy.threadActions.archive, exact: true }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: copy.threadActions.archive, exact: true }).click()
+    await expect(page.locator('#studio-discussion')).toHaveCount(0)
+    // Past the Undo window: a reload drops the notice; the discussion is only under Archived.
+    await page.reload()
+    await navigate(page, copy.threadsTitle, copy)
+    const main = page.getByRole('main')
+    await expect(main.locator('.as-thread').filter({ hasText: title })).toHaveCount(0)
+    await main.getByText(copy.threadActions.archivedTitle, { exact: true }).click()
+    const restore = main.getByRole('button', { name: copy.threadActions.restoreLabel.replace('{title}', title), exact: true })
+    await expect(restore).toBeVisible()
+    expect((await new AxeBuilder({ page }).include('.as-disclosure').analyze()).violations).toEqual([])
+    await restore.click()
+    await expect(main.getByText(copy.threadActions.restored.replace('{title}', title), { exact: true })).toBeVisible()
+    await expect(main.locator('.as-thread').filter({ hasText: title })).toHaveCount(1)
+    await expect(main.getByText(copy.threadActions.archivedEmpty, { exact: true })).toBeVisible()
+    await page.reload()
+    await navigate(page, copy.threadsTitle, copy)
+    await expect(page.getByRole('main').locator('.as-thread').filter({ hasText: title })).toHaveCount(1)
+    expect(unexpectedRequests(requests)).toEqual([])
+  })
+
   test(`a refused message returns to the box; an unconfirmed one is read back, never resent blind, in ${lang}`, async ({ page }) => {
     const { copy, requests } = await fixture(page, lang)
     await page.locator('#studio-composer').fill('First saved question')

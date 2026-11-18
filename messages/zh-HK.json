@@ -39,13 +39,23 @@
       "unshare": "改為私人",
       "archive": "封存",
       "failed": "變更未儲存，討論維持不變。",
-      "archivedNote": "已封存的討論仍可由建立者開啟，但不會顯示於任何清單。",
+      "archivedNote": "已封存的討論不會顯示於主要清單。你可以在「已封存的討論」還原自己建立的討論。",
       "archiveConfirmTitle": "要封存這個討論嗎？",
-      "archiveConfirmBody": "「{title}」將不會再顯示於任何討論清單。封存後可以即時復原。",
+      "archiveConfirmBody": "「{title}」將不會再顯示於討論清單。封存後可以即時復原，或稍後在「已封存的討論」還原。",
       "archivedNotice": "已封存「{title}」。",
       "undo": "復原",
       "dismiss": "關閉",
-      "undoFailed": "未能還原「{title}」，請再按一次復原。"
+      "undoFailed": "未能還原「{title}」，請再按一次復原。",
+      "archivedTitle": "已封存的討論",
+      "archivedHelp": "這裏只顯示你建立的討論。已封存的討論仍計入此品牌的討論上限。",
+      "archivedLoading": "正在載入已封存的討論…",
+      "archivedEmpty": "你沒有已封存的討論。",
+      "archivedUnavailable": "未能載入已封存的討論。",
+      "restore": "還原",
+      "restoreLabel": "還原「{title}」",
+      "restored": "「{title}」已回到你的討論。",
+      "restoreFailed": "未能還原「{title}」，請再試一次。",
+      "retry": "再試一次"
     },
     "templatesTitle": "技能",
     "conversationLabel": "品牌證據對話",
@@ -5706,8 +5716,7 @@
     "shareableReports": "可分享報告",
     "monthlyReport": "月度報告",
     "allBrands": "全部品牌"
-  }
-,
+  },
   "combinedReport": {
     "meta_title": "掃描 + Pulse 報告",
     "title": "掃描 + Pulse 報告",

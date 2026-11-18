@@ -297,12 +297,20 @@ it('hides an archived thread from every list while its owner can still open it, 
   const sharedList = await (await listThreads(request('/api/studio'), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: unknown[] }
   expect(sharedList.threads).toEqual([])
 
+  // The archived list is the viewer's own only: a teammate never sees a shared archived thread there.
+  const archivedList = (url: string) => listThreads(request(url), { params: Promise.resolve({ clientId: brandA }) }).then(r => r.json() as Promise<{ threads: Array<{ id: string; archived: boolean }> }>)
+  expect((await archivedList('http://localhost/api/studio?archived=1')).threads).toEqual([])
+  asA()
+  expect((await archivedList('http://localhost/api/studio?archived=1')).threads).toEqual([expect.objectContaining({ id: data.thread.id, archived: true })])
+  asB()
+  expect((await listThreads(request('http://localhost/api/studio?archived=1'), { params: Promise.resolve({ clientId: brandA }) })).status).toBe(404)
   asA()
   const archived = await getThread(request('/api/studio'), { params: Promise.resolve({ clientId: brandA, threadId: data.thread.id }) })
   expect((await archived.json()).thread).toMatchObject({ archived: true, mine: true })
   await update(brandA, data.thread.id, { archived: false })
   const restored = await (await listThreads(request('/api/studio'), { params: Promise.resolve({ clientId: brandA }) })).json() as { threads: Array<{ archived: boolean }> }
   expect(restored.threads).toEqual([expect.objectContaining({ archived: false })])
+  expect((await archivedList('http://localhost/api/studio?archived=1')).threads).toEqual([])
 })
 
 it('validates a thread update body and refuses empty patches', async () => {

@@ -259,10 +259,13 @@ function turnRecord(row: Record<string, unknown>, owner = true): StudioTurnRecor
   }
 }
 
-export async function listStudioThreads(_request: Request, clientId: string): Promise<Response> {
+export async function listStudioThreads(request: Request, clientId: string): Promise<Response> {
   try {
     const access = await authorizeStudioBrand(clientId)
     if (access instanceof Response) return access
+    // ?archived=1 lists the viewer's own archived discussions (only a creator can restore);
+    // the default list never includes archived ones.
+    const archived = new URL(request.url).searchParams.get('archived') === '1'
     const rows = await access.sql`
       select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
         t.profile_id, t.visibility, t.pinned_at, t.archived_at,
@@ -279,7 +282,9 @@ export async function listStudioThreads(_request: Request, clientId: string): Pr
         and t.client_id = ${access.clientId}::uuid
         and (t.profile_id = ${access.profileId}::uuid
           or (${access.staffGrantId}::uuid is null and t.visibility = 'shared'))
-        and t.archived_at is null
+        and (case when ${archived}::boolean
+          then t.archived_at is not null and t.profile_id = ${access.profileId}::uuid
+          else t.archived_at is null end)
       order by (t.profile_id = ${access.profileId}::uuid and t.pinned_at is not null) desc,
         t.updated_at desc, t.id desc
       limit ${STUDIO_THREAD_LIST_LIMIT + 1}

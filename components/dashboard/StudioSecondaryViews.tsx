@@ -38,8 +38,8 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
     const task = skill ? studioSkill(skill)?.task : null
     return task ? t(`templates.${task}.label`) : null
   }
-  // Archived discussions leave every list (threadActions.archivedNote); keep the
-  // optimistic row from lingering until the next reload.
+  // Archived discussions leave the main lists (threadActions.archivedNote) and are
+  // listed only under Archived discussions; keep the optimistic row from lingering.
   const listed = session.threads.filter(thread => !thread.archived)
   const visible = listed.filter(thread => matchesThread(thread, query, skillLabel(thread.skill)))
   const [archiving, setArchiving] = useState<{ id: string; title: string } | null>(null)
@@ -125,7 +125,47 @@ export function StudioThreads({ clientId, showTabs = false }: { clientId: string
           </li>
         })}</ul>
       </section>)}
+    {session.hydrated && !session.readFailed && <ArchivedDiscussions />}
   </main>
+}
+
+/**
+ * The viewer's own archived discussions, read only when the section is opened.
+ * Restore is the same owner-only update as Undo; the restored row rejoins the lists.
+ */
+function ArchivedDiscussions() {
+  const t = useTranslations('conversationStudio.threadActions')
+  const session = useStudioSession()
+  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle')
+  const [rows, setRows] = useState<{ id: string; title: string }[]>([])
+  const [notice, setNotice] = useState<{ title: string; ok: boolean } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  async function load() {
+    setState('loading')
+    const records = await session.loadArchived()
+    if (records === null) { setState('failed'); return }
+    setRows(records.map(record => ({ id: record.id, title: record.title })))
+    setState('ready')
+  }
+  async function restore(row: { id: string; title: string }) {
+    setBusy(row.id)
+    const ok = await session.restoreArchived(row.id)
+    setBusy(null)
+    setNotice({ title: row.title, ok })
+    if (ok) setRows(previous => previous.filter(item => item.id !== row.id))
+  }
+  return <details className="as-disclosure space-y-3 pb-3" onToggle={event => { if (event.currentTarget.open && state !== 'loading') void load() }}>
+    <summary>{t('archivedTitle')}</summary>
+    <p className="as-small as-muted">{t('archivedHelp')}</p>
+    <div aria-live="polite">{notice && <p className={notice.ok ? 'as-small' : 'as-note'}>{t(notice.ok ? 'restored' : 'restoreFailed', { title: notice.title })}</p>}</div>
+    {state === 'loading' ? <p className="as-muted" aria-busy="true">{t('archivedLoading')}</p>
+      : state === 'failed' ? <p className="as-note">{t('archivedUnavailable')} <button type="button" className="as-button inline-flex min-h-11 items-center px-3 text-sm" onClick={() => void load()}>{t('retry')}</button></p>
+      : state === 'ready' && !rows.length ? <p className="as-muted">{t('archivedEmpty')}</p>
+      : <ul className="as-record-list">{rows.map(row => <li key={row.id} className="flex flex-wrap items-center gap-2 px-4 py-2">
+        <span className="min-w-0 flex-1 truncate">{row.title}</span>
+        <button type="button" className="as-button inline-flex min-h-11 min-w-11 items-center justify-center px-3 text-sm" disabled={busy === row.id} aria-label={t('restoreLabel', { title: row.title })} onClick={() => void restore(row)}>{t('restore')}</button>
+      </li>)}</ul>}
+  </details>
 }
 
 export function StudioDocuments({ clientId, documents, outputs, showTabs = false }: { clientId: string; documents: StudioInspectorReads['documents']; outputs: StudioOutputs | null; showTabs?: boolean }) {

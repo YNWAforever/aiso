@@ -9,7 +9,7 @@ import type { StudioFirecrawlRead } from '@/lib/conversation-studio/firecrawl-ty
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 import type { StudioReceipt } from '@/lib/conversation-studio/receipts'
 import type { StudioSkillId } from '@/lib/conversation-studio/skills'
-import { appendStudioTurn, createStudioThread, fetchStudioThread, fetchStudioThreads, finalizeStudioTurn, updateStudioThread } from '@/lib/conversation-studio/threads-client'
+import { appendStudioTurn, createStudioThread, fetchArchivedStudioThreads, fetchStudioThread, fetchStudioThreads, finalizeStudioTurn, updateStudioThread } from '@/lib/conversation-studio/threads-client'
 import type {
   StudioThreadCreateInput,
   StudioThreadRecord,
@@ -341,11 +341,29 @@ function useSessionState(clientId?: string, initialDraft = '') {
     return result.ok
   }
 
+  /** The viewer's own archived discussions, read on demand (null when the read failed). */
+  async function loadArchived(): Promise<StudioThreadRecord[] | null> {
+    if (!clientId) return []
+    const result = await fetchArchivedStudioThreads(clientId)
+    return result.ok ? result.data.threads : null
+  }
+  /** Restore an archived discussion and put it back in every list from the server's answer. */
+  async function restoreArchived(id: string): Promise<boolean> {
+    if (!clientId) return false
+    const result = await updateStudioThread(clientId, id, { archived: false })
+    if (!result.ok) return false
+    const restored = fromRecord(result.data.thread)
+    setThreads(previous => previous.some(thread => thread.id === id)
+      ? previous.map(thread => thread.id === id ? { ...thread, archived: false, updatedAt: restored.updatedAt } : thread)
+      : [restored, ...previous])
+    return true
+  }
+
   // Keep mutable refs private to their owning hook. Consumers use actions.
   return { threads, setThreads, activeId: navigation.activeId, navigationVersion: navigation.version,
     setActiveId: (activeId: string | null) => { setNavigation(previous => ({ activeId, version: previous.version + 1 })); setFeedback(null) },
     selectThread, refreshThread: (id: string) => loadThread(id, true), refreshingThreadId,
-    selectionError: readErrorId === navigation.activeId, saveThread, saveTurn, saveLive, updateThread, archiveThread, undoArchive, archivedUndo, dismissArchivedUndo: () => setArchivedUndo(null), hydrated, readFailed,
+    selectionError: readErrorId === navigation.activeId, saveThread, saveTurn, saveLive, updateThread, archiveThread, undoArchive, archivedUndo, loadArchived, restoreArchived, dismissArchivedUndo: () => setArchivedUndo(null), hydrated, readFailed,
     feedback, setFeedback, newDraft, setNewDraft, newTemplate, setNewTemplate, busy,
     allocateId, allocateThreadId,
     isInFlight: () => inFlight.current,
