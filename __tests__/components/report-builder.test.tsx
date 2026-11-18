@@ -101,6 +101,26 @@ describe('ReportBuilder', () => {
     })).toBe('update')
   })
 
+  it('omits an untouched generated summary from the first save', async () => {
+    const { reportCreateBody } = await import('@/components/reports/ReportBuilder')
+    const generatedSummary = '這是目前分數 48 的基準報告，已記錄 0 項可報告檢查結果。'
+    const editedSummary = '這份報告顯示目前分數為 48，並記錄了需要優先處理的檢查項目。'
+
+    expect(generatedSummary.length).toBeLessThan(40)
+    expect(reportCreateBody({
+      scanId: 'scan-1',
+      locale: 'zh-HK',
+      summary: generatedSummary,
+      generatedSummary,
+    })).toEqual({ scanId: 'scan-1', locale: 'zh-HK' })
+    expect(reportCreateBody({
+      scanId: 'scan-1',
+      locale: 'zh-HK',
+      summary: editedSummary,
+      generatedSummary,
+    })).toEqual({ scanId: 'scan-1', locale: 'zh-HK', executiveSummary: editedSummary })
+  })
+
   it('keeps AI fallback, unsaved navigation, clipboard, open-link, and lifecycle confirmations explicit', () => {
     const source = readFileSync(
       join(process.cwd(), 'components/reports/ReportBuilder.tsx'),

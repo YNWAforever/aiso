@@ -68,6 +68,21 @@ export function shouldApplyAiSummary(input: {
     && input.startingSummary === input.currentSummary
 }
 
+/**
+ * Keep the generated summary server-side when the operator has not edited it.
+ * A supplied summary is treated as an operator edit and must be at least 40
+ * characters, while the deterministic zh-HK baseline can be shorter.
+ */
+export function reportCreateBody(input: {
+  scanId: string
+  locale: 'en' | 'zh-HK'
+  summary: string
+  generatedSummary: string
+}): { scanId: string; locale: 'en' | 'zh-HK'; executiveSummary?: string } {
+  const body = { scanId: input.scanId, locale: input.locale }
+  return input.summary === input.generatedSummary ? body : { ...body, executiveSummary: input.summary }
+}
+
 export function ReportBuilder({
   lang,
   clientId,
@@ -195,7 +210,12 @@ export function ReportBuilder({
       : `/api/clients/${encodeURIComponent(clientId)}/reports`
     const body = report
       ? { locale: lang, executiveSummary: requestSummary }
-      : { scanId, locale: lang, executiveSummary: requestSummary }
+      : reportCreateBody({
+          scanId,
+          locale: lang,
+          summary: requestSummary,
+          generatedSummary: initialSnapshot.executiveSummary,
+        })
 
     try {
       const response = await fetch(url, {
