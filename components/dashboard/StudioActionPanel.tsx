@@ -110,13 +110,14 @@ export function useStudioActions({ clientId, brandName, brandDomain, features, e
         {open && (!state || state.phase === 'rejected') && <div ref={confirmationPanel} tabIndex={-1} role="group" aria-label={label} onKeyDown={event => { if (event.key === 'Escape' && !busy) { event.preventDefault(); cancelAction(id) } }} className="space-y-2 rounded-lg border border-border p-3 focus-visible:outline-2 focus-visible:outline-offset-2">
           <p className="font-semibold">{t(id === 'scan_brand' ? 'skills.scan_brand.confirmTitle' : `skills.${id}.actionConfirmTitle`)}</p>
           <p>{brandName}</p><p className="as-muted as-small">{id === 'scan_brand' ? t('skills.scan_brand.confirmBody', { domain: previewScope?.domain ?? '' }) : t(`skills.${id}.actionConfirmBody`)}</p>
-          {(previewScope?.month || previewScope?.scanId) && <p className="as-muted as-small [overflow-wrap:anywhere]">{previewScope.month ? t('actions.scopeMonth', { month: previewScope.month }) : t('actions.scopeScan', { scanId: previewScope.scanId! })}</p>}
+          {/* Only a month scope is shown: a scan record id means nothing to the person reading it. */}
+          {previewScope?.month && <p className="as-muted as-small [overflow-wrap:anywhere]">{t('actions.scopeMonth', { month: previewScope.month })}</p>}
           <div className="flex flex-wrap gap-2"><button type="button" className="as-button as-primary px-3 font-semibold" disabled={busy} onClick={() => void run(id)}>{t('actions.runNow')}</button><button type="button" className="as-button px-3" disabled={busy} onClick={() => cancelAction(id)}>{t('actions.cancel')}</button></div>
         </div>}
         {state && <div className="space-y-2" aria-live="polite">
           <p role={state.phase === 'unknown' || state.phase === 'rejected' ? 'alert' : 'status'} className="as-note">{state.phase === 'unknown' ? t('actions.unknown') : state.phase === 'rejected' ? state.error : state.phase === 'running' ? t(`skills.${id}.running`) : state.phase === 'pending' ? t('actions.pending') : t(`skills.${id}.done`)}</p>
           {state.phase !== 'running' && state.phase !== 'rejected' && <Link className="as-button inline-flex px-3 underline" href={studioActionHref(state.scope, language)}>{t(state.phase === 'done' ? 'actions.openResult' : 'actions.checkRecords')}</Link>}
-          {(state.scope.month || state.scope.scanId) && <p className="as-muted as-small [overflow-wrap:anywhere]">{state.scope.month ? t('actions.scopeMonth', { month: state.scope.month }) : t('actions.scopeScan', { scanId: state.scope.scanId! })}</p>}
+          {state.scope.month && <p className="as-muted as-small [overflow-wrap:anywhere]">{t('actions.scopeMonth', { month: state.scope.month })}</p>}
           {state.save && <p role="status" className="as-small">{t(`actions.save.${state.save}`)}</p>}
           {state.phase === 'done' && <p className="as-muted as-small">{t('actions.summaryScope')}</p>}
           {state.save === 'retry' && state.context && <button type="button" className="as-button px-3" disabled={busy} onClick={() => void retrySave(id, state.context!)}>{t('actions.retrySave')}</button>}

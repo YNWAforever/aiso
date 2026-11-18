@@ -44,6 +44,7 @@ magic-link / Google only, so the review rendered the same production components 
 | Notifications | The bell's accessible name includes the unread count. |
 | Today | The setup checklist marks finished steps as done (not links) and highlights the current one. |
 | Honesty note | `featureShellNote` rewritten in plain language with owner sign-off: "AI replies are not switched on for this brand yet. You can still ask: answers use your latest scan, your saved weekly AI checks and any approved document you attach." The guardrail test pins the new text. |
+| Studio action panel | The "Scan record: {uuid}" scope line is no longer shown (a month scope still is). The saved discussion prompt keeps the scan reference for audit. |
 | Mobile Studio | The top bar drops the duplicate market chip on phones; "Choose documents" no longer wraps. |
 
 ## Still open — needs an owner decision
@@ -51,5 +52,3 @@ magic-link / Google only, so the review rendered the same production components 
 1. **Inline links in Studio are 44 px boxes** (`#aiso-studio a` in `conversation-studio.css`),
    which breaks sentences such as "Open sources". `studio-shell.spec.ts` requires every link to
    be ≥ 44 px, so changing it is a deliberate rule change, not a bug fix.
-2. Studio action panel still prints the scan record id ("Scan record: {uuid}") as its scope line;
-   it is the audit reference for the run, so removing it is a product call.
