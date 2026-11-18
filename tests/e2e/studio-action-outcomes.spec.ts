@@ -142,7 +142,7 @@ for (const lang of ['en', 'zh-HK']) {
     expect(appends[1]).toBe(appends[0]); expect(JSON.parse(appends[0]).prompt).toContain('2026-11')
     expect(paid).toBe(1); expect(creates()).toBe(1)
   })
-  test(`a scan limit is a definite refusal with its reason, and the action can be opened again ${lang}`, async ({ page }) => {
+  test(`a scan limit is a definite refusal with its reason, and the action can be run again ${lang}`, async ({ page }) => {
     const { copy, appends, creates } = await fixture(page, lang)
     let paid = 0
     await page.route('**/api/scan', route => { paid++; return route.fulfill({ status: 429, json: { error: 'AUTHENTICATED_SCAN_LIMIT_REACHED' } }) })
@@ -151,7 +151,8 @@ for (const lang of ['en', 'zh-HK']) {
     await card.getByRole('button', { name: copy.actions.runNow, exact: true }).click()
     await expect(card.getByText(copy.actions.refused.limit, { exact: true })).toBeVisible()
     await expect(card.getByText(copy.actions.unknown, { exact: true })).toHaveCount(0)
-    await expect(card.getByRole('button', { name: copy.actions.open, exact: true })).toBeVisible()
+    // Nothing ran, so the person may try again from the still-open confirmation.
+    await expect(card.getByRole('button', { name: copy.actions.runNow, exact: true })).toBeVisible()
     expect(paid).toBe(1); expect(creates()).toBe(0); expect(appends).toHaveLength(0)
   })
   for (const state of ['lost', 'malformed'] as const) test(`unconfirmed paid scan ${state} is not offered as a safe rerun ${lang}`, async ({ page }) => {
