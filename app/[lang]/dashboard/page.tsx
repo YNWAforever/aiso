@@ -92,6 +92,7 @@ export default async function DashboardPage({params}: {params:Promise<{lang:stri
         clientReportsOnline={entitlement.features.client_reports_online}
         savedDiscussion={savedDiscussion}
         accountHome
+        creationControl={creationControl}
       />
     }
   }

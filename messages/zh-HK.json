@@ -5053,7 +5053,14 @@
     "settingUp": "設定中…",
     "goToDashboard": "前往我的儀表板",
     "s4Skip": "略過——我稍後再設定",
-    "genericError": "發生錯誤，請再試一次",
+    "genericError": "出現問題。你的答案已保留在此，請再試一次。",
+    "errors": {
+      "conflict": "此設定已在另一個分頁更改。請重新載入此頁，從最新版本繼續。",
+      "scanElsewhere": "該掃描屬於另一個帳戶，不能加入此品牌。你可以在沒有它的情況下完成設定。",
+      "claimUnavailable": "該掃描已不能加入這裡。你可以在沒有它的情況下完成設定。",
+      "notFound": "找不到該品牌或掃描。請重新載入此頁再試。",
+      "unavailable": "設定暫時無法使用。你的答案已保留在此，請稍後再試。"
+    },
     "seedPartial": "品牌已儲存，問題設定尚未完成；你可重試或先進入工作區。",
     "retrySeed": "重試問題設定",
     "openWorkspace": "開啟工作區",

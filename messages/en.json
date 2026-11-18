@@ -5053,7 +5053,14 @@
     "settingUp": "Setting up…",
     "goToDashboard": "Go to my dashboard",
     "s4Skip": "Skip — I'll set this up later",
-    "genericError": "Something went wrong",
+    "genericError": "Something went wrong. Your answers are kept here; try again.",
+    "errors": {
+      "conflict": "This setup was changed in another tab. Reload this page to continue from the latest version.",
+      "scanElsewhere": "That scan belongs to another account, so it cannot be added to this brand. You can finish setup without it.",
+      "claimUnavailable": "That scan can no longer be added here. You can finish setup without it.",
+      "notFound": "We could not find that brand or scan any more. Reload this page and try again.",
+      "unavailable": "Setup is temporarily unavailable. Your answers are kept here; try again in a minute."
+    },
     "seedPartial": "Your brand is saved. Question setup is incomplete; retry or continue to your workspace.",
     "retrySeed": "Retry question setup",
     "openWorkspace": "Open workspace",

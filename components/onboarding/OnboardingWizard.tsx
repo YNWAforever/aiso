@@ -102,6 +102,14 @@ function WizardForm({
     ? createTranslator({ locale: 'zh-HK', messages: zh, namespace: 'onboardingWizard' })
     : createTranslator({ locale: 'en', messages: en, namespace: 'onboardingWizard' })
   const shared = isZh ? zh : en
+  // The server's errors are internal English strings and codes, never user copy.
+  const serverError = (status: number, error: unknown) =>
+    error === 'ONBOARDING_INTENT_CONFLICT' ? t('errors.conflict')
+      : status === 409 ? t('errors.scanElsewhere')
+      : status === 403 ? t('errors.claimUnavailable')
+      : status === 404 ? t('errors.notFound')
+      : status >= 500 ? t('errors.unavailable')
+      : t('genericError')
   const recoveryCopy = shared.onboardingSetup
   const started=useRef(false)
   useEffect(()=>{if(draftReady&&consumeOneTimeFunnelEvent(started))trackFunnelEvent({name:'onboarding_started',locale:lang==='zh-HK'?'zh-HK':'en'})},[draftReady,lang])
@@ -283,7 +291,7 @@ function WizardForm({
       if(!targetClientId&&previous!==undefined&&previous!==payload){
         const recovered=await send(JSON.parse(previous) as typeof values,intentKey,null)
         const body=await recovered.json()
-        if(!recovered.ok){setError(typeof body.error==='string'?body.error:t('genericError'));return}
+        if(!recovered.ok){setError(serverError(recovered.status,body.error));return}
         if(typeof body.clientId!=='string'||!body.progress)throw new Error('Invalid progress')
         targetClientId=body.clientId;setClientId(body.clientId)
         if(body.progress.prompts==='ready'){
@@ -307,7 +315,7 @@ function WizardForm({
           setError(data.error === 'COMPETITORS_INVALID'
             ? t('competitorsInvalid', { max: MAX_COMPETITORS, nameMax: MAX_NAME_LENGTH })
             : t('invalidInput'))
-        } else setError(typeof data.error === 'string' ? data.error : t('genericError'))
+        } else setError(serverError(res.status, data.error))
         return
       }
       if (typeof data.clientId !== 'string' || !data.progress) throw new Error('Invalid progress')
