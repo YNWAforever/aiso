@@ -122,7 +122,7 @@ describe('BrandToday', () => {
     expect(page).toContain('!smeCopilot && STUDIO_DEFAULT_HOME')
   })
   it('offers adding another brand on the one-brand account home only when a control is given', async () => {
-    const control = <a href="/en/onboarding" data-testid="add-brand">add</a>
+    const control = <span data-testid="add-brand">add</span>
     expect(await render({ workspace: home(), lang: 'en', chatEnabled: false, clientReportsOnline: true, accountHome: true, creationControl: control })).toContain('data-testid="add-brand"')
     // No capacity, or a brand's own Today, shows no control.
     expect(await render({ workspace: home(), lang: 'en', chatEnabled: false, clientReportsOnline: true, accountHome: true })).not.toContain('add-brand')
