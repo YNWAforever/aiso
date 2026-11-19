@@ -1,3 +1,4 @@
+import { listCompetitors } from '@/lib/competitors/store'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { db } from '@/lib/db'
@@ -114,15 +115,12 @@ export async function POST(req: NextRequest) {
     aliases = (Array.isArray(rawAliases) ? rawAliases : [])
       .filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
       .map(a => a.trim()).slice(0, 10)
-    const rivals = await sql`
-      select name from competitors
-      where client_id = ${clientId} and account_id = ${access.accountId}
-      order by created_at, id
-      limit 10
-    `
-    competitors = (rivals as unknown as Array<{ name: unknown }>)
-      .map(r => typeof r.name === 'string' ? r.name.trim() : '')
+    // The effective live list (archived rows excluded, legacy clients.competitors
+    // names merged), the same one Pulse uses, then capped for the prompt.
+    competitors = ((await listCompetitors(sql, access.accountId, clientId)) ?? [])
+      .map(row => row.name.trim())
       .filter(Boolean)
+      .slice(0, 10)
   } catch {
     // Never let a failed lookup read as "not yours". The pre-fence version
     // caught this and returned false, so a database incident became a 404.

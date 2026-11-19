@@ -130,11 +130,20 @@ describe('POST /api/pulse/suggest-questions — generation', () => {
     expect(prompt).toContain('Known competitors: RivalCorp, OtherCo')
     expect(prompt).toContain('name a listed competitor')
     expect(prompt).toContain('never invent other company names')
+    expect(calls.find(c => c.text.includes('from competitors'))!.text).toContain('archived_at is null')
     for (const table of ['from client_entities', 'from competitors']) {
       const call = calls.find(c => c.text.includes(table))!
       expect(call.text).toMatch(/account_id = \?/)
       expect(call.params).toContain('acc-1')
     }
+  })
+
+  it('merges legacy competitor names and skips duplicates, like the live list Pulse uses', async () => {
+    clientRows = [{ id: 'client-1', brand_name: 'AcmeCo', industry: 'technology', prompt_language: 'en', region: 'HK', competitors: ['rivalcorp', 'LegacyCo'] }]
+    competitorRows = [{ id: 'k1', name: 'RivalCorp', aliases: [], domains: [] }]
+    await post()
+    const prompt = llm.callOpenRouter.mock.calls[0][0].messages[0].content
+    expect(prompt).toContain('Known competitors: RivalCorp, LegacyCo')
   })
 
   it('still asks for alternatives when no competitor is recorded', async () => {
@@ -196,6 +205,7 @@ describe('POST /api/pulse/suggest-questions — generation', () => {
   it('writes nothing — suggestions are for review, not for saving', async () => {
     await post()
 
-    expect(calls.some(c => /insert|update|delete/i.test(c.text))).toBe(false)
+    // Statement keywords only: a column such as `updated_at` in a read is not a write.
+    expect(calls.some(c => /\b(insert|update|delete)\b/i.test(c.text))).toBe(false)
   })
 })

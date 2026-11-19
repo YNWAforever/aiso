@@ -43,16 +43,18 @@ export function aiOverviewConfig(env: Env): AiOverviewConfig | null {
   }
 }
 
+/**
+ * DataForSEO v3 takes a top-level JSON array of task objects; `tasks` is the
+ * response envelope, not the request's. One task per billed request.
+ */
 export function buildAiOverviewBody(keyword: string, config: Pick<AiOverviewConfig, 'locationCode' | 'languageCode'>) {
-  return {
-    tasks: [{
-      keyword,
-      location_code: config.locationCode,
-      language_code: config.languageCode,
-      depth: 10,
-      load_async_ai_overview: true,
-    }],
-  }
+  return [{
+    keyword,
+    location_code: config.locationCode,
+    language_code: config.languageCode,
+    depth: 10,
+    load_async_ai_overview: true,
+  }]
 }
 
 const record = (value: unknown): Record<string, unknown> | null =>
@@ -74,13 +76,31 @@ function referencesOf(item: Record<string, unknown>): AiOverviewReference[] {
   return out
 }
 
+/**
+ * What a reader sees. Markdown keeps citation and image destinations
+ * (`[1](https://brand.example/…)`), which would let a cited URL count as the
+ * brand being named, so links keep only their label and images and bare URLs go.
+ */
+export function visibleText(markdown: string): string {
+  return markdown
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[\[([^\]]*)\]\]\([^)]*\)/g, '[$1]')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
 function textOf(item: Record<string, unknown>): string {
-  const own = str(item.markdown) ?? str(item.text)
+  const md = str(item.markdown)
+  const own = str(item.text) ?? (md ? visibleText(md) || null : null)
   if (own) return own
   return list(item.items)
     .map(element => {
       const el = record(element)
-      return el ? [str(el.title), str(el.markdown) ?? str(el.text)].filter(Boolean).join('\n') : ''
+      if (!el) return ''
+      const md = str(el.markdown)
+      return [str(el.title), str(el.text) ?? (md ? visibleText(md) : null)].filter(Boolean).join('\n')
     })
     .filter(Boolean)
     .join('\n\n')
@@ -133,6 +153,7 @@ export async function fetchAiOverview(
 
 /** Which of the given names appear in the overview text (case-insensitive, exact substring). */
 export function namesMentioned(text: string, names: readonly string[]): string[] {
-  const haystack = text.toLocaleLowerCase()
+  // A domain inside a citation link is a source, not the brand being named.
+  const haystack = visibleText(text).toLocaleLowerCase()
   return names.filter(name => name.trim() && haystack.includes(name.trim().toLocaleLowerCase()))
 }

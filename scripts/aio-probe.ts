@@ -42,8 +42,17 @@ async function main(): Promise<number> {
     brand = client.brand_name
     const entity = (await sql`select aliases from client_entities where client_id = ${clientId} limit 1`)[0] as { aliases?: unknown } | undefined
     aliases = Array.isArray(entity?.aliases) ? entity.aliases.filter((a): a is string => typeof a === 'string') : []
-    competitors = (await sql`select name from competitors where client_id = ${clientId} order by created_at, id`)
-      .map(row => String((row as { name: unknown }).name))
+    // Mirrors listCompetitors (lib/competitors/store.ts), which this plain-Node
+    // script cannot import: archived rows excluded, legacy array names merged.
+    const live = (await sql`select name from competitors where client_id = ${clientId} and archived_at is null order by created_at, id`)
+      .map(row => String((row as { name: unknown }).name).trim()).filter(Boolean)
+    const legacyRow = (await sql`select competitors from clients where id = ${clientId} limit 1`)[0] as { competitors?: unknown } | undefined
+    const known = new Set(live.map(name => name.toLowerCase()))
+    competitors = [...live]
+    for (const value of Array.isArray(legacyRow?.competitors) ? legacyRow.competitors : []) {
+      const name = typeof value === 'string' ? value.trim() : ''
+      if (name && !known.has(name.toLowerCase())) { known.add(name.toLowerCase()); competitors.push(name) }
+    }
     questions = (await sql`
       select question from prompt_bank
       where client_id = ${clientId} and is_active = true

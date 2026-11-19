@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   aiOverviewConfig,
-  buildAiOverviewBody,
   fetchAiOverview,
   namesMentioned,
   parseAiOverview,
@@ -61,8 +60,8 @@ describe('fetchAiOverview', () => {
     const result = await fetchAiOverview('最好的 AI SEO 工具', config, fetchImpl as never)
     expect(result.status).toBe('present')
     const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
-    expect(JSON.parse(String(init.body))).toEqual(buildAiOverviewBody('最好的 AI SEO 工具', config))
-    expect(JSON.parse(String(init.body)).tasks[0]).toMatchObject({ load_async_ai_overview: true, location_code: 2344, language_code: 'zh-TW' })
+    // DataForSEO v3 wants a top-level array of tasks; `tasks` is only the response envelope.
+    expect(JSON.parse(String(init.body))).toEqual([{ keyword: '最好的 AI SEO 工具', location_code: 2344, language_code: 'zh-TW', depth: 10, load_async_ai_overview: true }])
   })
 
   it('makes no request without credentials and reports each failure kind', async () => {
@@ -82,5 +81,16 @@ describe('config and mentions', () => {
 
   it('finds names case-insensitively and ignores blanks', () => {
     expect(namesMentioned('acmeco and RIVALCORP', ['AcmeCo', 'RivalCorp', 'Other', ' '])).toEqual(['AcmeCo', 'RivalCorp'])
+  })
+
+  it('does not count a brand whose domain appears only in a citation, image or bare URL', () => {
+    const md = 'Useful advice [[1]](https://acmeco.com/article) ![logo](https://acmeco.com/l.png) see https://rivalcorp.com'
+    expect(namesMentioned(md, ['AcmeCo', 'RivalCorp'])).toEqual([])
+    expect(namesMentioned('Try [AcmeCo](https://x.test) first', ['AcmeCo'])).toEqual(['AcmeCo'])
+  })
+
+  it('stores readable text from markdown without link destinations', () => {
+    const result = parseAiOverview(ok([{ type: 'ai_overview', markdown: 'Pick [AcmeCo](https://acmeco.com) [[1]](https://src.test)' }]))
+    expect(result).toMatchObject({ status: 'present', text: 'Pick AcmeCo [1]' })
   })
 })
