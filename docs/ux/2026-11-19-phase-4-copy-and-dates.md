@@ -38,3 +38,24 @@ Hong Kong time." / 「日期以香港時間顯示。」.
 `ReportTrend`, monthly reports) and the month labels. They already pin a zone
 deliberately: UTC for calendar dates, Hong Kong time for instants. Some of them render in
 the report's own language rather than the viewer's. The admin `AccountRow` is internal.
+
+## Studio: a discussion reads as one thread
+
+Owner report (2026-11-19): a Studio discussion did not feel like a continuous thread. In a
+3-turn zh-HK fixture, every follow-up rendered as a stacked report. Each had a bordered
+"evidence used" box, a card with an "AI 回覆" label *and* an "AI 回覆 · 待核實" heading, a
+yellow banner, the weekly quota line (repeated on every turn and again in the composer), a
+one-item bulleted platform list, a "coverage: present" chip, and a yellow saved-summary box.
+The answer itself was one line inside all of that.
+
+Now each turn reads as a chat exchange:
+
+- The person's question is a right-aligned bubble sized to its text.
+- "Used N sources" is a quiet line rather than a box. It still opens the trace.
+- The reply has one header line: icon, "AI reply · unverified" heading, the model name when
+  only one model answered, and the "unverified" flag as a small pill. Then come the answer
+  and its actions.
+- The weekly quota is shown once, in the composer. A coverage badge appears only when
+  coverage is not complete. The saved-data summary is a muted disclosure.
+- Honesty is unchanged. Live output keeps the unverified heading and flag, plus a 3 px amber
+  left edge that sets it apart from saved evidence; `conversation-studio.spec` pins all three.

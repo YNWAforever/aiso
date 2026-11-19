@@ -125,7 +125,8 @@
 #aiso-studio #studio-discussion { max-width: 880px; margin-inline: auto; }
 #aiso-studio .as-conversation { min-width: 0; }
 #aiso-studio .as-question { border-radius: 10px; background: var(--as-side); }
-#aiso-studio .as-conversation .as-question { margin: 24px 0 0 30px; }
+/* Chat layout: the person's message sits on the right, sized to its text. */
+#aiso-studio .as-conversation .as-question { width: fit-content; max-width: min(85%, 640px); margin: 0 0 0 auto; }
 #aiso-studio .as-answer-label { display: flex; align-items: center; gap: 8px; color: var(--as-blue); font-size: 12px; font-weight: 600; }
 #aiso-studio .as-research { border-block: 1px solid var(--as-line); font-size: 12px; }
 #aiso-studio .as-research > summary { font-weight: 600; }
@@ -137,7 +138,13 @@
 #aiso-studio textarea::placeholder { color: var(--as-muted); opacity: 1; }
 
 #aiso-studio .as-result { border: 1px solid var(--as-line); border-radius: 10px; padding: 15px; background: var(--as-panel); }
-#aiso-studio .as-live-result { border-left: 3px solid var(--as-warn); background: var(--as-side); }
+/* A live reply reads as the next message in the thread, not a boxed report. */
+/* The 3px amber edge marks unverified model output apart from saved evidence (pinned in conversation-studio.spec). */
+#aiso-studio .as-live-result { border: 0; border-left: 3px solid var(--as-warn); border-radius: 0; padding: 2px 0 2px 16px; background: transparent; }
+#aiso-studio .as-live-header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+#aiso-studio .as-live-header h3 { font-size: 13px; font-weight: 600; }
+#aiso-studio .as-live-header .as-live-flag { padding: 0 8px; border-radius: 9999px; font-size: 12px; line-height: 22px; }
+#aiso-studio .as-saved-context-quiet { padding: 0; background: transparent; border: 0; color: var(--as-muted); font-size: 13px; }
 /* Reuse the shared scan evidence UI, applying the Studio surface only in this scope. */
 #aiso-studio [data-testid="owned-scan-evidence"] { border-color: var(--as-line); border-radius: 10px; padding: 15px; background: var(--as-panel); color: var(--as-ink); }
 #aiso-studio [data-testid="owned-scan-evidence"] h2 { color: var(--as-ink); }
@@ -199,6 +206,11 @@
 #aiso-studio .as-trace-steps li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 32px; color: var(--as-ink); font-size: 13px; }
 #aiso-studio .as-trace-steps li[data-status="done"] svg { color: var(--as-blue); }
 #aiso-studio .as-trace-steps li[data-status="unavailable"] svg { color: var(--as-warn); }
+/* In the thread the trace is a quiet "used N sources" line above the reply, not a box. */
+#aiso-studio .as-conversation .as-trace { border: 0; background: transparent; }
+#aiso-studio .as-conversation .as-trace > summary { padding: 0; }
+#aiso-studio .as-conversation .as-trace[open] { border-left: 2px solid var(--as-line); padding-left: 12px; }
+#aiso-studio .as-live-result > ul { margin: 0; padding: 0; list-style: none; }
 #aiso-studio .as-search { min-height: 44px; border: 1px solid var(--as-line); border-radius: 8px; padding: 0 12px; background: var(--as-panel); color: var(--as-ink); }
 
 /* Studio redesign R1b: overview cards, weekly bars and table. Existing tokens only. */
