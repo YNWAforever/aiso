@@ -365,8 +365,14 @@ const PLATFORMS = [
 
 export const PLATFORM_KEYS = PLATFORMS.map(p => p.platform)
 
+/**
+ * Google AI Overviews are collected through DataForSEO (lib/pulse/google-aio.ts),
+ * not OpenRouter. The variant exists so run manifests and receipts can name it.
+ */
+export const GOOGLE_AIO_VARIANT = { platform: 'google-aio', model: 'dataforseo/google-ai-overview' } as const
+
 export function modelVariantsFor(platforms: readonly string[]) {
-  return PLATFORMS.filter(p => platforms.includes(p.platform)).map(p => ({ ...p }))
+  return [...PLATFORMS, GOOGLE_AIO_VARIANT].filter(p => platforms.includes(p.platform)).map(p => ({ ...p }))
 }
 
 /**
@@ -396,8 +402,9 @@ export async function callMultiPlatform(
   maxTokens: number | ((platform: string) => number) = 1000,
   only?: readonly string[],
   budget?: TaskBudget,
-  options: { webSearch?: boolean } = {},
+  options: { webSearch?: boolean; question?: string } = {},
 ): Promise<PlatformAnswer[]> {
+  // Only OpenRouter platforms; Google AI Overviews are collected separately below.
   const selected = only ? PLATFORMS.filter(p => only.includes(p.platform)) : PLATFORMS
   // A fan-out is N calls for one unit of work, which no per-call ceiling bounds.
   // Reserved up front so an over-budget fan-out is never dispatched at all --
@@ -413,7 +420,15 @@ export async function callMultiPlatform(
       return { platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding,searchEvidence:evidence.searchEvidence??undefined,providerEvidence:evidence,requestedModel:model }
     }),
   )
-  return results
+  const answers = results
     .filter((r): r is PromiseFulfilledResult<PlatformAnswer> => r.status === 'fulfilled')
     .map(r => r.value)
+  // An AI Overview is looked up by the raw question, so it runs only when the
+  // caller supplies one; a failure drops it exactly like a failed model call.
+  if (only?.includes(GOOGLE_AIO_VARIANT.platform) && options.question) {
+    const { collectGoogleAio } = await import('@/lib/pulse/google-aio')
+    const evidence = await collectGoogleAio(options.question).catch(() => null)
+    if (evidence) answers.push({ platform: GOOGLE_AIO_VARIANT.platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding: 'native', providerEvidence: evidence, requestedModel: GOOGLE_AIO_VARIANT.model })
+  }
+  return answers
 }

@@ -12,6 +12,7 @@ import {
   citationPlatformFor,
   pulsePlatformsFor,
   runtimePlatformsFor,
+  GOOGLE_AIO_RUNTIME,
 } from '@/lib/pulse/platforms'
 
 /**
@@ -93,11 +94,28 @@ describe('pulse platform vocabularies', () => {
       .toEqual(['gemini-flash', 'gpt-4o'])
   })
 
-  it('google_aio is allowed by the CHECK but has no runtime producer', () => {
-    // Documents the one intentional asymmetry: no OpenRouter model serves Google
-    // AI Overviews, so nothing emits it today.
+  it('google_aio is produced by the DataForSEO collector, not by any OpenRouter model', () => {
+    // No OpenRouter model serves Google AI Overviews; `google-aio` is collected
+    // through DataForSEO (lib/pulse/google-aio.ts) and logs as `google_aio`.
     expect(CITATION_PLATFORMS).toContain('google_aio')
-    expect(Object.values(RUNTIME_TO_CITATION)).not.toContain('google_aio')
+    expect(citationPlatformFor(GOOGLE_AIO_RUNTIME)).toBe('google_aio')
+    expect(PLATFORM_KEYS).not.toContain(GOOGLE_AIO_RUNTIME)
+  })
+
+  it('swaps Perplexity Pro for Google AI Overviews in weekly runs only when PULSE_GOOGLE_AIO=1', () => {
+    const pro = getPlanDefinition('pro').features.platform_access
+    const off = pulsePlatformsFor(pro, {})
+    const on = pulsePlatformsFor(pro, { PULSE_GOOGLE_AIO: '1' })
+    expect(off).toContain('perplexity-sonar-pro')
+    expect(off).not.toContain(GOOGLE_AIO_RUNTIME)
+    expect(on).toEqual(off.map(key => key === 'perplexity-sonar-pro' ? GOOGLE_AIO_RUNTIME : key))
+    expect(on).toHaveLength(5)
+    // Anything but exactly "1" leaves the approved set unchanged.
+    expect(pulsePlatformsFor(pro, { PULSE_GOOGLE_AIO: 'true' })).toEqual(off)
+    // Basic never had Perplexity Pro, so the flag changes nothing there.
+    expect(pulsePlatformsFor(getPlanDefinition('basic').features.platform_access, { PULSE_GOOGLE_AIO: '1' })).toEqual(['gemini-flash'])
+    // Studio chat reads the entitlement mapping, which the flag never touches.
+    expect(runtimePlatformsFor(pro)).toContain('perplexity-sonar-pro')
   })
 
   it('pins the approved weekly Pulse platform budget (Q2)', () => {

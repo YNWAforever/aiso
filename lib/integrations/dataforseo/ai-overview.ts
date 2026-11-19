@@ -131,6 +131,7 @@ export async function fetchAiOverview(
   keyword: string,
   config: AiOverviewConfig | null,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<AiOverviewResult> {
   if (!config) return { status: 'failed', reason: 'credentials_missing' }
   const auth = Buffer.from(`${config.login}:${config.credential}`).toString('base64')
@@ -140,7 +141,7 @@ export async function fetchAiOverview(
       method: 'POST',
       headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(buildAiOverviewBody(keyword, config)),
-      signal: AbortSignal.timeout(AIO_TIMEOUT_MS),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(AIO_TIMEOUT_MS)]) : AbortSignal.timeout(AIO_TIMEOUT_MS),
     })
   } catch {
     return { status: 'failed', reason: 'transport' }

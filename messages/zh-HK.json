@@ -5784,6 +5784,7 @@
     "platform_claude": "Claude",
     "platform_perplexity": "Perplexity",
     "platform_perplexity_pro": "Perplexity Pro",
+    "platform_google_aio": "Google AI 概覽",
     "upgrade_title": "Pro 提供掃描 + Pulse 報告",
     "upgrade_body": "升級後可結合網站掃描同 Pulse 可見度。",
     "upgrade_cta": "查看方案"

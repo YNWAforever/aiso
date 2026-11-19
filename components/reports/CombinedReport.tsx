@@ -298,6 +298,7 @@ function PulseSection({ pulse, activeQuestions, clientId, locale }: { pulse: Com
     'claude-haiku': t('platform_claude'),
     'perplexity-sonar': t('platform_perplexity'),
     'perplexity-sonar-pro': t('platform_perplexity_pro'),
+    'google-aio': t('platform_google_aio'),
   }
   const platformLabel = (key: string) => platformLabels[key] ?? key
   const rate = (value: number | null) => value === null ? t('mention_rate_none') : t('mention_rate', { value })

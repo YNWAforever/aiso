@@ -10,6 +10,7 @@ export function PlatformBar({ data }: Props) {
     .filter(d => d.scan_week === latest && d.platform)
     .map(d => ({
       platform: d.platform!
+        .replace('google-aio', 'AI Overviews')
         .replace('perplexity-sonar-pro', 'Perplx Pro')
         .replace('perplexity-sonar', 'Perplx')
         .replace('gpt-4o', 'GPT-4o')

@@ -5,6 +5,7 @@ const PLATFORM_NAMES: Readonly<Record<string, string>> = {
   'claude-haiku': 'Claude',
   'perplexity-sonar': 'Perplexity',
   'perplexity-sonar-pro': 'Perplexity Pro',
+  'google-aio': 'Google AI Overviews',
 }
 
 export const platformName = (key: string) => PLATFORM_NAMES[key] ?? key

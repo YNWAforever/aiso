@@ -5784,6 +5784,7 @@
     "platform_claude": "Claude",
     "platform_perplexity": "Perplexity",
     "platform_perplexity_pro": "Perplexity Pro",
+    "platform_google_aio": "Google AI Overviews",
     "upgrade_title": "Scan + Pulse report is available on Pro",
     "upgrade_body": "Upgrade to combine the website scan with Pulse visibility.",
     "upgrade_cta": "View plans"

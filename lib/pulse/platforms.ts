@@ -42,6 +42,7 @@ export const RUNTIME_TO_CITATION: Readonly<Record<string, string>> = {
   'gpt-4o': 'chatgpt',
   'claude-haiku': 'claude',
   'gemini-flash': 'gemini',
+  'google-aio': 'google_aio',
 }
 
 /**
@@ -96,6 +97,21 @@ export const PULSE_PLATFORM_BUDGET: readonly string[] = [
  * with the approved budget, so a plan entitlement added later cannot raise
  * weekly spend silently.
  */
-export function pulsePlatformsFor(platformAccess: readonly string[]): string[] {
-  return runtimePlatformsFor(platformAccess.filter(key => PULSE_PLATFORM_BUDGET.includes(key)))
+export function pulsePlatformsFor(platformAccess: readonly string[], env: Record<string, string | undefined> = process.env): string[] {
+  const platforms = runtimePlatformsFor(platformAccess.filter(key => PULSE_PLATFORM_BUDGET.includes(key)))
+  // Owner decision 2026-11-19: Pro/Enterprise check Google AI Overviews instead
+  // of Perplexity Pro. Behind PULSE_GOOGLE_AIO=1 until `npm run aio:probe`
+  // shows Hong Kong searches actually return overviews (docs/ux/2026-11-19-ai-overview-plan.md).
+  // Only the weekly run swaps: Studio chat keeps Perplexity Pro, because an AI
+  // Overview answers a search, not a conversation.
+  return googleAioEnabled(env)
+    ? platforms.map(platform => platform === 'perplexity-sonar-pro' ? GOOGLE_AIO_RUNTIME : platform)
+    : platforms
+}
+
+/** Runtime key for Google AI Overviews, collected through DataForSEO, never OpenRouter. */
+export const GOOGLE_AIO_RUNTIME = 'google-aio'
+
+export function googleAioEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.PULSE_GOOGLE_AIO === '1'
 }
