@@ -55,6 +55,9 @@ Severity: **H** user is stuck or misled about money/data · **M** confusing or e
 
 ### Deferred, with reasons
 
+> The first five rows below (locked first task, archive limit, archived view, zh-HK register,
+> `localeBadge`) were settled in Phase 3. See `2026-11-18-phase-3-decisions.md`.
+
 | Item | Why deferred |
 | --- | --- |
 | **Basic/trial first task leads to a locked page** (`confirm_prompts` → `/prompts`, which needs `edit_prompts`) | Product decision on plan gating: the code shows no Basic route to confirm seeded questions. Needs the owner (open question 1). |
@@ -79,7 +82,8 @@ Severity: **H** user is stuck or misled about money/data · **M** confusing or e
 - **`conversation-studio` "IME, accessibility and reflow" (en, desktop).** In one run, axe
   reported `color-contrast` with dark ink on a dark background (#17263e on #0d1320), which
   looks like a snapshot taken mid-way through a theme transition. It did not reproduce in 128
-  further runs. Its root cause is not established.
+  further runs. **Root cause found in Phase 3:** the reduced-motion rule turned every style
+  change into a 0.01 ms transition (see `2026-11-18-phase-3-decisions.md`).
 
 ## Review follow-up (Codex on #305)
 
