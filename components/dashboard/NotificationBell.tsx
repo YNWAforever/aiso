@@ -1,4 +1,5 @@
 'use client'
+import { formatDisplayDate } from '@/lib/format/date'
 import { useState, useEffect, useRef, useId } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -96,7 +97,7 @@ export function NotificationBell({ initialCount, lang = 'en' }: { initialCount: 
           {count === null && <p className="px-4 pt-3 text-xs text-muted-foreground">{t('unknown')}</p>}
           {loadError ? <div className="px-4 py-4"><p role="status" className="text-sm text-muted-foreground">{t('failed')}</p><button type="button" onClick={loadNotifications} className="min-h-11 text-sm text-primary-accessible">{t('retry')}</button></div> : !loaded ? <p role="status" className="px-4 py-8 text-center text-sm text-muted-foreground">{t('loading')}</p> : notifications.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t('empty')}</p> : (
             <div className="max-h-80 overflow-y-auto divide-y divide-border">
-              {notifications.map(item => <div key={item.id} className={`px-4 py-3 flex gap-3 ${!item.read ? 'bg-primary/10' : ''}`}><span aria-hidden="true" className="text-base mt-0.5 shrink-0">{TYPE_ICON[item.type] ?? '🔔'}</span><div className="flex-1 min-w-0"><p className="text-xs font-semibold text-popover-foreground">{item.title}</p><p className="text-xs text-muted-foreground mt-0.5">{item.message}</p><p className="text-xs text-muted-foreground mt-1">{new Date(item.created_at).toLocaleDateString(lang === 'zh-HK' ? 'zh-HK' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p></div></div>)}
+              {notifications.map(item => <div key={item.id} className={`px-4 py-3 flex gap-3 ${!item.read ? 'bg-primary/10' : ''}`}><span aria-hidden="true" className="text-base mt-0.5 shrink-0">{TYPE_ICON[item.type] ?? '🔔'}</span><div className="flex-1 min-w-0"><p className="text-xs font-semibold text-popover-foreground">{item.title}</p><p className="text-xs text-muted-foreground mt-0.5">{item.message}</p><p className="text-xs text-muted-foreground mt-1">{formatDisplayDate(item.created_at, lang)}</p></div></div>)}
             </div>
           )}
           {writeError && <p role="status" className="px-4 py-3 text-sm text-destructive">{t('writeFailed')}</p>}

@@ -2648,7 +2648,7 @@
     "freshnessUnknown": "資料新鮮度：未知",
     "observedAt": "觀察週期",
     "dateUnknown": "日期暫時無法取得",
-    "dateZone": "日期以 UTC 顯示。",
+    "dateZone": "日期以香港時間顯示。",
     "grade": "評級",
     "loadErrorTitle": "未能載入你的品牌組合",
     "loadErrorBody": "暫時無法取得你持有的品牌，請稍後重新整理再試。",
