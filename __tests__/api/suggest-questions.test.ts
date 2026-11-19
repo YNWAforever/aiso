@@ -3,12 +3,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const calls: Array<{ text: string; params: unknown[] }> = []
 let clientRows: unknown[]
 let existingRows: unknown[]
+let entityRows: unknown[] = []
+let competitorRows: unknown[] = []
 let lookupFails = false
 
 const mockSql = vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
   const text = strings.join('?')
   calls.push({ text, params })
   if (lookupFails) return Promise.reject(new Error('boom'))
+  if (/from client_entities/i.test(text)) return Promise.resolve(entityRows)
+  if (/from competitors/i.test(text)) return Promise.resolve(competitorRows)
   if (/from clients/i.test(text)) return Promise.resolve(clientRows)
   return Promise.resolve(existingRows)
 })
@@ -39,6 +43,8 @@ beforeEach(() => {
   lookupFails = false
   clientRows = [{ brand_name: 'AcmeCo', industry: 'technology', prompt_language: 'en', region: 'HK' }]
   existingRows = [{ question: 'What is AcmeCo?' }]
+  entityRows = []
+  competitorRows = []
   vi.mocked(getProfile).mockReset()
   vi.mocked(getProfile).mockResolvedValue(account('pro') as never)
   llm.callOpenRouter.mockReset()
@@ -113,6 +119,29 @@ describe('POST /api/pulse/suggest-questions — generation', () => {
 
     expect(prompt).toContain('must not repeat')
     expect(prompt).toContain('What is AcmeCo?')
+  })
+
+  it('asks for brand, market and competitor questions using the recorded names, account-scoped', async () => {
+    entityRows = [{ aliases: ['Acme', '  ', 42] }]
+    competitorRows = [{ name: 'RivalCorp' }, { name: 'OtherCo' }]
+    await post()
+    const prompt = llm.callOpenRouter.mock.calls[0][0].messages[0].content
+    expect(prompt).toContain('Other names customers use for the brand: Acme')
+    expect(prompt).toContain('Known competitors: RivalCorp, OtherCo')
+    expect(prompt).toContain('name a listed competitor')
+    expect(prompt).toContain('never invent other company names')
+    for (const table of ['from client_entities', 'from competitors']) {
+      const call = calls.find(c => c.text.includes(table))!
+      expect(call.text).toMatch(/account_id = \?/)
+      expect(call.params).toContain('acc-1')
+    }
+  })
+
+  it('still asks for alternatives when no competitor is recorded', async () => {
+    await post()
+    const prompt = llm.callOpenRouter.mock.calls[0][0].messages[0].content
+    expect(prompt).not.toContain('Known competitors')
+    expect(prompt).toContain('best options or alternatives')
   })
 
   it('clamps the count rather than trusting the body', async () => {

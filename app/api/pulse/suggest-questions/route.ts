@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
   let brandName = ''
   let industry: string | null = null
   let existingList = ''
+  let aliases: string[] = []
+  let competitors: string[] = []
   let context: ReturnType<typeof parsePromptContext>
   try {
     const rows = await sql`
@@ -99,6 +101,28 @@ export async function POST(req: NextRequest) {
     `
     existingList = (existing as unknown as Array<{ question: string }>)
       .map(p => `- ${p.question}`).join('\n')
+
+    // The brand's own name variants and its recorded competitors, so suggestions
+    // cover how people actually ask: by brand, by market, and against rivals.
+    // Both reads are account-scoped like the rest of this route.
+    const entity = await sql`
+      select aliases from client_entities
+      where client_id = ${clientId} and account_id = ${access.accountId}
+      limit 1
+    `
+    const rawAliases = (entity[0] as { aliases?: unknown } | undefined)?.aliases
+    aliases = (Array.isArray(rawAliases) ? rawAliases : [])
+      .filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
+      .map(a => a.trim()).slice(0, 10)
+    const rivals = await sql`
+      select name from competitors
+      where client_id = ${clientId} and account_id = ${access.accountId}
+      order by created_at, id
+      limit 10
+    `
+    competitors = (rivals as unknown as Array<{ name: unknown }>)
+      .map(r => typeof r.name === 'string' ? r.name.trim() : '')
+      .filter(Boolean)
   } catch {
     // Never let a failed lookup read as "not yours". The pre-fence version
     // caught this and returned false, so a database incident became a 404.
@@ -115,7 +139,15 @@ export async function POST(req: NextRequest) {
       content: `Brand: ${brandName}\nIndustry: ${industry ?? 'general'}\n\n`
         + `Language: ${context.language}\nMarket: ${context.market ?? 'unspecified'}\nWrite questions only in this confirmed language and market.\n`
         + `Existing questions, which the new ones must not repeat:\n${existingList || '(none yet)'}\n\n`
-        + `Generate ${count} NEW, diverse questions for tracking this brand's AI visibility. `
+        + (aliases.length ? `Other names customers use for the brand: ${aliases.join(', ')}\n` : '')
+        + (competitors.length ? `Known competitors: ${competitors.join(', ')}\n` : '')
+        + `\nGenerate ${count} NEW, realistic questions a customer would ask an AI assistant, for tracking this brand's AI visibility. `
+        + `Cover three angles: (1) questions that name the brand (or one of its other names) directly; `
+        + `(2) market questions that do not name any brand but where this brand should appear in a good answer; `
+        + (competitors.length
+          ? `(3) questions that name a listed competitor, such as comparisons with the brand or requests for alternatives. `
+          : `(3) questions asking for the best options or alternatives in this market. `)
+        + `Name only the brand and the listed competitors; never invent other company names. `
         + `Mix categories: ${PROMPT_CATEGORIES.join(', ')}.`,
     }],
   }).catch(() => '[]')
