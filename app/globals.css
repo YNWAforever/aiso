@@ -443,7 +443,10 @@ html { scroll-behavior: smooth; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    /* No transitions at all, not 0.01ms ones: transition-property defaults to
+       `all`, so a tiny duration would turn every style change (a theme switch,
+       a hover) into a transition and leave computed colours one frame stale. */
+    transition-property: none !important;
   }
 }
 
