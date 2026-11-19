@@ -2,7 +2,7 @@
   "conversationStudio": {
     "answerLabel": "AISO · Answer",
     "scopeNote": "Evidence scope and limits",
-    "localeLabel": "Hong Kong · Traditional Chinese",
+    "localeLabel": "Hong Kong market",
     "heroEyebrow": "YOUR BRAND WORKSPACE",
     "title": "Start work",
     "description": "Ask directly, or choose a template. Turn research into your next sourced, deliverable result.",
@@ -39,13 +39,23 @@
       "unshare": "Make private",
       "archive": "Archive",
       "failed": "That change was not saved. The discussion is unchanged.",
-      "archivedNote": "Archived discussions stay readable by their creator but leave every list.",
+      "archivedNote": "Archived discussions leave the main lists. You can restore your own from Archived discussions.",
       "archiveConfirmTitle": "Archive this discussion?",
-      "archiveConfirmBody": "“{title}” will leave every discussion list. You can undo this straight after.",
+      "archiveConfirmBody": "“{title}” will leave the discussion lists. You can undo this straight after, or restore it later from Archived discussions.",
       "archivedNotice": "“{title}” was archived.",
       "undo": "Undo",
       "dismiss": "Dismiss",
-      "undoFailed": "“{title}” could not be restored. Try Undo again."
+      "undoFailed": "“{title}” could not be restored. Try Undo again.",
+      "archivedTitle": "Archived discussions",
+      "archivedHelp": "Only discussions you started appear here. Archived discussions still count towards the brand’s discussion limit.",
+      "archivedLoading": "Loading archived discussions…",
+      "archivedEmpty": "You have no archived discussions.",
+      "archivedUnavailable": "Archived discussions could not be loaded.",
+      "restore": "Restore",
+      "restoreLabel": "Restore “{title}”",
+      "restored": "“{title}” is back in your discussions.",
+      "restoreFailed": "“{title}” could not be restored. Try again.",
+      "retry": "Try again"
     },
     "templatesTitle": "Skills",
     "conversationLabel": "Brand evidence conversation",
@@ -285,7 +295,7 @@
         "unknownVersion": "an unrecorded version"
       }
     },
-    "localeBadge": "Hong Kong · Traditional Chinese",
+    "localeBadge": "Hong Kong market",
     "followUpLabel": "Continue this discussion",
     "savedDataLabel": "Data saved in AISO",
     "templatesDescription": "Every template has a clear outcome",
@@ -2552,6 +2562,7 @@
     "evidenceDetails": "Evidence details",
     "nextStep": {
       "configure": "Confirm monitoring questions",
+      "configureNeedsPro": "See plans to confirm monitoring questions (Pro)",
       "start": "Start first monitoring",
       "repair": "Review or repair monitoring",
       "results": "Review answers and citations",
@@ -5705,8 +5716,7 @@
     "shareableReports": "Shareable reports",
     "monthlyReport": "Monthly report",
     "allBrands": "All brands"
-  }
-,
+  },
   "combinedReport": {
     "meta_title": "Scan + Pulse report",
     "title": "Scan + Pulse report",

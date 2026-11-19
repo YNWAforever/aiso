@@ -89,8 +89,8 @@ async function scan(page: Page, path: string, theme: A11yTheme) {
   // reducedMotion is not only about flakiness, though it fixes a real one: the
   // onboarding progress bar has a 500ms transition (OnboardingWizard.tsx:228)
   // and networkidle does not wait for animations, so axe scanned it mid-flight
-  // and reported a different node on different runs. app/globals.css:241
-  // already honours the media query with transition-duration: 0.01ms, so this
+  // and reported a different node on different runs. app/globals.css
+  // honours the media query with transition-property: none, so this
   // settles the page -- and it also exercises the reduced-motion state the base
   // plan requires and nothing else in the matrix covered.
   await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })

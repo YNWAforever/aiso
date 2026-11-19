@@ -33,6 +33,11 @@ export function fetchStudioThreads(clientId: string, signal?: AbortSignal) {
   return request<{ threads: StudioThreadRecord[]; truncated: boolean }>(base(clientId), { signal })
 }
 
+/** The viewer's own archived discussions; never mixed into the main list. */
+export function fetchArchivedStudioThreads(clientId: string, signal?: AbortSignal) {
+  return request<{ threads: StudioThreadRecord[]; truncated: boolean }>(`${base(clientId)}?archived=1`, { signal })
+}
+
 export function fetchStudioThread(clientId: string, threadId: string, signal?: AbortSignal) {
   return request<StudioThreadDetail>(`${base(clientId)}/${encodeURIComponent(threadId)}`, { signal })
 }

@@ -1,11 +1,13 @@
 import type {DailyWorkSummary} from './daily-work'
 import type {PulseAvailability,PulseBlockReason} from '@/lib/pulse/runs/availability'
-export type PrimaryNextStep={kind:'create_brand'|'confirm_prompts'|'start_run'|'review_results'|'review_opportunity'|'monitoring_status'|'review_run'|'review_work';labelKey:'configure'|'start'|'repair'|'results'|'opportunities'|'review'|'status'|'work';href:string;reasonKey?:PulseBlockReason|'unknown'}
-export function projectPrimaryNextStep({lang,clientId,setup,daily,availability}:{lang:string;clientId?:string;setup:{active:number;contextConfirmed:boolean}|null;daily:DailyWorkSummary|null;availability?:PulseAvailability|null}):PrimaryNextStep{
+export type PrimaryNextStep={kind:'create_brand'|'confirm_prompts'|'start_run'|'review_results'|'review_opportunity'|'monitoring_status'|'review_run'|'review_work';labelKey:'configure'|'configureNeedsPro'|'start'|'repair'|'results'|'opportunities'|'review'|'status'|'work';href:string;reasonKey?:PulseBlockReason|'unknown'}
+export function projectPrimaryNextStep({lang,clientId,setup,daily,availability}:{lang:string;clientId?:string;setup:{active:number;contextConfirmed:boolean;canEditPrompts?:boolean}|null;daily:DailyWorkSummary|null;availability?:PulseAvailability|null}):PrimaryNextStep{
  if(!clientId)return{kind:'create_brand',labelKey:'configure',href:`/${lang}/onboarding`}
  const base=`/${lang}/dashboard/${clientId}`,monitor=base+'?step=monitor#first-monitoring'
  if(!setup)return{kind:'monitoring_status',labelKey:'status',href:monitor,reasonKey:'unknown'}
- if(!setup.contextConfirmed||setup.active===0)return{kind:'confirm_prompts',labelKey:'configure',href:base+'/prompts'}
+ // Confirming questions needs the prompt editor (Pro+). On a plan without it, say so and
+ // go to plans, instead of opening a locked page with no explanation.
+ if(!setup.contextConfirmed||setup.active===0)return setup.canEditPrompts===false?{kind:'confirm_prompts',labelKey:'configureNeedsPro',href:`/${lang}/pricing`}:{kind:'confirm_prompts',labelKey:'configure',href:base+'/prompts'}
  if(daily&&['pending','partial','failed'].includes(daily.state)){
   const action=daily.nextActions?.find(a=>['review-pending-run','review-failed-run','review-classification'].includes(a.kind)&&a.path.startsWith('/observations?'))
   return{kind:'review_run',labelKey:daily.state==='pending'?'review':'repair',href:action?base+action.path:daily.state==='pending'?monitor:base+'/observations?result=incomplete'}

@@ -34,7 +34,7 @@ export type TodayFirstTask =
   | { kind: 'first_change' }
 
 export type NextStepKey = keyof {
-  configure: string; start: string; repair: string; results: string; opportunities: string
+  configure: string; configureNeedsPro: string; start: string; repair: string; results: string; opportunities: string
   review: string; status: string; work: string; scan: string
 }
 
