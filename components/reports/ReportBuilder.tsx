@@ -473,11 +473,19 @@ export function ReportBuilder({
                 id="report-executive-summary"
                 value={summary}
                 onChange={event => updateSummary(event.target.value)}
-                aria-describedby="report-summary-help"
+                aria-describedby="report-summary-help report-summary-count"
                 minLength={40}
                 maxLength={1200}
                 className="mt-3 min-h-40 w-full resize-y rounded-lg border border-border bg-background px-3 py-3 text-base leading-6 text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
+              {/* The 40–1,200 limits were enforced silently; show where the draft stands. */}
+              <p id="report-summary-count" className="mt-1 text-xs text-muted-foreground" aria-live="polite">
+                {/* The generated zh-HK baseline may be shorter and is accepted unedited; the
+                    40-character floor applies only to an operator's own edit. */}
+                {summary !== initialSnapshot.executiveSummary && summary.trim().length < 40
+                  ? t('summary_too_short', { count: summary.trim().length })
+                  : t('summary_count', { count: summary.length })}
+              </p>
               <div className="mt-3 flex flex-wrap gap-3">
                 <Button type="button" variant="secondary" className="min-h-11" onClick={polishWithAi} disabled={pending !== null}>
                   {pending === 'ai' ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}

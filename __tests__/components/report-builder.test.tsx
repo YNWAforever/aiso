@@ -86,6 +86,18 @@ describe('ReportBuilder', () => {
     expect(html).toContain('disabled=""')
   })
 
+  it('says what the summary is for and shows its length, without flagging the untouched generated summary', async () => {
+    const { ReportBuilder } = await import('@/components/reports/ReportBuilder')
+    const html = renderToStaticMarkup(provider(
+      <ReportBuilder lang="en" clientId="client-1" scanId="scan-1" initialReport={null} initialSnapshot={snapshot} />,
+    ))
+    expect(html).toContain('Summary for your client')
+    expect(html).toContain('opening paragraph your client reads first')
+    expect(html).toContain('aria-describedby="report-summary-help report-summary-count"')
+    expect(html).toContain(`${snapshot.executiveSummary.length} / 1,200 characters`)
+    expect(html).not.toContain('Write at least 40 characters')
+  })
+
   it('distinguishes unsaved summaries and first-publish/update confirmations', async () => {
     const {
       hasUnsavedReportChanges,

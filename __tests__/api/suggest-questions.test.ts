@@ -3,12 +3,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const calls: Array<{ text: string; params: unknown[] }> = []
 let clientRows: unknown[]
 let existingRows: unknown[]
+let entityRows: unknown[] = []
+let competitorRows: unknown[] = []
 let lookupFails = false
 
 const mockSql = vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
   const text = strings.join('?')
   calls.push({ text, params })
   if (lookupFails) return Promise.reject(new Error('boom'))
+  if (/from client_entities/i.test(text)) return Promise.resolve(entityRows)
+  if (/from competitors/i.test(text)) return Promise.resolve(competitorRows)
   if (/from clients/i.test(text)) return Promise.resolve(clientRows)
   return Promise.resolve(existingRows)
 })
@@ -39,6 +43,8 @@ beforeEach(() => {
   lookupFails = false
   clientRows = [{ brand_name: 'AcmeCo', industry: 'technology', prompt_language: 'en', region: 'HK' }]
   existingRows = [{ question: 'What is AcmeCo?' }]
+  entityRows = []
+  competitorRows = []
   vi.mocked(getProfile).mockReset()
   vi.mocked(getProfile).mockResolvedValue(account('pro') as never)
   llm.callOpenRouter.mockReset()
@@ -115,6 +121,38 @@ describe('POST /api/pulse/suggest-questions — generation', () => {
     expect(prompt).toContain('What is AcmeCo?')
   })
 
+  it('asks for brand, market and competitor questions using the recorded names, account-scoped', async () => {
+    entityRows = [{ aliases: ['Acme', '  ', 42] }]
+    competitorRows = [{ name: 'RivalCorp' }, { name: 'OtherCo' }]
+    await post()
+    const prompt = llm.callOpenRouter.mock.calls[0][0].messages[0].content
+    expect(prompt).toContain('Other names customers use for the brand: Acme')
+    expect(prompt).toContain('Known competitors: RivalCorp, OtherCo')
+    expect(prompt).toContain('name a listed competitor')
+    expect(prompt).toContain('never invent other company names')
+    expect(calls.find(c => c.text.includes('from competitors'))!.text).toContain('archived_at is null')
+    for (const table of ['from client_entities', 'from competitors']) {
+      const call = calls.find(c => c.text.includes(table))!
+      expect(call.text).toMatch(/account_id = \?/)
+      expect(call.params).toContain('acc-1')
+    }
+  })
+
+  it('merges legacy competitor names and skips duplicates, like the live list Pulse uses', async () => {
+    clientRows = [{ id: 'client-1', brand_name: 'AcmeCo', industry: 'technology', prompt_language: 'en', region: 'HK', competitors: ['rivalcorp', 'LegacyCo'] }]
+    competitorRows = [{ id: 'k1', name: 'RivalCorp', aliases: [], domains: [] }]
+    await post()
+    const prompt = llm.callOpenRouter.mock.calls[0][0].messages[0].content
+    expect(prompt).toContain('Known competitors: RivalCorp, LegacyCo')
+  })
+
+  it('still asks for alternatives when no competitor is recorded', async () => {
+    await post()
+    const prompt = llm.callOpenRouter.mock.calls[0][0].messages[0].content
+    expect(prompt).not.toContain('Known competitors')
+    expect(prompt).toContain('best options or alternatives')
+  })
+
   it('clamps the count rather than trusting the body', async () => {
     for (const [asked, expected] of [[99, 10], [0, 1], [-4, 1], ['abc', 5]] as const) {
       llm.callOpenRouter.mockClear()
@@ -167,6 +205,7 @@ describe('POST /api/pulse/suggest-questions — generation', () => {
   it('writes nothing — suggestions are for review, not for saving', async () => {
     await post()
 
-    expect(calls.some(c => /insert|update|delete/i.test(c.text))).toBe(false)
+    // Statement keywords only: a column such as `updated_at` in a read is not a write.
+    expect(calls.some(c => /\b(insert|update|delete)\b/i.test(c.text))).toBe(false)
   })
 })
