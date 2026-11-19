@@ -98,7 +98,7 @@ describe('CitationExplorer', () => {
     const html = render(report, 'zh-HK')
     expect(html).toContain('競爭對手被引用而您沒有的問題')
     expect(html).toContain('競爭對手 · HSBC Holdings')
-    expect(html).toContain('有列出來源嘅回答')
+    expect(html).toContain('有列出來源的回答')
     expect(html).toContain('75% 有列出來源')
   })
 
