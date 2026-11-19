@@ -1,3 +1,4 @@
+import { formatDisplayDate } from '@/lib/format/date'
 import { useTranslations } from 'next-intl'
 import type { ScanChoice } from '@/lib/workspace/scan-choices'
 
@@ -16,9 +17,7 @@ export function ScanPicker({ lang, action, step, scans, selectedScanId, classNam
   // fit at 375px. The selected scan's domain and full date are shown separately
   // above the picker on the Improve page.
   const optionLabel = (scan: ScanChoice) => {
-    const date = new Date(scan.created_at).toLocaleString(lang, {
-      timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-    })
+    const date = formatDisplayDate(scan.created_at, lang, { withTime: true })
     return `${date} · ${scan.score}${scan.grade ? ` (${scan.grade})` : ''}`
   }
   return (

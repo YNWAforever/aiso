@@ -1,3 +1,4 @@
+import { formatDisplayDate } from '@/lib/format/date'
 import Link from 'next/link'
 import type { ClientOverview } from '@/lib/types'
 import en from '@/messages/en.json'
@@ -11,7 +12,7 @@ type Props = {
 export function formatScanDate(value: string|null|undefined, lang: string): string {
   const date = value ? new Date(value) : null
   if (!date || !Number.isFinite(date.getTime())) return (lang === 'zh-HK' ? zhHK : en).portfolio.dateUnknown
-  return new Intl.DateTimeFormat(lang === 'zh-HK' ? 'zh-HK' : 'en-US', {year:'numeric',month:'short',day:'numeric',timeZone:'UTC'}).format(date)
+  return formatDisplayDate(value!, lang)
 }
 export function RecentScans({ scans, lang, clientId }: Props) {
   const copy = (lang === 'zh-HK' ? zhHK : en).portfolio

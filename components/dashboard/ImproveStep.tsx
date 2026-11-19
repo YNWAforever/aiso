@@ -1,4 +1,5 @@
 'use client'
+import { formatDisplayDate } from '@/lib/format/date'
 import {useEffect,useRef,useState} from 'react'
 import { useTranslations } from 'next-intl'
 import {useParams,useRouter} from 'next/navigation'
@@ -102,9 +103,7 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
     }finally{pending.current.delete(key)}
   }
 
-  const scanDate = new Date(scan.created_at).toLocaleString(lang, {
-    timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
+  const scanDate = formatDisplayDate(scan.created_at, lang, { withTime: true })
   const scanScore = scan.score != null ? `${scan.score}${scan.grade ? ` (${scan.grade})` : ''}` : '—'
 
   return (

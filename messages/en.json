@@ -2648,7 +2648,7 @@
     "freshnessUnknown": "Freshness: unknown",
     "observedAt": "Observed week",
     "dateUnknown": "Date unavailable",
-    "dateZone": "Dates shown in UTC.",
+    "dateZone": "Dates shown in Hong Kong time.",
     "grade": "Grade",
     "loadErrorTitle": "Your portfolio could not load",
     "loadErrorBody": "We could not retrieve your owned brands. Refresh later to try again.",

@@ -5,6 +5,7 @@ import type { OpenStudioEvidence } from '@/lib/conversation-studio/types'
 import type { StudioLiveReply } from '@/lib/conversation-studio/live-types'
 import { safeEvidenceUrl } from '@/lib/pulse/provider-citations'
 import { platformName } from '@/lib/brand-month/labels'
+import { Sparkles } from 'lucide-react'
 import { StudioMarkdown } from './StudioMarkdown'
 
 export function StudioLiveReplyView({ reply, pending, error, stream, number = 1, cap = 10, onOpenEvidence, onRefresh, refreshing = false, onStop, onRetry }: {
@@ -41,13 +42,18 @@ export function StudioLiveReplyView({ reply, pending, error, stream, number = 1,
     }
   }
 
-  return <section aria-label={t('replyLabel', { number })} className="as-result as-live-result min-w-0 space-y-3 [overflow-wrap:anywhere]">
-    <div className="flex flex-wrap items-start justify-between gap-2">
-      <p className="as-result-kicker">{t('title')}</p>
-      {onStop && <button type="button" className="as-button px-3" onClick={onStop}>{t('stop')}</button>}
+  // One model answers most turns: its name goes in the header instead of a one-item list.
+  const single = reply?.answers.length === 1 ? reply.answers[0] : null
+  // A chat message, not a report: one header line, the answer, its actions. The weekly
+  // quota is shown once, by the composer, rather than repeated under every reply.
+  return <section aria-label={t('replyLabel', { number })} className="as-result as-live-result min-w-0 space-y-2 [overflow-wrap:anywhere]">
+    <div className="as-live-header">
+      <Sparkles className="size-4 shrink-0 as-blue" aria-hidden="true" />
+      <h3>{t('unverifiedTitle')}</h3>
+      {single && <span className="as-muted as-small">· {platformName(single.platform)}</span>}
+      <p className="as-note as-live-flag">{t('unverified')}</p>
+      {onStop && <button type="button" className="as-button ml-auto px-3" onClick={onStop}>{t('stop')}</button>}
     </div>
-    <h3>{t('unverifiedTitle')}</h3>
-    <p className="as-note">{t('unverified')}</p>
     {pending && partial.length === 0 && <p role="status">{t('pending')}</p>}
     {partial.length > 0 && <div role="status" aria-live="polite" className="space-y-3">
       <p className="as-note">{t('streaming')}</p>
@@ -62,15 +68,15 @@ export function StudioLiveReplyView({ reply, pending, error, stream, number = 1,
       {onRetry && error && <button type="button" className="as-button px-3" onClick={onRetry}>{t('retryPrompt')}</button>}
     </div>
     {reply && <>
-      <p className="as-muted as-small">{t('remaining', { count: reply.quota.remaining })}</p>
       {reply.attachment && <p className="as-muted as-small">{reply.attachment.truncated
         ? t('attachTruncated', { label: reply.attachment.label, included: reply.attachment.entriesIncluded, total: reply.attachment.entriesTotal })
         : t('attachIncluded', { label: reply.attachment.label, version: reply.attachment.versionNumber })}</p>}
-      <ul className="space-y-3">{reply.answers.map((item, index) => <li key={item.platform} className="as-live-answer space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h4 className="font-semibold">{platformName(item.platform)}</h4>
-          <span className={item.coverage === 'present' ? 'as-badge as-badge-blue' : item.coverage === 'missing' ? 'as-badge as-badge-amber' : 'as-badge'}>{t('coverage')}: {t(`status.${item.coverage}`)}</span>
-        </div>
+      <ul className="list-none space-y-4 p-0">{reply.answers.map((item, index) => <li key={item.platform} className="as-live-answer space-y-2">
+        {/* Full coverage is the ordinary case; only a gap earns a badge. */}
+        {(!single || item.coverage !== 'present') && <div className="flex flex-wrap items-center gap-2">
+          {!single && <h4 className="font-semibold">{platformName(item.platform)}</h4>}
+          {item.coverage !== 'present' && <span className={item.coverage === 'missing' ? 'as-badge as-badge-amber' : 'as-badge'}>{t('coverage')}: {t(`status.${item.coverage}`)}</span>}
+        </div>}
         {item.answer ? <div className="as-answer-body"><StudioMarkdown text={item.answer} /></div> : <p className="as-note">{t('missing')}</p>}
         <div className="as-result-actions">
           <button type="button" className="as-button px-3" aria-haspopup="dialog" onClick={event => onOpenEvidence?.(event.currentTarget, `live-${index}`)}>{evidence('open')} · {platformName(item.platform)}</button>

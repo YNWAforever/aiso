@@ -716,7 +716,7 @@ function StudioConversation({ brandName, evidence, clientId, opportunities, live
             <div className="min-w-0 space-y-4">
               {turnSaveState === 'failed' && <p role="alert" className="as-note">{t(current.saveError ? 'messageNotSent' : 'messageUnconfirmed')}</p>}
               {liveTurn && <StudioLiveReplyView {...liveTurn} number={index + 1} cap={live?.cap} refreshing={busy || refreshingThreadId === current.id} onRefresh={current.mine ? () => void refreshThread(current.id) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} onStop={live?.streaming && liveTurn.pending && busy ? stopAnswer : undefined} onRetry={current.mine && liveTurn.error && liveTurn.error !== 'STUDIO_QUOTA_EXCEEDED' ? () => retryPrompt(prompt, task ?? null) : undefined} />}
-              {turnSaveState !== 'failed' && <details className="as-note as-saved-context" open={!liveTurn}>
+              {turnSaveState !== 'failed' && <details className={liveTurn ? 'as-saved-context as-saved-context-quiet' : 'as-note as-saved-context'} open={!liveTurn}>
                 <summary>{t('savedContextDetails')}</summary>
               <StudioReplyView clientId={clientId} readOnly={staffView || !current.mine} reply={reply} evidence={evidenceForHomeTask(evidence, task)} id={`studio-${current.id}-${index}`} number={index + 1} liveEnabled={Boolean(live)} gsc={gsc} dfs={dfs} firecrawl={firecrawl} onBranchBrief={turnSaveState === 'saved' ? () => branchThread(current, current.turns[index]) : undefined} onOpenEvidence={(trigger, target = 'saved') => setInspection({ navigationVersion, turnId: id, target, trigger })} />
               {/* This existing export saves the stored summary, not the model reply. */}

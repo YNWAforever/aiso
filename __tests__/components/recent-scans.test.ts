@@ -7,7 +7,8 @@ describe('real RecentScans rendering', () => {
   it.each(['en','zh-HK'])('preserves guarded result URLs and locale dates in %s', lang => {
     const html = renderToStaticMarkup(createElement(RecentScans,{lang,scans:[scan]}))
     expect(html).toContain(`href="/${lang}/result/scan-a"`)
-    expect(html).toContain(new Intl.DateTimeFormat(lang === 'zh-HK' ? 'zh-HK' : 'en-US',{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(scan.created_at)))
+    // 23:30 UTC on 5 Sep is 6 Sep in Hong Kong: the date follows the product's market.
+    expect(html).toContain(lang === 'zh-HK' ? '2026年9月6日' : '6 Sept 2026')
     expect(html).toContain('dateTime="2026-09-05T23:30:00.000Z"')
     expect(html.replace(/<[^>]*>/g, '')).toContain(lang === 'zh-HK' ? '評級: C' : 'Grade: C')
   })

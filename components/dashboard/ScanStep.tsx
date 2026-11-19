@@ -1,5 +1,6 @@
 'use client'
 
+import { formatDisplayDate } from '@/lib/format/date'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
@@ -245,9 +246,9 @@ export function ScanStep({ lang, clientId, scan, scanHistory, client, quota = { 
                   <span className="text-[12px] text-dash-text font-mono truncate">{s.domain}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0 ml-3">
-                  <span className="text-[11px] text-dash-muted font-mono">{/* Locale and zone pinned: the server renders in UTC/en-US, the browser in
-                      its own, and the mismatch failed hydration (React #418). */}
-                  {new Date(s.created_at).toLocaleDateString(locale, { timeZone: 'UTC' })}</span>
+                  <span className="text-[11px] text-dash-muted font-mono">{/* Locale and zone fixed (Hong Kong time), so server and browser render the
+                      same string; the mismatch once failed hydration (React #418). */}
+                  {formatDisplayDate(s.created_at, locale)}</span>
                   <span className={`text-[12px] font-bold font-mono ${
                     s.score >= 80 ? 'text-dash-success' : s.score >= 50 ? 'text-dash-warning' : 'text-dash-danger'
                   }`}>{s.score}</span>
