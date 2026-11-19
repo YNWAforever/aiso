@@ -28,3 +28,20 @@ describe('formatDisplayDate', () => {
     expect(studioDate('2026-11-18T03:47:00Z', 'zh-HK', true)).toBe(formatDisplayDate('2026-11-18T03:47:00Z', 'zh-HK', { withTime: true }))
   })
 })
+
+// Regression (production, 2026-11-19): the Neon driver returns timestamptz columns as
+// Date objects although row types declare string, and `.replace` on a Date crashed
+// the Results page. The same instant must format identically either way.
+describe('Date objects from the database driver', () => {
+  it('formats a Date exactly like its ISO string', () => {
+    const instant = '2026-09-05T23:30:00.000Z'
+    for (const locale of ['en', 'zh-HK']) {
+      expect(formatDisplayDate(new Date(instant), locale)).toBe(formatDisplayDate(instant, locale))
+      expect(formatDisplayDate(new Date(instant), locale, { withTime: true })).toBe(formatDisplayDate(instant, locale, { withTime: true }))
+    }
+  })
+  it('returns empty for an invalid Date or a non-string value instead of throwing', () => {
+    expect(formatDisplayDate(new Date('nope'), 'en')).toBe('')
+    expect(formatDisplayDate(12345 as unknown as string, 'en')).toBe('')
+  })
+})
