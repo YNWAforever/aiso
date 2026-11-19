@@ -266,6 +266,9 @@ export async function listStudioThreads(request: Request, clientId: string): Pro
     // ?archived=1 lists the viewer's own archived discussions (only a creator can restore);
     // the default list never includes archived ones.
     const archived = new URL(request.url).searchParams.get('archived') === '1'
+    // Own threads only, and the per-viewer cap is STUDIO_THREAD_CAP, so the archived read
+    // returns every one of them: nothing archived is ever out of reach of Restore.
+    const limit = archived ? STUDIO_THREAD_CAP : STUDIO_THREAD_LIST_LIMIT
     const rows = await access.sql`
       select t.id, t.title, t.goal, t.week, t.kind, t.source_title, t.created_at, t.updated_at,
         t.profile_id, t.visibility, t.pinned_at, t.archived_at,
@@ -287,10 +290,10 @@ export async function listStudioThreads(request: Request, clientId: string): Pro
           else t.archived_at is null end)
       order by (t.profile_id = ${access.profileId}::uuid and t.pinned_at is not null) desc,
         t.updated_at desc, t.id desc
-      limit ${STUDIO_THREAD_LIST_LIMIT + 1}
+      limit ${limit + 1}
     `
-    const truncated = rows.length > STUDIO_THREAD_LIST_LIMIT
-    return respond({ threads: rows.slice(0, STUDIO_THREAD_LIST_LIMIT).map(row => threadRecord(row as Record<string, unknown>, access.profileId)), truncated })
+    const truncated = rows.length > limit
+    return respond({ threads: rows.slice(0, limit).map(row => threadRecord(row as Record<string, unknown>, access.profileId)), truncated })
   } catch (error) {
     console.error('[studio] list threads failed:', error)
     return unavailable()
