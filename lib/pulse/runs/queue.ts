@@ -1,3 +1,5 @@
+import { GOOGLE_AIO_RUNTIME } from '@/lib/pulse/platforms'
+import { googleAioConfigured } from '@/lib/pulse/google-aio'
 import 'server-only'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement,type CommercialAccount } from '@/lib/tier'
@@ -36,8 +38,12 @@ export async function listPendingRunPage(after:string|null){
 }
 
 export async function unblockConfiguredItems(run:DueRun){
-  if(!process.env.OPENROUTER_API_KEY)return
-  const allowed=modelVariantsFor(run.allowedPlatforms).map(v=>v.model)
+  // Per provider: Google AI Overview items need DataForSEO, the rest OpenRouter.
+  // Re-queuing an item whose provider is still missing would burn its attempts
+  // without a request and leave it unrecoverable once credentials are added.
+  const allowed=modelVariantsFor(run.allowedPlatforms)
+    .filter(v=>v.platform===GOOGLE_AIO_RUNTIME?googleAioConfigured():!!process.env.OPENROUTER_API_KEY)
+    .map(v=>v.model)
   if(!allowed.length)return
   await db()`update pulse_run_items i set status='queued',next_attempt_at=now(),updated_at=now()
     where i.account_id=${run.accountId} and i.client_id=${run.clientId}::uuid and i.run_id=${run.id}::uuid

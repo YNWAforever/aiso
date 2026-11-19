@@ -10,7 +10,7 @@ import { promptCollectionMessages,isPromptLanguage,isPromptMarket } from '@/lib/
 import { groundingFor, webSearchAllowance } from '@/lib/pulse/grounding'
 import { pulseAnswerMaxTokens } from '@/lib/pulse/limits'
 import { GOOGLE_AIO_RUNTIME } from '@/lib/pulse/platforms'
-import { collectGoogleAio, googleAioConfigured } from '@/lib/pulse/google-aio'
+import { collectGoogleAio, googleAioConfigured, googleAioMarket } from '@/lib/pulse/google-aio'
 
 export type CollectAnswer = (item: LeasedItem, signal: AbortSignal) => Promise<ProviderEvidence>
 // The real collectors, so a missing API key blocks rather than fails them. A
@@ -20,7 +20,7 @@ const defaultCollectors = new WeakSet<CollectAnswer>()
 function collectWith(webSearchAllowed: boolean): CollectAnswer {
   const collector: CollectAnswer = async (item, signal) => {
     // Google AI Overviews: one DataForSEO search for the raw question, not a chat call.
-    if (item.platform === GOOGLE_AIO_RUNTIME) return collectGoogleAio(item.snapshot.question, signal)
+    if (item.platform === GOOGLE_AIO_RUNTIME) return collectGoogleAio(item.snapshot.question, item.snapshot, signal)
     const grounding = groundingFor(item.platform, webSearchAllowed)
     const evidence = await callOpenRouterWithEvidence({ label:'pulse.platform',model:item.model,
       messages:promptCollectionMessages(item.snapshot),...(item.snapshot.contextVersion==='2026-10-26.v1'?{temperature:0.2}:{}),maxTokens:pulseAnswerMaxTokens(item.platform),signal,webSearch:grounding === 'web' })
@@ -36,6 +36,10 @@ export async function processLeasedItem(item: LeasedItem, deadlineAt: number, co
   let evidence: ProviderEvidence
   if (defaultCollectors.has(collector) && (item.platform === GOOGLE_AIO_RUNTIME ? !googleAioConfigured() : !process.env.OPENROUTER_API_KEY)) {
     return await commitAttempt(item,{kind:'blocked',errorCode:'PROVIDER_NOT_CONFIGURED'})
+  }
+  // EU / Global have no single Google market: a permanent block, never a billed request.
+  if (item.platform === GOOGLE_AIO_RUNTIME && !googleAioMarket(item.snapshot)) {
+    return await commitAttempt(item,{kind:'blocked',errorCode:'PROVIDER_MARKET_UNSUPPORTED'})
   }
   const remaining = deadlineAt - Date.now() - 5_000
   if (remaining <= 0) return await commitAttempt(item,{kind:'failed',errorCode:'TIME_BUDGET_EXHAUSTED'})

@@ -12,6 +12,29 @@ import { safeEvidenceUrl, type ProviderCitation } from '@/lib/pulse/provider-cit
  */
 export const GOOGLE_AIO_ABSENT_ANSWER = 'No Google AI Overview was shown for this search.'
 
+/**
+ * Google Ads geo-target codes for the onboarding markets (lib/prompts/context.ts).
+ * EU and Global have no single Google search market, so they are not collected
+ * rather than silently searched as somewhere else.
+ */
+const MARKET_LOCATION: Readonly<Record<string, number>> = {
+  HK: 2344, TW: 2158, SG: 2702, JP: 2392, KR: 2410, US: 2840, UK: 2826, AU: 2036, CA: 2124,
+}
+const LANGUAGE_CODE: Readonly<Record<string, string>> = { 'zh-HK': 'zh-TW', en: 'en' }
+
+export type GoogleAioContext = { language: string | null; market: string | null }
+
+/** The SERP market for a prompt's own saved context, or null when it has none to search. */
+export function googleAioMarket(context: GoogleAioContext): { locationCode: number; languageCode: string } | null {
+  const locationCode = context.market ? MARKET_LOCATION[context.market] : undefined
+  const languageCode = context.language ? LANGUAGE_CODE[context.language] : undefined
+  return locationCode && languageCode ? { locationCode, languageCode } : null
+}
+
+export class GoogleAioUnsupportedMarketError extends Error {
+  constructor() { super('No single Google search market for this prompt context'); this.name = 'GoogleAioUnsupportedMarketError' }
+}
+
 export class GoogleAioUnconfiguredError extends Error {
   constructor() { super('DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD are not set'); this.name = 'GoogleAioUnconfiguredError' }
 }
@@ -27,13 +50,17 @@ export function googleAioConfigured(env: Record<string, string | undefined> = pr
  */
 export async function collectGoogleAio(
   question: string,
+  context: GoogleAioContext,
   signal?: AbortSignal,
   env: Record<string, string | undefined> = process.env,
   fetchImpl: typeof fetch = fetch,
 ): Promise<ProviderEvidence> {
-  const config = aiOverviewConfig(env)
-  if (!config) throw new GoogleAioUnconfiguredError()
-  const result = await fetchAiOverview(question, config, fetchImpl, signal)
+  const credentials = aiOverviewConfig(env)
+  if (!credentials) throw new GoogleAioUnconfiguredError()
+  // Search the prompt's own market and language, as the model collectors honour them.
+  const market = googleAioMarket(context)
+  if (!market) throw new GoogleAioUnsupportedMarketError()
+  const result = await fetchAiOverview(question, { ...credentials, ...market }, fetchImpl, signal)
   if (result.status === 'failed') {
     const error = new Error(`google_aio_${result.reason}`)
     error.name = result.reason === 'transport' ? 'TimeoutOrTransportError' : 'GoogleAioError'

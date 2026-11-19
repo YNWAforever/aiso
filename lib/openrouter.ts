@@ -402,9 +402,18 @@ export async function callMultiPlatform(
   maxTokens: number | ((platform: string) => number) = 1000,
   only?: readonly string[],
   budget?: TaskBudget,
-  options: { webSearch?: boolean; question?: string } = {},
+  options: { webSearch?: boolean; question?: string; context?: { language: string | null; market: string | null }; aioTimeoutMs?: number } = {},
 ): Promise<PlatformAnswer[]> {
-  // Only OpenRouter platforms; Google AI Overviews are collected separately below.
+  // An AI Overview is looked up by the raw question in the prompt's own market,
+  // so it runs only when the caller supplies both. Started before the model
+  // calls and bounded, so a slow search cannot push a chunk past its function
+  // limit and lose answers that were already paid for.
+  const aio = only?.includes(GOOGLE_AIO_VARIANT.platform) && options.question && options.context
+    ? import('@/lib/pulse/google-aio')
+      .then(({ collectGoogleAio }) => collectGoogleAio(options.question!, options.context!, AbortSignal.timeout(options.aioTimeoutMs ?? 25_000)))
+      .catch(() => null)
+    : null
+  // Only OpenRouter platforms; Google AI Overviews are collected above.
   const selected = only ? PLATFORMS.filter(p => only.includes(p.platform)) : PLATFORMS
   // A fan-out is N calls for one unit of work, which no per-call ceiling bounds.
   // Reserved up front so an over-budget fan-out is never dispatched at all --
@@ -423,12 +432,10 @@ export async function callMultiPlatform(
   const answers = results
     .filter((r): r is PromiseFulfilledResult<PlatformAnswer> => r.status === 'fulfilled')
     .map(r => r.value)
-  // An AI Overview is looked up by the raw question, so it runs only when the
-  // caller supplies one; a failure drops it exactly like a failed model call.
-  if (only?.includes(GOOGLE_AIO_VARIANT.platform) && options.question) {
-    const { collectGoogleAio } = await import('@/lib/pulse/google-aio')
-    const evidence = await collectGoogleAio(options.question).catch(() => null)
-    if (evidence) answers.push({ platform: GOOGLE_AIO_VARIANT.platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding: 'native', providerEvidence: evidence, requestedModel: GOOGLE_AIO_VARIANT.model })
+  // A failed, timed-out or unsupported-market lookup drops it, like a failed model call.
+  const evidence = aio ? await aio : null
+  if (evidence) {
+    answers.push({ platform: GOOGLE_AIO_VARIANT.platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding: 'native', providerEvidence: evidence, requestedModel: GOOGLE_AIO_VARIANT.model })
   }
   return answers
 }
