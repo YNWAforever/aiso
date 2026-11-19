@@ -53,10 +53,11 @@ describe('liveGoogleOrganicAdvanced', () => {
     expect(url).toBe(DATAFORSEO_SERP_URL)
     expect(init.method).toBe('POST')
     expect(init.headers.Authorization).toMatch(/^Basic /)
-    expect(JSON.parse(init.body)).toEqual({ tasks: [{
+    // The documented request is a top-level array of tasks, not a { tasks } envelope.
+    expect(JSON.parse(init.body)).toEqual([{
       keyword: 'sourdough hong kong', location_code: 2344, language_code: 'zh-TW',
       depth: 10, load_async_ai_overview: false,
-    }] })
+    }])
     expect(init.body).not.toContain('UNIT_TEST_CREDENTIAL')
   })
 

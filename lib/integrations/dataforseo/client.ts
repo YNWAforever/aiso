@@ -65,9 +65,11 @@ type SerpTask = {
  * One Live Advanced task per HTTP request. Accepting an array only here makes a
  * multi-task batch impossible through the public single-keyword API.
  */
-export function buildSerpRequestBody(tasks: readonly unknown[]): { tasks: SerpTask[] } {
+export function buildSerpRequestBody(tasks: readonly unknown[]): SerpTask[] {
   if (tasks.length !== 1) throw new DataForSeoError('invalid', 0, 'single_task_required')
-  return { tasks: [tasks[0] as SerpTask] }
+  // DataForSEO v3 takes a top-level JSON array of task objects. `tasks` is the
+  // response envelope only; sending { tasks: [...] } is not the documented request.
+  return [tasks[0] as SerpTask]
 }
 
 type SerpResponse = {
