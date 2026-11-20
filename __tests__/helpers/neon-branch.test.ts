@@ -23,7 +23,8 @@ function createResponse(overrides: Record<string, unknown> = {}, name = 'test-br
     branch: {
       id: 'br-fake-child-bbb22222',
       project_id: PROJECT_ID,
-      parent_id: PRODUCTION_BRANCH_ID,
+      parent_id: null,
+      init_source: 'parent-schema',
       name,
       default: false,
       primary: false,
@@ -94,18 +95,17 @@ afterEach(() => {
 })
 
 describe('createTestBranch', () => {
-  it('returns the branch when neonctl reports a child branch matching the request', async () => {
-    mockNeonctl()
+  it('retains the data-copy path for an explicit opt-out', async () => {
+    process.env.NEON_TEST_SCHEMA_ONLY = 'false'
+    mockNeonctl({ create: createResponse({ parent_id: PRODUCTION_BRANCH_ID, init_source: 'parent-data' }) })
     const { createTestBranch } = await load()
 
     expect(createTestBranch('test-branch')).toEqual({
       id: 'br-fake-child-bbb22222',
-      // Carried through from the response's parent_id, which createTestBranch
-      // already requires as part of the branch's identity — so a caller can
-      // blocklist the real parent rather than a guess.
-      parentId: 'br-square-mountain-az6f82vi',
+      parentId: PRODUCTION_BRANCH_ID,
       connectionUri: URI,
     })
+    expect(neonctlArgv(execFileSync.mock.calls[0][1] as string[])).not.toContain('--schema-only')
   })
 
   it('trims trailing whitespace from the connection-string response', async () => {
@@ -115,9 +115,9 @@ describe('createTestBranch', () => {
     expect(createTestBranch('test-branch').connectionUri).toBe(URI)
   })
 
-  it('accepts a schema-only root and records its explicit source', async () => {
-    process.env.NEON_TEST_SCHEMA_ONLY = 'true'
-    mockNeonctl({ create: createResponse({ parent_id: null }) })
+  it.each([undefined, ''])('uses schema only by default and records its source for %s', async value => {
+    if (value !== undefined) process.env.NEON_TEST_SCHEMA_ONLY = value
+    mockNeonctl()
     const { createTestBranch } = await load()
     expect(createTestBranch('test-branch').parentId).toBe(PRODUCTION_BRANCH_ID)
     const args = neonctlArgv(execFileSync.mock.calls[0][1] as string[])
@@ -126,11 +126,14 @@ describe('createTestBranch', () => {
     expect(recordBranchProvenance).toHaveBeenCalledWith(expect.objectContaining({ parentBranchId: PRODUCTION_BRANCH_ID }))
   })
 
-  it('rejects a branch with a parent on a schema-only run', async () => {
-    process.env.NEON_TEST_SCHEMA_ONLY = 'true'
-    mockNeonctl()
+  it.each([
+    [{ parent_id: PRODUCTION_BRANCH_ID }, /schema-only root/],
+    [{ init_source: 'parent-data' }, /schema-only source/],
+    [{ init_source: undefined }, /schema-only source/],
+  ])('rejects a branch whose metadata contradicts schema-only mode %j', async (overrides, problem) => {
+    mockNeonctl({ create: createResponse(overrides) })
     const { createTestBranch } = await load()
-    expect(() => createTestBranch('test-branch')).toThrow(/schema-only root/)
+    expect(() => createTestBranch('test-branch')).toThrow(problem)
     expect(execFileSync).toHaveBeenCalledTimes(1)
     expect(recordBranchProvenance).not.toHaveBeenCalled()
   })
@@ -292,7 +295,7 @@ describe('deleteTestBranch', () => {
 })
 
 describe('cleanup cannot bypass create identity guards',()=>{
-  it.each([{id:PRODUCTION_BRANCH_ID},{default:true},{primary:true},{project_id:'wrong-project'},{parent_id:null},{name:'someone-elses-branch'}])('does not register an unproven branch %j',async overrides=>{
+  it.each([{id:PRODUCTION_BRANCH_ID},{default:true},{primary:true},{project_id:'wrong-project'},{init_source:'parent-data'},{name:'someone-elses-branch'}])('does not register an unproven branch %j',async overrides=>{
     mockNeonctl({create:createResponse(overrides)})
     const {createTestBranch,createdBranchIds,deleteTestBranch}=await load()
     expect(()=>createTestBranch('test-branch')).toThrow()

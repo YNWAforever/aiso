@@ -56,7 +56,8 @@ unknown, `1` usage error.
 ## CI workflow
 
 Dispatch `pr-gate.yml` on the frozen candidate branch with `schema_only=true`
-for the hosted synthetic fixtures. The resulting run ID is the release input.
+for the hosted synthetic fixtures. Schema-only fixtures are the default for pull
+requests, manual runs, and local tests. The resulting run ID is the release input.
 
 `.github/workflows/release-receipt.yml` is `workflow_dispatch` only: it never runs
 on pull requests and never deploys. It needs repository secrets

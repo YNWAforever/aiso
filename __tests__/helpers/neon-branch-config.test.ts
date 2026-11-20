@@ -29,14 +29,9 @@ describe('neon-branch harness configuration', () => {
    * The rule rather than the values, so this keeps its meaning if the ids ever
    * change — which the test above does not.
    *
-   * createTestBranch() passes no --parent, so a branch's parent is whatever the
-   * project's default branch is, and a Neon branch is a copy-on-write snapshot
-   * of its parent rather than an empty database. The harness then runs
-   * `drop schema public cascade` against that copy. Defaulting PROJECT_ID to a
-   * project whose default branch holds customer data therefore snapshots real
-   * data on every unconfigured run — which is what this defaulted to until
-   * 2026-09-05. Section 16.1: never create a preview or test branch from a
-   * branch that has held customer data.
+   * The old data-copy default used the project's default branch. The current
+   * default copies only the schema from the explicitly named branch. Keep the
+   * historical customer-data project out of both configurations.
    */
   it('never defaults to a project or branch that has held customer data', async () => {
     delete process.env.NEON_TEST_PROJECT_ID

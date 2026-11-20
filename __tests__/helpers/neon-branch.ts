@@ -19,15 +19,9 @@ import { redactSecrets } from '../../lib/security/redact-secrets.ts'
 // silently disable this file's two identity comparisons against it (real branch ids never
 // equal ''), rather than falling back to the real production id the guards exist to reject.
 //
-// The default project is AISO. Ordinary test branches inherit the default branch,
-// and a Neon branch is a copy-on-write snapshot of its parent rather than an
-// empty database — resetPublicSchema() then drops and recreates public on that
-// copy. Defaulting to a project whose default branch holds customer data
-// therefore snapshots real data on every unconfigured run. This defaulted to
-// red-firefly-93523049 until 2026-09-05; §16.1 of the integration plan is
-// explicit that one must never create a preview or test branch from a branch
-// that has held customer data. AISO's default branch has held only the
-// synthetic seed.
+// The default project is AISO. Integration fixtures use schema-only branches
+// sourced from the branch below. A data copy is an explicit opt-out for a
+// project whose branch is dedicated to synthetic data.
 export const PROJECT_ID = process.env.NEON_TEST_PROJECT_ID?.trim() || 'weathered-wave-50814522'
 
 /**
@@ -176,7 +170,7 @@ function productionHosts(): string[] {
 }
 
 export function createTestBranch(name: string): TestBranch {
-  const schemaOnly = process.env.NEON_TEST_SCHEMA_ONLY === 'true'
+  const schemaOnly = process.env.NEON_TEST_SCHEMA_ONLY !== 'false'
   if (schemaOnly && !BRANCH_ID.test(PRODUCTION_BRANCH_ID)) throw new Error('A valid schema source branch is required')
   const expiresAt = new Date(Date.now() + BRANCH_TTL_MS).toISOString()
   const out = neonctl([
@@ -218,6 +212,7 @@ export function createTestBranch(name: string): TestBranch {
     identityProblems.push('it has no distinct verified schema source')
   }
   if (schemaOnly && branch.parent_id) identityProblems.push('a schema-only root reported a parent')
+  if (schemaOnly && branch.init_source !== 'parent-schema') identityProblems.push('the branch does not report a schema-only source')
   if (branch.protected === true) identityProblems.push('it is protected')
   if (branch.default === true || branch.primary === true) identityProblems.push('it is the default branch')
   if (id === PRODUCTION_BRANCH_ID) identityProblems.push('it is the production branch')

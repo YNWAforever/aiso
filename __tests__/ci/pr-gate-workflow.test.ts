@@ -108,7 +108,7 @@ describe('single-run disposable role authorization', () => {
   it('offers a manual opt-in that defaults off and feeds only the integration role gate', async () => {
     const workflow = await readWorkflow()
     expect(workflow).toMatch(/workflow_dispatch:\s*\n\s+inputs:\s*\n\s+allow_disposable_role_password:/)
-    const input = workflow.slice(workflow.indexOf('      allow_disposable_role_password:'), workflow.indexOf('\npermissions:'))
+    const input = workflow.slice(workflow.indexOf('      allow_disposable_role_password:'), workflow.indexOf('      schema_only:'))
     expect(input).toMatch(/type:\s+boolean/)
     expect(input).toMatch(/default:\s+false/)
     expect(input).not.toMatch(/default:\s+true/)
@@ -117,6 +117,13 @@ describe('single-run disposable role authorization', () => {
     expect(integration).toContain('AISO_MANUAL_ROLE_APPROVAL: ${{ inputs.allow_disposable_role_password }}')
     expect(integration).toContain('ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ steps.disposable-role-authorization.outputs.allowed }}')
   })
+  it('uses schema-only Neon fixtures for pull requests and by default on dispatch', async () => {
+    const workflow = await readWorkflow()
+    const input = workflow.slice(workflow.indexOf('      schema_only:'), workflow.indexOf('\npermissions:'))
+    expect(input).toMatch(/default:\s+true/)
+    expect(workflow).toContain("NEON_TEST_SCHEMA_ONLY: ${{ github.event_name != 'workflow_dispatch' || inputs.schema_only }}")
+  })
+
   it('preserves and uploads the exact-target log outside the report reset directory', async () => {
     const workflow = await readWorkflow()
     const integration = workflow.slice(workflow.indexOf('  integration:'), workflow.indexOf('\n  e2e-accessibility:'))
