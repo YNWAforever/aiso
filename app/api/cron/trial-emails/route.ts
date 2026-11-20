@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic'
 
 type TrialAccountRow = {
   id: string
-  trial_started_at: string | Date
-  trial_ends_at: string | Date
+  trial_started_at: string
+  trial_ends_at: string
   trial_email_locale: 'en' | 'zh-HK' | null
   milestone: TrialEmailBit
   email: string
@@ -81,8 +81,12 @@ export async function GET(req: Request) {
         and d.needs_review_at is null and (d.lease_until is null or d.lease_until <= now())
       returning d.id
     `
+    // Preserve PostgreSQL's microseconds for the exact claim predicates below.
     const rows = (await sql`
-      select a.id, a.trial_started_at, a.trial_ends_at, a.trial_email_locale, due.milestone, owner.email
+      select a.id,
+        to_char(a.trial_started_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as trial_started_at,
+        to_char(a.trial_ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as trial_ends_at,
+        a.trial_email_locale, due.milestone, owner.email
       from accounts a
       cross join lateral (select due_trial_email_bit(a.trial_started_at, a.trial_ends_at, now()) as milestone) due
       cross join lateral (

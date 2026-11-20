@@ -65,11 +65,12 @@ async function deactivate(id: string, by: string) {
 beforeEach(async () => {
   await cleanup()
   sent.to.length = 0
-  // A live trial: started two days ago, no subscription, nothing sent yet.
+  // A live trial with sub-millisecond precision. The delivery claim compares both timestamps exactly.
   await sql`
     insert into accounts (id, plan, status, trial_started_at, trial_ends_at, trial_emails_sent)
-    values (${ACCOUNT}::uuid, 'basic', 'trialing', now() - interval '2 days',
-            now() + interval '5 days', 0)
+    values (${ACCOUNT}::uuid, 'basic', 'trialing',
+            date_trunc('milliseconds', now()) - interval '2 days' + interval '123 microseconds',
+            date_trunc('milliseconds', now()) + interval '5 days' + interval '123 microseconds', 0)
   `
   await sql`
     insert into clients (id, account_id, brand_name, status, competitors)
@@ -111,12 +112,14 @@ describe('account email recipient', () => {
     process.env.CRON_SECRET = 'integration-cron-secret-0123'
     const { GET } = await import('@/app/api/cron/trial-emails/route')
 
-    await GET(new Request('https://app.example/api/cron/trial-emails', {
+    const response = await GET(new Request('https://app.example/api/cron/trial-emails', {
       headers: { authorization: 'Bearer integration-cron-secret-0123' },
     }))
 
-    const ours = sent.to.filter(to => PEOPLE.map(email).includes(to))
-    expect(ours.length).toBeGreaterThan(0)
-    expect(ours.every(to => to === email(NEWER))).toBe(true)
+    expect(response.status).toBe(200)
+    expect(sent.to.filter(to => PEOPLE.map(email).includes(to))).toEqual([email(NEWER)])
+    const receipts = await sql`select milestone, provider_email_id from trial_email_deliveries
+      where account_id = ${ACCOUNT}::uuid and sent_at is not null`
+    expect(receipts).toEqual([{ milestone: 1, provider_email_id: 'email_fixture' }])
   })
 })
