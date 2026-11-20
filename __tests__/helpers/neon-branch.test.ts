@@ -74,7 +74,7 @@ async function load() {
 // above — clear any ambient NEON_TEST_* override so a developer rehearsing the greenfield
 // migration in the same shell (item 0.7/0.8) can't make these tests fail confusingly by
 // having the real module diverge from these mocked fixtures.
-const NEON_TEST_ENV_KEYS = ['NEON_TEST_PROJECT_ID', 'NEON_TEST_PRODUCTION_BRANCH_ID', 'NEON_TEST_OWNER_ROLE'] as const
+const NEON_TEST_ENV_KEYS = ['NEON_TEST_PROJECT_ID', 'NEON_TEST_PRODUCTION_BRANCH_ID', 'NEON_TEST_OWNER_ROLE', 'NEON_TEST_SCHEMA_ONLY'] as const
 const originalNeonTestEnv: Record<string, string | undefined> = {}
 
 beforeEach(() => {
@@ -113,6 +113,14 @@ describe('createTestBranch', () => {
     const { createTestBranch } = await load()
 
     expect(createTestBranch('test-branch').connectionUri).toBe(URI)
+  })
+
+  it('requests a schema-only branch for the synthetic launch gate', async () => {
+    process.env.NEON_TEST_SCHEMA_ONLY = 'true'
+    mockNeonctl()
+    const { createTestBranch } = await load()
+    createTestBranch('test-branch')
+    expect(neonctlArgv(execFileSync.mock.calls[0][1] as string[])).toContain('--schema-only')
   })
 
   it('sets an expiry so a hard crash cannot leak the branch forever', async () => {

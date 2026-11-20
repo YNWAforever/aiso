@@ -20,6 +20,10 @@ on:
         description: Production commit SHA to verify
         required: true
         type: string
+      gate_run:
+        description: Successful PR gate workflow run ID
+        required: true
+        type: string
       pr:
         description: Pull request number (optional; resolved from the commit otherwise)
         required: false
@@ -65,14 +69,18 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ inputs.sha }}
+          GATE_RUN_ID: ${{ inputs.gate_run }}
+          RELEASE_PR: ${{ inputs.pr }}
+          ALLOW_UNKNOWN: ${{ inputs.allow_unknown }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_SCOPE: ${{ secrets.VERCEL_SCOPE }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -o pipefail
-          args=(--app-sha "${{ inputs.sha }}")
-          if [ -n "${{ inputs.pr }}" ]; then args+=(--pr "${{ inputs.pr }}"); fi
-          if [ -n "${{ inputs.allow_unknown }}" ]; then args+=(--allow-unknown "${{ inputs.allow_unknown }}"); fi
+          args=(--app-sha "$RELEASE_SHA" --gate-run "$GATE_RUN_ID")
+          if [ -n "$RELEASE_PR" ]; then args+=(--pr "$RELEASE_PR"); fi
+          if [ -n "$ALLOW_UNKNOWN" ]; then args+=(--allow-unknown "$ALLOW_UNKNOWN"); fi
           node scripts/release/receipt.mjs "${args[@]}"
 
       - name: Upload the receipt

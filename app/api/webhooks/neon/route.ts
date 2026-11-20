@@ -1,3 +1,4 @@
+import { logRedactedFunnelEvent } from '@/lib/observability/funnel'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
@@ -59,10 +60,10 @@ type Sql = ReturnType<typeof db>
 export async function provisionAccountForUser(
   sql: Sql,
   { userId, email, name }: { userId: string; email: string; name: string | null },
-): Promise<void> {
+): Promise<boolean> {
   const accountId = crypto.randomUUID()
 
-  await sql.transaction([
+  const results = await sql.transaction([
     // Serializes provisioning for this user id. Released at COMMIT of the batch.
     sql`
       select pg_catalog.pg_advisory_xact_lock(
@@ -135,7 +136,13 @@ export async function provisionAccountForUser(
       where a.id = ${accountId}
         and not exists (select 1 from profiles p where p.account_id = a.id)
     `,
+    sql`
+      update accounts a set signup_provisioned_at = now()
+      where a.id = ${accountId} and exists (select 1 from profiles p where p.id = ${userId} and p.account_id = a.id)
+      returning a.id
+    `,
   ])
+  return (results?.at(-1)?.length ?? 0) === 1
 }
 
 export async function POST(req: NextRequest) {
@@ -233,11 +240,12 @@ export async function POST(req: NextRequest) {
     // equal, and the one that came back from `neon_auth.user` is the authority.
     // It decides which account this profile joins (migration 047), so it must
     // be the value the auth database holds rather than the one a caller sent.
-    await provisionAccountForUser(sql, { userId, email: knownEmail, name: name ?? null })
+    const created = await provisionAccountForUser(sql, { userId, email: knownEmail, name: name ?? null })
+    if (created) logRedactedFunnelEvent({ name: 'signup_succeeded', source: 'neon_auth' })
   } catch (err) {
     console.error(
-      `[webhooks/neon] provisioning failed for user ${userId} (${email}):`,
-      (err as Error)?.message ?? String(err)
+      '[webhooks/neon] provisioning failed:',
+      (err as Error)?.name ?? 'Error'
     )
     return NextResponse.json({ error: 'Provisioning failed' }, { status: 500 })
   }

@@ -53,7 +53,7 @@ import { fetchPublicUrl } from '@/lib/security/public-url'
 // meter event after the response; both are mocked here so the fix-pack path is
 // tested without Stripe and without a request scope for `after()`.
 const billingMocks = vi.hoisted(() => ({
-  enqueueFixPackUsage: vi.fn(),
+  storeFixPack: vi.fn(),
   reportFixPackUsage: vi.fn(),
 }))
 vi.mock('@/lib/billing/usage', () => billingMocks)
@@ -95,8 +95,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   queries.length = 0
   nextResults = []
-  billingMocks.enqueueFixPackUsage.mockReset()
-  billingMocks.enqueueFixPackUsage.mockResolvedValue(null)
+  billingMocks.storeFixPack.mockReset()
+  billingMocks.storeFixPack.mockResolvedValue({ available: true, usageId: null })
   billingMocks.reportFixPackUsage.mockReset()
   afterMock.mockClear()
   vi.mocked(fetchPublicUrl).mockResolvedValue(new Response('<title>Example</title>'))
@@ -241,15 +241,14 @@ describe('POST /api/fix', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual(GROUNDED_PACK)
     expect(callOpenRouter).not.toHaveBeenCalled()
-    expect(queries).toHaveLength(4)
-    expect(queries[3]).toMatch(/insert into fix_packs/i)
-    // No account/client on the scan row: a free or anonymous scan is never billed.
-    expect(billingMocks.enqueueFixPackUsage).not.toHaveBeenCalled()
+    expect(queries).toHaveLength(3)
+    expect(billingMocks.storeFixPack).toHaveBeenCalledWith('acc-1', 'scan-1', GROUNDED_PACK)
+    expect(billingMocks.reportFixPackUsage).not.toHaveBeenCalled()
   })
 
   it('records one billable fix pack and schedules its meter event only for an owned metered scan', async () => {
     vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
-    billingMocks.enqueueFixPackUsage.mockResolvedValue('ev-1')
+    billingMocks.storeFixPack.mockResolvedValue({ available: true, usageId: 'ev-1' })
     const METERED_SCAN = { ...SCAN_ROW, account_id: 'acc-1', client_id: 'client-1' }
     nextResults = [
       [{ id: 'scan-1' }], // ownership check
@@ -262,25 +261,23 @@ describe('POST /api/fix', () => {
     const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
 
     expect(res.status).toBe(200)
-    expect(billingMocks.enqueueFixPackUsage).toHaveBeenCalledWith({
-      fixPackId: 'fp-1', accountId: 'acc-1', clientId: 'client-1',
-    })
+    expect(billingMocks.storeFixPack).toHaveBeenCalledWith('acc-1', 'scan-1', GROUNDED_PACK)
     expect(afterMock).toHaveBeenCalledTimes(1)
     expect(billingMocks.reportFixPackUsage).toHaveBeenCalledWith('ev-1')
   })
 
-  it('still returns the fix pack when the billing ledger write fails', async () => {
+  it('reports a retryable failure if the metered transaction fails', async () => {
     vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
-    billingMocks.enqueueFixPackUsage.mockRejectedValue(new Error('connection terminated'))
+    billingMocks.storeFixPack.mockRejectedValue(new Error('connection terminated'))
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const METERED_SCAN = { ...SCAN_ROW, account_id: 'acc-1', client_id: 'client-1' }
-    nextResults = [[{ id: 'scan-1' }], [], [METERED_SCAN], [{ id: 'fp-1' }]]
+    nextResults = [[{ id: 'scan-1' }], [], [METERED_SCAN], [{ mode: 'metered' }]]
     const { POST } = await import('@/app/api/fix/route')
 
     const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
 
-    expect(res.status).toBe(200)
-    expect(await res.json()).toEqual(GROUNDED_PACK)
+    expect(res.status).toBe(503)
+    expect(await res.json()).toEqual({ error: 'FIX_PACK_RETRY' })
     expect(billingMocks.reportFixPackUsage).not.toHaveBeenCalled()
     consoleError.mockRestore()
   })
@@ -332,6 +329,7 @@ describe('POST /api/fix', () => {
       [SCAN_ROW], // scan read
       new Error('connection terminated') as never, // cache write fails
     ]
+    billingMocks.storeFixPack.mockRejectedValueOnce(new Error('transaction failed'))
     const { POST } = await import('@/app/api/fix/route')
 
     const res = await POST(post('/api/fix', { scanId: 'scan-1' }))

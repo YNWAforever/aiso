@@ -171,7 +171,7 @@ describe('POST /api/webhooks/neon', () => {
 
     // 1 auth-DB lookup + 1 idempotency check + 5 queries built for the batch
     // (lock, accounts, profiles, invitation acceptance, orphan cleanup).
-    expect(sqlMock).toHaveBeenCalledTimes(7)
+    expect(sqlMock).toHaveBeenCalledTimes(8)
     expect(transactionMock).toHaveBeenCalledTimes(1)
 
     const [authStrings, authUserId] = sqlMock.mock.calls[0]
@@ -209,7 +209,7 @@ describe('POST /api/webhooks/neon', () => {
     // Lock + both inserts + invitation acceptance + orphan cleanup, submitted
     // together as a single atomic transaction.
     const [txnQueries] = transactionMock.mock.calls[0]
-    expect(txnQueries).toHaveLength(5)
+    expect(txnQueries).toHaveLength(6)
   })
 
   /**

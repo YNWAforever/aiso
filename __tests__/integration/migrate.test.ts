@@ -95,6 +95,8 @@ describe('migration runner against a real branch', () => {
       'site_edit_jobs',
       'site_edit_live_checks',
       'site_edit_receipts',
+      'stripe_customer_attempts',
+      'stripe_subscription_attempts',
       'stripe_subscription_processing_leases',
       'stripe_webhook_events',
       'studio_dataforseo_brand_settings',
@@ -106,6 +108,7 @@ describe('migration runner against a real branch', () => {
       'studio_staff_grants',
       'studio_thread_turns',
       'studio_threads',
+      'trial_email_deliveries',
     ])
   })
 

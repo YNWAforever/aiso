@@ -25,6 +25,7 @@ vi.mock('@/components/result/ResultClient', () => ({ ResultClient: () => null })
 
 import ResultPage, {generateMetadata} from '@/app/[lang]/result/[id]/page'
 
+const RESULT_ID = 'a1000000-0000-4000-8000-000000000001'
 const RAW_EVIDENCE = 'SENTINEL_RAW_PRIVATE_EVIDENCE'
 const PRIVATE_REMEDIATION = 'SENTINEL_PRIVATE_REMEDIATION'
 
@@ -73,7 +74,7 @@ function expectSanitized(props: ResultClientProps) {
 
 describe('public result route access boundary', () => {
   it('withholds failed collection grades from social/search metadata',async()=>{
-    const row=scan('failed-page',null)
+    const row=scan(RESULT_ID,null)
     Object.assign(row.results,{evidence:buildScanEvidence({requestedUrl:row.url,evaluatedUrl:row.url,industry:null,region:null,sitemapSource:'unknown',checks:{},
       observations:[{check:'page',collection:'failed',httpStatus:503,target:{origin:row.url}}]})})
     sqlMock.mockResolvedValue([row])
@@ -89,26 +90,34 @@ describe('public result route access boundary', () => {
     sqlMock.mockResolvedValue([])
 
     await expect(renderPage('missing-scan')).rejects.toThrow('NOT_FOUND')
+    expect(sqlMock).not.toHaveBeenCalled()
+    await expect(renderPage(RESULT_ID)).rejects.toThrow('NOT_FOUND')
 
     expect(getProfileMock).not.toHaveBeenCalled()
   })
 
+  it('surfaces a transient database error instead of returning a missing result', async () => {
+    sqlMock.mockRejectedValueOnce(new Error('fixture database outage'))
+    await expect(renderPage(RESULT_ID)).rejects.toThrow('fixture database outage')
+    expect(notFoundMock).not.toHaveBeenCalled()
+  })
+
   it('keeps the public teaser available when Neon profile lookup has an expected config failure', async () => {
-    sqlMock.mockResolvedValue([scan('auth-failure', 'account-1')])
+    sqlMock.mockResolvedValue([scan(RESULT_ID, 'account-1')])
     getProfileMock.mockRejectedValue(
       new TypeError("Cannot read properties of undefined (reading 'endsWith')"),
     )
 
-    expectSanitized(await renderPage('auth-failure'))
+    expectSanitized(await renderPage(RESULT_ID))
   })
 
   it('logs unexpected profile errors and still fails closed to the public teaser', async () => {
     const error = new Error('unexpected profile database failure')
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    sqlMock.mockResolvedValue([scan('unexpected-auth-failure', 'account-1')])
+    sqlMock.mockResolvedValue([scan(RESULT_ID, 'account-1')])
     getProfileMock.mockRejectedValue(error)
 
-    expectSanitized(await renderPage('unexpected-auth-failure'))
+    expectSanitized(await renderPage(RESULT_ID))
     expect(consoleError).toHaveBeenCalledWith(
       '[result] Unexpected profile lookup failure',
       error,
@@ -117,39 +126,39 @@ describe('public result route access boundary', () => {
   })
 
   it('does not serialize private scan results for an anonymous viewer', async () => {
-    sqlMock.mockResolvedValue([scan('anonymous', 'account-1')])
+    sqlMock.mockResolvedValue([scan(RESULT_ID, 'account-1')])
     getProfileMock.mockResolvedValue(null)
 
-    expectSanitized(await renderPage('anonymous'))
+    expectSanitized(await renderPage(RESULT_ID))
   })
 
   it('does not serialize private scan results for an authenticated non-owner', async () => {
-    sqlMock.mockResolvedValue([scan('non-owner', 'account-1')])
+    sqlMock.mockResolvedValue([scan(RESULT_ID, 'account-1')])
     getProfileMock.mockResolvedValue({ account_id: 'account-2' })
 
-    expectSanitized(await renderPage('non-owner'))
+    expectSanitized(await renderPage(RESULT_ID))
   })
 
   it.each([null, 'account-2'])('withholds the new evidence projection from viewer %s', async viewer => {
-    const row = scan('evidence-private', 'account-1')
+    const row = scan(RESULT_ID, 'account-1')
     Object.assign(row.results, { evidence: buildScanEvidence({
       requestedUrl: 'https://example.com/private?token=SECRET', evaluatedUrl: 'https://example.com',
       industry: 'technology', region: 'HK', sitemapSource: 'unknown', checks: {},
     }) })
     sqlMock.mockResolvedValue([row])
     getProfileMock.mockResolvedValue(viewer ? { account_id: viewer } : null)
-    expectSanitized(await renderPage('evidence-private'))
+    expectSanitized(await renderPage(RESULT_ID))
   })
 
   it('projects validated evidence for the exact owner, retaining raw storage while withholding an unproven score', async () => {
-    const row = scan('evidence-owner', 'account-1')
+    const row = scan(RESULT_ID, 'account-1')
     Object.assign(row.results, { evidence: buildScanEvidence({
       requestedUrl: 'https://example.com/private?token=SECRET', evaluatedUrl: 'https://example.com',
       industry: 'technology', region: 'HK', sitemapSource: 'unknown', checks: {},
     }) })
     sqlMock.mockResolvedValue([row])
     getProfileMock.mockResolvedValue({ account_id: 'account-1' })
-    const props = await renderPage('evidence-owner')
+    const props = await renderPage(RESULT_ID)
     expect(props.ownedEvidence?.checks).toHaveLength(20)
     expect(JSON.stringify(props.ownedEvidence)).not.toMatch(/SECRET|example\.com|comparisonSignature/)
     expect(props.fullScan?.score).toBe(62)
@@ -157,10 +166,10 @@ describe('public result route access boundary', () => {
     expect(props.summary.grade).toBeNull()
   })
   it('serializes the full scan only for the exact owning account', async () => {
-    sqlMock.mockResolvedValue([scan('owner', 'account-1')])
+    sqlMock.mockResolvedValue([scan(RESULT_ID, 'account-1')])
     getProfileMock.mockResolvedValue({ account_id: 'account-1' })
 
-    const props = await renderPage('owner')
+    const props = await renderPage(RESULT_ID)
     const serialized = JSON.stringify(props)
     expect(props.fullScan?.account_id).toBe('account-1')
     expect(serialized).toContain('"results"')
@@ -177,11 +186,11 @@ describe('public result route access boundary', () => {
   }
 
   it('looks up the previous score only for the owner, filtered by the viewer account', async () => {
-    const current = withPageEvidence(scan('owner-rescan', 'account-1'))
-    const earlier = withPageEvidence(scan('owner-earlier', 'account-1'))
+    const current = withPageEvidence(scan(RESULT_ID, 'account-1'))
+    const earlier = withPageEvidence(scan(RESULT_ID, 'account-1'))
     sqlMock.mockResolvedValueOnce([current]).mockResolvedValueOnce([{ score: '55.5', grade: 'D', evidence: (earlier.results as Record<string, unknown>).evidence }])
     getProfileMock.mockResolvedValue({ account_id: 'account-1' })
-    const props = await renderPage('owner-rescan') as ResultClientProps & { previous?: unknown }
+    const props = await renderPage(RESULT_ID) as ResultClientProps & { previous?: unknown }
     expect(props.previous).toEqual({ score: 55.5, grade: 'D' })
     const [, ...values] = sqlMock.mock.calls[1]!
     expect(values[0]).toBe('account-1')
@@ -189,18 +198,18 @@ describe('public result route access boundary', () => {
   })
 
   it('ignores a previous scan that is not comparable, so a method or scope change never celebrates', async () => {
-    const current = withPageEvidence(scan('owner-rescan-2', 'account-1'))
+    const current = withPageEvidence(scan(RESULT_ID, 'account-1'))
     const otherScope = withPageEvidence(scan('owner-earlier-2', 'account-1'), 'finance')
     sqlMock.mockResolvedValueOnce([current]).mockResolvedValueOnce([{ score: '40', grade: 'F', evidence: (otherScope.results as Record<string, unknown>).evidence }])
     getProfileMock.mockResolvedValue({ account_id: 'account-1' })
-    const props = await renderPage('owner-rescan-2') as ResultClientProps & { previous?: unknown }
+    const props = await renderPage(RESULT_ID) as ResultClientProps & { previous?: unknown }
     expect(props.previous).toBeNull()
   })
 
   it('never looks up a previous score for a non-owner', async () => {
-    sqlMock.mockResolvedValue([scan('non-owner-rescan', 'account-1')])
+    sqlMock.mockResolvedValue([scan(RESULT_ID, 'account-1')])
     getProfileMock.mockResolvedValue({ account_id: 'account-2' })
-    const props = await renderPage('non-owner-rescan') as ResultClientProps & { previous?: unknown }
+    const props = await renderPage(RESULT_ID) as ResultClientProps & { previous?: unknown }
     expect(props.previous).toBeNull()
     expect(sqlMock).toHaveBeenCalledTimes(1)
   })

@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe, STRIPE_PRICES, APP_URL } from '@/lib/stripe'
+import { openCheckout } from '@/lib/billing/checkout'
+import { authLocale } from '@/lib/auth-return-to'
 import { getProfile } from '@/lib/auth'
 import { getCheckoutPlanId } from '@/lib/plans/catalog'
 import { readLimitedJson } from '@/lib/approvals/request'
 
 export const dynamic = 'force-dynamic'
-
-const VALID_LANGS = ['en', 'zh-HK'] as const
-
-function getSupportedLang(lang: unknown): (typeof VALID_LANGS)[number] {
-  return typeof lang === 'string' && VALID_LANGS.includes(lang as (typeof VALID_LANGS)[number])
-    ? lang as (typeof VALID_LANGS)[number]
-    : 'en'
-}
 
 export async function POST(req: NextRequest) {
   let body: { plan?: unknown; lang?: unknown }
@@ -25,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid checkout request' }, { status: 400 })
   }
   const plan = getCheckoutPlanId(body.plan)
-  const supportedLang = getSupportedLang(body.lang)
+  const supportedLang = authLocale(typeof body.lang === 'string' ? body.lang : '')
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -36,24 +29,13 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const priceId = STRIPE_PRICES[plan]
-  if (!priceId) {
-    return NextResponse.json({ error: `Price not configured for plan: ${plan}` }, { status: 500 })
-  }
-
   try {
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
-      customer_email: profile.email ?? undefined,
-      metadata: { account_id: profile.account_id, plan },
-      success_url: `${APP_URL}/${supportedLang}/dashboard`,
-      cancel_url:  `${APP_URL}/${supportedLang}/pricing`,
-    })
-    return NextResponse.json({ url: session.url })
+    const checkout = await openCheckout(profile.account_id, plan, supportedLang)
+    if (checkout.status === 'ok') return NextResponse.json({ url: checkout.url })
+    if (checkout.status === 'billing_exists') return NextResponse.json({ error: checkout.status }, { status: 409 })
+    return NextResponse.json({ error: checkout.status }, { status: 503, headers: { 'Retry-After': '5' } })
   } catch {
-    console.error('[stripe/checkout] session creation failed')
-    return NextResponse.json({ error: 'Checkout temporarily unavailable' }, { status: 500 })
+    console.error('[stripe/checkout] session creation or recovery failed')
+    return NextResponse.json({ error: 'checkout_unavailable' }, { status: 503, headers: { 'Retry-After': '5' } })
   }
 }

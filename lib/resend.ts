@@ -113,26 +113,24 @@ export async function sendAlertEmail({
   }
 }
 
+export function trialEmailSender() {
+  return process.env.RESEND_TRIAL_FROM_EMAIL?.trim() || 'hello@fimmick-aeo.com'
+}
+
 export async function sendTrialEmail({
-  to,
-  subject,
-  text,
+  to, subject, text, from = trialEmailSender(), idempotencyKey,
 }: {
   to: string
   subject: string
   text: string
+  from?: string
+  idempotencyKey?: string
 }) {
   const resend = new Resend(process.env.RESEND_API_KEY)
-
-  const { error } = await resend.emails.send({
-    // See sendAlertEmail above: `??` keeps '', which Resend rejects.
-    from: process.env.RESEND_TRIAL_FROM_EMAIL?.trim() || 'hello@fimmick-aeo.com',
-    to,
-    subject,
-    text,
-  })
-
-  if (error) {
-    throw new Error('Resend trial email failed', { cause: error })
-  }
+  const payload = { from, to, subject, text }
+  const { data, error } = idempotencyKey
+    ? await resend.emails.send(payload, { idempotencyKey })
+    : await resend.emails.send(payload)
+  if (error) throw new Error('Resend trial email failed', { cause: error })
+  return data?.id ?? null
 }

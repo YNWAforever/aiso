@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createJobSummary } from './write-job-summary.mjs'
+import { checkedOutSource, createJobSummary } from './write-job-summary.mjs'
 
 function priorityForFile(manifest, testFile) {
   return manifest.entries?.find((entry) => entry.files?.includes(testFile))?.priority
@@ -27,7 +27,7 @@ function skippedFrom(report) {
   return skippedAssertions.length || Number(report.numPendingTests ?? 0)
 }
 
-export function classifyVitestReport({ report, exitCode, manifest, artifactPaths, commitSha }) {
+export function classifyVitestReport({ report, exitCode, manifest, artifactPaths, commitSha, treeSha = '' }) {
   const invalidInputs = !report || !manifest || manifest.schemaVersion !== 1
   const failures = report ? failuresFrom(report) : []
   const priorities = failures.map((testFile) => priorityForFile(manifest, testFile))
@@ -47,6 +47,7 @@ export function classifyVitestReport({ report, exitCode, manifest, artifactPaths
     priorities: failurePriorities,
     artifacts: artifactPaths,
     commitSha,
+    treeSha,
   })
   return { exitCode: blocking ? 1 : 0, summary }
 }
@@ -72,7 +73,7 @@ async function main() {
     manifest,
     exitCode: Number(args['exit-code'] ?? 1),
     artifactPaths: args.artifact ? [args.artifact] : ['unit-contract/vitest.json', 'unit-contract/vitest.junit.xml'],
-    commitSha: process.env.GITHUB_SHA ?? '',
+    ...checkedOutSource(),
   })
   const output = args.output ?? 'artifacts/unit-contract-summary.json'
   await mkdir(dirname(output), { recursive: true })

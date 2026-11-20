@@ -3,11 +3,13 @@ import { NextRequest } from 'next/server'
 
 const mocks = vi.hoisted(() => ({
   constructEvent: vi.fn(),
+  mirrorInvoice: vi.fn(),
   retrieveSubscription: vi.fn(),
   sql: vi.fn(),
   calls: [] as Array<{ name: string; args: Record<string, unknown> }>,
 }))
 
+vi.mock('@/lib/billing/invoices', () => ({ mirrorOneOffInvoice: mocks.mirrorInvoice }))
 vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
 
 vi.mock('@/lib/stripe', () => ({
@@ -182,46 +184,29 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
     }))
   })
 
-  it('mirrors a one-off invoice status event without touching account entitlements', async () => {
-    const response = await postWebhook({
-      id: 'evt_invoice_paid',
-      created: 100,
-      type: 'invoice.paid',
-      data: {
-        object: {
-          id: 'in_123',
-          status: 'paid',
-          subscription: null,
-          hosted_invoice_url: 'https://invoice.stripe.com/in_123',
-        },
-      },
-    })
-
+  it('reconciles an issued invoice without touching subscription entitlements', async () => {
+    mocks.mirrorInvoice.mockResolvedValueOnce({ status: 'ok' })
+    const response = await postWebhook(lifecycleEvent('invoice.paid', {
+      id: 'in_123', metadata: { source: 'aiso_admin_one_off' },
+    }))
     expect(response.status).toBe(200)
+    expect(mocks.mirrorInvoice).toHaveBeenCalledWith('in_123', { issued: true })
     expect(mocks.retrieveSubscription).not.toHaveBeenCalled()
-    const update = mocks.sql.mock.calls.find(call =>
-      (call[0] as TemplateStringsArray).join('?').includes('update billing_invoices'),
-    )
-    expect(update).toBeTruthy()
-    expect(update!.slice(1)).toEqual([
-      'paid', 'https://invoice.stripe.com/in_123', 'in_123',
-    ])
   })
 
-  it('treats a one-off invoice.payment_failed as a mirror update, not a subscription event', async () => {
-    const response = await postWebhook({
-      id: 'evt_invoice_off_pf',
-      created: 100,
-      type: 'invoice.payment_failed',
-      data: { object: { id: 'in_456', subscription: null } },
-    })
+  it.each(['pending', 'stripe_failed', 'not_found'])('retries an issued invoice with outcome %s', async status => {
+    mocks.mirrorInvoice.mockResolvedValueOnce({ status })
+    const response = await postWebhook(lifecycleEvent('invoice.paid', {
+      id: 'in_123', metadata: { source: 'aiso_admin_one_off' },
+    }))
+    expect(response.status).toBe(503)
+  })
 
+  it('acknowledges an unrelated one-off invoice', async () => {
+    mocks.mirrorInvoice.mockResolvedValueOnce({ status: 'not_found' })
+    const response = await postWebhook(lifecycleEvent('invoice.payment_failed', { id: 'in_123' }))
     expect(response.status).toBe(200)
     expect(mocks.retrieveSubscription).not.toHaveBeenCalled()
-    const update = mocks.sql.mock.calls.find(call =>
-      (call[0] as TemplateStringsArray).join('?').includes('update billing_invoices'),
-    )
-    expect(update!.slice(1)).toEqual(['open', null, 'in_456'])
   })
 
   it('maps a deleted canonical subscription to Basic/cancelled', async () => {
@@ -235,12 +220,10 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
     expect(applyRpcArgs()).toMatchObject({ p_plan: 'basic', p_status: 'cancelled' })
   })
 
-  it('maps invoice failure through canonical past_due state', async () => {
+  it.each([{ subscription: 'sub_xyz' }, { parent: { subscription_details: { subscription: 'sub_xyz' } } }])('maps invoice failure through canonical past_due state (%o)', async invoice => {
     mocks.retrieveSubscription.mockResolvedValue(subscription({ status: 'past_due' }))
 
-    const response = await postWebhook(lifecycleEvent('invoice.payment_failed', {
-      subscription: 'sub_xyz',
-    }))
+    const response = await postWebhook(lifecycleEvent('invoice.payment_failed', invoice))
 
     expect(response.status).toBe(200)
     expect(applyRpcArgs()).toMatchObject({ p_plan: 'pro', p_status: 'past_due' })

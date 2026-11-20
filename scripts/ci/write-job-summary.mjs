@@ -1,6 +1,12 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
+
+export function checkedOutSource() {
+  const revision = (ref) => execFileSync('git', ['rev-parse', '--verify', ref], { encoding: 'utf8' }).trim()
+  return { commitSha: revision('HEAD'), treeSha: revision('HEAD^{tree}') }
+}
 
 const VALID_PRIORITIES = new Set(['P0', 'P1', 'P2'])
 const SAFE_ARTIFACT_PATH = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/
@@ -18,14 +24,16 @@ function assertSafeArtifactPath(path) {
  *   priorities?: string[],
  *   artifacts?: string[],
  *   commitSha?: string,
+ *   treeSha?: string,
  * }} params
  */
-export function createJobSummary({ job, status, executed, skipped, priorities = [], artifacts = [], commitSha = '' }) {
+export function createJobSummary({ job, status, executed, skipped, priorities = [], artifacts = [], commitSha = '', treeSha = '' }) {
   for (const artifact of artifacts) assertSafeArtifactPath(artifact)
   return {
     schemaVersion: 1,
     job,
     commitSha,
+    ...(treeSha ? { treeSha } : {}),
     status,
     executed: Number(executed),
     skipped: Number(skipped),
@@ -63,7 +71,7 @@ async function main() {
     skipped: args.skipped,
     priorities: args.priorities,
     artifacts: args.artifacts,
-    commitSha: process.env.GITHUB_SHA ?? '',
+    ...checkedOutSource(),
     output: args.output ?? `artifacts/${args.job}-summary.json`,
   })
 }

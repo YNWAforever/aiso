@@ -40,14 +40,15 @@ export function LockedFeature({ feature, requiredPlan, price, children }: Props)
           const res = await fetch('/api/stripe/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plan: requiredPlan.toLowerCase() }),
+            body: JSON.stringify({ plan: requiredPlan.toLowerCase(), lang }),
           })
           const data = res.ok ? await res.json().catch(() => null) : null
           // Stripe Checkout is an external URL; the pricing fallback is internal.
           if (typeof data?.url === 'string') window.location.href = data.url
-          else router.push(`/${lang}/pricing`)
+          else if (res.status === 409) router.push(`/${lang}/dashboard/settings#billing`)
+          else router.push(`/${lang}/pricing?plan=${encodeURIComponent(requiredPlan.toLowerCase())}`)
         } catch {
-          router.push(`/${lang}/pricing`)
+          router.push(`/${lang}/pricing?plan=${encodeURIComponent(requiredPlan.toLowerCase())}`)
         }
       }}
       className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

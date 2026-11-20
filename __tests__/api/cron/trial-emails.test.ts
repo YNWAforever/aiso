@@ -1,279 +1,102 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createLaunchBillingDb } from '../../helpers/launch-billing-db'
 
-const h = vi.hoisted(() => ({
-  db: vi.fn(),
-  sendTrialEmail: vi.fn(),
-  finishCronRun: vi.fn(async () => undefined),
-}))
-
+const h = vi.hoisted(() => ({ db: vi.fn(), send: vi.fn(), finish: vi.fn() }))
 vi.mock('@/lib/db', () => ({ db: h.db }))
-vi.mock('@/lib/resend', () => ({ sendTrialEmail: h.sendTrialEmail }))
-// The route's own queries are what this file exercises. Ledger recording is
-// tested separately in cron-ledger-wiring.test.ts; stub it here so its own
-// db() calls don't interleave with (and shift the indices of) mockSql.mock.calls.
-vi.mock('@/lib/cron/recordRun', () => ({
-  startCronRun: vi.fn(async () => 'test-run-id'),
-  finishCronRun: h.finishCronRun,
-}))
+vi.mock('@/lib/resend', () => ({ sendTrialEmail: h.send, trialEmailSender: () => 'sender@example.test' }))
+vi.mock('@/lib/cron/recordRun', () => ({ startCronRun: async () => 'run-fixture', finishCronRun: h.finish }))
+vi.mock('@/lib/app-origin', () => ({ appOrigin: () => 'https://app.example.test' }))
 
-async function importRoute() {
-  vi.resetModules()
-  return import('@/app/api/cron/trial-emails/route')
+import { GET } from '@/app/api/cron/trial-emails/route'
+
+const secret = 'synthetic-trial-cron-fixture-secret'
+const account = 'a1000000-0000-4000-8000-000000000001'
+const user = 'a1000000-0000-4000-8000-000000000002'
+let fixture: Awaited<ReturnType<typeof createLaunchBillingDb>>
+
+function request(token = secret) {
+  return new Request('https://app.example.test/api/cron/trial-emails', { headers: { authorization: `Bearer ${token}` } })
 }
 
-function request(bearer?: string) {
-  return new Request('https://app.example/api/cron/trial-emails', {
-    headers: bearer ? { authorization: `Bearer ${bearer}` } : {},
-  })
-}
+beforeAll(async () => { fixture = await createLaunchBillingDb() })
+afterAll(async () => { await fixture?.pg.close() })
+beforeEach(async () => {
+  vi.resetAllMocks()
+  vi.stubEnv('CRON_SECRET', secret)
+  h.db.mockReturnValue(fixture.sql)
+  h.send.mockResolvedValue('email_fixture')
+  await fixture.pg.exec('truncate accounts cascade; truncate neon_auth."user"')
+  await fixture.pg.query(`insert into accounts (id, trial_started_at, trial_ends_at, trial_email_locale)
+    values ($1, now() - interval '6 days', now() + interval '8 hours', 'zh-HK')`, [account])
+  await fixture.pg.query('insert into neon_auth."user" (id,email) values ($1,\'owner@example.test\')', [user])
+  await fixture.pg.query('insert into profiles (id,account_id) values ($1,$2)', [user, account])
+})
+afterEach(() => vi.unstubAllEnvs())
 
-function accountRow(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'account-1',
-    trial_started_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 - 60_000),
-    trial_emails_sent: 0,
-    email: 'owner@example.com',
-    ...overrides,
-  }
-}
-
-describe('GET /api/cron/trial-emails', () => {
-  const originalCronSecret = process.env.CRON_SECRET
-  let mockSql: ReturnType<typeof vi.fn>
-  let rows: unknown[]
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    process.env.CRON_SECRET = 'test-cron-secret-0123'
-    rows = [accountRow()]
-    mockSql = vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
-      const text = strings.join('?')
-      if (text.includes('UPDATE accounts')) return Promise.resolve([])
-      void params
-      return Promise.resolve(rows)
-    })
-    h.db.mockReturnValue(mockSql)
-    h.sendTrialEmail.mockResolvedValue(undefined)
-  })
-
-  afterEach(() => {
-    if (originalCronSecret === undefined) delete process.env.CRON_SECRET
-    else process.env.CRON_SECRET = originalCronSecret
-  })
-
-  it('returns 500 when CRON_SECRET is unset', async () => {
-    delete process.env.CRON_SECRET
-    const { GET } = await importRoute()
-
-    const res = await GET(request('anything'))
-
-    expect(res.status).toBe(500)
-    expect(h.db).not.toHaveBeenCalled()
-  })
-
-  it('returns 401 for a missing or wrong secret', async () => {
-    const { GET } = await importRoute()
-
-    expect((await GET(request())).status).toBe(401)
+describe('trial email delivery', () => {
+  it('requires the configured cron secret and keeps recipient data out of responses', async () => {
     expect((await GET(request('wrong'))).status).toBe(401)
+    vi.stubEnv('CRON_SECRET', '')
+    expect((await GET(request())).status).toBe(500)
+    expect(h.send).not.toHaveBeenCalled()
   })
 
-  it('accepts the Authorization: Bearer header and sends every due email for a fresh account', async () => {
-    const { GET } = await importRoute()
-
-    const res = await GET(request('test-cron-secret-0123'))
-
-    expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ sent: 4, failed: 0 })
-    expect(h.sendTrialEmail).toHaveBeenCalledTimes(4)
-    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'ok', { sent: 4, failed: 0 })
+  it('sends only the applicable localized reminder and preserves the legacy mask', async () => {
+    const response = await GET(request())
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ sent: 1, failed: 0, deferred: 0, needsReview: 0 })
+    expect(h.send).toHaveBeenCalledWith(expect.objectContaining({
+      to: 'owner@example.test', text: expect.stringContaining('https://app.example.test/zh-HK/pricing'),
+      idempotencyKey: expect.stringMatching(/^aiso:trial:/),
+    }))
+    expect(h.send.mock.calls[0][0].text).toContain('199 美元')
+    expect(await fixture.pg.query('select trial_emails_sent from accounts')).toMatchObject({ rows: [{ trial_emails_sent: 4 }] })
+    await GET(request())
+    expect(h.send).toHaveBeenCalledTimes(1)
   })
 
-  it('skips an account with no resolvable email', async () => {
-    rows = [accountRow({ email: null })]
-    const { GET } = await importRoute()
-
-    await GET(request('test-cron-secret-0123'))
-
-    expect(h.sendTrialEmail).not.toHaveBeenCalled()
+  it('sends only the follow-up when the missed trial ended four days ago', async () => {
+    await fixture.pg.exec("update accounts set trial_started_at=now()-interval '11 days', trial_ends_at=now()-interval '4 days', trial_email_locale=null")
+    await GET(request())
+    expect(h.send).toHaveBeenCalledTimes(1)
+    expect(h.send.mock.calls[0][0].subject).toBe('Your AISO trial has ended')
   })
 
-  it('does not resend an email whose bit is already set', async () => {
-    rows = [accountRow({ trial_emails_sent: 1 | 2 | 4 | 8 })]
-    const { GET } = await importRoute()
-
-    const res = await GET(request('test-cron-secret-0123'))
-
-    expect(await res.json()).toEqual({ sent: 0, failed: 0 })
-    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'ok', { sent: 0, failed: 0 })
-    expect(h.sendTrialEmail).not.toHaveBeenCalled()
+  it.each([
+    "trial_ends_at = now() - interval '9 days', trial_started_at = now() - interval '16 days'",
+    "stripe_subscription_id = 'sub_converted'",
+    "override_plan = 'pro'",
+    'trial_emails_sent = 4',
+  ])('skips an ineligible account (%s)', async change => {
+    await fixture.pg.exec(`update accounts set ${change}`)
+    await GET(request())
+    expect(h.send).not.toHaveBeenCalled()
   })
 
-  it('does not touch the bitmask when nothing is due yet', async () => {
-    rows = [accountRow({ trial_started_at: new Date(Date.now() - 60_000) })] // day 0
-    const { GET } = await importRoute()
-
-    await GET(request('test-cron-secret-0123'))
-
-    const updateCalls = mockSql.mock.calls.filter(([strings]) =>
-      (strings as TemplateStringsArray).join('?').includes('UPDATE accounts'),
-    )
-    expect(updateCalls).toHaveLength(0)
+  it('uses the extended expiry instead of elapsed days', async () => {
+    await fixture.pg.exec("update accounts set trial_started_at=now()-interval '12 days', trial_ends_at=now()+interval '3 days', trial_email_locale=null")
+    await GET(request())
+    expect(h.send.mock.calls[0][0].subject).toBe('Your AISO trial is active')
   })
 
-  it('updates the bitmask incrementally, one bit per successful send', async () => {
-    rows = [accountRow({ trial_emails_sent: 0 })] // fresh, day 10 -> all 4 due
-    const { GET } = await importRoute()
-
-    await GET(request('test-cron-secret-0123'))
-
-    const updateMasks = mockSql.mock.calls
-      .filter(([strings]) => (strings as TemplateStringsArray).join('?').includes('UPDATE accounts'))
-      .map(([, mask]) => mask)
-    // EMAIL_DAY1=1, DAY5=2, DAY7=4, DAY10=8 ??each send ORs in its own bit
-    // on top of the running mask, so the sequence is 1, 3, 7, 15, not four
-    // separate single-bit writes.
-    expect(updateMasks).toEqual([1, 3, 7, 15])
-  })
-
-  it('continues past one failed send, and still sends the rest ??exactly one short', async () => {
-    // Both accounts are fresh (day 10, mask 0), so 4 emails are due each: 8
-    // attempts total. Only the very first attempt (account-1's day-1 email)
-    // is made to fail.
-    rows = [accountRow({ id: 'account-1' }), accountRow({ id: 'account-2' })]
-    h.sendTrialEmail
-      .mockRejectedValueOnce(new Error('Resend down'))
-      .mockResolvedValue(undefined)
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const { GET } = await importRoute()
-
-    const res = await GET(request('test-cron-secret-0123'))
-
-    expect(h.sendTrialEmail).toHaveBeenCalledTimes(8)
-    expect(res.status).toBe(502)
-    expect(await res.json()).toEqual({ sent: 7, failed: 1 })
-    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 7, failed: 1, errorCodes: ['error'] })
-    expect(consoleError).toHaveBeenCalledWith(
-      expect.stringContaining('account-1'),
-      expect.any(Error),
-    )
-
-    consoleError.mockRestore()
-  })
-
-  it('all attempts fail ??returns 502 with failed count', async () => {
-    rows = [accountRow({ id: 'account-1' }), accountRow({ id: 'account-2' })]
-    h.sendTrialEmail.mockRejectedValue(new Error('Resend permanently down'))
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const { GET } = await importRoute()
-
-    const res = await GET(request('test-cron-secret-0123'))
-
-    expect(res.status).toBe(502)
-    expect(await res.json()).toEqual({ sent: 0, failed: 8 })
-    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 0, failed: 8, errorCodes: ['error'] })
-    expect(h.sendTrialEmail).toHaveBeenCalledTimes(8)
-
-    consoleError.mockRestore()
-  })
-
-  it('records a persistence failure after sending as an error without changing retry behavior', async () => {
-    rows = [accountRow({ trial_emails_sent: 1 | 2 | 4 })]
-    mockSql.mockImplementation((strings: TemplateStringsArray) => {
-      if (strings.join('?').includes('UPDATE accounts')) return Promise.reject(new Error('Write failed'))
-      return Promise.resolve(rows)
+  it('reuses the frozen provider request when delivery was accepted but the write failed', async () => {
+    h.send.mockImplementationOnce(async () => {
+      await fixture.pg.exec('alter table trial_email_deliveries add constraint fixture_failure check (sent_at is null)')
+      return 'email_accepted'
     })
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    try {
-      const { GET } = await importRoute()
-      const res = await GET(request('test-cron-secret-0123'))
-      expect(res.status).toBe(502)
-      expect(await res.json()).toEqual({ sent: 0, failed: 1 })
-      expect(h.sendTrialEmail).toHaveBeenCalledTimes(1)
-      expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 0, failed: 1, errorCodes: ['error'] })
-    } finally { consoleError.mockRestore() }
+    expect((await GET(request())).status).toBe(502)
+    await fixture.pg.exec("alter table trial_email_deliveries drop constraint fixture_failure; update trial_email_deliveries set lease_until=now()-interval '1 minute'")
+    expect((await GET(request())).status).toBe(200)
+    expect(h.send.mock.calls[0][0]).toEqual(h.send.mock.calls[1][0])
+    expect(await fixture.pg.query('select payload, provider_email_id from trial_email_deliveries')).toMatchObject({ rows: [{ payload: null, provider_email_id: 'email_fixture' }] })
   })
 
-  it('records a bounded provider error name, never a recipient, in the run ledger', async () => {
-    rows = [accountRow()]
-    h.sendTrialEmail.mockRejectedValue(
-      Object.assign(new Error('Rejected: owner@example.com'), { cause: { name: 'validation_error' } }),
-    )
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const { GET } = await importRoute()
-
-    await GET(request('test-cron-secret-0123'))
-
-    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', {
-      sent: 0, failed: 4, errorCodes: ['validation_error'],
-    })
-    expect(JSON.stringify((h.finishCronRun.mock.calls[0] as unknown[])[2])).not.toContain('owner@example.com')
-    consoleError.mockRestore()
-  })
-  it('names a missing API key so the ledger says which configuration is absent', async () => {
-    rows = [accountRow()]
-    h.sendTrialEmail.mockRejectedValue(
-      new Error('Missing API key. Pass it to the constructor `new Resend("re_123")`'),
-    )
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const { GET } = await importRoute()
-
-    await GET(request('test-cron-secret-0123'))
-
-    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', {
-      sent: 0, failed: 4, errorCodes: ['missing_api_key'],
-    })
-    // The key placeholder must not leak into the ledger either.
-    expect(JSON.stringify((h.finishCronRun.mock.calls[0] as unknown[])[2])).not.toContain('re_123')
-    consoleError.mockRestore()
-  })
-  it('happy path (no failures) returns status 200', async () => {
-    const { GET } = await importRoute()
-
-    const res = await GET(request('test-cron-secret-0123'))
-
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.sent).toBeGreaterThan(0)
-    expect(body.failed).toBe(0)
-  })
-
-  it('never selects both accounts.id and profiles.id unaliased', async () => {
-    const { GET } = await importRoute()
-    await GET(request('test-cron-secret-0123'))
-
-    const [selectCall] = mockSql.mock.calls
-    const text = (selectCall[0] as TemplateStringsArray).join('?')
-    expect(text).toMatch(/select distinct on \(a\.id\)/i)
-
-    // Only the SELECT list matters here ??p.id legitimately appears later, in
-    // ORDER BY, to break ties deterministically. A regex over the whole query
-    // would false-positive on that, so isolate the clause between SELECT and
-    // FROM before checking it for a bare p.id.
-    const selectClause = text.slice(text.search(/select/i), text.search(/from/i))
-    expect(selectClause).not.toMatch(/\bp\.id\b/i)
-  })
-
-  it('never emails a removed member, and picks the oldest active one', async () => {
-    // Migration 049 makes deactivated_at the only enforcement; a removed
-    // member kept receiving the account's trial drip.
-    const { GET } = await importRoute()
-    await GET(request('test-cron-secret-0123'))
-
-    const [selectCall] = mockSql.mock.calls
-    const text = (selectCall[0] as TemplateStringsArray).join('?')
-    expect(text).toMatch(/p\.deactivated_at IS NULL/i)
-    expect(text).toMatch(/ORDER BY a\.id ASC,\s*p\.created_at ASC,\s*p\.id ASC/i)
-  })
-
-  it('filters out accounts with stripe_subscription_id (converted customers)', async () => {
-    const { GET } = await importRoute()
-    await GET(request('test-cron-secret-0123'))
-
-    const [selectCall] = mockSql.mock.calls
-    const text = (selectCall[0] as TemplateStringsArray).join('?')
-    // Should have the filter in the WHERE clause
-    expect(text).toMatch(/stripe_subscription_id/i)
-    expect(text).toMatch(/WHERE.*stripe_subscription_id/is)
+  it('flags an ambiguous request beyond the idempotency window', async () => {
+    h.send.mockRejectedValueOnce(new Error('ambiguous network failure'))
+    await GET(request())
+    await fixture.pg.exec("update trial_email_deliveries set started_at=now()-interval '25 hours', lease_until=now()-interval '1 minute'")
+    const response = await GET(request())
+    expect(await response.json()).toMatchObject({ sent: 0, needsReview: 1 })
+    expect(h.send).toHaveBeenCalledTimes(1)
   })
 })

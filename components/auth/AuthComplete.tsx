@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { authClient } from '@/lib/auth-client'
 import { normalizeAuthNext } from '@/lib/auth-navigation'
+import { trackFunnelEvent } from '@/lib/funnel-client'
 import { authLocale } from '@/lib/auth-return-to'
 import { createTranslator } from 'next-intl'
 import en from '@/messages/en.json'
@@ -65,6 +66,7 @@ export function AuthComplete({ lang, next }: { lang: string; next?: string }) {
       }
       try {
         // Read authorization afresh with the exchanged cookie and replace the verifier URL.
+        trackFunnelEvent({ name: 'sign_in_succeeded', locale: authLocale(lang) })
         window.location.replace(normalizeAuthNext(lang, next))
       } catch {
         setFailed(true)

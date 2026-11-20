@@ -12,24 +12,20 @@ import type { Scan }        from '@/lib/types'
 import type { Metadata }    from 'next'
 
 // Deduped across generateMetadata + page render for the same request.
-// Returns null for unknown ids AND malformed ids (invalid uuid input).
+// Malformed and missing ids return null. Database failures reach the route error boundary.
 const getScan = cache(async (id: string): Promise<Scan | null> => {
   const fixture = getE2EScanFixture(id)
-  if (fixture) return fixture
+  if (fixture || process.env.E2E_FIXTURE_MODE === '1') return fixture
 
-  try {
-    const rows = await db()`select * from scans where id = ${id} limit 1`
-    const row = rows[0] as Record<string, unknown> | undefined
-    if (!row) return null
-    return {
-      ...row,
-      // numeric comes back as string; timestamptz as Date — normalise to the Scan type
-      score: row.score === null ? null : Number(row.score),
-      created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
-    } as Scan
-  } catch {
-    return null
-  }
+  if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) return null
+  const rows = await db()`select * from scans where id = ${id} limit 1`
+  const row = rows[0] as Record<string, unknown> | undefined
+  if (!row) return null
+  return {
+    ...row,
+    score: row.score === null ? null : Number(row.score),
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+  } as Scan
 })
 
 const EXPECTED_PROFILE_FAILURE_PATTERNS = [
@@ -136,13 +132,21 @@ export default async function ResultPage({
   const profile = await getResultViewerProfile()
   const unlocked = canViewFullResult(scan.account_id, profile?.account_id)
   const summary = buildPublicResultSummary(scan)
-  const previous = unlocked && profile?.account_id ? await getPreviousOwnedScan(scan, profile.account_id) : null
+  const accountId = unlocked ? profile?.account_id : undefined
+  const [brand, previous] = await Promise.all([
+    accountId && scan.client_id
+      ? db()`select id from clients where id = ${scan.client_id}::uuid and account_id = ${accountId}::uuid`
+      : [],
+    accountId ? getPreviousOwnedScan(scan, accountId) : null,
+  ])
+  const ownedBrandId = typeof brand[0]?.id === 'string' ? brand[0].id : undefined
 
   return (
     <ResultClient
       lang={lang}
       summary={summary}
       fullScan={unlocked ? scan : undefined}
+      ownedBrandId={ownedBrandId}
       ownedEvidence={unlocked ? buildOwnedResultEvidence((scan.results as Record<string, unknown>).evidence, scan.results as Record<string, unknown>) : undefined}
       previous={previous}
     />

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   issueOneOffInvoice: vi.fn(),
   mirrorOneOffInvoice: vi.fn(),
   listAccountInvoices: vi.fn(),
+  listUnfinishedInvoices: vi.fn(),
 }))
 
 vi.mock('@/lib/admin-guard', () => ({ requireApiAdmin: mocks.requireApiAdmin }))
@@ -14,11 +15,13 @@ vi.mock('@/lib/billing/invoices', () => ({
   issueOneOffInvoice: mocks.issueOneOffInvoice,
   mirrorOneOffInvoice: mocks.mirrorOneOffInvoice,
   listAccountInvoices: mocks.listAccountInvoices,
+  listUnfinishedInvoices: mocks.listUnfinishedInvoices,
 }))
 
 import { GET, POST } from '@/app/api/admin/billing/invoices/route'
 
 const ACCOUNT_ID = '11111111-2222-4333-8444-555555555555'
+const REQUEST_ID = '88888888-2222-4333-8444-555555555555'
 const ADMIN_ID = '99999999-8888-4777-8666-555555555555'
 
 const INVOICE = {
@@ -49,6 +52,7 @@ beforeEach(() => {
   mocks.issueOneOffInvoice.mockResolvedValue({ status: 'ok', invoice: INVOICE })
   mocks.mirrorOneOffInvoice.mockResolvedValue({ status: 'ok', invoice: INVOICE })
   mocks.listAccountInvoices.mockResolvedValue([INVOICE])
+  mocks.listUnfinishedInvoices.mockResolvedValue([])
 })
 
 describe('POST /api/admin/billing/invoices', () => {
@@ -80,6 +84,7 @@ describe('POST /api/admin/billing/invoices', () => {
   it('issues an invoice as the session admin', async () => {
     const response = await POST(request({
       accountId: ACCOUNT_ID,
+      requestId: REQUEST_ID,
       description: '  Monthly retainer  ',
       amountCents: 5000,
       currency: 'usd',
@@ -90,6 +95,7 @@ describe('POST /api/admin/billing/invoices', () => {
     expect(body.ok).toBe(true)
     expect(mocks.issueOneOffInvoice).toHaveBeenCalledWith({
       accountId: ACCOUNT_ID,
+      requestId: REQUEST_ID,
       description: 'Monthly retainer',
       amountCents: 5000,
       currency: 'usd',
@@ -99,34 +105,18 @@ describe('POST /api/admin/billing/invoices', () => {
 
   it.each([
     [{ status: 'account_not_found' }, 404],
+    [{ status: 'conflict' }, 409],
+    [{ status: 'pending' }, 503],
+    [{ status: 'needs_reconciliation' }, 409],
     [{ status: 'stripe_failed', code: 'INVOICE_CREATE_FAILED' }, 502],
   ])('maps issue outcome %o to %i', async (outcome, expected) => {
     mocks.issueOneOffInvoice.mockResolvedValue(outcome)
 
     const response = await POST(request({
-      accountId: ACCOUNT_ID, description: 'Retainer', amountCents: 100, currency: 'usd',
+      accountId: ACCOUNT_ID, requestId: REQUEST_ID, description: 'Retainer', amountCents: 100, currency: 'usd',
     }))
 
     expect(response.status).toBe(expected)
-  })
-
-  it('surfaces the Stripe id and hosted URL when only the mirror failed', async () => {
-    mocks.issueOneOffInvoice.mockResolvedValue({
-      status: 'mirror_failed',
-      stripeInvoiceId: 'in_123',
-      hostedInvoiceUrl: 'https://invoice.stripe.com/in_123',
-    })
-
-    const response = await POST(request({
-      accountId: ACCOUNT_ID, description: 'Retainer', amountCents: 100, currency: 'usd',
-    }))
-
-    expect(response.status).toBe(503)
-    await expect(response.json()).resolves.toEqual({
-      error: 'INVOICE_MIRROR_FAILED',
-      stripeInvoiceId: 'in_123',
-      hostedInvoiceUrl: 'https://invoice.stripe.com/in_123',
-    })
   })
 
   it('repairs the mirror from a Stripe invoice id without issuing another invoice', async () => {
@@ -163,7 +153,7 @@ describe('GET /api/admin/billing/invoices', () => {
     )
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ invoices: [INVOICE] })
+    await expect(response.json()).resolves.toEqual({ invoices: [INVOICE], unfinished: [] })
     expect(mocks.listAccountInvoices).toHaveBeenCalledWith(ACCOUNT_ID)
   })
 

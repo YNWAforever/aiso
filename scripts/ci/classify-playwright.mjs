@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createJobSummary } from './write-job-summary.mjs'
+import { checkedOutSource, createJobSummary } from './write-job-summary.mjs'
 
 function nonNegativeInteger(value) {
   const number = Number(value)
@@ -23,7 +23,7 @@ function countsFrom(report) {
   return { executed, skipped }
 }
 
-export function classifyPlaywrightReport({ report, exitCode, artifactPaths, commitSha }) {
+export function classifyPlaywrightReport({ report, exitCode, artifactPaths, commitSha, treeSha = '' }) {
   const counts = countsFrom(report)
   const invalidReport = !counts
   const skipped = counts?.skipped ?? 0
@@ -37,6 +37,7 @@ export function classifyPlaywrightReport({ report, exitCode, artifactPaths, comm
     priorities: blocking ? ['P0'] : [],
     artifacts: artifactPaths,
     commitSha,
+    treeSha,
   })
   return { exitCode: blocking ? 1 : 0, summary }
 }
@@ -66,7 +67,7 @@ async function main() {
     artifactPaths: args.artifacts.length > 0
       ? args.artifacts
       : ['e2e-accessibility/playwright-results.json', 'e2e-accessibility/playwright.junit.xml'],
-    commitSha: process.env.GITHUB_SHA ?? '',
+    ...checkedOutSource(),
   })
   const output = args.output ?? 'artifacts/e2e-accessibility-summary.json'
   await mkdir(dirname(output), { recursive: true })

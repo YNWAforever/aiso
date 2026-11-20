@@ -58,6 +58,7 @@ const ALL_TABLES = [
   'domain_signals', 'fix_packs', 'industry_packs', 'local_trust_actions', 'local_trust_profiles',
   'local_trust_snapshots', 'notifications', 'profiles', 'prompt_bank', 'public_scan_rate_limits',
   'pulse_metrics', 'pulse_weekly_summary', 'regional_packs', 'scans', 'schema_migrations',
+  'stripe_customer_attempts', 'stripe_subscription_attempts', 'trial_email_deliveries',
   'stripe_subscription_processing_leases', 'stripe_webhook_events', 'topical_clusters'
 ]
 

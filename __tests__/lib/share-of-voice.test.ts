@@ -54,6 +54,14 @@ describe('buildShareOfVoice', () => {
     expect(subject('Citi').change).toBe(25)            // a 0-of-2 week is a real 0%, not missing
   })
 
+  it('retains measurements across a missing week without reporting a weekly delta', () => {
+    const gapped = buildShareOfVoice({ brandName: 'Fixture', refs: [], answers: [
+      answer({ scan_week: '2026-09-21' }), answer({ brand_mentioned: true }),
+    ] })
+    expect(gapped.weeks).toEqual(['2026-10-05', '2026-09-21'])
+    expect(gapped.subjects[0]).toMatchObject({ change: null, cells: { '2026-10-05': { '*': { share: 100 } } } })
+  })
+
   it('summarises the latest week per question', () => {
     expect(view.prompts).toEqual([
       { promptId: 'p1', question: 'Best bank in Hong Kong?', answers: 2, brandMentions: 1,

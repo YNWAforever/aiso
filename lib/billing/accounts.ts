@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { fixPackMeterConfig, invoiceDaysUntilDue, stripe, STRIPE_PRICES } from '@/lib/stripe'
 import { getPlanFromStripePrice, type CheckoutPlanId } from '@/lib/plans/catalog'
+import { canRetryStripeCreate, isTerminalSubscription, matchesCatalogPrice, retrieveCheckoutAttempt, withSubscriptionLease, type SubscriptionLease } from './stripe-attempts'
 
 /**
  * Admin billing controls, model B (metered per-fix billing). Design:
@@ -90,56 +91,54 @@ export async function loadBillingAccount(accountId: string): Promise<BillingAcco
   return (rows[0] as BillingAccountLookup | undefined) ?? null
 }
 
-/**
- * Reuse the account's Stripe customer, or create one and store it. The
- * `stripe_customer_id is null` predicate makes the link a compare-and-set: two
- * concurrent admin actions cannot overwrite each other's customer.
- */
-export async function ensureStripeCustomer(
-  account: BillingAccountLookup,
-): Promise<CustomerOutcome> {
+/** Recover the same provider request after a lost response or a failed link. */
+export async function ensureStripeCustomer(account: BillingAccountLookup): Promise<CustomerOutcome> {
   if (account.stripe_customer_id) return { status: 'ok', customerId: account.stripe_customer_id }
 
-  let customerId: string
+  const sql = db()
   try {
-    const customer = await stripe.customers.create({
-      email: account.owner_email ?? undefined,
-      metadata: { account_id: account.id, source: 'aiso_admin_billing' },
-    })
-    customerId = customer.id
-  } catch (error) {
-    console.error(
-      '[billing] customer create failed:',
-      error instanceof Error ? error.message : 'unknown error',
-    )
-    return { status: 'stripe_failed', code: 'CUSTOMER_CREATE_FAILED' }
-  }
+    const [, , [attempt]] = await sql.transaction([
+      sql`select id from accounts where id = ${account.id}::uuid for update`,
+      sql`insert into stripe_customer_attempts (account_id, email)
+          select id, ${account.owner_email} from accounts
+          where id = ${account.id}::uuid and stripe_customer_id is null
+          on conflict (account_id) do nothing`,
+      sql`select a.stripe_customer_id, c.email, c.started_at
+          from accounts a left join stripe_customer_attempts c on c.account_id = a.id
+          where a.id = ${account.id}::uuid`,
+    ])
+    if (attempt?.stripe_customer_id) return { status: 'ok', customerId: String(attempt.stripe_customer_id) }
+    if (!attempt?.started_at) return { status: 'stripe_failed', code: 'CUSTOMER_LINK_FAILED' }
 
-  try {
-    const rows = await db()`
-      update accounts
-         set stripe_customer_id = ${customerId}
-       where id = ${account.id}::uuid
-         and stripe_customer_id is null
-      returning stripe_customer_id
-    `
-    if (rows.length > 0) return { status: 'ok', customerId }
-
-    // Lost the race: another action linked a customer first. Use the stored one
-    // and leave the just-created customer orphaned in Stripe (logged, never
-    // silently ignored).
-    const current = await loadBillingAccount(account.id)
-    if (current?.stripe_customer_id) {
-      console.warn('[billing] discarded duplicate Stripe customer', customerId)
-      return { status: 'ok', customerId: current.stripe_customer_id }
+    let customerId: string
+    if (canRetryStripeCreate(attempt.started_at)) {
+      const customer = await stripe.customers.create({
+        email: attempt.email == null ? undefined : String(attempt.email),
+        metadata: { account_id: account.id, source: 'aiso_account_customer' },
+      }, { idempotencyKey: `aiso:customer:${account.id}` })
+      customerId = customer.id
+    } else {
+      const matches = await stripe.customers.search({
+        query: `metadata['account_id']:'${account.id}' AND metadata['source']:'aiso_account_customer'`,
+        limit: 2,
+      })
+      if (matches.data.length !== 1 || matches.has_more) {
+        return { status: 'stripe_failed', code: 'CUSTOMER_RECONCILIATION_REQUIRED' }
+      }
+      customerId = matches.data[0].id
     }
+
+    const [[linked]] = await sql.transaction([
+      sql`update accounts set stripe_customer_id = coalesce(stripe_customer_id, ${customerId})
+          where id = ${account.id}::uuid returning stripe_customer_id`,
+      sql`delete from stripe_customer_attempts c using accounts a
+          where c.account_id = ${account.id}::uuid and a.id = c.account_id and a.stripe_customer_id is not null`,
+    ])
+    if (linked?.stripe_customer_id) return { status: 'ok', customerId: String(linked.stripe_customer_id) }
     return { status: 'stripe_failed', code: 'CUSTOMER_LINK_FAILED' }
-  } catch (error) {
-    console.error(
-      '[billing] customer link failed:',
-      error instanceof Error ? error.message : 'unknown error',
-    )
-    return { status: 'stripe_failed', code: 'CUSTOMER_LINK_FAILED' }
+  } catch {
+    console.error('[billing] customer request or link failed')
+    return { status: 'stripe_failed', code: 'CUSTOMER_CREATE_FAILED' }
   }
 }
 
@@ -230,19 +229,15 @@ function isResourceMissing(error: unknown): boolean {
 /**
  * Link an admin-created subscription to its account through the guarded event
  * path. A raw UPDATE would bypass the event ledger, the lease and the stale
- * ordering that the Stripe webhook depends on. Returns false when the link
- * could not be confirmed, so the caller can cancel the unlinked subscription.
+ * ordering that the Stripe webhook depends on. The attempt stays recoverable
+ * when the link cannot yet be confirmed.
  */
 async function linkSubscriptionToAccount(args: {
   accountId: string
   subscriptionId: string
   customerId: string
   plan: CheckoutPlanId
-  stripeStatus: string
 }): Promise<boolean> {
-  const accountStatus = ACCOUNT_STATUS_BY_STRIPE_STATUS[args.stripeStatus]
-  if (!accountStatus) return false
-
   const leaseOwner = randomUUID()
   const sql = db()
   try {
@@ -255,6 +250,12 @@ async function linkSubscriptionToAccount(args: {
     if (acquiredRows[0]?.acquired !== true) return false
 
     try {
+      const canonical = await stripe.subscriptions.retrieve(args.subscriptionId)
+      const accountStatus = ACCOUNT_STATUS_BY_STRIPE_STATUS[canonical.status]
+      const planPrices = canonical.items.data.map(item => getPlanFromStripePrice(item.price.id, STRIPE_PRICES)).filter(Boolean)
+      const customerId = typeof canonical.customer === 'string' ? canonical.customer : canonical.customer?.id
+      if (!accountStatus || canonical.id !== args.subscriptionId || customerId !== args.customerId
+        || planPrices.length !== 1 || planPrices[0] !== args.plan) return false
       const rows = await sql`
         select apply_stripe_account_event(
           p_account_id      => ${args.accountId}::uuid,
@@ -269,7 +270,10 @@ async function linkSubscriptionToAccount(args: {
         ) as result
       `
       const outcome = rows[0]?.result
-      return outcome === 'applied' || outcome === 'duplicate' || outcome === 'stale'
+      if (outcome === 'applied') return true
+      if (outcome !== 'duplicate' && outcome !== 'stale') return false
+      const current = await loadBillingAccount(args.accountId)
+      return current?.stripe_subscription_id === args.subscriptionId && current.stripe_customer_id === args.customerId
     } finally {
       try {
         await sql`
@@ -288,18 +292,6 @@ async function linkSubscriptionToAccount(args: {
       error instanceof Error ? error.message : 'unknown error',
     )
     return false
-  }
-}
-
-async function cancelUnlinkedSubscription(subscriptionId: string): Promise<void> {
-  try {
-    await stripe.subscriptions.cancel(subscriptionId)
-  } catch (error) {
-    console.error(
-      '[billing] failed to cancel unlinked subscription',
-      subscriptionId,
-      error instanceof Error ? error.message : 'unknown error',
-    )
   }
 }
 
@@ -352,6 +344,7 @@ async function ensureMeteredItem(args: {
   customerId: string
   plan: CheckoutPlanId
   createSubscription: boolean
+  lease: SubscriptionLease
 }): Promise<
   | { status: 'ok'; subscriptionId: string | null; meteredItemId: string }
   | { status: 'metered_not_configured' }
@@ -362,9 +355,11 @@ async function ensureMeteredItem(args: {
   const { priceId: meteredPriceId } = fixPackMeterConfig()
   if (!meteredPriceId) return { status: 'metered_not_configured' }
 
-  if (args.account.stripe_subscription_id) {
-    const subscription = await retrieveSubscription(args.account.stripe_subscription_id)
-    if (!subscription) return { status: 'stripe_failed', code: 'SUBSCRIPTION_LOOKUP_FAILED' }
+  const linkedId = args.account.stripe_subscription_id
+  const linkedSubscription = linkedId ? await retrieveSubscription(linkedId) : null
+  if (linkedId && !linkedSubscription) return { status: 'stripe_failed', code: 'SUBSCRIPTION_LOOKUP_FAILED' }
+  if (linkedSubscription && !isTerminalSubscription(linkedSubscription.status)) {
+    const subscription = linkedSubscription
     if (!ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)) {
       return { status: 'stripe_failed', code: 'SUBSCRIPTION_INACTIVE' }
     }
@@ -397,58 +392,86 @@ async function ensureMeteredItem(args: {
 
   if (!args.createSubscription) return { status: 'subscription_required' }
 
-  const planPrice = STRIPE_PRICES[args.plan]
-  if (!planPrice) return { status: 'stripe_failed', code: 'PLAN_PRICE_MISSING' }
+  let attempt = args.lease.attempt
+  if (attempt?.kind === 'checkout') {
+    const session = await retrieveCheckoutAttempt(attempt)
+    if (!session || (session.status !== 'expired' && session.status !== 'complete')) {
+      return { status: 'stripe_failed', code: 'CHECKOUT_PENDING' }
+    }
+    if (session.status === 'complete') {
+      const id = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id
+      if (!id || !isTerminalSubscription((await stripe.subscriptions.retrieve(id)).status)) {
+        return { status: 'stripe_failed', code: 'CHECKOUT_PENDING' }
+      }
+    }
+    await args.lease.clear(attempt)
+    attempt = null
+  }
 
-  let subscription: StripeSubscriptionShape
   try {
-    // send_invoice keeps this B2B flow payment-method-free: the brand is
-    // invoiced rather than charged at creation. The admin action says so
-    // explicitly (`createSubscription`), so an account is never subscribed by
-    // an accidental mode switch.
-    subscription = await stripe.subscriptions.create({
-      customer: args.customerId,
-      items: [{ price: planPrice }, { price: meteredPriceId }],
+    let subscription: StripeSubscriptionShape | undefined
+    if (attempt) {
+      if (attempt.payload.plan !== args.plan || attempt.payload.customerId !== args.customerId) {
+        return { status: 'stripe_failed', code: 'SUBSCRIPTION_RECONCILIATION_REQUIRED' }
+      }
+      if (attempt.stripeObjectId) {
+        subscription = await stripe.subscriptions.retrieve(attempt.stripeObjectId)
+      } else {
+        const subscriptions = await stripe.subscriptions.list({ customer: args.customerId, status: 'all', limit: 100 })
+        subscription = subscriptions.data.find(item => item.metadata.aiso_operation === attempt?.id)
+        if (!subscription && (subscriptions.has_more || !canRetryStripeCreate(attempt.startedAt))) {
+          return { status: 'stripe_failed', code: 'SUBSCRIPTION_RECONCILIATION_REQUIRED' }
+        }
+      }
+      if (subscription && isTerminalSubscription(subscription.status)) {
+        await args.lease.clear(attempt)
+        attempt = null
+        subscription = undefined
+      }
+    }
+    if (!attempt) {
+      const priceId = STRIPE_PRICES[args.plan]
+      if (!priceId) return { status: 'stripe_failed', code: 'PLAN_PRICE_MISSING' }
+      if (!await matchesCatalogPrice(priceId, args.plan)) return { status: 'stripe_failed', code: 'PLAN_PRICE_MISMATCH' }
+      const subscriptions = await stripe.subscriptions.list({ customer: args.customerId, status: 'all', limit: 100 })
+      const sessions = await stripe.checkout.sessions.list({ customer: args.customerId, status: 'open', limit: 1 })
+      if (subscriptions.has_more || subscriptions.data.some(item => !isTerminalSubscription(item.status)) || sessions.data.length) {
+        return { status: 'stripe_failed', code: 'SUBSCRIPTION_RECONCILIATION_REQUIRED' }
+      }
+      attempt = await args.lease.start({ kind: 'admin', payload: {
+        customerId: args.customerId, plan: args.plan, priceId, meteredPriceId, daysUntilDue: invoiceDaysUntilDue(),
+      } })
+    }
+    if (attempt.kind !== 'admin') return { status: 'stripe_failed', code: 'CHECKOUT_PENDING' }
+
+    const payload = attempt.payload
+    subscription ??= await stripe.subscriptions.create({
+      customer: payload.customerId,
+      items: [{ price: payload.priceId }, { price: payload.meteredPriceId }],
       collection_method: 'send_invoice',
-      days_until_due: invoiceDaysUntilDue(),
-      metadata: {
-        account_id: args.account.id,
-        source: 'aiso_admin_billing_open',
-      },
-    }) as unknown as StripeSubscriptionShape
-  } catch (error) {
-    console.error(
-      '[billing] subscription create failed:',
-      error instanceof Error ? error.message : 'unknown error',
-    )
+      days_until_due: payload.daysUntilDue,
+      metadata: { account_id: args.account.id, source: 'aiso_admin_billing_open', aiso_operation: attempt.id },
+    }, { idempotencyKey: `aiso:admin-subscription:${attempt.id}` })
+    await args.lease.record(attempt, subscription.id)
+
+    const meteredItem = meteredItemIn(subscription, payload.meteredPriceId)
+    if (!meteredItem) return { status: 'stripe_failed', code: 'METERED_ITEM_MISSING' }
+    const linked = await linkSubscriptionToAccount({
+      accountId: args.account.id, subscriptionId: subscription.id, customerId: payload.customerId,
+      plan: payload.plan,
+    })
+    if (!linked) return { status: 'account_link_failed' }
+    return { status: 'ok', subscriptionId: subscription.id, meteredItemId: meteredItem.id }
+  } catch {
+    console.error('[billing] subscription creation or recovery failed')
     return { status: 'stripe_failed', code: 'SUBSCRIPTION_CREATE_FAILED' }
   }
-
-  const meteredItem = meteredItemIn(subscription, meteredPriceId)
-  if (!meteredItem) {
-    await cancelUnlinkedSubscription(subscription.id)
-    return { status: 'stripe_failed', code: 'METERED_ITEM_MISSING' }
-  }
-
-  const linked = await linkSubscriptionToAccount({
-    accountId: args.account.id,
-    subscriptionId: subscription.id,
-    customerId: args.customerId,
-    plan: args.plan,
-    stripeStatus: subscription.status,
-  })
-  if (!linked) {
-    await cancelUnlinkedSubscription(subscription.id)
-    return { status: 'account_link_failed' }
-  }
-
-  return { status: 'ok', subscriptionId: subscription.id, meteredItemId: meteredItem.id }
 }
 
 /**
  * Detach the metered item when switching back to `included`. The ledger rows
  * stay — they record what was billable at the time — but no new pack is
- * reported because enqueueFixPackUsage only writes when mode = 'metered'.
+ * reported because storeFixPack only records usage when mode = 'metered'.
  */
 async function detachMeteredItem(
   account: BillingAccountLookup,
@@ -485,6 +508,19 @@ async function detachMeteredItem(
  * repeated call only rewrites the mode.
  */
 export async function openAccountBilling(input: OpenBillingInput): Promise<OpenBillingOutcome> {
+  try {
+    const result = await withSubscriptionLease(input.accountId, lease => updateAccountBilling(input, lease))
+    if (result) return result
+    return await loadBillingAccount(input.accountId)
+      ? { status: 'stripe_failed', code: 'BILLING_OPERATION_PENDING' }
+      : { status: 'account_not_found' }
+  } catch {
+    console.error('[billing] account billing operation failed')
+    return { status: 'stripe_failed', code: 'BILLING_OPERATION_FAILED' }
+  }
+}
+
+async function updateAccountBilling(input: OpenBillingInput, lease: SubscriptionLease): Promise<OpenBillingOutcome> {
   const account = await loadBillingAccount(input.accountId)
   if (!account) return { status: 'account_not_found' }
 
@@ -509,6 +545,7 @@ export async function openAccountBilling(input: OpenBillingInput): Promise<OpenB
     customerId: customer.customerId,
     plan: input.plan ?? 'basic',
     createSubscription: input.createSubscription === true,
+    lease,
   })
   if (metered.status !== 'ok') return metered
 

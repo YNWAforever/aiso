@@ -1,17 +1,23 @@
+import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { appOrigin } from '@/lib/app-origin'
 import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
-import { sendTrialEmail } from '@/lib/resend'
-import { daysSinceTrialStart, pendingTrialEmails } from '@/lib/trial-emails'
+import { sendTrialEmail, trialEmailSender } from '@/lib/resend'
+import { buildTrialEmail, type TrialEmailBit } from '@/lib/trial-emails'
 
 export const dynamic = 'force-dynamic'
 
 type TrialAccountRow = {
   id: string
   trial_started_at: string | Date
-  trial_emails_sent: number
-  email: string | null
+  trial_ends_at: string | Date
+  trial_email_locale: 'en' | 'zh-HK' | null
+  milestone: TrialEmailBit
+  email: string
 }
+
+type Delivery = { id: string; payload: { to: string; from: string; subject: string; text: string } }
+const RUN_BUDGET_MS = 40_000
 
 /**
  * Read the secret, or null when it is missing or too short to be one.
@@ -60,66 +66,103 @@ export async function GET(req: Request) {
   }
 
   const runId = await startCronRun('/api/cron/trial-emails')
+  const started = Date.now()
   try {
     const sql = db()
-    // Never select both accounts.id and profiles.id unaliased — the Neon HTTP
-    // driver builds each row via Object.fromEntries, so two columns sharing an
-    // output name silently collide, last one wins. profiles.id is only needed
-    // to break ties deterministically in ORDER BY, not in the SELECT list.
+    const review = await sql`
+      with expired as (
+        select id, account_id from trial_email_deliveries
+        where sent_at is null and needs_review_at is null and started_at <= now() - interval '23 hours'
+          and (lease_until is null or lease_until <= now())
+        order by started_at limit 100
+      )
+      update trial_email_deliveries d set needs_review_at = now(), payload = null
+      from expired e where d.id = e.id and d.account_id = e.account_id and d.sent_at is null
+        and d.needs_review_at is null and (d.lease_until is null or d.lease_until <= now())
+      returning d.id
+    `
     const rows = (await sql`
-      SELECT DISTINCT ON (a.id)
-        a.id, a.trial_started_at, a.trial_emails_sent, u.email
-      FROM accounts a
-      JOIN profiles p ON p.account_id = a.id
-      LEFT JOIN neon_auth."user" u ON u.id = p.id
-      WHERE a.trial_started_at IS NOT NULL
-        AND (a.stripe_subscription_id IS NULL OR a.stripe_subscription_id = '')
-        -- A removed member is not a recipient (migration 049).
-        AND p.deactivated_at IS NULL
-      -- Oldest active member, not whoever has the lowest uuid.
-      ORDER BY a.id ASC, p.created_at ASC, p.id ASC
+      select a.id, a.trial_started_at, a.trial_ends_at, a.trial_email_locale, due.milestone, owner.email
+      from accounts a
+      cross join lateral (select due_trial_email_bit(a.trial_started_at, a.trial_ends_at, now()) as milestone) due
+      cross join lateral (
+        select u.email from profiles p join neon_auth."user" u on u.id = p.id
+        where p.account_id = a.id and p.deactivated_at is null
+        order by p.created_at, p.id limit 1
+      ) owner
+      where due.milestone is not null and (coalesce(a.trial_emails_sent, 0) & (16 - due.milestone)) = 0
+        and coalesce(a.stripe_subscription_id, '') = '' and a.status not in ('past_due', 'cancelled')
+        and (a.override_plan is null or a.override_expires_at <= now()) and owner.email is not null
+        and not exists (select 1 from trial_email_deliveries d where d.account_id = a.id
+          and d.trial_started_at = a.trial_started_at and d.milestone = due.milestone
+          and (d.sent_at is not null or d.needs_review_at is not null or d.lease_until > now()))
+      order by a.trial_ends_at, a.id limit 100
     `) as TrialAccountRow[]
 
     const appUrl = appOrigin()
     let sent = 0
     let failed = 0
+    let deferred = 0
     const errorCodes = new Set<string>()
 
-    for (const row of rows) {
-      if (!row.email) continue
-
-      const days = daysSinceTrialStart(row.trial_started_at)
-      let mask = Number(row.trial_emails_sent ?? 0)
-      const due = pendingTrialEmails(days, mask, appUrl)
-
-      for (const email of due) {
-        // Send-then-persist, not claim-then-send (contrast lib/alerts/evaluate.ts's
-        // deliverEmail). If the UPDATE below throws after a successful send, the
-        // bit is lost and the next cron run resends this one email — accepted here
-        // because these are low-stakes marketing emails, not billing-critical
-        // alerts, and a full claim/release ledger would be disproportionate.
-        try {
-          await sendTrialEmail({ to: row.email, subject: email.subject, text: email.text })
-          mask |= email.bit
-          await sql`UPDATE accounts SET trial_emails_sent = ${mask} WHERE id = ${row.id}`
-          sent++
-        } catch (err) {
-          console.error(`[cron/trial-emails] failed to send to account ${row.id}:`, err)
-          failed++
-          errorCodes.add(providerErrorCode(err))
-        }
+    for (const [index, row] of rows.entries()) {
+      if (Date.now() - started >= RUN_BUDGET_MS) {
+        deferred = rows.length - index
+        break
+      }
+      const owner = randomUUID()
+      const email = buildTrialEmail(row.milestone, row.trial_ends_at, row.trial_email_locale === 'zh-HK' ? 'zh-HK' : 'en', appUrl)
+      const payload = { ...email, to: row.email, from: trialEmailSender() }
+      try {
+        const [, [claim]] = await sql.transaction([
+          sql`select id from accounts where id = ${row.id}::uuid for update`,
+          sql`insert into trial_email_deliveries (account_id, trial_started_at, milestone, payload, lease_owner, lease_until)
+            select a.id, a.trial_started_at, ${row.milestone}, ${JSON.stringify(payload)}::jsonb,
+              ${owner}::uuid, now() + interval '2 minutes'
+            from accounts a where a.id = ${row.id}::uuid and a.trial_started_at = ${row.trial_started_at}::timestamptz
+              and a.trial_ends_at = ${row.trial_ends_at}::timestamptz
+              and due_trial_email_bit(a.trial_started_at, a.trial_ends_at, now()) = ${row.milestone}
+              and (coalesce(a.trial_emails_sent, 0) & (16 - ${row.milestone}::integer)) = 0
+              and coalesce(a.stripe_subscription_id, '') = '' and a.status not in ('past_due', 'cancelled')
+              and (a.override_plan is null or a.override_expires_at <= now())
+              and (select u.email from profiles p join neon_auth."user" u on u.id = p.id
+                where p.account_id = a.id and p.deactivated_at is null order by p.created_at, p.id limit 1) = ${row.email}
+              and not exists (select 1 from trial_email_deliveries d where d.account_id = a.id and d.lease_until > now())
+            on conflict (account_id, trial_started_at, milestone) do update
+              set lease_owner = excluded.lease_owner, lease_until = excluded.lease_until
+              where trial_email_deliveries.sent_at is null and trial_email_deliveries.needs_review_at is null
+                and trial_email_deliveries.started_at > now() - interval '23 hours'
+                and trial_email_deliveries.payload->>'to' = excluded.payload->>'to'
+            returning id, payload`,
+        ])
+        if (!claim) continue
+        const delivery = claim as Delivery
+        const providerId = await sendTrialEmail({ ...delivery.payload, idempotencyKey: `aiso:trial:${delivery.id}` })
+        if (!providerId) throw new Error('Provider response lacked an email ID')
+        const [settled] = await sql`
+          with receipt as (
+            update trial_email_deliveries set sent_at = now(), provider_email_id = ${providerId}, payload = null,
+              lease_owner = null, lease_until = null
+            where id = ${delivery.id}::uuid and account_id = ${row.id}::uuid and lease_owner = ${owner}::uuid
+            returning account_id, trial_started_at, milestone
+          )
+          update accounts a set trial_emails_sent = coalesce(a.trial_emails_sent, 0) | r.milestone
+          from receipt r where a.id = r.account_id and a.trial_started_at = r.trial_started_at
+          returning a.id
+        `
+        if (!settled) throw new Error('Delivery receipt could not be confirmed')
+        sent++
+      } catch (error) {
+        failed++
+        errorCodes.add(providerErrorCode(error))
       }
     }
 
-    // The detail is a diagnosis aid, never a recipient list: only the bounded
-    // provider error names, deduplicated and capped.
-    const detail = failed > 0
-      ? { sent, failed, errorCodes: [...errorCodes].slice(0, 5) }
-      : { sent, failed }
+    const detail = { sent, failed, deferred, needsReview: review.length, ...(failed && { errorCodes: [...errorCodes].slice(0, 5) }) }
     await finishCronRun(runId, failed > 0 ? 'error' : 'ok', detail)
-    return Response.json({ sent, failed }, { status: failed > 0 ? 502 : 200 })
-  } catch (err) {
-    await finishCronRun(runId, 'error', undefined, err instanceof Error ? err.message : String(err))
-    throw err
+    return Response.json(detail, { status: failed > 0 ? 502 : 200 })
+  } catch {
+    await finishCronRun(runId, 'error', undefined, 'trial_email_storage_failure')
+    return Response.json({ error: 'Trial email delivery unavailable' }, { status: 503 })
   }
 }

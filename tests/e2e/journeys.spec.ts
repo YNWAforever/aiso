@@ -62,7 +62,7 @@ for (const lang of ['en', 'zh-HK'] as const) {
     await page.goto(`/${lang}/pricing`, { waitUntil: 'networkidle' })
     await page.getByRole('button', { name: copy.pricing.cta_pro }).first().click()
     await page.waitForURL(new RegExp(`/${lang}/auth/login\\?next=`))
-    expect(new URL(page.url()).searchParams.get('next')).toBe(`/${lang}/pricing`)
+    expect(new URL(page.url()).searchParams.get('next')).toBe(`/${lang}/pricing?plan=pro#plan-pro`)
   })
 
   test(`journey ${lang}: sample report → Download PDF`, async ({ page }) => {

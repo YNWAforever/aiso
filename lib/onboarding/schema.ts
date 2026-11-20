@@ -8,7 +8,7 @@ import { isPromptLanguage, parsePromptContext, type PromptLanguage, type PromptC
 import { MAX_COMPETITORS, MAX_NAME_LENGTH } from '@/lib/competitors/limits'
 import { competitorKey, competitorName } from './competitors'
 
-export type OnboardingScope = { accountId: string }
+export type OnboardingScope = { accountId: string; locale?: 'en' | 'zh-HK' }
 export type SeedPrompt = { category: string; question: string; language: string; market?: string | null }
 /** A competitor's website, which is what lets a citation be attributed to it. */
 export type OnboardingCompetitorDomain = { name: string; domain: string }

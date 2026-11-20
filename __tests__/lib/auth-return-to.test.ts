@@ -34,6 +34,12 @@ describe('validated return destination', () => {
   it.each(['scanId=one&scanId=two', 'scanId=bad%2Fid', 'scanId=', `scanId=${'a'.repeat(129)}`])('rejects ambiguous or invalid scan context: %s', query => {
     expect(safeReturnTo(`/en/dashboard/${client}?step=results&${query}`, 'en')).toBe(`/en/dashboard/${client}?step=results`)
   })
+  it('restores a selected paid tier in the same locale', () => {
+    expect(safeReturnTo('/zh-HK/pricing?plan=pro&extra=value#plan-pro', 'zh-HK')).toBe('/zh-HK/pricing?plan=pro#plan-pro')
+    expect(safeReturnTo('/en/pricing?plan=basic&plan=pro', 'en')).toBe('/en/pricing')
+    expect(safeReturnTo('/en/pricing?plan=free', 'en')).toBe('/en/pricing')
+    expect(safeReturnTo('/en/pricing?plan=basic', 'zh-HK')).toBe('/zh-HK/dashboard')
+  })
   it('retains first-use scan context while stripping secrets and ambiguous IDs',()=>{
     expect(safeReturnTo(`/en/onboarding?scan=${client}&access_token=secret`,'en')).toBe(`/en/onboarding?scan=${client}`)
     expect(safeReturnTo('/zh-HK/onboarding?scan=bad','zh-HK')).toBe('/zh-HK/onboarding')

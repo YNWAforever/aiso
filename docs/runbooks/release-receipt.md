@@ -12,8 +12,8 @@ replaces the manual checklist that was used for the Studio M1–M7 releases:
 
 | Dependency | What `verified` means |
 | --- | --- |
-| `ci_checks` | every GitHub check run on the PR head (or the commit, when it has no PR) is `success` |
-| `tested_merge_tree` | the release merge commit's second parent is the tested PR head **and** a tested tree (PR merge ref, pinned ref, or local `git merge-tree` reconstruction) equals the released tree |
+| `ci_checks` | the repository’s completed PR gate run succeeded and its aggregate artifact identifies that run and attempt |
+| `tested_merge_tree` | the checked-out Git tree in the successful artifact matches its Git object and the released tree. A manual run must use the exact release commit. A PR run must prove the tested merge lineage |
 | `deployment` | a READY `production` Vercel deployment recorded for this commit carries the canonical alias (`aiso-kappa.vercel.app`) |
 | `schema_gate` | the deployment's own build log says `schema gate: all N shipped migrations are recorded.` and N equals the number of `supabase/migrations/*.sql` files in the released tree |
 | `worker_schedules` | the deployed Cloudflare Worker crons equal `cloudflare/aiso-worker/wrangler.jsonc` |
@@ -27,27 +27,22 @@ with `--allow-unknown`; a `failed` dependency can never be allowed away.
 Local (uses the `gh`, `git` and `vercel` CLIs you already use):
 
 ```bash
-npm run release:receipt -- --app-sha <merge sha> --scope <vercel team>
+npm run release:receipt -- --app-sha <release sha> --gate-run <run ID> --scope <vercel team>
 ```
 
-The production merge SHA is the `Merge pull request …` commit on `main`, not a
-PR head. Example for the M7 Studio release:
-
-```bash
-npm run release:receipt -- \
-  --app-sha 06d86af5483f7a59f0e11efdcbf3a95aa9c527ea \
-  --scope ynwaforevers-projects \
-  --allow-unknown worker_schedules
-```
+Use the full deployed commit SHA and the numeric run ID from GitHub Actions.
+Download and retain `pr-gate-diagnostics` with the release record. A fresh run on
+an exact commit is required when the original checkout object is unavailable or
+when the release uses a squash or rebase.
 
 Options:
 
 | Option | Meaning |
 | --- | --- |
 | `--app-sha <sha>` | required; the commit production serves |
-| `--pr <number>` | read CI evidence from this PR instead of resolving the commit's PR |
-| `--tested-merge <sha>` | pin a tested merge ref (audit re-runs of an old release) |
-| `--allow-unknown <ids>` | comma-separated dependency ids allowed to be unknown; print the reason in the run log |
+| `--gate-run <id>` | successful PR gate workflow run ID |
+| `--pr <number>` | optional pull request reference for the receipt |
+| `--allow-unknown worker_schedules` | record a missing Worker readback for diagnostics |
 | `--repo <owner/repo>` | default: the `origin` remote |
 | `--project <name>` | Vercel project; default `aiso` |
 | `--scope <team>` | Vercel team; also read from `VERCEL_SCOPE` |
@@ -60,6 +55,9 @@ unknown, `1` usage error.
 
 ## CI workflow
 
+Dispatch `pr-gate.yml` on the frozen candidate branch with `schema_only=true`
+for the hosted synthetic fixtures. The resulting run ID is the release input.
+
 `.github/workflows/release-receipt.yml` is `workflow_dispatch` only: it never runs
 on pull requests and never deploys. It needs repository secrets
 `VERCEL_TOKEN` and `VERCEL_SCOPE`; `CLOUDFLARE_API_TOKEN` is optional and enables
@@ -68,11 +66,9 @@ reason). The receipt JSON is uploaded as an artifact for 30 days.
 
 ## Limits and honest fallbacks
 
-- **The PR merge ref disappears after merge.** GitHub deletes
-  `refs/pull/<n>/merge` once the PR merges, so a post-merge receipt first tries to
-  fetch it, then replays the merge locally with `git merge-tree --write-tree
-  <first parent> <tested head>` and compares the resulting tree. A squash or rebase
-  release has no second parent, so the dependency is `unknown` rather than assumed.
+- **Keep the immutable evidence.** Historical runs without a recorded checkout
+  remain unknown. If the artifact or checked-out object expires, rerun the gate on
+  the exact release commit and retain the new run ID and artifact.
 - **Build logs expire.** If the deployment's log is no longer readable the schema
   gate is `unknown`; re-running the receipt cannot recover an expired log, so run
   it promptly after the deployment.

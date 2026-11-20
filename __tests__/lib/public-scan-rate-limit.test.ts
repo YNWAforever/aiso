@@ -8,6 +8,7 @@ import {
   PUBLIC_SCAN_LIMIT,
   PUBLIC_SCAN_WINDOW_SECONDS,
   consumePublicScanRateLimit,
+  consumeScanClaimPreparationLimit,
   derivePublicScanRateLimitKey,
   rateLimitHeaders,
 } from '@/lib/security/public-scan-rate-limit'
@@ -35,6 +36,22 @@ describe('public scan rate limiter', () => {
 
   it('cannot collide with another limiter sharing the counter table', () => {
     expect(FUNNEL_EVENT_KEY_DOMAIN).not.toBe(PUBLIC_SCAN_KEY_DOMAIN)
+  })
+
+  it('allows claim preparation after the fifth scan has exhausted its allowance', async () => {
+    const counts = new Map<string, number>()
+    const consume = async (key: string, window: number, limit: number) => {
+      const count = (counts.get(key) ?? 0) + 1
+      counts.set(key, count)
+      expect(window).toBe(600)
+      return { allowed: count <= limit, remaining: Math.max(0, limit - count), resetAt: 2_000_000_000 }
+    }
+    const request = new NextRequest('https://app.example/api/scan')
+    const runtime = { nodeEnv: 'test', vercel: undefined, secret: secretA }
+    for (let i = 0; i < 5; i++) expect((await consumePublicScanRateLimit(request, consume, runtime)).allowed).toBe(true)
+    expect((await consumePublicScanRateLimit(request, consume, runtime)).allowed).toBe(false)
+    expect((await consumeScanClaimPreparationLimit(request, consume, runtime)).allowed).toBe(true)
+    expect(counts.size).toBe(2)
   })
 
   it('keeps the counter table private behind RLS and explicit privilege revocation', () => {

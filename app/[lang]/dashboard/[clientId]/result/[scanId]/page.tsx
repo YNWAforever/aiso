@@ -363,7 +363,7 @@ export default async function DashboardResultPage({
         )}
 
         {/* Fix Pack */}
-        <div className="mb-6">
+        <div id="fix-pack" className="mb-6 scroll-mt-24">
           <div className="flex items-center gap-2 mb-3">
             <p className="text-xs font-bold text-dash-muted tracking-widest">{t('generatedWork.packTitle')}</p>
             <span className="text-xs text-dash-muted/70">{t('generatedWork.packSubtitle')}</span>

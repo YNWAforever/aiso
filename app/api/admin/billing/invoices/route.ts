@@ -5,6 +5,7 @@ import {
   isInvoiceCurrency,
   issueOneOffInvoice,
   listAccountInvoices,
+  listUnfinishedInvoices,
   mirrorOneOffInvoice,
 } from '@/lib/billing/invoices'
 
@@ -17,15 +18,7 @@ function badRequest(error: string) {
   return NextResponse.json({ error }, { status: 400 })
 }
 
-/**
- * Issue a one-off invoice (model C), or repair its local mirror after a Stripe
- * success whose database write failed.
- *
- * POST { accountId, description, amountCents, currency } -> issue + email.
- * POST { stripeInvoiceId } -> re-read from Stripe and upsert the mirror; never
- * issues a second invoice, which is why the mirror-failure path below returns
- * the Stripe id instead of telling the admin to retry blindly.
- */
+/** Issue or resume an invoice by request ID, or reconcile its Stripe mirror by invoice ID. */
 export async function POST(request: Request): Promise<Response> {
   const admin = await requireApiAdmin()
   if (!admin.ok) return admin.response
@@ -33,12 +26,13 @@ export async function POST(request: Request): Promise<Response> {
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') return badRequest('Invalid JSON')
 
-  const { accountId, description, amountCents, currency, stripeInvoiceId } = body as {
+  const { accountId, description, amountCents, currency, stripeInvoiceId, requestId } = body as {
     accountId?: unknown
     description?: unknown
     amountCents?: unknown
     currency?: unknown
     stripeInvoiceId?: unknown
+    requestId?: unknown
   }
 
   if (stripeInvoiceId !== undefined) {
@@ -56,7 +50,8 @@ export async function POST(request: Request): Promise<Response> {
       if (outcome.status === 'invalid') {
         return NextResponse.json({ error: outcome.code }, { status: 400 })
       }
-      return NextResponse.json({ error: outcome.code }, { status: 502 })
+      if (outcome.status === 'pending') return NextResponse.json({ error: 'INVOICE_BUSY' }, { status: 503 })
+      return NextResponse.json({ error: outcome.status === 'stripe_failed' ? outcome.code : 'INVOICE_MIRROR_FAILED' }, { status: 502 })
     } catch (error) {
       console.error(
         '[admin/billing] invoice mirror failed:',
@@ -85,10 +80,15 @@ export async function POST(request: Request): Promise<Response> {
     return badRequest('currency must be usd or hkd')
   }
 
+  if (typeof requestId !== 'string' || !UUID_RE.test(requestId)) {
+    return badRequest('requestId must be a uuid')
+  }
+
   let outcome
   try {
     outcome = await issueOneOffInvoice({
       accountId,
+      requestId,
       description: trimmedDescription,
       amountCents,
       currency,
@@ -110,17 +110,12 @@ export async function POST(request: Request): Promise<Response> {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
     case 'stripe_failed':
       return NextResponse.json({ error: outcome.code }, { status: 502 })
-    case 'mirror_failed':
-      // Stripe has the invoice and emailed it; only the local mirror is
-      // missing. Re-running with { stripeInvoiceId } repairs it.
-      return NextResponse.json(
-        {
-          error: 'INVOICE_MIRROR_FAILED',
-          stripeInvoiceId: outcome.stripeInvoiceId,
-          hostedInvoiceUrl: outcome.hostedInvoiceUrl,
-        },
-        { status: 503 },
-      )
+    case 'pending':
+      return NextResponse.json({ error: 'INVOICE_BUSY' }, { status: 503, headers: { 'Retry-After': '5' } })
+    case 'conflict':
+      return NextResponse.json({ error: 'INVOICE_REQUEST_CONFLICT' }, { status: 409 })
+    case 'needs_reconciliation':
+      return NextResponse.json({ error: 'INVOICE_RECONCILIATION_REQUIRED' }, { status: 409 })
   }
 }
 
@@ -135,8 +130,8 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const invoices = await listAccountInvoices(accountId)
-    return NextResponse.json({ invoices })
+    const [invoices, unfinished] = await Promise.all([listAccountInvoices(accountId), listUnfinishedInvoices(accountId)])
+    return NextResponse.json({ invoices, unfinished })
   } catch (error) {
     console.error(
       '[admin/billing] invoice list failed:',

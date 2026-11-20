@@ -22,14 +22,15 @@ describe('scan claim return', () => {
     [500, { error: 'Failed to claim scan' }, 'error'],
     [200, { ok: false }, 'error'],
     [401, { error: 'Unauthorized' }, 'unauthorized'],
-    [403, { error: 'Forbidden' }, 'unauthorized'],
+    [403, { error: 'Forbidden' }, 'intent-required'],
+    [429, null, 'rate-limited'],
   ] as const)('classifies claim response %s', (status, body, expected) => {
     expect(classifyClaimResponse(status, body)).toBe(expected)
   })
   it.each([
-    [200, { ok: true, alreadyOwned: false }, ['signup_succeeded', 'scan_claim_succeeded']],
-    [409, { error: 'Scan belongs to another account' }, ['signup_succeeded', 'scan_claim_failed']],
-    [500, { error: 'Failed to claim scan' }, ['signup_succeeded', 'scan_claim_failed']],
+    [200, { ok: true, alreadyOwned: false }, ['scan_claim_succeeded']],
+    [409, { error: 'Scan belongs to another account' }, ['scan_claim_failed']],
+    [500, { error: 'Failed to claim scan' }, ['scan_claim_failed']],
     [401, { error: 'Unauthorized' }, ['scan_claim_failed']],
     [403, { error: 'Claim unavailable' }, ['scan_claim_failed']],
   ] as const)('keeps authenticated signup completion separate from claim outcome for %s', (status, body, expected) => {

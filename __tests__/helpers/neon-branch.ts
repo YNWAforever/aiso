@@ -185,6 +185,7 @@ export function createTestBranch(name: string): TestBranch {
     '--project-id', PROJECT_ID,
     '--name', name,
     '--expires-at', expiresAt,
+    ...(process.env.NEON_TEST_SCHEMA_ONLY === 'true' ? ['--schema-only'] : []),
   ])
 
   let parsed: {

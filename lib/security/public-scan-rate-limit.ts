@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import {
   buildRateLimitHeaders,
+  consumeDurableRateLimit,
   consumeFromNeon,
   defaultRateLimitRuntime,
   deriveRateLimitKey,
@@ -41,4 +42,17 @@ export async function consumePublicScanRateLimit(
 
 export function rateLimitHeaders(decision: RateLimitDecision, nowSeconds = Math.floor(Date.now() / 1000)) {
   return buildRateLimitHeaders(PUBLIC_SCAN_LIMIT, decision, nowSeconds)
+}
+
+/** Preparing to save a finished scan has a separate allowance. */
+export function consumeScanClaimPreparationLimit(
+  req: NextRequest,
+  consume: DurableRateLimitCounter = consumeFromNeon,
+  runtime: PublicScanRateLimitRuntime = defaultRateLimitRuntime(),
+) {
+  return consumeDurableRateLimit(req, {
+    keyDomain: 'aiso:scan-claim-preparation:key:v1',
+    limit: 5,
+    windowSeconds: 10 * 60,
+  }, consume, runtime)
 }

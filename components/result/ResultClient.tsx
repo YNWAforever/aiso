@@ -28,6 +28,7 @@ import type { PublicResultSummary } from '@/lib/result-access'
 import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 import { CHECK_SLOTS, bucketPoints, geoScale, potentialScore, rankFixes, visualStatus } from '@/lib/result/view-model'
+import { FixPackClient } from '@/components/FixPackClient'
 import { Wordmark } from '@/components/brand/Wordmark'
 
 // The drawer (and its dialog primitive) loads the first time a check is opened.
@@ -50,6 +51,7 @@ type Props = {
   lang: string
   summary: PublicResultSummary
   fullScan?: Scan
+  ownedBrandId?: string
   ownedEvidence?: OwnedResultEvidence | null
   /** The owner's previous scan of the same domain; drives the one celebration. */
   previous?: { score: number; grade: string } | null
@@ -63,9 +65,11 @@ type Props = {
  * Anonymous viewers see each check's verdict (no messages, details or
  * remediation from the scan); owners also get the scan's own findings.
  */
-export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous }: Props) {
+export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvidence, previous }: Props) {
   const t = useTranslations('resultPage')
   const checkNames = useTranslations('checks')
+  const generated = useTranslations('generatedWork')
+  const result = useTranslations('result')
   const portfolio = useTranslations('portfolio')
   const catalogue = useMessages().checks as Record<string, string> | undefined
   const locale = useLocale()
@@ -254,15 +258,25 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
 
         <PlatformPanel summary={summary} locale={locale} />
 
-        {fullScan ? (
+        {fullScan ? ownedBrandId ? (
           <Link
-            href={`/${lang}/dashboard`}
+            href={`/${lang}/dashboard/${encodeURIComponent(ownedBrandId)}/result/${encodeURIComponent(fullScan.id)}#fix-pack`}
             data-testid="fix-pack-action"
             data-print-hide
             className="block rounded-2xl bg-foreground px-6 py-4 text-center text-sm font-bold text-background transition hover:bg-foreground/90"
           >
             {t('fix_pack')}
           </Link>
+        ) : (
+          <section id="fix-pack" data-testid="fix-pack-action" data-print-hide className="scroll-mt-24 space-y-3">
+            <h2 className="font-semibold">{generated('packTitle')}</h2>
+            <FixPackClient scanId={fullScan.id} fixCta={generated('packCta')} fixSubtitle={generated('draftNotice')}
+              copyLabel={result('copy')} copiedLabel={result('copied')} />
+            <Link href={`/${lang}/onboarding?scan=${encodeURIComponent(fullScan.id)}`}
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline underline-offset-4">
+              {t('set_up_brand')}
+            </Link>
+          </section>
         ) : (
           <div id="save" tabIndex={-1} className="scroll-mt-20 focus:outline-none" data-print-hide>
             <AccountUnlockCard scanId={summary.id} lang={lang} />

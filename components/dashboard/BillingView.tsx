@@ -102,9 +102,8 @@ export function BillingView({ lang }: { lang: string }) {
         </dl>
         {data.hasStripeCustomer && (
           /* Ordinary navigation to the existing API redirect; never prefetch Stripe. */
-          /* eslint-disable-next-line @next/next/no-html-link-for-pages */
           <a
-            href="/api/stripe/portal"
+            href={`/api/stripe/portal?lang=${encodeURIComponent(lang)}`}
             className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('portal')}

@@ -5,7 +5,7 @@
  * Given the commit that production runs, collect and verify the release
  * dependencies the project has always checked by hand:
  *
- *   1. CI check runs on the PR head (or the commit when it has no PR)
+ *   1. the completed PR gate run and its aggregate artifact
  *   2. the tested merge tree equals the released merge tree
  *   3. a READY production Vercel deployment for that commit, carrying the
  *      canonical alias
@@ -20,7 +20,7 @@
  * and no credential is ever printed.
  *
  * Usage:
- *   npm run release:receipt -- --app-sha <merge sha> [--pr <number>]
+ *   npm run release:receipt -- --app-sha <merge sha> --gate-run <run ID> [--pr <number>]
  *       [--allow-unknown worker_schedules] [--json]
  *       [--repo owner/repo] [--project aiso] [--scope <vercel team>]
  *       [--canonical-alias aiso-kappa.vercel.app] [--out path]
@@ -32,7 +32,7 @@ import {
   DEPENDENCY_IDS,
   countShippedMigrations,
   dependency,
-  evaluateCiChecks,
+  evaluateGateRun,
   evaluateDeployment,
   evaluateSchemaGate,
   evaluateTestedMergeTree,
@@ -42,20 +42,18 @@ import {
   parseSchemaGateLog,
   receiptHash,
   selectProductionDeployment,
-  shortSha,
   verifyExitCode,
 } from './verify.mjs'
 import {
-  checkRunsFor,
   commitParents,
   ensureCommit,
-  fetchTestedMerge,
   findPullForCommit,
   getPull,
   gitTree,
   listTreeFiles,
   readWorkerScheduleReadback,
-  reconstructMergeTree,
+  readGateRun,
+  readGateSummary,
   resolveRepoFromRemote,
   vercelBuildLog,
   vercelDeploymentList,
@@ -68,8 +66,8 @@ const USAGE = `Read-only release receipt.
 
 Options:
   --app-sha <sha>          production commit to verify (required)
-  --pr <number>            pull request to read CI evidence from (default: resolve from the commit)
-  --tested-merge <sha>     pin the tested merge ref instead of fetching or reconstructing it
+  --pr <number>            pull request to identify in the receipt (default: resolve from the commit)
+  --gate-run <id>          successful GitHub PR gate workflow run for this tree
   --allow-unknown <ids>    comma-separated dependency ids allowed to be unknown
   --repo <owner/repo>      GitHub repository (default: the origin remote)
   --project <name>         Vercel project (default: aiso)
@@ -110,8 +108,8 @@ function parseArgs(argv) {
       case 'pr':
         options.pr = value
         break
-      case 'tested-merge':
-        options.testedMerge = value
+      case 'gate-run':
+        options.gateRun = value
         break
       case 'repo':
         options.repo = value
@@ -153,9 +151,8 @@ function printSummary(receipt, outPath) {
   if (receipt.appTree) lines.push(`  app tree     ${receipt.appTree}`)
   if (receipt.pr) {
     lines.push(`  pull request #${receipt.pr.number}`)
-    if (receipt.pr.headSha) lines.push(`  tested head  ${receipt.pr.headSha}`)
-    if (receipt.pr.testedMergeSha) lines.push(`  tested merge ${receipt.pr.testedMergeSha}`)
   }
+  if (receipt.evidence.ciRun) lines.push(`  CI run       ${receipt.evidence.ciRun.id}`)
   lines.push('  dependencies:')
   for (const entry of receipt.dependencies) {
     const marker = entry.status === 'verified' ? 'ok  ' : entry.status === 'failed' ? 'FAIL' : '??  '
@@ -202,9 +199,13 @@ function main() {
     console.error(`release-receipt: --app-sha must be a 40-character commit SHA\n\n${USAGE}`)
     return 1
   }
+  if (options.gateRun && !/^[1-9]\d*$/.test(options.gateRun)) {
+    console.error('release-receipt: --gate-run must be a positive numeric GitHub run ID')
+    return 1
+  }
   for (const id of options.allowUnknown) {
-    if (!DEPENDENCY_IDS.includes(id)) {
-      console.error(`release-receipt: unknown dependency id in --allow-unknown: ${id}\nDependency ids: ${DEPENDENCY_IDS.join(', ')}`)
+    if (id !== 'worker_schedules') {
+      console.error(`release-receipt: only worker_schedules can be named in --allow-unknown, received ${id}\nDependency ids: ${DEPENDENCY_IDS.join(', ')}`)
       return 1
     }
   }
@@ -254,111 +255,47 @@ function main() {
   receipt.appTree = appTree
   receipt.evidence.releaseParents = parents
 
-  /* 2. Pull request and its tested merge tree --------------------------------- */
-  let pr = null
-  let prError = null
+  /* 2. GitHub workflow run and immutable checkout evidence ------------------ */
   if (repo) {
     try {
-      pr = options.pr ? getPull(repo, Number(options.pr), cwd) : findPullForCommit(repo, appSha, cwd)
-    } catch (error) {
-      prError = error instanceof Error ? error.message : String(error)
-    }
-  } else {
-    prError = 'no GitHub repository could be resolved from the origin remote or --repo'
-  }
-  const prNumber = typeof pr?.number === 'number' ? pr.number : null
-  const headSha = normalizeSha(pr?.head?.sha)
-  // The merge base actually used is the release merge commit's first parent; the
-  // PR payload's base can be an older main commit if the branch was updated.
-  const baseSha = parents[0] ?? normalizeSha(pr?.base?.sha) ?? null
-
-  let testedTree = null
-  let testedMergeSha = null
-  let testedMethod = null
-  if (prNumber && headSha) {
-    if (options.testedMerge) {
-      const pinned = normalizeSha(options.testedMerge)
-      try {
-        if (pinned) {
-          ensureCommit(cwd, pinned)
-          testedTree = gitTree(cwd, pinned)
-          testedMergeSha = pinned
-          testedMethod = 'pinned-merge-ref'
-        }
-      } catch {
-        testedTree = null
-      }
-    }
-    if (!testedTree) {
-      testedMergeSha = fetchTestedMerge(cwd, prNumber)
-      if (testedMergeSha) {
-        try {
-          testedTree = gitTree(cwd, testedMergeSha)
-          testedMethod = 'merge-ref'
-        } catch {
-          testedTree = null
-        }
-      }
-    }
-    if (!testedTree && parents[1] === headSha && parents[0]) {
-      // GitHub deletes `refs/pull/<n>/merge` once the PR merges; the merge a
-      // post-merge release must reproduce is still reconstructible locally.
-      testedTree = reconstructMergeTree(cwd, parents[0], headSha)
-      testedMethod = testedTree ? 'reconstructed-merge' : null
+      const pr = options.pr ? getPull(repo, Number(options.pr), cwd) : findPullForCommit(repo, appSha, cwd)
+      if (pr) receipt.pr = { number: pr.number, headSha: normalizeSha(pr.head?.sha), parents }
+    } catch {
+      // PR context is descriptive. The workflow and commit bind the evidence.
     }
   }
 
-  receipt.pr = prNumber
-    ? {
-        number: prNumber,
-        headSha,
-        baseSha,
-        testedMergeSha,
-        testedMergeTree: testedTree,
-        testedMethod,
-        parents,
-        treeMatches: null,
-      }
-    : null
-
-  const testedDependency = evaluateTestedMergeTree({
-    appSha,
-    appTree,
-    prNumber,
-    headSha,
-    parents,
-    testedTree,
-    method: testedMethod,
-    testedMergeSha,
-    baseSha,
+  let run = null
+  let summary = null
+  const runId = options.gateRun
+  const ciDependency = safely('ci_checks', 'PR gate evidence could not be read', () => {
+    if (!runId) return evaluateGateRun({ run: null })
+    if (!repo) throw new Error('no GitHub repository could be resolved')
+    run = readGateRun(repo, runId, cwd)
+    const preliminary = evaluateGateRun({ run, runId, repo })
+    if (preliminary.status === 'failed') return preliminary
+    summary = readGateSummary(repo, runId, cwd)
+    receipt.evidence.ciRun = {
+      id: runId,
+      attempt: run.run_attempt,
+      testedSha: normalizeSha(summary?.commitSha),
+      testedTree: normalizeSha(summary?.treeSha),
+    }
+    return evaluateGateRun({ run, summary, runId, repo })
   })
-  if (receipt.pr) receipt.pr.treeMatches = testedDependency.status === 'verified' ? true : testedDependency.status === 'failed' ? false : null
-  receipt.dependencies.push(
-    prNumber
-      ? testedDependency
-      : dependency(
-          'tested_merge_tree',
-          'unknown',
-          prError
-            ? `no pull request evidence: ${prError}`
-            : 'no associated pull request; there is no tested merge tree to compare',
-        ),
-  )
-
-  /* 3. CI check runs ---------------------------------------------------------- */
-  const ciSha = headSha ?? appSha
-  const ciSource = prNumber && headSha ? `PR #${prNumber} head ${shortSha(headSha)}` : `commit ${shortSha(appSha)}`
-  receipt.dependencies.push(
-    safely('ci_checks', 'check runs could not be read', () => {
-      if (!repo) throw new Error('no GitHub repository could be resolved')
-      const payload = checkRunsFor(repo, ciSha, cwd)
-      receipt.evidence.ciChecks = {
-        sourceSha: ciSha,
-        total: typeof payload?.total_count === 'number' ? payload.total_count : null,
-      }
-      return evaluateCiChecks({ payload, source: ciSource })
-    }),
-  )
+  receipt.dependencies.push(ciDependency)
+  receipt.dependencies.push(safely('tested_merge_tree', 'the CI checkout could not be resolved', () => {
+    const testedSha = normalizeSha(summary?.commitSha)
+    if (ciDependency.status !== 'verified' || !testedSha) {
+      return dependency('tested_merge_tree', 'unknown', 'a verified PR gate artifact is required to compare the release tree')
+    }
+    ensureCommit(cwd, testedSha)
+    return evaluateTestedMergeTree({
+      appSha, appTree, parents, run, summary,
+      checkedTree: gitTree(cwd, testedSha),
+      checkedParents: commitParents(cwd, testedSha),
+    })
+  }))
 
   /* 4. Production deployment and its build log -------------------------------- */
   let buildLog = null

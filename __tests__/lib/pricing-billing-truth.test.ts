@@ -204,14 +204,10 @@ describe('pricing billing truth', () => {
     expect(pricingSource).not.toMatch(/row_(scans|brands|history)_[spe]/)
   })
 
-  it('localizes Enterprise as a starting price while Basic and Pro stay monthly', () => {
-    const enPricing = enMessages.pricing as Record<string, string>
-    const zhPricing = zhMessages.pricing as Record<string, string>
-    expect(enPricing.starting_price_per_month).toBe('/month starting price')
-    expect(zhPricing.starting_price_per_month).toBe('/月起')
-    expect(pricingSource).toContain(
-      "key === 'enterprise' ? t('starting_price_per_month') : t('per_month')",
-    )
+  it('labels each paid plan with the localized USD monthly cadence', () => {
+    expect(enMessages.pricing.usd_per_month).toBe('USD / month')
+    expect(zhMessages.pricing.usd_per_month).toBe('美元／月')
+    expect(pricingSource).toContain("priceSub: t('usd_per_month')")
   })
 
   it('keeps monthly-only checkout and locale parity', () => {

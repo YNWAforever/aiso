@@ -1,11 +1,13 @@
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { authLocale } from '@/lib/auth-return-to'
 import { stripe, APP_URL } from '@/lib/stripe'
 import { requireAuth } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
-  const profile = await requireAuth()
+export async function GET(req?: NextRequest) {
+  const lang = authLocale(req?.nextUrl.searchParams.get('lang') ?? '')
+  const profile = await requireAuth(lang)
   const stripeCustomerId = profile.accounts?.stripe_customer_id
 
   if (!stripeCustomerId) {
@@ -14,7 +16,8 @@ export async function GET() {
 
   const session = await stripe.billingPortal.sessions.create({
     customer: stripeCustomerId,
-    return_url: `${APP_URL}/en/dashboard/settings`,
+    locale: lang,
+    return_url: `${APP_URL}/${lang}/dashboard/settings`,
   })
 
   return NextResponse.redirect(session.url)

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PlanId } from '@/lib/plans/catalog'
 
 type BillingMode = 'included' | 'metered' | null
@@ -23,6 +23,8 @@ type OverviewAccount = {
   usage: { reported: number; pending: number; failed: number }
   failedEvents: FailedEvent[]
 }
+
+type UnfinishedInvoice = { id: string; requestId: string; description: string; amountCents: number; currency: 'usd' | 'hkd'; needsReconciliation: boolean; stripeInvoiceId: string | null }
 
 type Overview = { month: string; accounts: OverviewAccount[] }
 
@@ -61,6 +63,20 @@ export function PerFixBillingPanel() {
   const [currency, setCurrency] = useState<'usd' | 'hkd'>('usd')
   const [invoiceResult, setInvoiceResult] = useState<string>('')
   const [stripeInvoiceId, setStripeInvoiceId] = useState('')
+  const [unfinished, setUnfinished] = useState<UnfinishedInvoice[]>([])
+  const invoiceRequest = useRef<{ signature: string; id: string } | null>(null)
+  const inFlightInvoice = useRef(false)
+  const [invoiceRefresh, setInvoiceRefresh] = useState(0)
+
+  useEffect(() => {
+    if (!invoiceAccountId) return
+    const abort = new AbortController()
+    fetch(`/api/admin/billing/invoices?accountId=${encodeURIComponent(invoiceAccountId)}`, { signal: abort.signal })
+      .then(response => { if (!response.ok) throw new Error('Invoice lookup failed'); return response.json() })
+      .then(result => { if (!abort.signal.aborted) setUnfinished(result.unfinished ?? []) })
+      .catch(() => { if (!abort.signal.aborted) setError('Could not load unfinished invoices.') })
+    return () => abort.abort()
+  }, [invoiceAccountId, invoiceRefresh])
 
   const reload = () => {
     fetchOverview().then(result => {
@@ -128,47 +144,53 @@ export function PerFixBillingPanel() {
     }
   }
 
-  const issueInvoice = async () => {
+  const issueInvoice = async (draft?: UnfinishedInvoice) => {
+    if (inFlightInvoice.current) return
+    inFlightInvoice.current = true
     setBusyKey('invoice')
     setError('')
     setNotice('')
     setInvoiceResult('')
     try {
-      const dollars = Number(amount)
+      const amountCents = draft?.amountCents ?? Math.round(Number(amount) * 100)
       if (!invoiceAccountId) {
         setError('Choose an account first.')
         return
       }
-      if (!Number.isFinite(dollars) || dollars <= 0) {
+      if (!Number.isInteger(amountCents) || amountCents <= 0) {
         setError('Enter a positive amount.')
         return
       }
-      const { ok, data: payload } = await postJson('/api/admin/billing/invoices', {
-        accountId: invoiceAccountId,
-        description,
-        amountCents: Math.round(dollars * 100),
-        currency,
-      })
+      const input = { accountId: invoiceAccountId, description: draft?.description ?? description.trim(), amountCents, currency: draft?.currency ?? currency }
+      const signature = JSON.stringify(input)
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(signature))
+      const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+      const storageKey = `aiso:invoice-request:${hash}`
+      let savedId: string | null = null
+      try { savedId = sessionStorage.getItem(storageKey) } catch { /* The in-memory request can still be retried. */ }
+      const requestId = draft?.requestId ?? (invoiceRequest.current?.signature === signature ? invoiceRequest.current.id : savedId ?? crypto.randomUUID())
+      try { sessionStorage.setItem(storageKey, requestId) } catch { /* Optional browser storage. */ }
+      invoiceRequest.current = { signature, id: requestId }
+      const { ok, data: payload } = await postJson('/api/admin/billing/invoices', { ...input, requestId })
       if (!ok) {
-        const hosted = typeof payload.hostedInvoiceUrl === 'string' ? payload.hostedInvoiceUrl : ''
-        const stripeId = typeof payload.stripeInvoiceId === 'string' ? payload.stripeInvoiceId : ''
-        setError(
-          hosted
-            ? `Stripe invoice ${stripeId} was created but the local mirror failed. It is NOT lost: re-mirror it below. ${hosted}`
-            : String(payload.message ?? payload.error ?? 'Invoice failed.'),
-        )
-        if (stripeId) setStripeInvoiceId(stripeId)
+        setError(payload.error === 'INVOICE_RECONCILIATION_REQUIRED'
+          ? 'Check the original request in Stripe before sending another invoice.'
+          : 'Invoice could not be confirmed. Retry this invoice to resume the same request.')
       } else {
         const invoice = (payload.invoice ?? {}) as Record<string, unknown>
+        invoiceRequest.current = null
+        try { sessionStorage.removeItem(storageKey) } catch { /* Optional browser storage. */ }
         setInvoiceResult(String(invoice.hostedInvoiceUrl ?? ''))
         setDescription('')
         setAmount('')
         reload()
       }
     } catch {
-      setError('Invoice failed.')
+      setError('Invoice could not be confirmed. Retry this invoice to resume the same request.')
     } finally {
+      inFlightInvoice.current = false
       setBusyKey(null)
+      setInvoiceRefresh(value => value + 1)
     }
   }
 
@@ -335,15 +357,15 @@ export function PerFixBillingPanel() {
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="mb-1 text-lg font-black text-slate-900">Issue a one-off invoice</h2>
         <p className="mb-3 text-sm text-slate-500">
-          Stripe emails the customer a hosted invoice. Nothing is written locally unless Stripe created the invoice
-          first; a failed mirror is reported with the Stripe id so it can be repaired here.
+          Stripe emails the customer a hosted invoice. If a request is interrupted, resume it below.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">
             <span className="mb-1 block text-slate-600">Account</span>
             <select
               value={invoiceAccountId}
-              onChange={event => setInvoiceAccountId(event.target.value)}
+              onChange={event => { setUnfinished([]); setInvoiceAccountId(event.target.value) }}
+              disabled={busyKey !== null}
               className="min-h-11 w-full rounded-lg border border-slate-300 px-3"
             >
               <option value="">Choose an account…</option>
@@ -388,7 +410,7 @@ export function PerFixBillingPanel() {
           <button
             type="button"
             disabled={busyKey !== null}
-            onClick={issueInvoice}
+            onClick={() => issueInvoice()}
             className="min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             Issue invoice
@@ -397,6 +419,19 @@ export function PerFixBillingPanel() {
             <a className="text-sm underline" href={invoiceResult} rel="noreferrer">Open hosted invoice</a>
           )}
         </div>
+        {unfinished.length > 0 && (
+          <div className="mt-5 border-t border-slate-200 pt-4">
+            <h3 className="text-sm font-semibold text-slate-900">Unfinished invoices</h3>
+            <ul className="mt-2 space-y-2">
+              {unfinished.map(draft => <li key={draft.id} className="flex flex-wrap items-center gap-3 text-sm">
+                <span>{draft.description} · {draft.currency.toUpperCase()} {(draft.amountCents / 100).toFixed(2)}</span>
+                {draft.needsReconciliation ? <span>Review in Stripe {draft.stripeInvoiceId ?? draft.id}</span> : (
+                  <button type="button" disabled={busyKey !== null} onClick={() => issueInvoice(draft)} className="min-h-11 rounded-lg border px-3">Resume invoice</button>
+                )}
+              </li>)}
+            </ul>
+          </div>
+        )}
         <div className="mt-5 border-t border-slate-200 pt-4">
           <h3 className="text-sm font-semibold text-slate-900">Repair a mirror</h3>
           <p className="mb-2 text-xs text-slate-500">

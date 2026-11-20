@@ -7,7 +7,6 @@ type RpcOutcome = 'applied' | 'duplicate' | 'stale' | 'not_found' | 'lease_lost'
 
 const mocks = vi.hoisted(() => ({
   constructEvent: vi.fn(),
-  createCheckoutSession: vi.fn(),
   retrieveSubscription: vi.fn(),
   getProfile: vi.fn(),
   sql: vi.fn(),
@@ -27,7 +26,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/stripe', () => ({
   stripe: {
-    checkout: { sessions: { create: mocks.createCheckoutSession } },
     subscriptions: { retrieve: mocks.retrieveSubscription },
     webhooks: { constructEvent: mocks.constructEvent },
   },
@@ -58,15 +56,6 @@ function parseNamedArgs(strings: TemplateStringsArray, values: unknown[]): Recor
     if (match) args[match[1]] = values[i]
   }
   return args
-}
-
-async function postCheckout(plan: string) {
-  const { POST } = await import('@/app/api/stripe/checkout/route')
-  return POST(new NextRequest('http://localhost/api/stripe/checkout', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ plan, lang: 'en' }),
-  }))
 }
 
 async function postWebhook(event: object) {
@@ -220,24 +209,11 @@ describe('Stripe entitlement integrity', () => {
       return [{ result: mocks.rpcOutcome }]
     })
     mocks.getProfile.mockResolvedValue({ account_id: 'account-1', email: 'owner@example.com' })
-    mocks.createCheckoutSession.mockResolvedValue({ url: 'https://checkout.stripe.test/session' })
     mocks.retrieveSubscription.mockImplementation(async () => {
       mocks.operationOrder.push('retrieve_subscription')
       return subscription()
     })
   })
-
-  it.each(['basic', 'pro', 'enterprise'] as const)(
-    'records the selected %s plan in server-created checkout metadata',
-    async plan => {
-      const response = await postCheckout(plan)
-
-      expect(response.status).toBe(200)
-      expect(mocks.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({
-        metadata: { account_id: 'account-1', plan },
-      }))
-    },
-  )
 
   it('derives checkout entitlement from the purchased price instead of plan metadata', async () => {
     mocks.retrieveSubscription.mockResolvedValue(subscription({ price: 'price_basic_test' }))

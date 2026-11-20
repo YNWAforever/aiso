@@ -5,7 +5,7 @@ export const ONBOARDING_EVENTS = ['onboarding_started','brand_draft_requested','
 export const FUNNEL_EVENTS = [
   ...ONBOARDING_EVENTS,
   'scan_completed', 'scan_result_viewed', 'signup_cta_viewed',
-  'signup_started', 'signup_succeeded', 'scan_claim_succeeded',
+  'signup_started', 'sign_in_succeeded', 'scan_claim_succeeded',
   'scan_claim_failed', 'scan_retry_clicked',
   // Phase 7: what happens after the result. Same redacted fields, no new ones.
   'fix_opened', 'report_published', 'report_link_copied', 'report_pdf_downloaded',

@@ -9,7 +9,7 @@ vi.mock('@neondatabase/auth/next', () => ({ createAuthClient: () => ({}) }))
 vi.mock('@/lib/db', () => ({ db: () => boundary.sql }))
 vi.mock('@/lib/auth', () => ({ getProfile: boundary.profile }))
 vi.mock('@/lib/security/public-scan-rate-limit', () => ({
-  consumePublicScanRateLimit: async () => ({ allowed: true, remaining: 4, resetAt: 2_000_000_000 }),
+  consumeScanClaimPreparationLimit: async () => ({ allowed: true, remaining: 4, resetAt: 2_000_000_000 }),
 }))
 import { POST as prepareIntent } from '@/app/api/scans/[id]/claim-intent/route'
 import { POST as claimScan } from '@/app/api/scans/[id]/claim/route'

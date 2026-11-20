@@ -1,16 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   authClient,
   buildAuthCompleteUrl,
   buildGoogleAuthStartUrl,
 } from '@/lib/auth-client'
-import { buildScanClaimNext } from './ClaimScanOnReturn'
+import { buildScanClaimNext, claimRetrySeconds } from './ClaimScanOnReturn'
 import { trackFunnelEvent } from '@/lib/funnel-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { LegalLinks } from '@/components/marketing/LegalLinks'
 
 type Props = {
   scanId: string
@@ -18,6 +19,10 @@ type Props = {
 }
 
 type AccountUnlockContinuation = { mode: 'claim' | 'sign-in'; next: string }
+
+class ClaimPreparationError extends Error {
+  constructor(readonly retryAfter?: number) { super('claim_intent_failed') }
+}
 
 export async function prepareAccountUnlock(scanId: string, lang: string): Promise<AccountUnlockContinuation> {
   const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/claim-intent`, {
@@ -32,7 +37,7 @@ export async function prepareAccountUnlock(scanId: string, lang: string): Promis
   if (response.status === 409 && body?.error === 'Scan already belongs to an account') {
     return { mode: 'sign-in', next: `/${lang}/result/${encodeURIComponent(scanId)}` }
   }
-  if (!response.ok || body?.ok !== true) throw new Error('claim_intent_failed')
+  if (!response.ok || body?.ok !== true) throw new ClaimPreparationError(response.status === 429 ? claimRetrySeconds(response) : undefined)
   return { mode: 'claim', next: buildScanClaimNext(lang, scanId) }
 }
 
@@ -50,11 +55,12 @@ type GoogleAuthPopup = {
   readonly closed: boolean
   focus: () => void
   close?: () => void
+  location?: { replace(url: string): void }
 }
 
 type GoogleAccountUnlockOptions = {
   embedded: boolean
-  bridgeURL: string
+  bridgeURL: string | (() => Promise<string>)
   activePopup?: GoogleAuthPopup | null
   openWindow: (url: string, target: string) => GoogleAuthPopup | null
   request: () => Promise<{ error?: AuthRequestError | null }>
@@ -79,7 +85,7 @@ export async function launchGoogleAccountUnlock({
     return { error: null, popup: activePopup }
   }
 
-  const popup = openWindow(bridgeURL, 'fimmick-google-auth')
+  const popup = openWindow(typeof bridgeURL === 'string' ? bridgeURL : 'about:blank', 'fimmick-google-auth')
   if (!popup) return { error: { code: 'POPUP_BLOCKED' } }
 
   try {
@@ -89,6 +95,15 @@ export async function launchGoogleAccountUnlock({
       popup.close?.()
     } catch {}
     return { error: { code: 'OPENER_ISOLATION_FAILED' } }
+  }
+  if (typeof bridgeURL === 'function') {
+    try {
+      const destination = await bridgeURL()
+      popup.location?.replace(destination)
+    } catch (error) {
+      popup.close?.()
+      throw error
+    }
   }
   return { error: null, popup }
 }
@@ -116,14 +131,12 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   const [loading, setLoading] = useState<'google' | 'email' | null>(null)
   const [status, setStatus] = useState('')
   const [isError, setIsError] = useState(false)
-  const [intentState, setIntentState] = useState<'preparing' | 'ready' | 'error'>('preparing')
+  const [preparing, setPreparing] = useState(false)
+  const authInFlight = useRef(false)
   const googlePopupRef = useRef<GoogleAuthPopup | null>(null)
   const googlePopupMonitorRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const googlePopupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const hasStartedClaimIntent = useRef(false)
   const [continuation, setContinuation] = useState<AccountUnlockContinuation>({ mode: 'claim', next: buildScanClaimNext(lang, scanId) })
-  const next = continuation.next
-  const callbackURL = buildAuthCompleteUrl(lang, next)
 
   function releaseGooglePopup() {
     if (googlePopupMonitorRef.current) clearInterval(googlePopupMonitorRef.current)
@@ -139,23 +152,30 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
     if (googlePopupTimeoutRef.current) clearTimeout(googlePopupTimeoutRef.current)
   }, [])
 
-  const prepareClaimIntent = useCallback(async (showPreparing = true) => {
-    if (showPreparing) setIntentState('preparing')
+  async function prepareNext() {
+    setPreparing(true)
     try {
-      setContinuation(await prepareAccountUnlock(scanId, lang))
-      setIntentState('ready')
-    } catch {
-      setIntentState('error')
+      const prepared = await prepareAccountUnlock(scanId, lang)
+      setContinuation(prepared)
+      return prepared.next
+    } catch (error) {
+      if (error instanceof ClaimPreparationError) throw error
+      throw new ClaimPreparationError()
+    } finally {
+      setPreparing(false)
     }
-  }, [lang, scanId])
+  }
 
-  const startClaimIntentOnMount = useCallback((node: HTMLElement | null) => {
-    if (!node || hasStartedClaimIntent.current) return
-    hasStartedClaimIntent.current = true
-    void prepareClaimIntent(false)
-  }, [prepareClaimIntent])
+  function onPreparationFailure(error: unknown, fallback: string) {
+    setStatus(error instanceof ClaimPreparationError
+      ? error.retryAfter ? t('rateLimited', { seconds: error.retryAfter }) : t('intentFailed')
+      : fallback)
+    setIsError(true)
+  }
 
   async function signInWithGoogle() {
+    if (authInFlight.current) return
+    authInFlight.current = true
     trackFunnelEvent({ name: 'signup_started', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', provider: 'google', scanId })
     setLoading('google')
     setStatus('')
@@ -170,10 +190,10 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
             return true
           }
         })(),
-        bridgeURL: buildGoogleAuthStartUrl(lang, next),
+        bridgeURL: async () => buildGoogleAuthStartUrl(lang, await prepareNext()),
         activePopup: googlePopupRef.current,
         openWindow: (url, target) => window.open(url, target),
-        request: () => authClient.signIn.social({ provider: 'google', callbackURL }),
+        request: async () => authClient.signIn.social({ provider: 'google', callbackURL: buildAuthCompleteUrl(lang, await prepareNext()) }),
       })
 
       if (result.error) {
@@ -195,32 +215,43 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
       }
 
       setLoading(null)
-    } catch {
-      setStatus(t('googleFailed'))
-      setIsError(true)
+    } catch (error) {
+      onPreparationFailure(error, t('googleFailed'))
       setLoading(null)
+    } finally {
+      authInFlight.current = false
     }
   }
 
   async function signInWithMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (authInFlight.current) return
+    authInFlight.current = true
     trackFunnelEvent({ name: 'signup_started', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', provider: 'magic_link', scanId })
     setLoading('email')
     setStatus('')
     setIsError(false)
-    await runAccountUnlockRequest({
-      request: () => authClient.signIn.magicLink({ email, callbackURL }),
-      onFailure: error => {
-        setStatus(error?.code === 'TOO_MANY_ATTEMPTS' ? t('tooManyAttempts') : t('magicLinkFailed'))
-        setIsError(true)
-      },
-      onSuccess: () => setStatus(t('checkEmail')),
-      onFinally: () => setLoading(null),
-    })
+    try {
+      const callbackURL = buildAuthCompleteUrl(lang, await prepareNext())
+      await runAccountUnlockRequest({
+        request: () => authClient.signIn.magicLink({ email, callbackURL }),
+        onFailure: error => {
+          setStatus(error?.code === 'TOO_MANY_ATTEMPTS' ? t('tooManyAttempts') : t('magicLinkFailed'))
+          setIsError(true)
+        },
+        onSuccess: () => setStatus(t('checkEmail')),
+        onFinally: () => setLoading(null),
+      })
+    } catch (error) {
+      onPreparationFailure(error, t('magicLinkFailed'))
+    } finally {
+      authInFlight.current = false
+      setLoading(null)
+    }
   }
 
   return (
-    <section ref={startClaimIntentOnMount} data-testid="save-report-cta" className="rounded-2xl border-2 border-primary/30 bg-slate-900 p-6 sm:p-8">
+    <section data-testid="save-report-cta" className="rounded-2xl border-2 border-primary/30 bg-slate-900 p-6 sm:p-8">
       <div className="mx-auto max-w-md text-center">
         <h2 className="text-xl font-black text-white">{continuation.mode === 'sign-in' ? t('savedTitle') : t('title')}</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-300">{continuation.mode === 'sign-in' ? t('savedBody') : t('body')}</p>
@@ -229,7 +260,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
           type="button"
           variant="outline"
           onClick={signInWithGoogle}
-          disabled={loading !== null || intentState !== 'ready'}
+          disabled={loading !== null}
           data-testid="google-signup"
           className="mt-6 h-auto min-h-11 w-full justify-center gap-3 whitespace-normal bg-white py-2.5 text-center leading-snug text-slate-900 hover:bg-slate-100"
         >
@@ -266,7 +297,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
           />
           <Button
             type="submit"
-            disabled={loading !== null || intentState !== 'ready'}
+            disabled={loading !== null}
             data-testid="create-account"
             className="mt-3 h-auto min-h-11 w-full whitespace-normal py-2.5 leading-snug"
           >
@@ -282,22 +313,8 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
           {status}
         </p>
         <p className="mt-2 text-xs text-slate-400">{continuation.mode === 'sign-in' ? t('savedNote') : t('finePrint')}</p>
-        {intentState === 'preparing' ? <p className="mt-2 text-xs text-slate-400">{t('preparing')}</p> : null}
-        {intentState === 'error' ? (
-          <div className="mt-2">
-            <p className="text-xs text-red-300">{t('intentFailed')}</p>
-            <button
-              type="button"
-              onClick={() => {
-                trackFunnelEvent({ name: 'scan_retry_clicked', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', scanId })
-                void prepareClaimIntent()
-              }}
-              className="min-h-11 text-sm font-semibold text-white underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            >
-              {t('retrySaving')}
-            </button>
-          </div>
-        ) : null}
+        {preparing && <p role="status" className="mt-2 text-xs text-slate-300">{t('preparing')}</p>}
+        <LegalLinks className="justify-center !text-slate-300" />
       </div>
     </section>
   )

@@ -47,7 +47,7 @@ describe('resumable onboarding API boundary', () => {
   it('passes normalised competitor websites to persistence', async () => {
     expect((await POST(request({brandName:'Synthetic',competitors:['Acme'],
       competitorDomains:[{name:'Acme',domain:'https://www.Acme.com/pricing'}]}))).status).toBe(200)
-    expect(mocks.complete).toHaveBeenCalledWith({accountId:'synthetic-account'},
+    expect(mocks.complete).toHaveBeenCalledWith({accountId:'synthetic-account',locale:'en'},
       expect.objectContaining({competitors:['Acme'],competitorDomains:[{name:'Acme',domain:'acme.com'}]}))
   })
   it('rejects invalid JSON', async () => {
@@ -77,7 +77,7 @@ describe('resumable onboarding API boundary', () => {
   it('claims only for the session account before creating persistent progress', async () => {
     expect((await POST(request({brandName:'Synthetic',scanId},signed()))).status).toBe(200)
     expect(mocks.claim).toHaveBeenCalledWith(scanId,'synthetic-account')
-    expect(mocks.complete).toHaveBeenCalledWith({accountId:'synthetic-account'},expect.objectContaining({scanId}))
+    expect(mocks.complete).toHaveBeenCalledWith({accountId:'synthetic-account',locale:'en'},expect.objectContaining({scanId}))
   })
   it('resumes a stored matching client/scan without spending another claim intent', async () => {
     mocks.read.mockResolvedValue({...result,scanId})
@@ -89,10 +89,10 @@ describe('resumable onboarding API boundary', () => {
     expect((await POST(request({brandName:'Synthetic',scanId,intentKey:result.intentKey}))).status).toBe(200)
     expect(mocks.consume).not.toHaveBeenCalled()
   })
-  it('resumes an interruption after scan claim through signed intent and session-owned readback', async () => {
+  it('resumes an owned unassigned scan without a stale claim cookie', async () => {
     mocks.ownedScan.mockResolvedValue(true)
-    expect((await POST(request({brandName:'Synthetic',scanId},signed()))).status).toBe(200)
-    expect(mocks.ownedScan).toHaveBeenCalledWith({accountId:'synthetic-account'},scanId)
+    expect((await POST(request({brandName:'Synthetic',scanId}))).status).toBe(200)
+    expect(mocks.ownedScan).toHaveBeenCalledWith({accountId:'synthetic-account',locale:'en'},scanId)
     expect(mocks.consume).not.toHaveBeenCalled(); expect(mocks.claim).not.toHaveBeenCalled()
   })
   it('stored progress for a different client cannot bypass claim authorization', async () => {

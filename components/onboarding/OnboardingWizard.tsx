@@ -283,7 +283,7 @@ function WizardForm({
       const values={brand,domain,industry,region,language,description,competitors,competitorDomains:submittedCompetitorDomains(),scanId}
       const payload=JSON.stringify(values)
       const send=(v:typeof values,key:string,target:string|null)=>fetch('/api/onboarding/complete',{
-        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brandName:v.brand,domain:v.domain||undefined,industry:v.industry||undefined,region:v.region||undefined,language:v.language||undefined,market:v.region||null,description:v.description||undefined,competitors:v.competitors.length?v.competitors:undefined,competitorDomains:v.competitorDomains.length?v.competitorDomains:undefined,scanId:v.scanId,intentKey:key||undefined,clientId:target||undefined})
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({locale:lang,brandName:v.brand,domain:v.domain||undefined,industry:v.industry||undefined,region:v.region||undefined,language:v.language||undefined,market:v.region||null,description:v.description||undefined,competitors:v.competitors.length?v.competitors:undefined,competitorDomains:v.competitorDomains.length?v.competitorDomains:undefined,scanId:v.scanId,intentKey:key||undefined,clientId:target||undefined})
       })
       let targetClientId=clientId
       const previous=submittedPayload.current

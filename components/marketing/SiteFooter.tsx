@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ArrowRight, Zap } from 'lucide-react'
 import { NAV, type NavSection } from '@/lib/navigation'
 import { Wordmark } from '@/components/brand/Wordmark'
+import { LegalLinks } from '@/components/marketing/LegalLinks'
 
 /**
  * The public footer, rendered once by `app/[lang]/(marketing)/layout.tsx`.
@@ -67,6 +68,7 @@ export function SiteFooter() {
               <Wordmark />
             </Link>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">{t('footer_blurb')}</p>
+            <LegalLinks className="mt-3" />
             <Link
               href={`/${locale}#scan`}
               className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-bold text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"

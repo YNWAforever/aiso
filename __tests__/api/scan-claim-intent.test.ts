@@ -9,7 +9,7 @@ import { E2E_FIXTURE_SCAN_ID } from '@/lib/e2e-fixtures'
 // placeholder 'scan-1' this file used before that validation existed.
 const SCAN_ID = '11111111-2222-4333-8444-555555555555'
 
-const consumePublicScanRateLimit = vi.hoisted(() => vi.fn())
+const consumeScanClaimPreparationLimit = vi.hoisted(() => vi.fn())
 const nextRows = vi.hoisted(() => ({ value: [] as unknown[][] }))
 const mockSql = vi.hoisted(() => vi.fn(() => {
   const result = nextRows.value.shift()
@@ -18,7 +18,7 @@ const mockSql = vi.hoisted(() => vi.fn(() => {
 }))
 
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
-vi.mock('@/lib/security/public-scan-rate-limit', () => ({ consumePublicScanRateLimit }))
+vi.mock('@/lib/security/public-scan-rate-limit', () => ({ consumeScanClaimPreparationLimit }))
 
 async function post(id: string, body: unknown) {
   const { POST } = await import('@/app/api/scans/[id]/claim-intent/route')
@@ -34,7 +34,7 @@ describe('POST /api/scans/[id]/claim-intent', () => {
     vi.stubEnv('REPORT_SHARE_SECRET', 'x'.repeat(32))
     vi.clearAllMocks()
     nextRows.value = []
-    consumePublicScanRateLimit.mockResolvedValue({ allowed: true, remaining: 4, resetAt: 2_000_000_000 })
+    consumeScanClaimPreparationLimit.mockResolvedValue({ allowed: true, remaining: 4, resetAt: 2_000_000_000 })
   })
 
   afterEach(() => vi.unstubAllEnvs())
@@ -43,7 +43,7 @@ describe('POST /api/scans/[id]/claim-intent', () => {
     const response = await post('scan-1', { lang: 'fr' })
 
     expect(response.status).toBe(400)
-    expect(consumePublicScanRateLimit).not.toHaveBeenCalled()
+    expect(consumeScanClaimPreparationLimit).not.toHaveBeenCalled()
     expect(mockSql).not.toHaveBeenCalled()
   })
 
@@ -58,7 +58,7 @@ describe('POST /api/scans/[id]/claim-intent', () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({ error: 'Invalid scan id' })
-    expect(consumePublicScanRateLimit).not.toHaveBeenCalled()
+    expect(consumeScanClaimPreparationLimit).not.toHaveBeenCalled()
     expect(mockSql).not.toHaveBeenCalled()
   })
 
@@ -68,7 +68,7 @@ describe('POST /api/scans/[id]/claim-intent', () => {
     const response = await post(E2E_FIXTURE_SCAN_ID, { lang: 'en' })
 
     expect(response.status).toBe(200)
-    expect(consumePublicScanRateLimit).not.toHaveBeenCalled()
+    expect(consumeScanClaimPreparationLimit).not.toHaveBeenCalled()
     expect(mockSql).not.toHaveBeenCalled()
     const setCookie = response.headers.get('set-cookie') ?? ''
     const token = setCookie.split(`${CLAIM_INTENT_COOKIE}=`)[1].split(';')[0]
@@ -94,7 +94,7 @@ describe('POST /api/scans/[id]/claim-intent', () => {
   })
 
   it('returns 429 and Retry-After when public rate limiting denies the request', async () => {
-    consumePublicScanRateLimit.mockResolvedValue({ allowed: false, remaining: 0, resetAt: Math.floor(Date.now() / 1000) + 60 })
+    consumeScanClaimPreparationLimit.mockResolvedValue({ allowed: false, remaining: 0, resetAt: Math.floor(Date.now() / 1000) + 60 })
     const response = await post(SCAN_ID, { lang: 'en' })
 
     expect(response.status).toBe(429)

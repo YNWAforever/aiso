@@ -28,7 +28,8 @@ describe('commercial surface contract', () => {
   it('validates the checkout plan through the catalog before looking up a Stripe price', () => {
     const checkout = source('app/api/stripe/checkout/route.ts')
     const planDecision = checkout.indexOf('const plan = getCheckoutPlanId(body.plan)')
-    const priceLookup = checkout.indexOf('const priceId = STRIPE_PRICES[plan]')
+    const priceLookup = checkout.indexOf('openCheckout(profile.account_id, plan, supportedLang)')
+    expect(source('lib/billing/checkout.ts')).toContain('const priceId = STRIPE_PRICES[plan]')
 
     expect(planDecision).toBeGreaterThanOrEqual(0)
     expect(priceLookup).toBeGreaterThan(planDecision)
@@ -92,9 +93,9 @@ describe('commercial surface contract', () => {
   it('uses client navigation for localized login and a full-page Stripe redirect', () => {
     const pricing = source('app/[lang]/(marketing)/pricing/page.tsx')
 
-    expect(pricing).toContain("import { useParams, useRouter } from 'next/navigation'")
+    expect(pricing).toContain("import { useParams, useRouter, useSearchParams } from 'next/navigation'")
     expect(pricing).toContain('const router = useRouter()')
-    expect(pricing).toContain('router.push(`/${lang}/auth/login?next=/${lang}/pricing`)')
+    expect(pricing).toContain('router.push(`/${lang}/auth/login?next=${encodeURIComponent(')
     expect(pricing).toContain('window.location.assign(data.url)')
     expect(pricing).not.toContain('window.location.href')
   })

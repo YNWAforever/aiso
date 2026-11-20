@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createLaunchBillingDb } from '../../helpers/launch-billing-db'
 
 const queries: string[] = []
 let nextResults: unknown[][] = []
@@ -10,7 +11,8 @@ const sqlMock = vi.fn((strings: TemplateStringsArray) => {
   return Promise.resolve(result ?? [])
 })
 
-vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
+const getDb = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/db', () => ({ db: getDb }))
 
 const stripeMock = vi.hoisted(() => ({
   create: vi.fn(),
@@ -24,13 +26,11 @@ vi.mock('@/lib/stripe', () => ({
 
 import {
   FIX_METER_IDENTIFIER_PREFIX,
-  enqueueFixPackUsage,
+  storeFixPack,
   fixMeterIdentifier,
   reportFixPackUsage,
   retryFixPackUsage,
 } from '@/lib/billing/usage'
-
-const REF = { fixPackId: 'fp-1', accountId: 'acc-1', clientId: 'client-1' }
 
 const LEDGER_ROW = {
   id: 'ev-1',
@@ -44,6 +44,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   queries.length = 0
   nextResults = []
+  getDb.mockReturnValue(sqlMock)
   meterConfig.priceId = 'price_metered'
   meterConfig.eventName = 'fix_pack_generated'
   stripeMock.create.mockResolvedValue({ identifier: 'stripe-evt' })
@@ -56,28 +57,49 @@ describe('fixMeterIdentifier', () => {
   })
 })
 
-describe('enqueueFixPackUsage', () => {
-  it('only writes a ledger row when the account is on metered billing', async () => {
-    nextResults = [[{ id: 'ev-1' }]]
-    await enqueueFixPackUsage(REF)
-
-    const query = queries[0]!
-    expect(query).toMatch(/insert into fix_billing_events/i)
-    expect(query).toMatch(/from account_billing b/i)
-    expect(query).toMatch(/b\.mode = 'metered'/i)
-    expect(query).toMatch(/on conflict \(fix_pack_id\) do nothing/i)
-    const [, ...params] = sqlMock.mock.calls[0]!
-    expect(params).toEqual(['acc-1', 'client-1', 'fp-1', 'fixbilling:fp-1', 'acc-1'])
+describe('storeFixPack', () => {
+  const account = 'f0000000-0000-4000-8000-000000000001'
+  const client = 'f0000000-0000-4000-8000-000000000002'
+  const scan = 'f0000000-0000-4000-8000-000000000003'
+  const pack = { llms_txt: 'llms', robots_patch: 'robots', faq_schema: 'faq' }
+  let fixture: Awaited<ReturnType<typeof createLaunchBillingDb>>
+  beforeAll(async () => { fixture = await createLaunchBillingDb() })
+  afterAll(async () => { await fixture?.pg.close() })
+  beforeEach(async () => {
+    getDb.mockReturnValue(fixture.sql)
+    await fixture.pg.exec('truncate accounts cascade')
+    await fixture.pg.query('insert into accounts(id) values($1)', [account])
+    await fixture.pg.query('insert into clients(id,account_id) values($1,$2)', [client, account])
+    await fixture.pg.query('insert into scans(id,account_id,client_id) values($1,$2,$3)', [scan, account, client])
+    await fixture.pg.query(`insert into account_billing(account_id, stripe_customer_id, stripe_subscription_id, stripe_metered_item_id, mode, opened_by)
+      values($1,'cus_fixture','sub_fixture','si_meter','metered',$1)`, [account])
   })
 
-  it('returns null when the account is not metered or the pack was already recorded', async () => {
-    nextResults = [[]]
-    await expect(enqueueFixPackUsage(REF)).resolves.toBeNull()
+  it('records one linked event for concurrent equivalent requests', async () => {
+    const results = await Promise.all([storeFixPack(account, scan, pack), storeFixPack(account, scan, pack)])
+    expect(results.filter(result => result.usageId)).toHaveLength(1)
+    const { rows } = await fixture.pg.query('select f.id, e.stripe_meter_event_identifier from fix_packs f join fix_billing_events e on e.fix_pack_id=f.id')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ stripe_meter_event_identifier: fixMeterIdentifier((rows[0] as { id: string }).id) })
   })
 
-  it('returns the ledger row id when the insert succeeded', async () => {
-    nextResults = [[{ id: 'ev-1' }]]
-    await expect(enqueueFixPackUsage(REF)).resolves.toBe('ev-1')
+  it('rolls the pack back if the ledger insert fails', async () => {
+    await fixture.pg.exec('alter table fix_billing_events add constraint fixture_failure check (false)')
+    try {
+      await expect(storeFixPack(account, scan, pack)).rejects.toThrow()
+      expect((await fixture.pg.query('select id from fix_packs')).rows).toEqual([])
+      expect((await fixture.pg.query('select id from fix_billing_events')).rows).toEqual([])
+    } finally {
+      await fixture.pg.exec('alter table fix_billing_events drop constraint fixture_failure')
+    }
+  })
+
+  it('stores included drafts without a ledger row and rejects another account', async () => {
+    await fixture.pg.exec("update account_billing set mode='included'")
+    expect(await storeFixPack(account, scan, pack)).toEqual({ available: true, usageId: null })
+    expect(await storeFixPack(client, scan, pack)).toEqual({ available: false, usageId: null })
+    expect((await fixture.pg.query('select id from fix_packs')).rows).toHaveLength(1)
+    expect((await fixture.pg.query('select id from fix_billing_events')).rows).toEqual([])
   })
 })
 

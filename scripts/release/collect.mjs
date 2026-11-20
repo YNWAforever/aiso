@@ -9,6 +9,9 @@
  */
 
 import { spawnSync } from 'node:child_process'
+import { mkdtempDisposableSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 export class CollectError extends Error {}
 
@@ -81,8 +84,18 @@ export function getPull(repo, number, cwd) {
   return ghJson(`repos/${repo}/pulls/${number}`, { cwd })
 }
 
-export function checkRunsFor(repo, sha, cwd) {
-  return ghJson(`repos/${repo}/commits/${sha}/check-runs?per_page=100`, { cwd })
+export function readGateRun(repo, runId, cwd) {
+  return ghJson(`repos/${repo}/actions/runs/${runId}`, { cwd })
+}
+
+export function readGateSummary(repo, runId, cwd) {
+  const directory = mkdtempDisposableSync(join(tmpdir(), 'aiso-release-gate-'))
+  try {
+    run('gh', ['run', 'download', runId, '--repo', repo, '--name', 'pr-gate-diagnostics', '--dir', directory.path], { cwd })
+    return JSON.parse(readFileSync(join(directory.path, 'gate-summary.json'), 'utf8'))
+  } finally {
+    directory.remove()
+  }
 }
 
 /* ------------------------------------------------------------------------- git */
@@ -107,29 +120,6 @@ export function commitParents(cwd, sha) {
   const result = run('git', ['rev-list', '--parents', '-n', '1', sha], { cwd })
   const lineage = result.stdout.trim().split(/\s+/).filter(Boolean)
   return lineage.slice(1)
-}
-
-/**
- * Reconstructs the tree a merge of `baseSha` and `headSha` would produce.
- * GitHub deletes `refs/pull/<n>/merge` after the PR merges, so a post-merge
- * receipt replays the merge locally with the same ort strategy. Null means the
- * merge could not be reconstructed (conflict or unsupported git), never a pass.
- */
-export function reconstructMergeTree(cwd, baseSha, headSha) {
-  const result = run('git', ['merge-tree', '--write-tree', baseSha, headSha], { cwd, allowFailure: true })
-  if (result.status !== 0) return null
-  const tree = result.stdout.trim().split(/\r?\n/)[0]?.trim()
-  return /^[0-9a-f]{40}$/.test(tree) ? tree : null
-}
-
-/** Fetches the PR's synthetic merge ref into FETCH_HEAD; null when GitHub no longer exposes it. */
-export function fetchTestedMerge(cwd, prNumber) {
-  const fetched = run('git', ['fetch', 'origin', `pull/${prNumber}/merge`, '--quiet'], { cwd, allowFailure: true })
-  if (fetched.status !== 0) return null
-  const resolved = run('git', ['rev-parse', 'FETCH_HEAD'], { cwd, allowFailure: true })
-  if (resolved.status !== 0) return null
-  const sha = resolved.stdout.trim()
-  return /^[0-9a-f]{40}$/.test(sha) ? sha : null
 }
 
 export function listTreeFiles(cwd, ref) {

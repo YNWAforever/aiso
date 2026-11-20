@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { CLAIM_INTENT_COOKIE, signScanClaimIntent } from '@/lib/security/scan-claim-intent'
-import { consumePublicScanRateLimit } from '@/lib/security/public-scan-rate-limit'
+import { consumeScanClaimPreparationLimit } from '@/lib/security/public-scan-rate-limit'
 import { getE2EScanFixture } from '@/lib/e2e-fixtures'
+import { readLimitedJson } from '@/lib/approvals/request'
 import { redactSecrets } from '@/lib/security/redact-secrets'
 
 export const dynamic = 'force-dynamic'
@@ -47,7 +48,7 @@ function createIntentResponse(scanId: string, lang: 'en' | 'zh-HK') {
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let body: unknown
   try {
-    body = await req.json()
+    body = await readLimitedJson(req, 1024)
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!isUuid(id)) return NextResponse.json({ error: 'Invalid scan id' }, { status: 400 })
 
   try {
-    const rateLimit = await consumePublicScanRateLimit(req)
+    const rateLimit = await consumeScanClaimPreparationLimit(req)
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: 'Too many requests' },

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { checkedOutSource } from './write-job-summary.mjs'
 
 const REQUIRED_RESULTS = ['STATIC_RESULT', 'UNIT_CONTRACT_RESULT', 'INTEGRATION_RESULT', 'E2E_ACCESSIBILITY_RESULT', 'BUILD_RESULT', 'CLOUDFLARE_WORKER_RESULT']
 const REQUIRED_JOBS = ['static', 'unit-contract', 'integration', 'e2e-accessibility', 'build', 'cloudflare-worker']
@@ -13,16 +14,15 @@ const REQUIRED_SUMMARY_FILES = [
   'cloudflare-worker-summary.json',
 ]
 
-export function aggregateGate({ results, summaries, commitSha = '' }) {
+export function aggregateGate({ results, summaries, commitSha = '', treeSha = '' }) {
   const dependencyFailure = REQUIRED_RESULTS.some((name) => results[name] !== 'success')
-  const missingRequiredSummary = REQUIRED_JOBS.some((job) => !summaries.some((summary) => summary.job === job))
-  const commitShaMismatch = REQUIRED_JOBS.some((job) =>
-    summaries.some((summary) => summary.job === job && summary.commitSha !== commitSha),
-  )
-  const summaryFailure = summaries.some((summary) =>
-    summary.status !== 'success' || summary.skipped > 0 || summary.failurePriorities?.includes('P0'),
-  )
-  const blocking = dependencyFailure || missingRequiredSummary || commitShaMismatch || summaryFailure
+  const complete = summaries.length === REQUIRED_JOBS.length
+    && REQUIRED_JOBS.every(job => summaries.filter(summary => summary.job === job).length === 1)
+  const sourceMismatch = !commitSha || !/^[0-9a-f]{40}$/.test(treeSha)
+    || summaries.some(summary => summary.commitSha !== commitSha || summary.treeSha !== treeSha)
+  const summaryFailure = summaries.some(summary => summary.schemaVersion !== 1
+    || summary.status !== 'success' || summary.skipped !== 0 || summary.failurePriorities?.includes('P0'))
+  const blocking = dependencyFailure || !complete || sourceMismatch || summaryFailure
   const advisoryPriorities = ['P1', 'P2'].filter((priority) =>
     summaries.some((summary) => summary.failurePriorities?.includes(priority)),
   )
@@ -32,6 +32,7 @@ export function aggregateGate({ results, summaries, commitSha = '' }) {
       schemaVersion: 1,
       job: 'pr-gate',
       commitSha,
+      treeSha,
       status: blocking ? 'failure' : 'success',
       executed: summaries.length,
       skipped: summaries.reduce((count, summary) => count + Number(summary.skipped ?? 0), 0),
@@ -59,8 +60,10 @@ async function main() {
   const result = aggregateGate({
     results: process.env,
     summaries: await readRequiredSummaries('artifacts'),
-    commitSha: process.env.GITHUB_SHA ?? '',
+    ...checkedOutSource(),
   })
+  result.summary.runId = process.env.GITHUB_RUN_ID ?? ''
+  result.summary.runAttempt = Number(process.env.GITHUB_RUN_ATTEMPT)
   await mkdir('artifacts', { recursive: true })
   await writeFile('artifacts/gate-summary.json', `${JSON.stringify(result.summary, null, 2)}\n`, 'utf8')
   process.exitCode = result.exitCode

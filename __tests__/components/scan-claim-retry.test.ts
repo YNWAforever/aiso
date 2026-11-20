@@ -35,7 +35,7 @@ vi.mock('@/lib/funnel-client', () => ({ trackFunnelEvent: state.track }))
 vi.mock('@/components/result/ResultClient', () => ({ ResultClient: () => null }))
 vi.mock('@/lib/auth', () => ({ getProfile: async () => ({ account_id: 'owner-account' }) }))
 vi.mock('@/lib/security/public-scan-rate-limit', () => ({
-  consumePublicScanRateLimit: async () => ({ allowed: true, remaining: 4, resetAt: 2_000_000_000 }),
+  consumeScanClaimPreparationLimit: async () => ({ allowed: true, remaining: 4, resetAt: 2_000_000_000 }),
 }))
 vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...values: unknown[]) => {
   const query = strings.join('?')
@@ -120,6 +120,16 @@ async function canonicalResult(lang = 'en') {
 }
 
 describe('scan claim retry after a consumed attempt', () => {
+  it.each(['en', 'zh-HK'])('lets an authenticated user recover an expired claim in %s', async lang => {
+    state.cookie = ''
+    const view = mountClaim(lang)
+    await vi.waitFor(() => expect(view.message()).toBe('claim_expired'))
+    view.retry()
+    await vi.waitFor(() => expect(state.replace).toHaveBeenCalledWith(`/${lang}/result/${scanId}`))
+    expect(state.account).toBe('owner-account')
+    expect(state.track.mock.calls.map(([event]) => event.name)).not.toContain('signup_succeeded')
+  })
+
   it('renews the signed intent after a failed write and then claims once successfully', async () => {
     expect(claimReturn.requestScanClaim).toBeTypeOf('function')
     state.failNextUpdate = true

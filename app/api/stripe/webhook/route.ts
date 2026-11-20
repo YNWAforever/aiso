@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { stripe, STRIPE_PRICES } from '@/lib/stripe'
 import { db } from '@/lib/db'
-import { updateOneOffInvoiceStatus, type InvoiceStatus } from '@/lib/billing/invoices'
+import { mirrorOneOffInvoice } from '@/lib/billing/invoices'
 import {
   getPlanFromStripePrice,
   type CheckoutPlanId as Plan,
@@ -33,54 +33,31 @@ const LIFECYCLE_EVENTS = new Set([
   'invoice.payment_failed',
 ])
 
-/**
- * Statuses for admin-issued one-off invoices (model C). These have no
- * subscription, so they never reach apply_stripe_account_event: the mirror in
- * billing_invoices is updated instead. Subscription invoices keep the existing
- * lifecycle path unchanged — the presence of `object.subscription` decides.
- */
 const ONE_OFF_INVOICE_EVENTS = new Set([
-  'invoice.finalized',
-  'invoice.paid',
-  'invoice.payment_failed',
-  'invoice.voided',
+  'invoice.finalized', 'invoice.paid', 'invoice.payment_failed', 'invoice.voided', 'invoice.marked_uncollectible',
 ])
 
-const ONE_OFF_INVOICE_STATUS: Record<string, InvoiceStatus> = {
-  'invoice.finalized': 'open',
-  'invoice.paid': 'paid',
-  'invoice.payment_failed': 'open',
-  'invoice.voided': 'void',
+function invoiceSubscriptionId(object: Record<string, unknown>): string | null {
+  const parent = object.parent as { subscription_details?: { subscription?: unknown } } | null | undefined
+  return stripeId(parent?.subscription_details?.subscription) ?? stripeId(object.subscription)
 }
 
-async function handleOneOffInvoiceEvent(event: {
-  type: string
-  data: { object: unknown }
-}): Promise<Response | null> {
+async function handleOneOffInvoiceEvent(event: { type: string; data: { object: unknown } }): Promise<Response | null> {
   if (!ONE_OFF_INVOICE_EVENTS.has(event.type)) return null
-
   const object = event.data.object as Record<string, unknown>
-  if (stripeId(object.subscription)) return null // subscription invoice: existing path below
-
+  if (invoiceSubscriptionId(object)) return null
   const stripeInvoiceId = stripeId(object.id)
   if (!stripeInvoiceId) return invalidEvent('Invalid invoice id')
-
-  const status = ONE_OFF_INVOICE_STATUS[event.type]!
-  const hostedInvoiceUrl =
-    typeof object.hosted_invoice_url === 'string' ? object.hosted_invoice_url : null
-
+  const metadata = object.metadata as { source?: unknown } | undefined
+  const issued = metadata?.source === 'aiso_admin_one_off'
   try {
-    // false means no mirrored row for this id — a Stripe invoice this app did
-    // not issue is not ours to mirror, and that is still a delivered event.
-    await updateOneOffInvoiceStatus({ stripeInvoiceId, status, hostedInvoiceUrl })
-  } catch (error) {
-    // Surface a 5xx so Stripe retries: the invoice exists and its status is the
-    // point of this event.
-    console.error('[stripe/webhook] one-off invoice status update failed', error)
+    const result = await mirrorOneOffInvoice(stripeInvoiceId, { issued })
+    if (result.status === 'ok' || (result.status === 'not_found' && !issued)) return NextResponse.json({ ok: true })
+    return retryableLeaseResponse('Could not reconcile the invoice')
+  } catch {
+    console.error('[stripe/webhook] one-off invoice persistence failed')
     return NextResponse.json({ error: 'Failed to update invoice status' }, { status: 500 })
   }
-
-  return NextResponse.json({ ok: true })
 }
 
 function planForPrice(priceId: string): Plan | null {
@@ -142,7 +119,8 @@ function retryableLeaseResponse(message: string) {
 }
 
 function getSubscriptionId(eventType: string, object: Record<string, unknown>): string | null {
-  if (eventType === 'checkout.session.completed' || eventType === 'invoice.payment_failed') {
+  if (eventType === 'invoice.payment_failed') return invoiceSubscriptionId(object)
+  if (eventType === 'checkout.session.completed') {
     return stripeId(object.subscription)
   }
   return stripeId(object.id)

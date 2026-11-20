@@ -90,11 +90,11 @@ describe('PRODUCT_FACTS', () => {
   it('distinguishes the free account from paid subscriptions', () => {
     expect(enMessages.pricing.faq_4_a).not.toMatch(/Starter plan is permanently free/i)
     expect(zhMessages.pricing.faq_4_a).not.toMatch(/入門版永久免費/)
-    expect(enMessages.pricing.free_account_body).toMatch(/saved scan/i)
-    expect(enMessages.pricing.free_account_body).toMatch(/owned report/i)
+    expect(enMessages.pricing.free_account_body).toMatch(/seven-day trial/i)
+    expect(enMessages.pricing.free_account_body).toMatch(/first brand/i)
     expect(enMessages.pricing.free_account_body).toMatch(/no (credit )?card/i)
-    expect(zhMessages.pricing.free_account_body).toContain('儲存掃描')
-    expect(zhMessages.pricing.free_account_body).toContain('專屬報告')
+    expect(zhMessages.pricing.free_account_body).toContain('設定首個品牌')
+    expect(zhMessages.pricing.free_account_body).toContain('七天試用')
     expect(zhMessages.pricing.free_account_body).toContain('無需信用卡')
   })
 

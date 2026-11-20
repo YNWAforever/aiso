@@ -84,7 +84,8 @@ export function buildShareOfVoice(input: { brandName: string; refs: CompetitorRe
   const tagged = inWindow.map(a => ({ ...a, labels: mentionsOf(a) }))
   type Tagged = (typeof tagged)[number]
 
-  const latest = weeks[0]
+  const [latest, previous] = weeks
+  const adjacent = Boolean(latest && previous) && Date.parse(latest) - Date.parse(previous) === 7 * 86_400_000
   const others = [...new Set(otherLabels.values())]
     .map(label => ({
       label,
@@ -116,7 +117,7 @@ export function buildShareOfVoice(input: { brandName: string; refs: CompetitorRe
       }
     }
     const now = weeks[0] ? cells[weeks[0]][ALL_PLATFORMS].share : null
-    const before = weeks[1] ? cells[weeks[1]][ALL_PLATFORMS].share : null
+    const before = adjacent ? cells[previous][ALL_PLATFORMS].share : null
     return { kind, label, cells, change: now !== null && before !== null ? Math.round((now - before) * 10) / 10 : null }
   })
 

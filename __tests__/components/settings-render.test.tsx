@@ -16,13 +16,13 @@ describe('localized settings presentation',()=>{
    expect(html).toContain(copy.statusLabels[status])
    expect(html).toContain(copy.title)
    if(status==='unknown'){expect(html).not.toContain('/api/stripe/portal');expect(html).toContain(copy.billingUnavailable)}
-   else{expect(html).toContain('href="/api/stripe/portal"');expect(html).toContain(String(getPlanDefinition('pro').monthlyPriceUsd))}
+   else{expect(html).toContain(`href="/api/stripe/portal?lang=${lang}"`);expect(html).toContain(String(getPlanDefinition('pro').monthlyPriceUsd))}
   }
  })
  it('uses an ordinary billing anchor and retains the pricing destination',()=>{
   const source=readFileSync('components/dashboard/SettingsView.tsx','utf8')
-  expect(source).toMatch(/<a[\s\S]*?href="\/api\/stripe\/portal"/)
-  expect(source).not.toMatch(/<Link[\s\S]*?href="\/api\/stripe\/portal"/)
+  expect(source).toMatch(/<a[\s\S]*?href=\{`\/api\/stripe\/portal\?lang=/)
+  expect(source).not.toMatch(/<Link[\s\S]*?href=\{`\/api\/stripe\/portal\?lang=/)
   expect(render('zh-HK','active')).toContain('href="/zh-HK/pricing"')
  })
 })

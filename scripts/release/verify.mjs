@@ -72,41 +72,46 @@ export function evaluateCiChecks({ payload, source }) {
   return dependency('ci_checks', 'verified', `all ${summary.total} check runs for ${source} are successful`)
 }
 
-/* ------------------------------------------------------------ tested merge tree */
+/* ------------------------------------------------------------ tested source tree */
 
-/**
- * CI evidence belongs to the PR head, not to the merge commit that lands on
- * main. The claim "the tested tree is the released tree" therefore needs three
- * facts: the release commit really merges the tested head as its second parent,
- * a tested tree can be obtained (the PR merge ref while it still exists, a
- * pinned ref, or a local `git merge-tree` reconstruction afterwards), and that
- * tree equals the released tree. A squash or rebase release has no second
- * parent, so the comparison is honestly `unknown` rather than assumed.
- */
-export function evaluateTestedMergeTree({ appSha, appTree, prNumber, headSha, parents, testedTree, method, testedMergeSha, baseSha }) {
-  if (!prNumber || !headSha) {
-    return dependency('tested_merge_tree', 'unknown', 'no associated pull request head is available to compare')
+export function evaluateGateRun({ run, summary, runId, repo }) {
+  const id = 'ci_checks'
+  if (!run) return dependency(id, 'unknown', 'a PR gate run ID is required')
+  if (String(run.id) !== runId || run.repository?.full_name?.toLowerCase() !== repo.toLowerCase()
+    || run.path !== '.github/workflows/pr-gate.yml' || !['pull_request', 'workflow_dispatch'].includes(run.event)) {
+    return dependency(id, 'failed', 'the run does not belong to the expected repository and PR gate workflow')
   }
-  if (!Array.isArray(parents) || parents.length < 2) {
-    return dependency('tested_merge_tree', 'unknown', `${shortSha(appSha)} is not a merge commit, so the tested head is not provable from its parents`)
+  if (run.status !== 'completed' || run.conclusion !== 'success') {
+    return dependency(id, 'failed', `PR gate run ${runId} is ${run.conclusion ?? run.status}`)
   }
-  if (parents[1] !== headSha) {
-    return dependency('tested_merge_tree', 'failed', `${shortSha(appSha)} merges ${shortSha(parents[1])} as its second parent, not the tested PR head ${shortSha(headSha)}`)
+  if (!summary || !normalizeSha(summary.commitSha) || !normalizeSha(summary.treeSha)
+    || !summary.runId || !Number.isInteger(summary.runAttempt)) {
+    return dependency(id, 'unknown', `PR gate run ${runId} has no complete checkout evidence`)
   }
-  if (!appTree) {
-    return dependency('tested_merge_tree', 'unknown', `the tree of ${shortSha(appSha)} could not be resolved locally`)
+  if (summary.schemaVersion !== 1 || summary.runId !== runId || summary.runAttempt !== run.run_attempt
+    || summary.job !== 'pr-gate' || summary.status !== 'success' || summary.executed !== 6
+    || summary.skipped !== 0 || !Array.isArray(summary.failurePriorities) || summary.failurePriorities.includes('P0')) {
+    return dependency(id, 'failed', `PR gate run ${runId} has an invalid aggregate or evidence from a different attempt`)
   }
-  if (!testedTree) {
-    return dependency('tested_merge_tree', 'unknown', 'the tested merge tree could not be fetched or reconstructed locally')
+  return dependency(id, 'verified', `PR gate run ${runId}, attempt ${run.run_attempt}, passed all required jobs`)
+}
+
+export function evaluateTestedMergeTree({ appSha, appTree, parents, run, summary, checkedTree, checkedParents }) {
+  const id = 'tested_merge_tree'
+  const testedSha = normalizeSha(summary?.commitSha)
+  const testedTree = normalizeSha(summary?.treeSha)
+  if (!appTree || !testedSha || !testedTree || !checkedTree) {
+    return dependency(id, 'unknown', 'the CI artifact or its checked-out Git object is unavailable')
   }
-  if (testedTree !== appTree) {
-    return dependency('tested_merge_tree', 'failed', `the tested tree ${testedTree} does not match the released tree ${appTree}`)
+  if (testedTree !== checkedTree || testedTree !== appTree) {
+    return dependency(id, 'failed', `the tested tree ${testedTree} does not match the CI Git object ${checkedTree} and released tree ${appTree}`)
   }
-  const evidence =
-    method === 'reconstructed-merge'
-      ? `a local merge of ${shortSha(baseSha)} and ${shortSha(headSha)} reconstructs the tested tree`
-      : `the tested merge ref${testedMergeSha ? ` ${shortSha(testedMergeSha)}` : ''} has the tested tree`
-  return dependency('tested_merge_tree', 'verified', `PR #${prNumber}: ${evidence}, matching ${shortSha(appSha)} tree ${appTree}`)
+  const runHead = normalizeSha(run?.head_sha)
+  const correctRevision = run?.event === 'workflow_dispatch'
+    ? testedSha === runHead && testedSha === appSha
+    : run?.event === 'pull_request' && runHead && parents[1] === runHead && checkedParents[1] === runHead
+  if (!correctRevision) return dependency(id, 'failed', 'the workflow run is not bound to the release commit or its tested PR head')
+  return dependency(id, 'verified', `CI checked out ${shortSha(testedSha)} with released tree ${testedTree}`)
 }
 
 /* ---------------------------------------------------------------- deployment */
@@ -234,6 +239,6 @@ export function verifyExitCode({ dependencies, allowUnknown }) {
   const list = Array.isArray(dependencies) ? dependencies : []
   const allowed = Array.isArray(allowUnknown) ? allowUnknown : []
   if (list.some(entry => entry.status === 'failed')) return 2
-  if (list.some(entry => entry.status === 'unknown' && !allowed.includes(entry.id))) return 2
+  if (list.some(entry => entry.status === 'unknown' && (entry.id !== 'worker_schedules' || !allowed.includes(entry.id)))) return 2
   return 0
 }

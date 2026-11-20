@@ -48,6 +48,7 @@ export interface Scan {
   region?: string | null
   results: ScanResults & Record<string, unknown>
   account_id: string | null
+  client_id?: string | null
   agent_status?: AgentStatus | null
   created_at: string
 }

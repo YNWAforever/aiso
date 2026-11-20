@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import { LoginForm } from '@/components/auth/LoginForm'
 import { ArrowLeft, Gauge, ListChecks, Radar, ShieldCheck, Zap } from 'lucide-react'
 import { Wordmark } from '@/components/brand/Wordmark'
+import { LegalLinks } from '@/components/marketing/LegalLinks'
 
 const POINTS = [
   { key: 'checks', Icon: ListChecks },
@@ -80,6 +81,7 @@ export default async function LoginPage({
                 <p className="mt-2 text-balance text-sm leading-6 text-muted-foreground">{t('subtitle')}</p>
               </div>
               <LoginForm next={next} />
+              <LegalLinks className="mt-3 justify-center" />
             </div>
             <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
               <ShieldCheck aria-hidden="true" className="size-4 shrink-0 text-[var(--success)]" />

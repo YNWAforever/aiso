@@ -53,6 +53,7 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
         and not exists (select 1 from previous where ${input.scanId}::uuid is not null and scan_id is not null and scan_id <> ${input.scanId}::uuid)
     ), trial as (
       update accounts set trial_started_at = coalesce(trial_started_at, now()),
+        trial_email_locale = case when trial_started_at is null then ${scope.locale ?? 'en'} else trial_email_locale end,
         trial_ends_at = coalesce(trial_ends_at, coalesce(trial_started_at, now()) + interval '7 days')
       where id in (select id from permitted) returning id, trial_ends_at
     ), created as (

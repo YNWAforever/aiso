@@ -1,56 +1,44 @@
 import { db } from '@/lib/db'
+import type { GroundedFixPack } from '@/lib/fix/grounded-pack'
 import { fixPackMeterConfig, stripe } from '@/lib/stripe'
-
-/**
- * Per-fix billing, model B (metered). Design:
- * docs/superpowers/specs/2026-11-11-per-fix-billing-design.md.
- *
- * Two steps, deliberately separate:
- *   1. `enqueueFixPackUsage` writes the pending ledger row synchronously, so a
- *      generated fix pack is recorded even if the request dies before reporting.
- *   2. `reportFixPackUsage` sends the Stripe v2 meter event afterwards. It is
- *      idempotent: the ledger's unique(fix_pack_id) admits one row, and the
- *      meter-event identifier is minted from that same fix-pack id.
- *
- * Nothing here may fail the caller's fix-pack response. Failures are recorded in
- * the ledger (`state='failed'`, bounded `last_error_code`) for the admin to
- * retry, never silently charged and never silently reported as billed.
- */
 
 export const FIX_METER_IDENTIFIER_PREFIX = 'fixbilling:'
 export const MAX_METER_ATTEMPTS = 10
 export const METER_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000
 
-export type FixPackBillingRef = {
-  fixPackId: string
-  accountId: string
-  clientId: string
-}
-
 export function fixMeterIdentifier(fixPackId: string): string {
   return `${FIX_METER_IDENTIFIER_PREFIX}${fixPackId}`
 }
 
-/**
- * Record one billable fix pack. Returns the ledger row id, or null when the
- * account is not on metered billing or the pack was already recorded.
- */
-export async function enqueueFixPackUsage(ref: FixPackBillingRef): Promise<string | null> {
-  const rows = await db()`
-    insert into fix_billing_events (
-      account_id, client_id, fix_pack_id, stripe_meter_event_identifier
-    )
-    select ${ref.accountId}::uuid, ${ref.clientId}::uuid, ${ref.fixPackId}::uuid,
-           ${fixMeterIdentifier(ref.fixPackId)}
-    where exists (
-      select 1 from account_billing b
-      where b.account_id = ${ref.accountId}::uuid and b.mode = 'metered'
-    )
-    on conflict (fix_pack_id) do nothing
-    returning id
-  `
-  const row = rows[0] as { id?: string } | undefined
-  return row?.id ?? null
+/** Serialize cache insertion for the selected scan and commit the eligible ledger entry with it. */
+export async function storeFixPack(accountId: string, scanId: string, pack: GroundedFixPack) {
+  const sql = db()
+  const [[scan], [stored]] = await sql.transaction([
+    sql`select id from scans where id = ${scanId}::uuid
+        and (account_id is null or account_id = ${accountId}::uuid) for update`,
+    sql`with scoped as (
+          select s.id, s.account_id, s.client_id
+          from scans s where s.id = ${scanId}::uuid and (s.account_id is null or s.account_id = ${accountId}::uuid)
+        ), latest_pack as (
+          select p.llms_txt, p.robots_patch, p.faq_schema from fix_packs p join scoped s on s.id = p.scan_id
+          order by p.created_at desc, p.id desc limit 1
+        ), inserted as (
+          insert into fix_packs (scan_id, llms_txt, robots_patch, faq_schema)
+          select id, ${pack.llms_txt}, ${pack.robots_patch}, ${pack.faq_schema} from scoped
+          where not exists (select 1 from latest_pack where llms_txt = ${pack.llms_txt}
+            and robots_patch = ${pack.robots_patch} and faq_schema = ${pack.faq_schema})
+          returning id, scan_id
+        ), ledger as (
+          insert into fix_billing_events (account_id, client_id, fix_pack_id, stripe_meter_event_identifier)
+          select s.account_id, s.client_id, i.id, ${FIX_METER_IDENTIFIER_PREFIX} || i.id::text
+          from inserted i join scoped s on s.id = i.scan_id
+          join account_billing b on b.account_id = s.account_id and b.mode = 'metered'
+          where s.account_id = ${accountId}::uuid and s.client_id is not null
+          returning id
+        )
+        select exists (select 1 from scoped) as available, (select id from ledger) as usage_id`,
+  ])
+  return { available: Boolean(scan && stored?.available), usageId: (stored?.usage_id ?? null) as string | null }
 }
 
 export type MeterReportOutcome = 'reported' | 'failed' | 'skipped'
@@ -65,7 +53,7 @@ type LedgerRow = {
 
 /**
  * Send the meter event for one ledger row. Callers pass the id returned by
- * `enqueueFixPackUsage`, or the row id the admin retry names.
+ * `storeFixPack`, or the row id the admin retry names.
  */
 export async function reportFixPackUsage(eventId: string): Promise<MeterReportOutcome> {
   const rows = await db()`

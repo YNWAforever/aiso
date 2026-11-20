@@ -15,6 +15,7 @@ import {
   countShippedMigrations,
   dependency,
   evaluateCiChecks,
+  evaluateGateRun,
   evaluateDeployment,
   evaluateSchemaGate,
   evaluateTestedMergeTree,
@@ -113,38 +114,52 @@ describe('CI checks', () => {
   })
 })
 
-describe('tested merge tree', () => {
-  const mergeParents = [BASE_SHA, HEAD_SHA]
-  const common = { appSha: APP_SHA, appTree: APP_TREE, prNumber: 276, headSha: HEAD_SHA, parents: mergeParents, baseSha: BASE_SHA }
+describe('PR gate evidence and tested tree', () => {
+  const repo = 'owner/repo'
+  const runId = '123'
+  const run = {
+    id: 123, run_attempt: 2, repository: { full_name: repo },
+    path: '.github/workflows/pr-gate.yml', status: 'completed', conclusion: 'success',
+    event: 'pull_request', head_sha: HEAD_SHA,
+  }
+  const summary = {
+    schemaVersion: 1, runId, runAttempt: 2, job: 'pr-gate', status: 'success',
+    executed: 6, skipped: 0, failurePriorities: [], commitSha: TESTED_SHA, treeSha: APP_TREE,
+  }
+  const common = {
+    appSha: APP_SHA, appTree: APP_TREE, parents: [BASE_SHA, HEAD_SHA],
+    run, summary, checkedTree: APP_TREE, checkedParents: [BASE_SHA, HEAD_SHA],
+  }
 
-  it('verifies when the release merge contains the tested head with the tested tree', () => {
-    const result = evaluateTestedMergeTree({ ...common, testedMergeSha: TESTED_SHA, testedTree: APP_TREE, method: 'merge-ref' })
-    expect(result.status).toBe('verified')
-    expect(result.detail).toContain('PR #276')
+  it('requires a successful gate artifact for the same workflow attempt', () => {
+    expect(evaluateGateRun({ run, summary, repo, runId }).status).toBe('verified')
+    expect(evaluateGateRun({ run, summary: { ...summary, runAttempt: 1 }, repo, runId }).status).toBe('failed')
+    expect(evaluateGateRun({ run: { ...run, path: '.github/workflows/unrelated.yml' }, summary, repo, runId }).status).toBe('failed')
+    expect(evaluateGateRun({ run, summary: { ...summary, treeSha: undefined }, repo, runId }).status).toBe('unknown')
   })
 
-  it('verifies a merge reconstructed after GitHub deleted the PR merge ref', () => {
-    const result = evaluateTestedMergeTree({ ...common, testedMergeSha: null, testedTree: APP_TREE, method: 'reconstructed-merge' })
-    expect(result.status).toBe('verified')
-    expect(result.detail).toContain('reconstructs the tested tree')
+  it('verifies the actual tested merge with the released tree', () => {
+    expect(evaluateTestedMergeTree(common).status).toBe('verified')
   })
 
-  it('fails when a rebase or extra commit changed the tree', () => {
-    const result = evaluateTestedMergeTree({ ...common, testedMergeSha: TESTED_SHA, testedTree: OTHER_TREE, method: 'merge-ref' })
-    expect(result.status).toBe('failed')
-    expect(result.detail).toContain(OTHER_TREE)
+  it('rejects a changed base with the same successfully tested PR head', () => {
+    expect(evaluateTestedMergeTree({ ...common, appTree: OTHER_TREE }).status).toBe('failed')
   })
 
-  it('fails when the release commit does not merge the tested head', () => {
-    const result = evaluateTestedMergeTree({ ...common, parents: [BASE_SHA, TESTED_SHA], testedTree: APP_TREE, method: 'merge-ref' })
-    expect(result.status).toBe('failed')
-    expect(result.detail).toContain('tested PR head')
+  it('rejects different PR lineage and a tree that disagrees with the Git object', () => {
+    expect(evaluateTestedMergeTree({ ...common, parents: [BASE_SHA, TESTED_SHA] }).status).toBe('failed')
+    expect(evaluateTestedMergeTree({ ...common, checkedTree: OTHER_TREE }).status).toBe('failed')
   })
 
-  it('is unknown without a pull request, a tested tree, or a merge commit', () => {
-    expect(evaluateTestedMergeTree({ ...common, prNumber: null, testedTree: APP_TREE }).status).toBe('unknown')
-    expect(evaluateTestedMergeTree({ ...common, testedTree: null }).status).toBe('unknown')
-    expect(evaluateTestedMergeTree({ ...common, parents: [BASE_SHA], testedTree: APP_TREE }).status).toBe('unknown')
+  it('accepts a manual run of the exact release without a PR', () => {
+    expect(evaluateTestedMergeTree({
+      ...common, parents: [BASE_SHA], run: { ...run, event: 'workflow_dispatch', head_sha: APP_SHA },
+      summary: { ...summary, commitSha: APP_SHA },
+    }).status).toBe('verified')
+  })
+
+  it('leaves the result unknown when CI evidence is missing', () => {
+    expect(evaluateTestedMergeTree({ ...common, summary: undefined }).status).toBe('unknown')
   })
 })
 

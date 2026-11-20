@@ -1,60 +1,41 @@
-// Bitmask: which drip email has already been sent for an account.
+import { getPlanDefinition } from '@/lib/plans/catalog'
+
+// The original account bitmask is also honored by the delivery ledger.
 export const EMAIL_DAY1 = 1
 export const EMAIL_DAY5 = 2
 export const EMAIL_DAY7 = 4
 export const EMAIL_DAY10 = 8
+export type TrialEmailBit = typeof EMAIL_DAY1 | typeof EMAIL_DAY5 | typeof EMAIL_DAY7 | typeof EMAIL_DAY10
 
-export interface TrialEmail {
-  bit: number
-  subject: string
-  text: string
-}
-
-/**
- * `accounts.trial_started_at` is a `timestamptz` — the Neon driver returns
- * those as a JS `Date`, but ISO strings still arrive from Supabase-era rows
- * and test fixtures. Mirrors lib/tier.ts's timestampMs: accept both.
- */
-function timestampMs(raw: string | Date): number {
-  return raw instanceof Date ? raw.getTime() : new Date(raw).getTime()
-}
-
-export function daysSinceTrialStart(startedAt: string | Date): number {
-  return Math.floor((Date.now() - timestampMs(startedAt)) / (1000 * 60 * 60 * 24))
-}
-
-/** Which of the 4 drip emails are newly due, given elapsed days and what's already sent. */
-export function pendingTrialEmails(days: number, sentMask: number, appUrl: string): TrialEmail[] {
-  const toSend: TrialEmail[] = []
-
-  if (days >= 1 && !(sentMask & EMAIL_DAY1)) {
-    toSend.push({
-      bit: EMAIL_DAY1,
-      subject: '✅ Your Fimmick AISO Fix Pack is ready — deploy these 3 files',
-      text: `Your 7-day trial is active.\n\nDownload your Fix Pack from your dashboard:\n${appUrl}/en/dashboard\n\nThe 3 files (llms.txt, robots.txt patch, FAQ schema) are ready to deploy. Most sites see AI indexing improve within 48 hours of deploying llms.txt.\n\nYou have 6 days remaining on your trial.\n\n— Fimmick AISO`,
-    })
+export function buildTrialEmail(bit: TrialEmailBit, expiry: string | Date, locale: 'en' | 'zh-HK', appUrl: string) {
+  const chinese = locale === 'zh-HK'
+  const timeZone = chinese ? 'Asia/Hong_Kong' : 'UTC'
+  const deadline = new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium', timeStyle: 'short', timeZone,
+  }).format(new Date(expiry))
+  const price = getPlanDefinition('basic').monthlyPriceUsd
+  const dashboard = `${appUrl}/${locale}/dashboard`
+  const pricing = `${appUrl}/${locale}/pricing`
+  if (bit === EMAIL_DAY1) return chinese ? {
+    subject: '你的 AISO 免費試用已開始',
+    text: `你可以在工作區查看掃描結果和建議的改善項目。試用將於 ${deadline}（香港時間）結束。\n\n${dashboard}\n\n— Fimmick AISO`,
+  } : {
+    subject: 'Your AISO trial is active',
+    text: `Open your workspace to review your scan and suggested improvements. Your trial ends on ${deadline} UTC.\n\n${dashboard}\n\n— Fimmick AISO`,
   }
-  if (days >= 5 && !(sentMask & EMAIL_DAY5)) {
-    toSend.push({
-      bit: EMAIL_DAY5,
-      subject: "⏳ 2 days left — here's what you're missing in Pulse",
-      text: `Your trial ends in 2 days.\n\nYou haven't seen AI Pulse yet — it tracks your brand's share of voice across ChatGPT, Perplexity, Claude, and Gemini every week.\n\nUpgrade to Pro and see where your brand shows up (and doesn't):\n${appUrl}/en/pricing\n\n— Fimmick AISO`,
-    })
+  if (bit === EMAIL_DAY10) return chinese ? {
+    subject: '你的 AISO 免費試用已結束',
+    text: `你仍可登入查看帳戶。如想繼續使用付費功能，請比較方案。\n\n${dashboard}\n${pricing}\n\n— Fimmick AISO`,
+  } : {
+    subject: 'Your AISO trial has ended',
+    text: `You can still sign in to your account. Compare plans if you’d like to continue with a paid subscription.\n\n${dashboard}\n${pricing}\n\n— Fimmick AISO`,
   }
-  if (days >= 7 && !(sentMask & EMAIL_DAY7)) {
-    toSend.push({
-      bit: EMAIL_DAY7,
-      subject: '🔔 Last day of your Fimmick AISO trial',
-      text: `Today is the last day of your free trial.\n\nKeep your dashboard, Fix Pack, and AI visibility report by upgrading:\n${appUrl}/en/pricing\n\nBasic plan starts at $29/month — no credit card was required for your trial, but you'll need one to continue.\n\n— Fimmick AISO`,
-    })
+  const lastDay = bit === EMAIL_DAY7
+  return chinese ? {
+    subject: lastDay ? '你的 AISO 免費試用將於 24 小時內結束' : '你的 AISO 免費試用即將結束',
+    text: `試用將於 ${deadline}（香港時間）結束。基本版每月 ${price} 美元。選購付費訂閱時，首次費用會在完成結帳時收取。\n\n${pricing}\n\n— Fimmick AISO`,
+  } : {
+    subject: lastDay ? 'Your AISO trial ends within 24 hours' : 'Your AISO trial is ending soon',
+    text: `Your trial ends on ${deadline} UTC. Basic costs USD ${price} per month. Your first charge occurs when you complete checkout.\n\n${pricing}\n\n— Fimmick AISO`,
   }
-  if (days >= 10 && !(sentMask & EMAIL_DAY10)) {
-    toSend.push({
-      bit: EMAIL_DAY10,
-      subject: 'Your Fimmick AISO report is saved — come back anytime',
-      text: `Your trial ended a few days ago, but your scan report and AISO score are still waiting for you.\n\nNo pressure — whenever you're ready:\n${appUrl}/en/pricing\n\n— Fimmick AISO`,
-    })
-  }
-
-  return toSend
 }

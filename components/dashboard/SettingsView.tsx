@@ -38,8 +38,7 @@ export function SettingsView({lang,plan,status,hasStripe,billingDetails,children
       <div id="billing" className="scroll-mt-6 border-t border-border pt-5"><h2 className="text-lg font-bold text-foreground">{copy.billing}</h2>
         {hasStripe?<>
           {/* Ordinary navigation to the existing API redirect; never prefetch Stripe. */}
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/api/stripe/portal" className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-2">{copy.manageBilling}</a>
+          <a href={`/api/stripe/portal?lang=${encodeURIComponent(lang)}`} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-2">{copy.manageBilling}</a>
           <p className="mt-3 text-sm text-muted-foreground">{copy.billingBody}</p>
         </>:<p className="mt-3 text-sm text-muted-foreground">{copy.billingUnavailable}</p>}
         {billingDetails&&<div className="mt-4"><Link href={billingDetails.href} className="inline-flex min-h-11 items-center font-semibold text-primary-accessible underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">{billingDetails.label}</Link><p className="mt-1 text-sm text-muted-foreground">{billingDetails.body}</p></div>}

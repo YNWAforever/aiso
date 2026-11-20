@@ -8,7 +8,8 @@ vi.mock('@/lib/db', async () => {
 })
 const sent = vi.hoisted(() => ({ to: [] as string[] }))
 vi.mock('@/lib/resend', () => ({
-  sendTrialEmail: vi.fn(async ({ to }: { to: string }) => { sent.to.push(to) }),
+  sendTrialEmail: vi.fn(async ({ to }: { to: string }) => { sent.to.push(to); return 'email_fixture' }),
+  trialEmailSender: () => 'sender@example.test',
 }))
 
 const sql = neon(process.env.TEST_DATABASE_URL!)

@@ -10,6 +10,11 @@ on:
         type: boolean
         required: false
         default: false
+      schema_only:
+        description: Create disposable Neon branches using schema only
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -180,6 +185,7 @@ jobs:
           # No input or persistent authorization means a failing gate, never skip.
           ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ steps.disposable-role-authorization.outputs.allowed }}
           AISO_RECORD_BRANCH_PROVENANCE: '1'
+          NEON_TEST_SCHEMA_ONLY: ${{ inputs.schema_only }}
       - name: Upload integration diagnostics
         if: always()
         uses: actions/upload-artifact@v4

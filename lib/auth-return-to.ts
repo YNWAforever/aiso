@@ -1,3 +1,5 @@
+import { getCheckoutPlanId } from '@/lib/plans/catalog'
+
 export const AUTH_RETURN_TO_HEADER = 'x-aiso-return-to'
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const uuid = new RegExp(`^${UUID}$`, 'i')
@@ -21,9 +23,12 @@ export function safeReturnTo(raw: unknown, requestedLang: string): string {
     // Existing public scan claim is a separate, already-used login continuation.
     const scanClaim = new RegExp(`^/${lang}/result/${OPAQUE}$`)
     const onboarding = path === `/${lang}/onboarding`
-    if (path !== dashboard && path !== `${dashboard}/settings` && !onboarding && !clientRoot.test(path) && !tools.test(path) && !nested.test(path) && !scanClaim.test(path)) return dashboard
+    const pricing = path === `/${lang}/pricing`
+    if (!pricing && path !== dashboard && path !== `${dashboard}/settings` && !onboarding && !clientRoot.test(path) && !tools.test(path) && !nested.test(path) && !scanClaim.test(path)) return dashboard
     const kept = new URLSearchParams()
     const single = (key: string) => url.searchParams.getAll(key).length === 1 ? url.searchParams.get(key) : null
+    const plan = pricing ? getCheckoutPlanId(single('plan')) : null
+    if (plan) kept.set('plan', plan)
     const scan = single('scan')
     if(onboarding && scan && uuid.test(scan)) kept.set('scan',scan)
     const step = single('step')

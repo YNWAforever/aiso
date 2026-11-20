@@ -15,7 +15,7 @@ const state = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth', () => ({ getProfile: async () => ({ account_id: state.sessionAccount }) }))
 vi.mock('@/lib/security/public-scan-rate-limit', () => ({
-  consumePublicScanRateLimit: async () => ({ allowed: true }),
+  consumeScanClaimPreparationLimit: async () => ({ allowed: true }),
 }))
 vi.mock('@/lib/db', () => ({
   // This is a stateful boundary fake, not evidence of Postgres locking. The

@@ -324,9 +324,8 @@ function PulseSection({ pulse, activeQuestions, clientId, locale }: { pulse: Com
       ) : (
         <>
           <p className="mt-2 text-sm font-medium">{t('pulse_week', { week: date.format(new Date(pulse.week)) })}</p>
-          {typeof pulse.change === 'number' && (
-            <p className="mt-1 text-sm text-muted-foreground">{t('pulse_change', { change: pulse.change })}</p>
-          )}
+          <p className="mt-1 text-sm text-muted-foreground">{typeof pulse.change === 'number'
+            ? t('pulse_change', { change: pulse.change }) : t('pulse_change_unavailable')}</p>
           <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <div>
               <dt className="text-xs text-muted-foreground">{t('active_questions_label')}</dt>

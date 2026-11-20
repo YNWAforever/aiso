@@ -1,13 +1,15 @@
 'use client'
-import { useId, useState } from 'react'
+import { Suspense, useId, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { LegalLinks } from '@/components/marketing/LegalLinks'
 import { Zap, Check, Minus, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   buildPricingAllowanceProjection,
   CHECKOUT_PLAN_IDS,
   getPlanDefinition,
+  getCheckoutPlanId,
   type CheckoutPlanId,
   type PricingAllowanceProjection,
   type ReleaseState,
@@ -68,16 +70,25 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 }
 
 /* ── Main component ─────────────────────────────────────────── */
+function SelectedPlan() {
+  const search = useSearchParams()
+  const t = useTranslations('pricing')
+  const plan = search.getAll('plan').length === 1 ? getCheckoutPlanId(search.get('plan')) : null
+  if (!plan) return null
+  const name = plan === 'basic' ? t('basic_name') : plan === 'pro' ? t('pro_name') : t('enterprise_name')
+  return <a href={`#plan-${plan}`} className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary-accessible underline">{t('selected_plan', { name })}</a>
+}
+
 export default function PricingPage() {
   const [loading, setLoading]       = useState(false)
-  const [checkoutError, setCheckoutError] = useState('')
+  const [checkoutError, setCheckoutError] = useState<'billing_exists' | 'checkout_pending' | 'error_generic' | 'error_network' | null>(null)
   const { lang } = useParams<{ lang: string }>()
   const router = useRouter()
   const t = useTranslations('pricing')
 
   const startCheckout = async (planName: CheckoutPlanId) => {
     setLoading(true)
-    setCheckoutError('')
+    setCheckoutError(null)
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -85,22 +96,21 @@ export default function PricingPage() {
         body: JSON.stringify({ plan: planName, lang }),
       })
       if (res.status === 401) {
-        router.push(`/${lang}/auth/login?next=/${lang}/pricing`)
+        router.push(`/${lang}/auth/login?next=${encodeURIComponent(`/${lang}/pricing?plan=${planName}#plan-${planName}`)}`)
         return
       }
       const data = await res.json()
-      if (!res.ok) {
-        setCheckoutError(data.error ?? t('error_generic'))
-        setLoading(false)
+      if (res.ok && typeof data.url === 'string' && data.url) {
+        window.location.assign(data.url)
         return
       }
-      if (data.url) window.location.assign(data.url)
+      setCheckoutError(data.error === 'billing_exists' || data.error === 'checkout_pending' ? data.error : 'error_generic')
     } catch {
-      setCheckoutError(t('error_network'))
+      setCheckoutError('error_network')
+    } finally {
       setLoading(false)
     }
   }
-
 
   /* Feature comparison rows */
   const pro = getPlanDefinition('pro')
@@ -170,8 +180,8 @@ export default function PricingPage() {
       key,
       name: key === 'basic' ? t('basic_name') : key === 'pro' ? t('pro_name') : t('enterprise_name'),
       tag: key === 'basic' ? t('basic_tag') : key === 'pro' ? t('pro_tag') : t('enterprise_tag'),
-      price: '$' + definition.monthlyPriceUsd,
-      priceSub: key === 'enterprise' ? t('starting_price_per_month') : t('per_month'),
+      price: new Intl.NumberFormat(lang, { maximumFractionDigits: 0 }).format(definition.monthlyPriceUsd),
+      priceSub: t('usd_per_month'),
       cta: loading
         ? t('cta_loading')
         : key === 'basic' ? t('cta_basic') : key === 'pro' ? t('cta_pro') : t('cta_enterprise'),
@@ -234,13 +244,15 @@ export default function PricingPage() {
               <h2 className="text-lg font-bold text-foreground">{t('free_account_title')}</h2>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{t('free_account_body')}</p>
             </div>
-            <Link href={`/${lang}`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-card px-5 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <Link href={`/${lang}/onboarding`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-card px-5 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               {t('free_account_cta')} <ChevronRight aria-hidden="true" className="ml-1 size-4" />
             </Link>
           </div>
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-black text-foreground">{t('paid_plans_title')}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{t('paid_plans_body')}</p>
+            <LegalLinks className="mt-2 justify-center" />
+            <Suspense><SelectedPlan /></Suspense>
           </div>
           {/* rem-based track minimum, not a breakpoint: media queries ignore the root font size, so md:grid-cols-3 kept three 197px columns under 200% text and the price overflowed. */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-[repeat(auto-fit,minmax(13rem,1fr))]">
@@ -249,7 +261,8 @@ export default function PricingPage() {
               return (
                 <div
                   key={plan.key}
-                  className={`relative min-w-0 rounded-2xl p-7 flex flex-col transition-colors transition-shadow duration-200 ${
+                  id={`plan-${plan.key}`}
+                  className={`relative min-w-0 scroll-mt-24 rounded-2xl p-7 flex flex-col transition-colors transition-shadow duration-200 ${
                     isPro
                       ? 'border-2 border-primary bg-card shadow-2xl shadow-primary/15'
                       : 'border border-border bg-card shadow-sm hover:shadow-md'
@@ -272,11 +285,7 @@ export default function PricingPage() {
                   {/* Price */}
                   <div className="mb-6 pb-6 border-b border-border">
                     <span className="text-4xl font-black text-foreground">{plan.price}</span>
-                    {plan.key !== 'enterprise' ? (
-                      <span className="text-sm text-muted-foreground ml-1">{plan.priceSub}</span>
-                    ) : (
-                      <p className="text-xs text-muted-foreground mt-1">{plan.priceSub}</p>
-                    )}
+                    <span className="ml-2 text-sm text-muted-foreground">{plan.priceSub}</span>
                   </div>
 
                   {/* Feature highlights for card */}
@@ -324,7 +333,10 @@ export default function PricingPage() {
             </a>
           </aside>
           {checkoutError && (
-            <p role="alert" className="mt-5 text-center text-sm font-medium text-destructive">{checkoutError}</p>
+            <div className="mt-5 text-center">
+              <p role="alert" className="text-sm font-medium text-destructive">{t(checkoutError)}</p>
+              {checkoutError === 'billing_exists' && <Link href={`/${lang}/dashboard/settings#billing`} className="inline-flex min-h-11 items-center font-semibold text-primary-accessible underline">{t('manage_billing')}</Link>}
+            </div>
           )}
         </section>
 

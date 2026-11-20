@@ -10,7 +10,13 @@ const sqlMock = vi.fn((strings: TemplateStringsArray) => {
   return Promise.resolve(result ?? [])
 })
 
-vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
+vi.mock('@/lib/db', () => ({ db: () => Object.assign(sqlMock, { transaction: (queries: Promise<unknown>[]) => Promise.all(queries) }) }))
+
+const lease = vi.hoisted(() => ({ attempt: null, start: vi.fn(), record: vi.fn(), clear: vi.fn() }))
+vi.mock('@/lib/billing/stripe-attempts', async original => ({
+  ...await original<typeof import('@/lib/billing/stripe-attempts')>(),
+  withSubscriptionLease: async (_accountId: string, work: (scope: typeof lease) => Promise<unknown>) => work(lease),
+}))
 
 const stripeMock = vi.hoisted(() => ({
   customersCreate: vi.fn(),
@@ -29,11 +35,15 @@ const meterConfig = vi.hoisted(() => ({
 vi.mock('@/lib/stripe', () => ({
   stripe: {
     customers: { create: stripeMock.customersCreate },
+    prices: { retrieve: async () => ({ active: true, currency: 'usd', unit_amount: 19900,
+      recurring: { interval: 'month', interval_count: 1, usage_type: 'licensed' } }) },
     subscriptions: {
       retrieve: stripeMock.subscriptionsRetrieve,
       create: stripeMock.subscriptionsCreate,
       cancel: stripeMock.subscriptionsCancel,
+      list: async () => ({ data: [], has_more: false }),
     },
+    checkout: { sessions: { list: async () => ({ data: [], has_more: false }) } },
     subscriptionItems: {
       create: stripeMock.subscriptionItemsCreate,
       del: stripeMock.subscriptionItemsDel,
@@ -97,7 +107,11 @@ beforeEach(() => {
   nextResults = []
   meterConfig.priceId = 'price_metered'
   meterConfig.eventName = 'fix_pack_generated'
-  stripeMock.subscriptionsRetrieve.mockResolvedValue(SUBSCRIPTION)
+  lease.start.mockImplementation(async input => ({ ...input, id: 'operation-fixture', startedAt: new Date(), stripeObjectId: null }))
+  stripeMock.customersCreate.mockReset()
+  stripeMock.subscriptionsRetrieve.mockImplementation(async (id: string) => id === 'sub_new'
+    ? { id, customer: 'cus_1', status: 'active', items: { data: [{ price: { id: 'price_basic' } }] } }
+    : SUBSCRIPTION)
   stripeMock.subscriptionItemsCreate.mockResolvedValue({ id: 'si_meter' })
   stripeMock.subscriptionItemsDel.mockResolvedValue({ id: 'si_meter', deleted: true })
   stripeMock.subscriptionsCancel.mockResolvedValue({ id: 'sub_new', status: 'canceled' })
@@ -191,7 +205,11 @@ describe('openAccountBilling', () => {
     stripeMock.customersCreate.mockResolvedValue({ id: 'cus_new' })
     nextResults = [
       [{ ...ACCOUNT, stripe_customer_id: null, stripe_subscription_id: null }],
+      [],
+      [],
+      [{ email: 'owner@example.com', started_at: new Date() }],
       [{ stripe_customer_id: 'cus_new' }],
+      [],
       [],
       [{ ...BILLING_ROW, stripe_customer_id: 'cus_new', stripe_subscription_id: null, stripe_metered_item_id: null, mode: 'included' }],
     ]
@@ -201,22 +219,22 @@ describe('openAccountBilling', () => {
     expect(outcome.status).toBe('ok')
     expect(stripeMock.customersCreate).toHaveBeenCalledWith({
       email: 'owner@example.com',
-      metadata: { account_id: ACCOUNT_ID, source: 'aiso_admin_billing' },
-    })
+      metadata: { account_id: ACCOUNT_ID, source: 'aiso_account_customer' },
+    }, { idempotencyKey: `aiso:customer:${ACCOUNT_ID}` })
     const update = queries.find(query => /update accounts/i.test(query))!
-    expect(update).toMatch(/stripe_customer_id is null/i)
+    expect(update).toMatch(/coalesce\(stripe_customer_id/i)
     expect(lastQueryParams()).toEqual([ACCOUNT_ID, 'cus_new', null, null, 'included', ADMIN_ID])
   })
 
   it('returns a stripe failure rather than a success when the customer cannot be created', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     stripeMock.customersCreate.mockRejectedValue(new Error('stripe down'))
-    nextResults = [[{ ...ACCOUNT, stripe_customer_id: null }]]
+    nextResults = [[{ ...ACCOUNT, stripe_customer_id: null }], [], [], [{ email: 'owner@example.com', started_at: new Date() }]]
 
     const outcome = await openAccountBilling({ accountId: ACCOUNT_ID, mode: 'included', openedBy: ADMIN_ID })
 
     expect(outcome).toEqual({ status: 'stripe_failed', code: 'CUSTOMER_CREATE_FAILED' })
-    expect(queries).toHaveLength(1)
+    expect(stripeMock.customersCreate).toHaveBeenCalledTimes(1)
     consoleError.mockRestore()
   })
 
@@ -245,7 +263,7 @@ describe('openAccountBilling', () => {
 
     const outcome = await openAccountBilling({ accountId: ACCOUNT_ID, mode: 'metered', openedBy: ADMIN_ID })
 
-    expect(outcome).toEqual({ status: 'stripe_failed', code: 'SUBSCRIPTION_INACTIVE' })
+    expect(outcome).toEqual({ status: 'subscription_required' })
   })
 
   it('creates a send-invoice subscription and links it through the guarded event path', async () => {
@@ -281,8 +299,8 @@ describe('openAccountBilling', () => {
       items: [{ price: 'price_basic' }, { price: 'price_metered' }],
       collection_method: 'send_invoice',
       days_until_due: 14,
-      metadata: { account_id: ACCOUNT_ID, source: 'aiso_admin_billing_open' },
-    })
+      metadata: { account_id: ACCOUNT_ID, source: 'aiso_admin_billing_open', aiso_operation: 'operation-fixture' },
+    }, { idempotencyKey: 'aiso:admin-subscription:operation-fixture' })
     const applyCall = sqlMock.mock.calls.find(([strings]) =>
       strings.join('?').includes('apply_stripe_account_event'),
     )!
@@ -298,7 +316,7 @@ describe('openAccountBilling', () => {
     expect(stripeMock.subscriptionsCancel).not.toHaveBeenCalled()
   })
 
-  it('cancels an unlinked subscription and reports the failure', async () => {
+  it('preserves an unlinked subscription for recovery', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     stripeMock.subscriptionsCreate.mockResolvedValue({
       id: 'sub_new',
@@ -326,7 +344,8 @@ describe('openAccountBilling', () => {
     })
 
     expect(outcome).toEqual({ status: 'account_link_failed' })
-    expect(stripeMock.subscriptionsCancel).toHaveBeenCalledWith('sub_new')
+    expect(stripeMock.subscriptionsCancel).not.toHaveBeenCalled()
+    expect(lease.record).toHaveBeenCalledWith(expect.objectContaining({ id: 'operation-fixture' }), 'sub_new')
     expect(queries.some(query => /insert into account_billing/i.test(query))).toBe(false)
     consoleError.mockRestore()
   })
