@@ -27,9 +27,9 @@ const render = (search = {}) => Page({ params: Promise.resolve({ lang: 'en', cli
 beforeEach(() => { vi.clearAllMocks(); vi.stubEnv('FEATURE_CONVERSATION_STUDIO', '0'); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.today.mockReturnValue({ chatTask: null }); mocks.savedTask.mockResolvedValue({ state: 'empty' }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null) })
 it.each(['0', '1'])('opts in to saved work only for authenticated SME home flag %s', async flag => {
   vi.stubEnv('FEATURE_SME_COPILOT_UI', flag)
-  const page = await render({ step: 'home', scanId: 'selected-scan' })
+  const page = await render({ step: 'home', scanId: '33333333-3333-4333-8333-333333333333' })
   expect(page.type).toBe(flag === '1' ? BrandToday : WorkspaceHome)
-  expect(mocks.load).toHaveBeenCalledExactlyOnceWith({ clientId: 'client-a', profile, scanId: 'selected-scan', withTaskCount: true, ...(flag === '1' ? { withSavedWork: true } : {}) })
+  expect(mocks.load).toHaveBeenCalledExactlyOnceWith({ clientId: 'client-a', profile, scanId: '33333333-3333-4333-8333-333333333333', withTaskCount: true, ...(flag === '1' ? { withSavedWork: true } : {}) })
   expect(mocks.auth.mock.invocationCallOrder[0]).toBeLessThan(mocks.load.mock.invocationCallOrder[0]!)
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.roi).not.toHaveBeenCalled()
@@ -55,9 +55,9 @@ it('does not read a saved discussion when the card hands no task to Chat', async
   expect(page.props.savedDiscussion).toBeNull()
 })
 it('defaults to the independently authenticated read-only home and preserves selected scan', async () => {
-  const page = await render({ scanId: 'selected-scan' })
+  const page = await render({ scanId: '33333333-3333-4333-8333-333333333333' })
   expect(mocks.auth).toHaveBeenCalledWith('en')
-  expect(mocks.load).toHaveBeenCalledWith({ clientId: 'client-a', profile, scanId: 'selected-scan', withTaskCount: true })
+  expect(mocks.load).toHaveBeenCalledWith({ clientId: 'client-a', profile, scanId: '33333333-3333-4333-8333-333333333333', withTaskCount: true })
   expect(page.props.workspace.client.id).toBe('client-a')
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.roi).not.toHaveBeenCalled()
