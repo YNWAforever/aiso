@@ -166,10 +166,21 @@ export function PerFixBillingPanel() {
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(signature))
       const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
       const storageKey = `aiso:invoice-request:${hash}`
-      let savedId: string | null = null
-      try { savedId = sessionStorage.getItem(storageKey) } catch { /* The in-memory request can still be retried. */ }
-      const requestId = draft?.requestId ?? (invoiceRequest.current?.signature === signature ? invoiceRequest.current.id : savedId ?? crypto.randomUUID())
-      try { sessionStorage.setItem(storageKey, requestId) } catch { /* Optional browser storage. */ }
+      const rememberedId = invoiceRequest.current?.signature === signature ? invoiceRequest.current.id : null
+      const reserveRequestId = () => {
+        const existing = draft?.requestId ?? rememberedId
+        try {
+          const saved = localStorage.getItem(storageKey)
+          const id = existing ?? saved ?? crypto.randomUUID()
+          if (!saved) localStorage.setItem(storageKey, id)
+          return id
+        } catch {
+          return existing ?? crypto.randomUUID()
+        }
+      }
+      const requestId = navigator.locks
+        ? await navigator.locks.request(storageKey, reserveRequestId)
+        : reserveRequestId()
       invoiceRequest.current = { signature, id: requestId }
       const { ok, data: payload } = await postJson('/api/admin/billing/invoices', { ...input, requestId })
       if (!ok) {
@@ -179,7 +190,9 @@ export function PerFixBillingPanel() {
       } else {
         const invoice = (payload.invoice ?? {}) as Record<string, unknown>
         invoiceRequest.current = null
-        try { sessionStorage.removeItem(storageKey) } catch { /* Optional browser storage. */ }
+        try {
+          if (localStorage.getItem(storageKey) === requestId) localStorage.removeItem(storageKey)
+        } catch { /* Optional browser storage. */ }
         setInvoiceResult(String(invoice.hostedInvoiceUrl ?? ''))
         setDescription('')
         setAmount('')
