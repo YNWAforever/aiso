@@ -308,12 +308,11 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
         <p
           role="status"
           aria-live="polite"
-          className={`mt-3 min-h-5 text-sm ${isError ? 'text-red-300' : 'text-emerald-300'}`}
+          className={`mt-3 min-h-5 text-sm ${preparing ? 'text-slate-300' : isError ? 'text-red-300' : 'text-emerald-300'}`}
         >
-          {status}
+          {preparing ? t('preparing') : status}
         </p>
         <p className="mt-2 text-xs text-slate-400">{continuation.mode === 'sign-in' ? t('savedNote') : t('finePrint')}</p>
-        {preparing && <p role="status" className="mt-2 text-xs text-slate-300">{t('preparing')}</p>}
         <LegalLinks className="justify-center !text-slate-300" />
       </div>
     </section>

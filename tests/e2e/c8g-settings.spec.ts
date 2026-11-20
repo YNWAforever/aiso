@@ -28,7 +28,7 @@ for (const lang of ['en', 'zh-HK']) for (const width of [375, 1440]) for (const 
         await expect(page.getByRole('main')).toContainText(copy.billingUnavailable)
         await expect(page.getByRole('main')).not.toContainText(copy.statusLabels.active)
       } else {
-        await expect(portal).toHaveAttribute('href', '/api/stripe/portal')
+        await expect(portal).toHaveAttribute('href', `/api/stripe/portal?lang=${lang}`)
         await portal.focus()
         await expect(portal).toBeFocused()
       }
