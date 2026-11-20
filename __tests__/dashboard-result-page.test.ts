@@ -11,8 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isValidElement, type ReactElement } from 'react'
 import type { Scan } from '@/lib/types'
 import { buildScanEvidence } from '@/lib/scan-evidence'
-import { FixPackClient } from '@/components/FixPackClient'
-import { ScoreRing } from '@/components/ScoreRing'
+import { ResultClient } from '@/components/result/ResultClient'
 
 const { requireAuthMock, notFoundMock, sqlMock } = vi.hoisted(() => ({
   requireAuthMock: vi.fn(),
@@ -24,16 +23,19 @@ vi.mock('@/lib/auth', () => ({ requireAuth: requireAuthMock }))
 vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
 vi.mock('next/navigation', () => ({ notFound: notFoundMock }))
 vi.mock('next-intl/server', () => ({
-  getTranslations: async () => (key: string) => key,
+  getTranslations: async (ns?: string) => (key: string) => ns ? `${ns}.${key}` : key,
 }))
 
 import DashboardResultPage from '@/app/[lang]/dashboard/[clientId]/result/[scanId]/page'
 
-const PROFILE = { account_id: 'account-1' }
+const PROFILE = { account_id: 'account-1', accounts: { override_plan: 'pro' } }
+const CLIENT = '11111111-1111-4111-8111-111111111111'
+const OTHER_CLIENT = '22222222-2222-4222-8222-222222222222'
+const SCAN = '33333333-3333-4333-8333-333333333333'
 
 function scan(overrides: Partial<Scan> = {}): Scan {
   return {
-    id: 'scan-1',
+    id: SCAN,
     account_id: 'account-1',
     url: 'https://example.com',
     domain: 'example.com',
@@ -71,8 +73,8 @@ function renderPage(overrides: { lang?: string; clientId?: string; scanId?: stri
   return DashboardResultPage({
     params: Promise.resolve({
       lang: overrides.lang ?? 'en',
-      clientId: overrides.clientId ?? 'client-1',
-      scanId: overrides.scanId ?? 'scan-1',
+      clientId: overrides.clientId ?? CLIENT,
+      scanId: overrides.scanId ?? SCAN,
     }),
   })
 }
@@ -108,10 +110,8 @@ describe('dashboard result database score normalization', () => {
       score: stored as unknown as number,
       results: { ...scan().results, evidence: collectionEvidence() },
     })])
-    const elements = renderedElements(await renderPage())
-    expect(elements.find(element => element.type === ScoreRing)?.props.score).toBe(expected)
-    expect(elements.find(element => element.type === FixPackClient)?.props.scanId).toBe('scan-1')
-    expect(elements.some(element => element.props.href === '/en/dashboard/client-1/reports/new?scanId=scan-1')).toBe(true)
+    const result = renderedElements(await renderPage()).find(element => element.type === ResultClient)
+    expect(result?.props).toMatchObject({ summary: { id: SCAN, score: expected }, fullScan: { id: SCAN }, workspace: { clientId: CLIENT, canShare: true } })
   })
 
   it.each([
@@ -123,10 +123,8 @@ describe('dashboard result database score normalization', () => {
       score: stored as unknown as number,
       results: { ...scan().results, evidence: collectionEvidence(collection) },
     })])
-    const elements = renderedElements(await renderPage())
-    expect(elements.some(element => element.type === ScoreRing)).toBe(false)
-    expect(elements.some(element => element.type === FixPackClient)).toBe(false)
-    expect(elements.some(element => element.props.href === '/en/dashboard/client-1/reports/new?scanId=scan-1')).toBe(false)
+    const result = renderedElements(await renderPage()).find(element => element.type === ResultClient)
+    expect(result?.props.summary).toMatchObject({ score: null, grade: null, collectionFailed: collection === 'failed' })
   })
 })
 
@@ -139,7 +137,7 @@ describe('dashboard result page brand scoping', () => {
   it('scopes the scan lookup to id, account_id, AND client_id', async () => {
     sqlMock.mockResolvedValue([scan()])
 
-    await renderPage({ clientId: 'client-1', scanId: 'scan-1' })
+    await renderPage({ clientId: CLIENT, scanId: SCAN })
 
     expect(sqlMock).toHaveBeenCalledTimes(1)
     const [strings, ...params] = sqlMock.mock.calls[0]!
@@ -147,7 +145,12 @@ describe('dashboard result page brand scoping', () => {
     expect(query).toMatch(/from scans/i)
     expect(query).toMatch(/account_id = \?/i)
     expect(query).toMatch(/client_id = \?/i)
-    expect(params).toEqual(['scan-1', 'account-1', 'client-1'])
+    expect(params).toEqual([SCAN, 'account-1', CLIENT])
+  })
+
+  it('rejects malformed route identifiers before querying UUID columns', async () => {
+    await expect(renderPage({ scanId: 'invalid' })).rejects.toThrow('NOT_FOUND')
+    expect(sqlMock).not.toHaveBeenCalled()
   })
 
   it('renders not-found for a scan id belonging to a different brand', async () => {
@@ -156,24 +159,24 @@ describe('dashboard result page brand scoping', () => {
     // legitimately returns zero rows for this account+client combination.
     sqlMock.mockResolvedValue([])
 
-    await expect(renderPage({ clientId: 'brand-b', scanId: 'scan-from-brand-a' }))
+    await expect(renderPage({ clientId: OTHER_CLIENT, scanId: SCAN }))
       .rejects.toThrow('NOT_FOUND')
   })
 
   it('renders not-found for an anonymous scan (client_id null) requested inside a workspace', async () => {
     // client_id is null on anonymous public-funnel scans, and `client_id =
-    // 'client-1'` never matches a null column, so the query legitimately
+    // CLIENT` never matches a null column, so the query legitimately
     // excludes it — it must not render inside any workspace.
     sqlMock.mockResolvedValue([])
 
-    await expect(renderPage({ clientId: 'client-1', scanId: 'anon-scan' }))
+    await expect(renderPage({ clientId: CLIENT, scanId: SCAN }))
       .rejects.toThrow('NOT_FOUND')
   })
 
   it('renders the scan when it belongs to the requested brand', async () => {
-    sqlMock.mockResolvedValue([scan({ id: 'scan-1', domain: 'brand-a.example' })])
+    sqlMock.mockResolvedValue([scan({ id: SCAN, domain: 'brand-a.example' })])
 
-    const element = await renderPage({ clientId: 'client-1', scanId: 'scan-1' })
+    const element = await renderPage({ clientId: CLIENT, scanId: SCAN })
 
     expect(notFoundMock).not.toHaveBeenCalled()
     expect(safeStringify(element)).toContain('brand-a.example')

@@ -27,7 +27,7 @@ export interface OwnedReportClient {
   readonly id: string
   readonly accountId: string
   readonly name: string
-  readonly domain: string
+  readonly domain: string | null
 }
 
 export interface StoredReportScanInput extends ReportScanInput {
@@ -205,14 +205,8 @@ export async function loadOwnedReportClient(input: {
     limit 1
   `)
   const data = rows[0]
-  if (!isRecord(data)
-    || typeof data.id !== 'string'
-    || typeof data.account_id !== 'string'
-    || typeof data.brand_name !== 'string'
-    || typeof data.domain !== 'string') return null
-
-  const domain = normalizeReportDomain(data.domain)
-  if (!domain || data.account_id !== input.accountId) return null
+  if (!isRecord(data) || data.id !== input.clientId || data.account_id !== input.accountId || typeof data.brand_name !== 'string') return null
+  const domain = typeof data.domain === 'string' ? normalizeReportDomain(data.domain) : null
   return { id: data.id, accountId: data.account_id, name: data.brand_name, domain }
 }
 
@@ -220,6 +214,7 @@ export async function loadOwnedReportScan(input: {
   accountId: string
   scanId: string
   clientDomain: string
+  clientId?: string
 }): Promise<StoredReportScanInput | null> {
   const expectedDomain = normalizeReportDomain(input.clientDomain)
   if (!expectedDomain) return null
@@ -232,6 +227,7 @@ export async function loadOwnedReportScan(input: {
     select id, account_id, domain, created_at, score::float8 as score, grade, results
     from scans
     where account_id = ${input.accountId} and id = ${input.scanId}
+      and (${input.clientId ?? null}::uuid is null or client_id = ${input.clientId ?? null}::uuid)
     limit 1
   `)
   const scan = mapScan(rows[0])

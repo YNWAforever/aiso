@@ -81,6 +81,7 @@ export type CombinedScan =
   | {
       state: 'recorded'
       scanId: string
+      domain?: string
       score: number
       grade: string | null
       scannedAt: string
@@ -96,6 +97,7 @@ export type CombinedScan =
     }
   | { state: 'none' }
   | { state: 'unscored' }
+  | { state: 'selection-unavailable' }
   | { state: 'unavailable' }
 
 export type CombinedPulse =
@@ -114,7 +116,7 @@ export type CombinedPulse =
   | { state: 'unavailable' }
 
 export type CombinedReportData = {
-  client: { name: string; domain: string }
+  client: { name: string; domain: string | null }
   branding: { agencyName: string } | null
   scan: CombinedScan
   pulse: CombinedPulse
@@ -215,6 +217,7 @@ export function buildCombinedScanView(scan: ScanSource, locale: ReportLocale): C
   return {
     state: 'recorded',
     scanId: scan.id,
+    domain: scan.domain,
     score: summary.score,
     grade: summary.grade,
     scannedAt: isoDate(summary.createdAt) ?? scan.createdAt,

@@ -79,6 +79,13 @@ describe('resumable onboarding API boundary', () => {
     expect(mocks.claim).toHaveBeenCalledWith(scanId,'synthetic-account')
     expect(mocks.complete).toHaveBeenCalledWith({accountId:'synthetic-account',locale:'en'},expect.objectContaining({scanId}))
   })
+  it.each([true, false])('only returns the requested scan when associated with the saved brand (%s)', async associated => {
+    mocks.ownedScan.mockImplementation(async (_scope, _scanId, brandId) => brandId === undefined || (brandId === clientId && associated))
+    const response = await POST(request({ brandName: 'Synthetic', scanId }))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ clientId, reportScanId: associated ? scanId : null })
+    expect(mocks.ownedScan).toHaveBeenLastCalledWith({ accountId: 'synthetic-account', locale: 'en' }, scanId, clientId)
+  })
   it('resumes a stored matching client/scan without spending another claim intent', async () => {
     mocks.read.mockResolvedValue({...result,scanId})
     expect((await POST(request({brandName:'Synthetic',scanId,clientId,intentKey:result.intentKey}))).status).toBe(200)

@@ -1,5 +1,6 @@
 'use client'
 import { ChevronRight, Clock } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { getCheckActionCopy } from '@/lib/checkExplanations'
@@ -11,6 +12,7 @@ import type { FixItem } from '@/lib/result/view-model'
 interface Props {
   fixes: readonly FixItem[]
   onSelect: (key: string) => void
+  renderDetail?: (fix: FixItem) => ReactNode
 }
 
 /**
@@ -18,7 +20,7 @@ interface Props {
  * one-line problem, an impact chip and an effort chip. Details open in the
  * check drawer.
  */
-export function FixList({ fixes, onSelect }: Props) {
+export function FixList({ fixes, onSelect, renderDetail }: Props) {
   const t = useTranslations('resultPage')
   const checkNames = useTranslations('checks')
   const locale = useLocale()
@@ -31,7 +33,7 @@ export function FixList({ fixes, onSelect }: Props) {
         const title = getCheckActionCopy(fix.key, locale)?.title ?? checkNames(fix.key)
         const points = formatScanScore(fix.points)
         return (
-          <li key={fix.key}>
+          <li key={fix.key} className={renderDetail ? 'overflow-hidden rounded-xl border border-border bg-card print:break-inside-avoid' : undefined}>
             <button
               type="button"
               onClick={() => onSelect(fix.key)}
@@ -52,6 +54,7 @@ export function FixList({ fixes, onSelect }: Props) {
               </span>
               <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />
             </button>
+            {renderDetail?.(fix)}
           </li>
         )
       })}

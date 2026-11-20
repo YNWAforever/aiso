@@ -48,12 +48,17 @@ it('opens the builder for exactly the picked scan and keeps the picker available
   expect(find(page, ReportBuilder)?.props.scanId).toBe('older-scan')
   expect(find(page, ScanPicker)?.props.selectedScanId).toBe('older-scan')
 })
-it('rejects a scan from another brand even when its domain matches', async () => {
-  await expect(render({ scanId: 'other-brand-scan' })).rejects.toThrow('NOT_FOUND')
+it.each(['other-brand-scan', ['older-scan', 'newer-scan']])('offers the picker for an unavailable selection without loading any other scan: %j', async scanId => {
+  const page = await render({ scanId })
+  expect(find(page, ReportBuilder)).toBeUndefined()
+  expect(find(page, ScanPicker)?.props.scans).toEqual(choices)
   expect(h.scan).not.toHaveBeenCalled()
 })
-it('rejects ambiguous scan selections instead of silently rendering another report', async () => {
-  await expect(render({ scanId: ['older-scan', 'newer-scan'] })).rejects.toThrow('NOT_FOUND')
+it('offers a website scan for an owned brand that skipped website setup', async () => {
+  h.client.mockResolvedValue({ id: 'brand-a', name: 'Example', domain: null })
+  const page = await render()
+  expect(find(page, Link)?.props.href).toBe('/en/dashboard/brand-a?step=scan')
+  expect(h.scans).not.toHaveBeenCalled()
 })
 it('does not offer an owned scan from a different domain that reports cannot accept', async () => {
   h.scans.mockResolvedValue([...choices, { ...choices[0], id: 'other-domain-scan', domain: 'other.example' }])

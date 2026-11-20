@@ -8,7 +8,8 @@ describe('onboarding never shows the server error string', () => {
   it('maps every failure through translated copy', () => {
     // The API answers with internal English ("Claim unavailable", "Scan belongs to another account").
     expect(source).not.toMatch(/setError\(\s*typeof\s+(data|body)\.error/)
-    expect(source).toContain('serverError(res.status, data.error)')
+    expect(source).toContain('showSetupFailure(res.status, data.error)')
+    expect(source).toContain('serverError(status, message)')
   })
   it('has every error message in both locales', () => {
     for (const key of Object.keys(en.onboardingWizard.errors)) {

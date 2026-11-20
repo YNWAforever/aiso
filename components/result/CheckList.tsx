@@ -56,7 +56,7 @@ export function CheckList({ assessments, onSelect, renderOwnerRow }: Props) {
 
       {renderOwnerRow ? (
         <div data-testid="full-check-breakdown" className="rounded-2xl border border-border bg-card p-4 sm:p-6">
-          {visible.map(slot => <div key={slot.key} id={slot.key} className="scroll-mt-20">{renderOwnerRow(slot.key)}</div>)}
+          {CHECK_SLOTS.map(slot => <div key={slot.key} id={slot.key} className={cn('scroll-mt-20', !matchesFilter(assessments[slot.key], filter) && 'hidden print:block')}>{renderOwnerRow(slot.key)}</div>)}
         </div>
       ) : (
         <ul className="divide-y divide-border rounded-2xl border border-border bg-card">

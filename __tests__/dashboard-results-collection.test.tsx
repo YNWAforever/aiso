@@ -34,10 +34,10 @@ async function render(score: unknown, collectionEvidence: unknown, selected = tr
   h.sql.mockImplementation(async (strings: TemplateStringsArray) => {
     const query = strings.join('?')
     if (query.includes('from clients')) return [{ id: 'client-a', brand_name: 'Example', domain: 'example.com' }]
-    if (query.includes('from scans')) return [{ id: 'selected_scan', account_id: 'account-a', domain: 'example.com', score, grade: 'F', created_at: '2026-10-01T08:00:00.000Z', results: { evidence: collectionEvidence } }]
+    if (query.includes('from scans')) return [{ id: '33333333-3333-4333-8333-333333333333', account_id: 'account-a', domain: 'example.com', score, grade: 'F', created_at: '2026-10-01T08:00:00.000Z', results: { evidence: collectionEvidence } }]
     return []
   })
-  return Page({ params: Promise.resolve({ lang: h.lang, clientId: 'client-a' }), searchParams: Promise.resolve({ step: 'results', ...(selected ? { scanId: 'selected_scan' } : {}) }) })
+  return Page({ params: Promise.resolve({ lang: h.lang, clientId: 'client-a' }), searchParams: Promise.resolve({ step: 'results', ...(selected ? { scanId: '33333333-3333-4333-8333-333333333333' } : {}) }) })
 }
 beforeEach(() => { vi.clearAllMocks(); h.choices.mockResolvedValue([]) })
 
@@ -53,7 +53,7 @@ describe.each(['en', 'zh-HK'] as const)('dashboard Results collection status in 
     const rendered = elements(page)
     expect(rendered.some(element => element.type === ResultsStep)).toBe(false)
     expect(text(page)).toContain((lang === 'en' ? en : zh).portfolio.scanIncomplete)
-    expect(rendered.find(element => element.props.href === `/${lang}/dashboard/client-a?step=scan&scanId=selected_scan`)).toBeDefined()
+    expect(rendered.find(element => element.props.href === `/${lang}/dashboard/client-a?step=scan&scanId=33333333-3333-4333-8333-333333333333`)).toBeDefined()
     expect(rendered.some(element => typeof element.props.href === 'string' && element.props.href.includes('/reports/new'))).toBe(false)
   })
 
@@ -61,14 +61,14 @@ describe.each(['en', 'zh-HK'] as const)('dashboard Results collection status in 
     const page = await render('14.17', collectionEvidence)
     expect(elements(page).some(element => element.type === ResultsStep)).toBe(false)
     expect(text(page)).toContain((lang === 'en' ? en : zh).portfolio.scanUnknown)
-    expect(elements(page).some(element => element.props.href === `/${lang}/dashboard/client-a?step=scan&scanId=selected_scan`)).toBe(true)
+    expect(elements(page).some(element => element.props.href === `/${lang}/dashboard/client-a?step=scan&scanId=33333333-3333-4333-8333-333333333333`)).toBe(true)
   })
 
   it.each([null, 'NaN', 'Infinity'])('keeps an owned scan with an unusable score distinct from an absent selection: %s', async score => {
     const page = await render(score, evidence('complete', 200))
     expect(text(page)).toContain((lang === 'en' ? en : zh).portfolio.scanUnknown)
     expect(text(page)).not.toContain((lang === 'en' ? en : zh).dashboard.no_scan_selected)
-    expect(elements(page).some(element => element.props.href === `/${lang}/dashboard/client-a?step=scan&scanId=selected_scan`)).toBe(true)
+    expect(elements(page).some(element => element.props.href === `/${lang}/dashboard/client-a?step=scan&scanId=33333333-3333-4333-8333-333333333333`)).toBe(true)
   })
 
   it('keeps an absent scan selection distinct from unavailable collection', async () => {
@@ -81,6 +81,6 @@ describe.each(['en', 'zh-HK'] as const)('dashboard Results collection status in 
   it.each([['14.17', 14.17], ['0', 0]] as const)('preserves a verified stored score of %s', async (stored, expected) => {
     const page = await render(stored, evidence('complete', 200))
     const results = elements(page).find(element => element.type === ResultsStep)
-    expect(results?.props.scan).toMatchObject({ id: 'selected_scan', score: expected })
+    expect(results?.props.scan).toMatchObject({ id: '33333333-3333-4333-8333-333333333333', score: expected })
   })
 })

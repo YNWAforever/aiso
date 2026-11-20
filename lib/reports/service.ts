@@ -264,15 +264,19 @@ async function reportSnapshot(input: {
   scanId: string
   locale: ReportLocale
   executiveSummary?: string
+  requireBrandScan?: boolean
 }): Promise<{
   snapshot: ClientReportSnapshotV1
   sourceScanId: string
   previousScanId: string | null
 }> {
+  const { domain } = input.client
+  if (!domain) throw new ReportServiceError('conflict')
   const currentScan = await loadOwnedReportScan({
     accountId: input.profile.account_id,
     scanId: input.scanId,
-    clientDomain: input.client.domain,
+    clientDomain: domain,
+    clientId: input.requireBrandScan ? input.client.id : undefined,
   })
   if (!currentScan
     || currentScan.accountId !== input.profile.account_id
@@ -292,7 +296,7 @@ async function reportSnapshot(input: {
     loadReportRecommendations({
       accountId: input.profile.account_id,
       scanId: currentScan.id,
-      clientDomain: input.client.domain,
+      clientDomain: domain,
     }),
     loadReportBranding({ accountId: input.profile.account_id }),
     loadReportScoreHistory({ accountId: input.profile.account_id, currentScan }),
@@ -305,7 +309,7 @@ async function reportSnapshot(input: {
     snapshot = buildClientReportSnapshot({
       locale: input.locale,
       branding,
-      client: input.client,
+      client: { name: input.client.name, domain },
       currentScan,
       previousScan,
       recommendations,
@@ -542,7 +546,7 @@ export async function createAuthenticatedClientReport(input: {
   return serviceOperation(async () => {
     const profile = await authenticatedProfile()
     const client = await ownedClient(profile, input.clientId)
-    const built = await reportSnapshot({ profile, client, ...input })
+    const built = await reportSnapshot({ profile, client, ...input, requireBrandScan: true })
     const created = authoritativeCreateResult(await createClientReport({
       accountId: profile.account_id,
       clientId: client.id,

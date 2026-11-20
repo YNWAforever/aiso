@@ -50,6 +50,15 @@ describe('combined report page', () => {
     expect(h.load).toHaveBeenCalledWith({ accountId: 'account-1', clientId: 'client-1', locale: 'en' })
   })
 
+  it.each(['en', 'zh-HK'])('retains an exact scan selection in %s', async lang => {
+    const scanId = '22222222-2222-4222-8222-222222222222'
+    await Page({ params: Promise.resolve({ lang, clientId: 'client-1' }), searchParams: Promise.resolve({ scanId }) })
+    expect(h.load).toHaveBeenCalledWith({ accountId: 'account-1', clientId: 'client-1', locale: lang, scanId })
+  })
+  it('distinguishes an invalid selection from a link to the latest scan', async () => {
+    await Page({ params: Promise.resolve({ lang: 'en', clientId: 'client-1' }), searchParams: Promise.resolve({ scanId: ['one', 'two'] }) })
+    expect(h.load).toHaveBeenLastCalledWith(expect.objectContaining({ scanId: null }))
+  })
   it('shows the upgrade state before reading any report data', async () => {
     h.entitlement.mockReturnValue({ features: { client_reports_online: false } })
     const html = renderToStaticMarkup(await render() as ReactElement)

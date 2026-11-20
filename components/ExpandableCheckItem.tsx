@@ -1,105 +1,71 @@
 'use client'
-import { useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
+import { ChevronDown, Check, HelpCircle, Minus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { CheckResult } from '@/lib/types'
 import type { CheckExplanation } from '@/lib/checkExplanations'
 import type { FactualDensityState } from '@/lib/factual-density-evidence'
 import { topicalAuthorityState } from '@/lib/topical-authority-evidence'
 import { formatDensityDetails } from '@/lib/score-display'
+import type { CheckAssessment } from '@/lib/view-models/check-priority'
+import { TONE_CLASSES, statusTone } from '@/components/visuals/tone'
 
-const STATUS_ICON  = { pass: '✅', warn: '⚠️', fail: '❌' } as const
-const STATUS_COLOR = {
-  pass: 'text-green-700',
-  warn: 'text-amber-700',
-  fail: 'text-red-700',
-} as const
-const STATUS_DETAIL_BG = {
-  pass: 'bg-green-50  border-green-100',
-  warn: 'bg-amber-50  border-amber-100',
-  fail: 'bg-red-50    border-red-100',
-} as const
+const ICONS = { pass: Check, warn: Minus, fail: X, unknown: HelpCircle } as const
 
 interface Props {
-  label:       string
-  result:      CheckResult
-  message:     string
+  label: string
+  result: CheckResult
+  message: string
   explanation?: CheckExplanation
   factualState?: FactualDensityState
+  assessment?: CheckAssessment
+  children?: ReactNode
 }
 
-export function ExpandableCheckItem({ label, result, message, explanation, factualState }: Props) {
+export function ExpandableCheckItem({ label, result, message, explanation, factualState, assessment, children }: Props) {
   const t = useTranslations('checkItem')
-  const details = result.details && (result.message.startsWith('factual_density_') || result.message.startsWith('citation_density_'))
-    ? formatDensityDetails(result.details) : result.details
+  const visuals = useTranslations('visuals')
+  const evidence = useTranslations('scanEvidence')
   const [open, setOpen] = useState(false)
-  const topicalState = result.message.startsWith('topical_authority_') ? topicalAuthorityState(result) : null
-  const unavailable = (topicalState !== null && topicalState !== 'observed') || factualState === 'unavailable' || factualState === 'legacy' || result.message === 'factual_density_unavailable'
-  const displayedMessage = topicalState === 'legacy' || factualState === 'legacy' ? t('legacy')
-    : topicalState === 'unavailable' ? t('topicalUnavailable') : unavailable ? t('unavailable') : message
-
-  if (unavailable) return (
-    <div className="border-b border-slate-100 last:border-0 py-2.5">
-      <p className="text-sm text-slate-700">{label}</p>
-      <p className="text-xs text-slate-500 mt-1" role="status">{displayedMessage}</p>
-    </div>
+  const detailsId = useId()
+  const topical = result.message.startsWith('topical_authority_') ? topicalAuthorityState(result) : null
+  const legacy = topical === 'legacy' || factualState === 'legacy'
+  const unavailable = legacy || topical === 'unavailable' || factualState === 'unavailable' || result.message === 'factual_density_unavailable'
+  const verdict = unavailable ? 'unknown' : assessment ?? result.status
+  const status = verdict === 'pass' || verdict === 'warn' || verdict === 'fail' ? verdict : 'unknown'
+  const display = legacy ? t('legacy') : topical === 'unavailable' ? t('topicalUnavailable') : unavailable ? t('unavailable')
+    : verdict === 'not-applicable' ? evidence('states.not-applicable')
+      : status === 'unknown' || status !== result.status ? visuals(`status.${status}`) : message
+  const ownFinding = status !== 'unknown' && status === result.status ? result.details : undefined
+  const density = result.message.startsWith('factual_density_') || result.message.startsWith('citation_density_')
+  const details = ownFinding && density ? formatDensityDetails(ownFinding) : ownFinding
+  const canExpand = Boolean(children || (explanation && status !== 'unknown'))
+  const Icon = ICONS[status]
+  const tone = TONE_CLASSES[statusTone(status)]
+  const header = (
+    <>
+      <span className="flex min-w-0 items-center gap-2 font-medium text-foreground"><Icon aria-hidden="true" className={`size-4 shrink-0 ${tone.fg}`} /><span className="break-words">{label}</span></span>
+      <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span className="break-words">{display}</span>
+        {canExpand && <ChevronDown aria-hidden="true" className={`size-4 shrink-0 ${open ? 'rotate-180' : ''}`} />}
+      </span>
+    </>
   )
-
+  const rowClass = 'flex min-h-11 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 px-2 py-2 text-left text-sm'
   return (
-    <div className="border-b border-slate-100 last:border-0">
-      {/* Row */}
-      <button
-        onClick={() => explanation && setOpen(o => !o)}
-        className={`w-full flex items-center justify-between py-2.5 text-left transition-colors ${explanation ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'}`}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="shrink-0">{STATUS_ICON[result.status]}</span>
-          <span className="text-sm text-slate-700 truncate">{label}</span>
-        </div>
-        <div className="flex items-center gap-2 ml-2 shrink-0">
-          <span className={`text-xs ${STATUS_COLOR[result.status]}`}>{message}</span>
-          {explanation && (
-            <svg
-              className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          )}
-        </div>
-      </button>
-
-      {/* Expanded detail */}
-      {open && explanation && (
-        <div className={`mx-1 mb-3 rounded-lg border p-4 text-sm space-y-3 ${STATUS_DETAIL_BG[result.status]}`}>
-          {/* What this checks */}
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{t('question')}</p>
-            <p className="text-slate-700 leading-relaxed">{explanation.question}</p>
-          </div>
-
-          {/* Why it matters */}
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{t('whyItMatters')}</p>
-            <p className="text-slate-700 leading-relaxed">{explanation.why}</p>
-          </div>
-
-          {/* What we found */}
-          {details && (
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{t('whatWeFound')}</p>
-              <p className="text-slate-700 font-mono text-xs bg-white/60 rounded px-2 py-1">{details}</p>
-            </div>
-          )}
-
-          {/* How to fix */}
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">
-              {result.status === 'pass' ? t('status') : t('howToFix')}
-            </p>
-            <p className="text-slate-700 leading-relaxed">{explanation.fix[result.status]}</p>
-          </div>
-        </div>
-      )}
+    <div className="border-b border-border last:border-0">
+      {canExpand ? <button type="button" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(value => !value)}
+        className={`${rowClass} rounded-lg hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary`}>{header}</button>
+        : <div className={rowClass}>{header}</div>}
+      {canExpand && <div id={detailsId} hidden={!open} className="mx-1 mb-3 space-y-3 rounded-lg border border-border bg-muted/40 p-4 text-sm">
+        {explanation && status !== 'unknown' && <dl className="space-y-3">
+          <div><dt className="font-semibold">{t('question')}</dt><dd className="mt-1 text-muted-foreground">{explanation.question}</dd></div>
+          <div><dt className="font-semibold">{t('whyItMatters')}</dt><dd className="mt-1 text-muted-foreground">{explanation.why}</dd></div>
+          {details && <div><dt className="font-semibold">{t('whatWeFound')}</dt><dd className="mt-1 break-words text-muted-foreground">{details}</dd></div>}
+          <div><dt className="font-semibold">{status === 'pass' ? t('status') : t('howToFix')}</dt><dd className="mt-1 text-muted-foreground">{explanation.fix[status]}</dd></div>
+        </dl>}
+        {children}
+      </div>}
     </div>
   )
 }

@@ -13,6 +13,8 @@ import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/pro
 import { MAX_COMPETITORS, MAX_NAME_LENGTH } from '@/lib/competitors/limits'
 import { addCompetitorNames, competitorName, mergeSuggestedCompetitors, splitCompetitorInput, type CompetitorInputProblem } from '@/lib/onboarding/competitors'
 import { Wordmark } from '@/components/brand/Wordmark'
+import { isScanId, scanReportHref } from '@/lib/result/links'
+import type { OnboardingInput } from '@/lib/onboarding/schema'
 
 const INDUSTRIES = [
   { value: 'technology',         labelEn: 'Technology',            labelZh: '科技' },
@@ -52,9 +54,12 @@ interface Props {
   initialIndustry?: string
   initialRegion?: string
   scanId?: string
+  scanProblem?: 'unavailable' | 'lookup-error'
+  savedSetup?: OnboardingInput
 }
 
-type Draft = { intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; competitorDomains?: Record<string,string>; step?: number; clientId?: string; partial?: boolean; recoveredReady?: boolean; submittedPayload?: string }
+type Draft = { intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; competitorDomains?: Record<string,string>; step?: number; clientId?: string; reportScanId?: string; detachedScan?: boolean; partial?: boolean; recoveredReady?: boolean; submittedPayload?: string }
+type SetupRecovery = 'scan' | 'target' | 'sign-in'
 type DomainCheck = { status: 'idle' | 'checking' | 'live' | 'unreachable' | 'limited' | 'error'; domain?: string; title?: string | null }
 /** A competitor website is checked when it is added, never on submit. */
 type CompetitorCheck = { status: 'checking' | 'live' | 'unreachable' | 'limited' | 'error'; title?: string | null }
@@ -70,7 +75,8 @@ export function OnboardingWizard(props: Props) {
       const saved = JSON.parse(raw)
       if (!saved || typeof saved.intentKey !== 'string') return {}
       const clean: Draft = { intentKey: saved.intentKey, submittedPayload: typeof saved.submittedPayload==='string'?saved.submittedPayload:undefined }
-      for (const key of ['brand','domain','websiteUrl','industry','region','description','clientId'] as const) {
+      clean.detachedScan = saved.detachedScan === true
+      for (const key of ['brand','domain','websiteUrl','industry','region','description','clientId','reportScanId'] as const) {
         if (typeof saved[key] === 'string') clean[key] = saved[key]
       }
       if (Array.isArray(saved.competitors) && saved.competitors.every((v: unknown) => typeof v === 'string')) clean.competitors = saved.competitors
@@ -88,12 +94,22 @@ export function OnboardingWizard(props: Props) {
       return clean
     } catch { return {} }
   }, [ready, draftKey])
-  return <WizardForm key={`${draftKey}:${ready}`} {...props} draft={draft} draftReady={ready} />
+  const saved = props.savedSetup
+  const savedDraft: Draft = saved ? {
+    intentKey: saved.intentKey, clientId: saved.clientId ?? undefined, step: TOTAL_STEPS, partial: true,
+    reportScanId: props.scanId, detachedScan: saved.scanId !== props.scanId,
+    brand: saved.brandName, domain: saved.domain ?? '', industry: saved.industry ?? '', region: saved.region ?? '',
+    language: saved.language ?? undefined, description: saved.description ?? '', competitors: saved.competitors,
+    competitorDomains: Object.fromEntries(saved.competitorDomains.map(({ name, domain }) => [name, domain])),
+  } : {}
+  const resumedDraft = saved ? { ...savedDraft, ...draft, clientId: savedDraft.clientId,
+    reportScanId: savedDraft.reportScanId, partial: !draft.recoveredReady } : draft
+  return <WizardForm key={`${draftKey}:${ready}`} {...props} draft={resumedDraft} draftReady={ready} />
 }
 
 function WizardForm({
   lang, accountId = 'fixture', initialBrand = '', initialDomain = '',
-  initialIndustry = '', initialRegion = '', scanId, draft, draftReady,
+  initialIndustry = '', initialRegion = '', scanId, scanProblem, draft, draftReady,
 }: Props & { draft: Draft; draftReady: boolean }) {
   const router = useRouter()
   const isZh = lang === 'zh-HK'
@@ -151,6 +167,11 @@ function WizardForm({
   const [error, setError]     = useState('')
   const [intentKey, setIntentKey] = useState(() => draft.intentKey ?? (draftReady ? crypto.randomUUID() : ''))
   const [clientId, setClientId] = useState<string | null>(draft.clientId ?? null)
+  const [reportScanId, setReportScanId] = useState(draft.reportScanId)
+  const [detachedScan, setDetachedScan] = useState(draft.detachedScan ?? false)
+  const [recovery, setRecovery] = useState<SetupRecovery | null>(null)
+  const selectedScanId = detachedScan ? undefined : scanId
+  const scanNeedsChoice = !detachedScan && (Boolean(scanProblem) || recovery === 'scan')
   const [partial, setPartial] = useState(draft.partial ?? false)
   const [brandLimit, setBrandLimit] = useState(false)
   const [recoveredReady, setRecoveredReady] = useState(draft.recoveredReady ?? false)
@@ -158,9 +179,9 @@ function WizardForm({
   const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
   useEffect(() => {
     if (!draftReady || submitted.current) return
-    try { saveBrowserDraft(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, competitorDomains, step, clientId, partial,recoveredReady,submittedPayload:submittedPayload.current })) }
+    try { saveBrowserDraft(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, competitorDomains, step, clientId, reportScanId, detachedScan, partial, recoveredReady, submittedPayload: submittedPayload.current })) }
     catch { /* Form state still survives in this tab when storage is unavailable. */ }
-  }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, competitorDomains, step, clientId, partial, recoveredReady])
+  }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, competitorDomains, step, clientId, reportScanId, detachedScan, partial, recoveredReady])
 
   function handleDomainChange(raw: string) {
     // Normalise on the fly as the user types. Any earlier result belongs to a
@@ -273,14 +294,39 @@ function WizardForm({
       .map(name => ({ name, domain: competitorDomains[name] }))
   }
 
+  function showSetupFailure(status: number, message: unknown) {
+    if (status === 401) setRecovery('sign-in')
+    else if (message === 'Onboarding target unavailable') setRecovery('target')
+    else if (message === 'Claim unavailable' || message === 'Scan not found' || message === 'Scan belongs to another account') setRecovery('scan')
+    setError(status === 401 ? t('signInAgain') : serverError(status, message))
+  }
+
+  function resumeSetup(withoutScan: boolean) {
+    if (withoutScan) {
+      setDetachedScan(true)
+      setReportScanId(undefined)
+    }
+    // Replace an intent only after the server has rejected its target.
+    if (recovery === 'scan' || recovery === 'target') {
+      if (recovery === 'target') {
+        setClientId(null)
+        setPartial(false)
+      }
+      submittedPayload.current = undefined
+      setIntentKey(crypto.randomUUID())
+    }
+    setRecovery(null)
+    setError('')
+  }
+
   const inFlight=useRef(false)
   async function complete() {
-    if(inFlight.current||recoveredReady)return
+    if (inFlight.current || recoveredReady || scanNeedsChoice || recovery) return
     inFlight.current=true
     setLoading(true)
     setError('')
     try {
-      const values={brand,domain,industry,region,language,description,competitors,competitorDomains:submittedCompetitorDomains(),scanId}
+      const values={brand,domain,industry,region,language,description,competitors,competitorDomains:submittedCompetitorDomains(),scanId:selectedScanId}
       const payload=JSON.stringify(values)
       const send=(v:typeof values,key:string,target:string|null)=>fetch('/api/onboarding/complete',{
         method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({locale:lang,brandName:v.brand,domain:v.domain||undefined,industry:v.industry||undefined,region:v.region||undefined,language:v.language||undefined,market:v.region||null,description:v.description||undefined,competitors:v.competitors.length?v.competitors:undefined,competitorDomains:v.competitorDomains.length?v.competitorDomains:undefined,scanId:v.scanId,intentKey:key||undefined,clientId:target||undefined})
@@ -291,18 +337,20 @@ function WizardForm({
       if(!targetClientId&&previous!==undefined&&previous!==payload){
         const recovered=await send(JSON.parse(previous) as typeof values,intentKey,null)
         const body=await recovered.json()
-        if(!recovered.ok){setError(serverError(recovered.status,body.error));return}
+        if(!recovered.ok){showSetupFailure(recovered.status,body.error);return}
         if(typeof body.clientId!=='string'||!body.progress)throw new Error('Invalid progress')
         targetClientId=body.clientId;setClientId(body.clientId)
+        const recoveredScan = isScanId(body.reportScanId) ? body.reportScanId : undefined
+        setReportScanId(recoveredScan)
         if(body.progress.prompts==='ready'){
           // Original setup committed. Preserve the edited draft without rewriting it.
           setPartial(false);setRecoveredReady(true)
-          try{saveBrowserDraft(draftKey,JSON.stringify({intentKey,...values,competitorDomains,websiteUrl,step,clientId:body.clientId,partial:false,recoveredReady:true,submittedPayload:previous}))}catch{}
+          try{saveBrowserDraft(draftKey,JSON.stringify({intentKey,...values,competitorDomains,websiteUrl,step,clientId:body.clientId,reportScanId:recoveredScan,detachedScan,partial:false,recoveredReady:true,submittedPayload:previous}))}catch{}
           return
         }
       }
       const requestIntent=targetClientId&&previous!==undefined&&previous!==payload?crypto.randomUUID():intentKey
-      if(!saveBrowserDraft(draftKey,JSON.stringify({intentKey:requestIntent,...values,competitorDomains,websiteUrl,step,clientId:targetClientId,partial,submittedPayload:payload}))){setError(recoveryCopy.cacheUnavailable);return}
+      if(!saveBrowserDraft(draftKey,JSON.stringify({intentKey:requestIntent,...values,competitorDomains,websiteUrl,step,clientId:targetClientId,reportScanId,detachedScan,partial,submittedPayload:payload}))){setError(recoveryCopy.cacheUnavailable);return}
       submittedPayload.current=payload;setIntentKey(requestIntent)
       const res=await send(values,requestIntent,targetClientId)
       const data = await res.json()
@@ -315,25 +363,25 @@ function WizardForm({
           setError(data.error === 'COMPETITORS_INVALID'
             ? t('competitorsInvalid', { max: MAX_COMPETITORS, nameMax: MAX_NAME_LENGTH })
             : t('invalidInput'))
-        } else setError(serverError(res.status, data.error))
+        } else showSetupFailure(res.status, data.error)
         return
       }
       if (typeof data.clientId !== 'string' || !data.progress) throw new Error('Invalid progress')
+      const savedScan = isScanId(data.reportScanId) ? data.reportScanId : undefined
       setClientId(data.clientId)
+      setReportScanId(savedScan)
       // Keep the request intent: recovery may reuse the original progress row's identity.
       if (data.progress.prompts !== 'ready') { setPartial(true); setError(t('seedPartial')); return }
       submitted.current = true
       trackFunnelEvent({ name: 'onboarding_completed', locale: lang === 'zh-HK' ? 'zh-HK' : 'en' })
       try { removeBrowserDraft(draftKey) } catch { /* optional storage */ }
-      navigateToWorkspace(data.clientId)
+      navigateToWorkspace(data.clientId, savedScan)
     } catch { setError(t('genericError')) }
     finally { inFlight.current=false;setLoading(false) }
   }
 
-  function navigateToWorkspace(targetClientId: string) {
-    // One handoff: Today owns the first task. Sending a new owner to the
-    // question bank or a raw result left them with no stated next action.
-    router.push(`/${lang}/dashboard/${targetClientId}`)
+  function navigateToWorkspace(targetClientId: string, targetScanId?: string) {
+    router.push(targetScanId ? scanReportHref(lang, targetClientId, targetScanId) : `/${lang}/dashboard/${encodeURIComponent(targetClientId)}`)
   }
 
   const progress = (step / TOTAL_STEPS) * 100
@@ -377,6 +425,14 @@ function WizardForm({
             <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
         </div>
+
+        {scanNeedsChoice && recovery !== 'scan' && (
+          <div className="mb-5 space-y-2 rounded-lg border border-border p-3 text-sm">
+            <p role="status">{t(scanProblem === 'lookup-error' ? 'errors.unavailable' : 'errors.claimUnavailable')}</p>
+            <button type="button" className="min-h-11 font-semibold text-primary-accessible underline" onClick={() => resumeSetup(true)}>{t('continueWithoutScan')}</button>
+            {scanProblem === 'lookup-error' && <button type="button" className="ms-3 min-h-11 text-primary-accessible underline" onClick={() => window.location.reload()}>{t('retryScanLookup')}</button>}
+          </div>
+        )}
 
         {/* ── Step 1: Brand name ── */}
         {step === 1 && (
@@ -637,16 +693,23 @@ function WizardForm({
             {brandLimit && <div className="mb-4"><UpgradeCard title={(lang === 'zh-HK' ? zh : en).dashboard.upgrade.brandLimitTitle} body={(lang === 'zh-HK' ? zh : en).dashboard.upgrade.brandLimitShort} cta={(lang === 'zh-HK' ? zh : en).dashboard.upgrade.cta} href={`/${lang}/pricing`} /></div>}
             {error && <p role="alert" className="text-destructive text-sm mb-4">{error}</p>}
             {error===recoveryCopy.cacheUnavailable&&<a href={`/${lang}/dashboard`} className={btnBack}>{recoveryCopy.reviewBrands}</a>}
-
+            {(recovery === 'scan' || recovery === 'target') && (
+              <div className="mb-4 flex flex-wrap gap-3 text-sm text-primary-accessible">
+                {recovery === 'target' && <button type="button" className="min-h-11 font-semibold underline" onClick={() => resumeSetup(false)}>{t('resumeSetup')}</button>}
+                {selectedScanId && <button type="button" className="min-h-11 font-semibold underline" onClick={() => resumeSetup(true)}>{t('continueWithoutScan')}</button>}
+                <a className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard`}>{t('reviewScans')}</a>
+              </div>
+            )}
+            {recovery === 'sign-in' && <a className="mb-4 inline-flex min-h-11 items-center font-semibold text-primary-accessible underline" href={`/${lang}/auth/login?next=${encodeURIComponent(`/${lang}/onboarding${scanId ? `?scan=${encodeURIComponent(scanId)}` : ''}`)}`}>{t('signInAgain')}</a>}
             <div className="flex flex-wrap gap-3">
               <button onClick={() => setStep(3)} className={btnBack}>{t('back')}</button>
-              <button onClick={complete} disabled={loading || recoveredReady} className={`${btnPrimary} disabled:opacity-60`}>
+              <button onClick={complete} disabled={loading || recoveredReady || scanNeedsChoice || recovery !== null} className={`${btnPrimary} disabled:opacity-60`}>
                 {loading ? t('settingUp') : partial ? t('retrySeed') : t('goToDashboard')}
                 {!loading && <ChevronRight className="size-4" />}
               </button>
             </div>
-            {(partial || recoveredReady) && clientId && <button type="button" onClick={() => navigateToWorkspace(clientId)} className={`${btnBack} mt-3 w-full`}>{t('openWorkspace')}</button>}
-            <button onClick={complete} disabled={loading || recoveredReady} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
+            {(partial || recoveredReady) && clientId && <button type="button" onClick={() => navigateToWorkspace(clientId, reportScanId)} className={`${btnBack} mt-3 w-full`}>{t(reportScanId ? 'openReport' : 'openWorkspace')}</button>}
+            <button onClick={complete} disabled={loading || recoveredReady || scanNeedsChoice || recovery !== null} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
               {t('s4Skip')}
             </button>
           </div>

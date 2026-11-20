@@ -14,6 +14,7 @@ import { ScoreTrend } from '@/components/dashboard/overview/ScoreTrend'
 import type { IllustrationName } from '@/components/ui/empty-state'
 import { PillarScoreCards } from '@/components/PillarScoreCards'
 import { getCheckExplanations } from '@/lib/checkExplanations'
+import { scanReportHref } from '@/lib/result/links'
 import type { WorkspaceHome as HomeDto } from '@/lib/view-models/workspace-home'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
@@ -109,7 +110,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
               })}
             </ol>
             <p className="mt-4 text-xs text-dash-muted">{pcopy.showing} {priorities.priorities.length} {pcopy.of} {priorities.observedFindings} {pcopy.findings}</p>
-            {health && <Link className={`${linkClass} mt-2`} href={`${base}?step=results&scanId=${encodeURIComponent(health.scanId)}`}>{pcopy.openResults}<ArrowRight aria-hidden="true" className="size-4" /></Link>}
+            {health && <Link className={`${linkClass} mt-2`} href={scanReportHref(lang, workspace.client.id, health.scanId)}>{(lang === 'zh-HK' ? zhHK : en).reports.open_aeo_report}<ArrowRight aria-hidden="true" className="size-4" /></Link>}
           </>
         : <p className="mt-5 max-w-3xl text-sm leading-relaxed text-dash-muted">{pcopy.states[priorities.state]}</p>}
       {priorities.needsEvidence.length > 0 && <div className="mt-5 border-t border-dash-border pt-4">
@@ -124,7 +125,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
         <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-dash-muted"><Gauge aria-hidden="true" className="size-4" />{copy.score}</p>
         <p className="mt-1 text-4xl font-black tracking-tight text-dash-text">{health.score===null?(health.displayState==='failed'?(lang==='zh-HK'?zhHK:en).portfolio.scanIncomplete:(lang==='zh-HK'?zhHK:en).portfolio.scanUnknown):<><span className="tabular-nums">{health.score}</span><span className="text-xl font-bold text-dash-muted"> / 100</span>{health.grade&&<span className="ml-3 inline-flex rounded-lg bg-primary/10 px-2.5 py-0.5 align-middle text-lg font-black text-primary-accessible">{health.grade}</span>}</>}</p>
         <div className="mt-5">{health.score!==null&&health.pillarScores ? <PillarScoreCards results={{ pillarScores: health.pillarScores }} locale={lang} tone="dashboard" /> : <p className="text-sm text-dash-muted">{copy.noPillars}</p>}</div>
-        {cardLink(`${base}?step=results&scanId=${encodeURIComponent(health.scanId)}`, copy.results)}
+        {cardLink(scanReportHref(lang, workspace.client.id, health.scanId), (lang === 'zh-HK' ? zhHK : en).reports.open_aeo_report)}
       </>, 'lg:col-span-3')}
       {panel(copy.visibility, workspace.visibility, <>
         <p className="text-4xl font-black tracking-tight tabular-nums text-dash-text">{visibility?`${Number(visibility.sovScore.toFixed(1))}%`:(lang==='zh-HK'?zhHK:en).pulseView.unknown}</p>

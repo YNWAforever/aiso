@@ -22,12 +22,12 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid JSON' }, { status: 400 })
   }
-  const profile = await getProfile()
-  if (!profile) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
-  const accountId = profile.account_id,
-    scope = { accountId, locale },
-    scanId = input.scanId
   try {
+    const profile = await getProfile()
+    if (!profile) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+    const accountId = profile.account_id
+    const scope = { accountId, locale }
+    const scanId = input.scanId
     const saved = await readOnboardingProgress(scope, input.intentKey)
     if (scanId && !(saved?.scanId === scanId && (input.clientId === null || saved.clientId === input.clientId))
       && !await ownedOnboardingScan(scope, scanId)) {
@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
 
     const result = await completeOnboarding(scope, input)
     if (!result) return NextResponse.json({ error: 'Onboarding target unavailable' }, { status: 404 })
-    return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } })
+    const reportScanId = scanId && await ownedOnboardingScan(scope, scanId, result.clientId) ? scanId : null
+    return NextResponse.json({ ...result, reportScanId }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     if(error instanceof Error&&error.message==='ONBOARDING_INTENT_CONFLICT')return NextResponse.json({error:'ONBOARDING_INTENT_CONFLICT'},{status:409})
     if (error instanceof Error && error.message.includes('BRAND_LIMIT_REACHED')) {

@@ -26,6 +26,7 @@ beforeEach(() => { state.query = new URLSearchParams(); vi.clearAllMocks() })
 describe('post-login scan UX', () => {
   it.each(['en', 'zh-HK'] as const)('keeps Results actions tied to the selected scan in %s', lang => {
     const html = renderWithIntl(<ResultsStep scan={savedScan} lang={lang} clientId="brand-a" />, lang)
+    expect(html).toContain(`/${lang}/dashboard/brand-a/result/older-scan`)
     expect(html).toContain(`/${lang}/dashboard/brand-a?step=improve&amp;scanId=older-scan`)
     expect(html).toContain(`/${lang}/dashboard/brand-a/reports/new?scanId=older-scan`)
     expect(html).toContain(`/${lang}/dashboard/brand-a?step=scan&amp;scanId=older-scan`)

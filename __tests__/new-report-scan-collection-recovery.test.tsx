@@ -39,7 +39,9 @@ it.each([
   expect(rendered.find(element => element.type === Link)?.props.href).toBe(`/${lang}/dashboard/brand-a?step=scan&url=https%3A%2F%2Fbrand.example`)
 })
 
-it.each([scanId, 'malformed-scan-id'])('keeps a foreign or invalid report selection unavailable: %s', async id => {
+it.each([scanId, 'malformed-scan-id'])('offers recovery for a foreign or invalid report selection: %s', async id => {
   h.sql.mockResolvedValue([])
-  await expect(Page({ params: Promise.resolve({ lang: 'en', clientId: 'brand-a' }), searchParams: Promise.resolve({ scanId: id }) })).rejects.toThrow('NOT_FOUND')
+  const page = await Page({ params: Promise.resolve({ lang: 'en', clientId: 'brand-a' }), searchParams: Promise.resolve({ scanId: id }) })
+  expect(elements(page).some(element => element.type === ReportBuilder)).toBe(false)
+  expect(elements(page).find(element => element.type === Link)?.props.href).toContain('?step=scan')
 })

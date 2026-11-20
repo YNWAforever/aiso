@@ -24,7 +24,8 @@ export function safeReturnTo(raw: unknown, requestedLang: string): string {
     const scanClaim = new RegExp(`^/${lang}/result/${OPAQUE}$`)
     const onboarding = path === `/${lang}/onboarding`
     const pricing = path === `/${lang}/pricing`
-    if (!pricing && path !== dashboard && path !== `${dashboard}/settings` && !onboarding && !clientRoot.test(path) && !tools.test(path) && !nested.test(path) && !scanClaim.test(path)) return dashboard
+    const combined = new RegExp(`^/${lang}/report/${UUID}/combined$`).test(path)
+    if (!pricing && !combined && path !== dashboard && path !== `${dashboard}/settings` && !onboarding && !clientRoot.test(path) && !tools.test(path) && !nested.test(path) && !scanClaim.test(path)) return dashboard
     const kept = new URLSearchParams()
     const single = (key: string) => url.searchParams.getAll(key).length === 1 ? url.searchParams.get(key) : null
     const plan = pricing ? getCheckoutPlanId(single('plan')) : null
@@ -36,6 +37,8 @@ export function safeReturnTo(raw: unknown, requestedLang: string): string {
     const scanId = single('scanId')
     if ((clientRoot.test(path) || new RegExp(`^${dashboard}/${UUID}/reports(?:/(?:new|${UUID}))?$`, 'i').test(path))
       && scanId && new RegExp(`^${OPAQUE}$`).test(scanId)) kept.set('scanId', scanId)
+    if (combined && url.searchParams.has('scanId')) kept.set('scanId', scanId && uuid.test(scanId) ? scanId : '')
+    if (path.endsWith('/reports') && single('kind') === 'monthly') kept.set('kind', 'monthly')
     const recoveryUrl = single('url')
     if (clientRoot.test(path) && step === 'scan' && recoveryUrl) kept.set('url', recoveryUrl)
     const draft = single('draft')

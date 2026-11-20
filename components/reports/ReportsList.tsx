@@ -46,7 +46,7 @@ export function ReportsList({
   lang: string
   clientId: string
   clientName: string
-  domain: string
+  domain: string | null
   reports: ReportsListItem[]
 }) {
   const t = useTranslations('reports')
@@ -102,9 +102,9 @@ export function ReportsList({
     return (
       <EmptyState
         illustration="reports"
-        title={t('empty_title')}
-        description={t('empty_body')}
-        action={<Link href={`/${lang}/dashboard/${clientId}?step=results`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('empty_action')}</Link>}
+        title={t(domain ? 'empty_title' : 'website_required_title')}
+        description={t(domain ? 'empty_body' : 'website_required_body')}
+        action={<Link href={`/${lang}/dashboard/${clientId}?step=${domain ? 'results' : 'scan'}`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t(domain ? 'empty_action' : 'run_scan')}</Link>}
       />
     )
   }
@@ -123,7 +123,7 @@ export function ReportsList({
                       <h2 className="font-semibold">{clientName}</h2>
                       <ReportStatusBadge report={report} />
                     </div>
-                    <p className="mt-1 break-all text-sm text-muted-foreground">{domain}</p>
+                    {domain && <p className="mt-1 break-all text-sm text-muted-foreground">{domain}</p>}
                     <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
                       <span>{t('latest_version', { version: report.latestVersionNumber ?? t('unavailable') })}</span>
                       <span>{t('published_version', { version: report.publishedVersionNumber ?? t('not_yet') })}</span>

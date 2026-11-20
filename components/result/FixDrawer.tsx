@@ -22,6 +22,8 @@ interface Props {
   assessment: CheckAssessment | undefined
   /** The viewer owns the scan, so the Fix Pack is one click away. */
   owner: boolean
+  fixPackHref?: string
+  onOpenFixPack?: () => void
   onClose: () => void
   /** The GEO rescale factor (lib/result/view-model geoScale), so GEO points match the score. */
   geoScale: number
@@ -39,7 +41,7 @@ interface Props {
  * starter snippet to copy, and what passing would add. Generic guidance only;
  * the scan's own messages and evidence stay in the owner's check list.
  */
-export function FixDrawer({ lang, checkKey, assessment, owner, onClose, onClosed, onSignup, geoScale }: Props) {
+export function FixDrawer({ lang, checkKey, assessment, owner, fixPackHref, onOpenFixPack, onClose, onClosed, onSignup, geoScale }: Props) {
   const t = useTranslations('resultPage')
   const visuals = useTranslations('visuals')
   const checkNames = useTranslations('checks')
@@ -104,13 +106,17 @@ export function FixDrawer({ lang, checkKey, assessment, owner, onClose, onClosed
             {snippet && <Snippet language={snippet.language} code={snippet.code} />}
 
             {actionable && (owner ? (
-              <Link
-                href={`/${lang}/dashboard`}
-                data-testid="drawer-fix-pack"
-                className="mt-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-              >
-                <Sparkles aria-hidden="true" className="size-4" />{t('drawer.generate')}
-              </Link>
+              onOpenFixPack ? (
+                <button type="button" onClick={onOpenFixPack} data-testid="drawer-fix-pack"
+                  className="mt-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+                  <Sparkles aria-hidden="true" className="size-4" />{t('drawer.generate')}
+                </button>
+              ) : (
+                <Link href={fixPackHref ?? `/${lang}/dashboard`} data-testid="drawer-fix-pack"
+                  className="mt-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+                  <Sparkles aria-hidden="true" className="size-4" />{t('drawer.generate')}
+                </Link>
+              )
             ) : (
               <button
                 type="button"

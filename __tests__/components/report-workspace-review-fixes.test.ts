@@ -19,16 +19,16 @@ describe('client report workspace review fixes', () => {
 
   it('keeps exactly one filled primary action in the scan-result header', () => {
     const source = readFileSync(
-      join(process.cwd(), 'app/[lang]/dashboard/[clientId]/result/[scanId]/page.tsx'),
+      join(process.cwd(), 'components/result/ResultClient.tsx'),
       'utf8',
     )
     const header = source.slice(
-      source.indexOf('{/* Top nav bar */}'),
-      source.indexOf('<main',source.indexOf('{/* Top nav bar */}')),
+      source.indexOf('{workspace && brandHref && resultsHref ? ('),
+      source.indexOf(') : <nav'),
     )
 
     expect(header.match(/(?:^|\s)bg-primary(?=\s)/g)).toHaveLength(1)
-    expect(header).toContain('border border-dash-border')
-    expect(header).toContain('focus-visible:ring-2')
+    expect(header).toContain('border border-border')
+    expect(header).toContain('focus-visible:outline-2')
   })
 })

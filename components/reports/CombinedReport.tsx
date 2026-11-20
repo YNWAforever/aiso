@@ -36,11 +36,11 @@ export function CombinedReport({ report, clientId }: { report: CombinedReportDat
           <p className="text-sm text-muted-foreground sm:text-right">{t('generated', { date: day(report.generatedAt) })}</p>
         </div>
         <h1 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl print:text-2xl">{t('title')}</h1>
-        <p className="mt-1 break-all text-sm text-muted-foreground">{report.client.domain}</p>
+        {report.client.domain && <p className="mt-1 break-all text-sm text-muted-foreground">{report.client.domain}</p>}
       </header>
 
       <div className="space-y-5 p-5 sm:p-8 print:space-y-4 print:px-0 print:py-4">
-        <ScanSection scan={report.scan} clientName={report.client.name} locale={locale} />
+        <ScanSection scan={report.scan} clientName={report.client.name} clientId={clientId} locale={locale} />
         <PulseSection pulse={report.pulse} activeQuestions={report.activeQuestions} clientId={clientId} locale={locale} />
       </div>
 
@@ -54,7 +54,7 @@ export function CombinedReport({ report, clientId }: { report: CombinedReportDat
 
 const STATUS_ICONS = { pass: Check, warn: Minus, fail: X, unknown: HelpCircle } as const
 
-function ScanSection({ scan, clientName, locale }: { scan: CombinedScan; clientName: string; locale: string }) {
+function ScanSection({ scan, clientName, clientId, locale }: { scan: CombinedScan; clientName: string; clientId: string; locale: string }) {
   const t = useTranslations('combinedReport')
   const resultT = useTranslations('resultPage')
   const visuals = useTranslations('visuals')
@@ -72,9 +72,11 @@ function ScanSection({ scan, clientName, locale }: { scan: CombinedScan; clientN
       <p className="mt-1 text-sm leading-6 text-muted-foreground">{t('scan_body', { client: clientName })}</p>
 
       {scan.state !== 'recorded' ? (
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          {scan.state === 'none' ? t('scan_empty') : scan.state === 'unscored' ? t('scan_unscored') : t('scan_unavailable')}
-        </p>
+        <div className="mt-3 text-sm leading-6 text-muted-foreground">
+          <p>{scan.state === 'selection-unavailable' ? t('scan_selection_unavailable') : scan.state === 'none' ? t('scan_empty') : scan.state === 'unscored' ? t('scan_unscored') : t('scan_unavailable')}</p>
+          {scan.state === 'selection-unavailable' && <Link className="mt-1 inline-flex min-h-11 items-center font-semibold text-primary-accessible underline print:hidden" href={`/${locale}/report/${clientId}/combined`}>{t('view_latest_scan')}</Link>}
+          {(scan.state === 'none' || scan.state === 'unscored') && <Link className="mt-1 inline-flex min-h-11 items-center font-semibold text-primary-accessible underline print:hidden" href={`/${locale}/dashboard/${clientId}?step=scan`}>{t('run_scan')}</Link>}
+        </div>
       ) : (
         <>
           <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -84,7 +86,7 @@ function ScanSection({ scan, clientName, locale }: { scan: CombinedScan; clientN
             </p>
             {scan.grade && <p className="text-sm font-medium">{t('grade', { grade: scan.grade })}</p>}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{t('scanned', { date: date.format(new Date(scan.scannedAt)) })}</p>
+          <p className="mt-1 break-words text-sm text-muted-foreground">{t('scanned', { date: date.format(new Date(scan.scannedAt)) })}{scan.domain && <> · {scan.domain}</>}</p>
           {typeof scan.potentialScore === 'number' && (
             <p className="mt-2 text-sm font-medium">{t('potential', { score: formatScanScore(scan.potentialScore) })}</p>
           )}

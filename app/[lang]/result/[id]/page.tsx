@@ -8,6 +8,7 @@ import { getProfile }       from '@/lib/auth'
 import { buildOwnedResultEvidence } from '@/lib/result-evidence'
 import { buildPublicResultSummary, canViewFullResult, hasFailedScanPage } from '@/lib/result-access'
 import { compareScanEvidence } from '@/lib/scan-evidence'
+import { formatScanScore } from '@/lib/score-display'
 import type { Scan }        from '@/lib/types'
 import type { Metadata }    from 'next'
 
@@ -80,7 +81,7 @@ export async function generateMetadata({
     const title = t('unknown_title', { domain: scan.domain })
     return { title, openGraph: { title }, twitter: { card: 'summary', title } }
   }
-  const score = Math.round(display.score)
+  const score = formatScanScore(display.score)
   const grade = display.grade
   const title = t('title', { domain: scan.domain, score, grade })
   const description = t('description', { domain: scan.domain })

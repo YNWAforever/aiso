@@ -9,9 +9,11 @@ import { PrintButton } from '@/components/reports/PrintButton'
 import { requireAuth } from '@/lib/auth'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { loadCombinedReport } from '@/lib/reports/combined'
+import { isScanId } from '@/lib/result/links'
 
 type CombinedReportPageProps = {
   params: Promise<{ lang: string; clientId: string }>
+  searchParams?: Promise<{ scanId?: string | string[] }>
 }
 
 export const dynamic = 'force-dynamic'
@@ -29,7 +31,7 @@ export async function generateMetadata({ params }: CombinedReportPageProps): Pro
   }
 }
 
-export default async function CombinedReportPage({ params }: CombinedReportPageProps) {
+export default async function CombinedReportPage({ params, searchParams }: CombinedReportPageProps) {
   const { lang, clientId } = await params
   const locale = reportLocale(lang)
   const t = await getTranslations('combinedReport')
@@ -48,14 +50,17 @@ export default async function CombinedReportPage({ params }: CombinedReportPageP
     )
   }
 
-  const report = await loadCombinedReport({ accountId: profile.account_id, clientId, locale })
+  const requestedScan = (await searchParams)?.scanId
+  const scanId = requestedScan === undefined ? undefined : isScanId(requestedScan) ? requestedScan : null
+  const report = await loadCombinedReport({ accountId: profile.account_id, clientId, locale, ...(scanId !== undefined ? { scanId } : {}) })
   if (!report) notFound()
+  const scanQuery = report.scan.state !== 'selection-unavailable' && scanId ? `?scanId=${encodeURIComponent(scanId)}` : ''
 
   return (
     <main className="min-h-dvh w-full overflow-x-clip bg-background px-4 py-6 text-foreground sm:px-6 sm:py-10 print:min-h-0 print:bg-white print:p-0">
       <div className="mx-auto mb-4 flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 print:hidden">
         <Link
-          href={`/${locale}/dashboard/${clientId}/reports`}
+          href={`/${locale}/dashboard/${clientId}/reports${scanQuery}`}
           className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary-accessible underline"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />

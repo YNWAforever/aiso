@@ -20,16 +20,20 @@ import { RevealHeatmap } from '@/components/visuals/reveal/RevealHeatmap'
 import { RevealObserver } from '@/components/visuals/reveal/RevealObserver'
 import type { HeatmapCheck } from '@/components/visuals/CheckHeatmap'
 import type { OwnedResultEvidence } from '@/lib/result-evidence'
-import type { PlatformStatus } from '@/lib/impact'
+import { deriveCollectorAccess } from '@/lib/impact'
+import { CrawlerAccessEvidence } from './CrawlerAccessEvidence'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
-import { getCheckExplanations }  from '@/lib/checkExplanations'
-import type { Scan, CheckResult, ScanResults } from '@/lib/types'
+import { getCheckActionCopy, getCheckExplanations } from '@/lib/checkExplanations'
+import type { CheckResult, ScanResults } from '@/lib/types'
 import type { PublicResultSummary } from '@/lib/result-access'
 import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 import { CHECK_SLOTS, bucketPoints, geoScale, potentialScore, rankFixes, visualStatus } from '@/lib/result/view-model'
 import { FixPackClient } from '@/components/FixPackClient'
 import { Wordmark } from '@/components/brand/Wordmark'
+import { PrintButton, PrintThemeGuard } from '@/components/reports/PrintButton'
+import { scanReportHref } from '@/lib/result/links'
+import { formatDisplayDate } from '@/lib/format/date'
 
 // The drawer (and its dialog primitive) loads the first time a check is opened.
 const FixDrawer = dynamic(() => import('@/components/result/FixDrawer').then(module => module.FixDrawer), { ssr: false })
@@ -37,24 +41,20 @@ const FixDrawer = dynamic(() => import('@/components/result/FixDrawer').then(mod
 /* ── Helpers ────────────────────────────────────────────────── */
 function getResult(results: Record<string, unknown>, key: string): CheckResult | undefined {
   const v = results[key]
-  if (v && typeof v === 'object' && 'status' in (v as object)) return v as CheckResult
+  if (v && typeof v === 'object' && 'status' in v && 'message' in v && typeof v.message === 'string') return v as CheckResult
   return undefined
-}
-
-/** `t` is a translator scoped to the `resultPage` namespace. */
-export function getPlatformStatusLabel(status: PlatformStatus, t: (key: `platform_status.${PlatformStatus}`) => string) {
-  return t(`platform_status.${status}`)
 }
 
 /* ── Main component ──────────────────────────────────────────── */
 type Props = {
   lang: string
   summary: PublicResultSummary
-  fullScan?: Scan
+  fullScan?: { id: string; results: Record<string, unknown> }
   ownedBrandId?: string
   ownedEvidence?: OwnedResultEvidence | null
   /** The owner's previous scan of the same domain; drives the one celebration. */
   previous?: { score: number; grade: string } | null
+  workspace?: { clientId: string; canShare: boolean }
 }
 
 /**
@@ -65,12 +65,15 @@ type Props = {
  * Anonymous viewers see each check's verdict (no messages, details or
  * remediation from the scan); owners also get the scan's own findings.
  */
-export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvidence, previous }: Props) {
+export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvidence, previous, workspace }: Props) {
   const t = useTranslations('resultPage')
   const checkNames = useTranslations('checks')
   const generated = useTranslations('generatedWork')
   const result = useTranslations('result')
   const portfolio = useTranslations('portfolio')
+  const visuals = useTranslations('visuals')
+  const reports = useTranslations('reports')
+  const evidence = useTranslations('scanEvidence')
   const catalogue = useMessages().checks as Record<string, string> | undefined
   const locale = useLocale()
   const resultViewTracked = useRef(false)
@@ -80,7 +83,7 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
   // Where focus goes back to when the drawer closes, unless the reader went to sign up.
   const opener = useRef<HTMLElement | null>(null)
   const returnFocus = useRef(true)
-  const pendingSave = useRef(false)
+  const pendingAnchor = useRef<'save' | 'fix-pack' | null>(null)
   function openCheck(key: string) {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     returnFocus.current = true
@@ -89,6 +92,11 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
     trackFunnelEvent({ name: 'fix_opened', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', scanId: summary.id })
   }
   const owner = Boolean(fullScan)
+  const brandHref = workspace ? `/${lang}/dashboard/${encodeURIComponent(workspace.clientId)}` : null
+  const selectedScan = `scanId=${encodeURIComponent(summary.id)}`
+  const rescanHref = brandHref ? `${brandHref}?step=scan&${selectedScan}` : `/${lang}/scan`
+  const separateFixPackHref = !workspace && ownedBrandId ? `${scanReportHref(lang, ownedBrandId, summary.id)}#fix-pack` : undefined
+  const resultsHref = brandHref ? `${brandHref}?step=results&${selectedScan}` : null
 
   useEffect(() => {
     if (!consumeOneTimeFunnelEvent(resultViewTracked)) return
@@ -106,13 +114,16 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
     <p className="break-all text-sm text-muted-foreground">{summary.domain}</p>
     <h1 className="text-2xl font-bold">{t('collection_failed_title')}</h1>
     <p>{t('collection_failed_body')}</p>
-    <Link href={`/${lang}/scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-primary-foreground">{t('scan_another')}</Link>
+    {workspace && <ScanEvidencePanel evidence={ownedEvidence ?? null} />}
+    <Link href={rescanHref} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-primary-foreground">{t('scan_another')}</Link>
+    {resultsHref && <Link href={resultsHref} className="ms-4 text-primary-accessible underline">{result('back_to_results')}</Link>}
   </main>
 
   if (summary.score === null || summary.grade === null) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12" data-testid="collection-unknown">
     <h1 className="text-2xl font-bold">{portfolio('scanUnknown')}</h1>
     <ScanEvidencePanel evidence={ownedEvidence ?? null} />
-    <Link href={`/${lang}/scan`}>{t('scan_another')}</Link>
+    <Link href={rescanHref} className="inline-flex min-h-11 items-center text-primary-accessible underline">{t('scan_another')}</Link>
+    {resultsHref && <Link href={resultsHref} className="ms-4 text-primary-accessible underline">{result('back_to_results')}</Link>}
   </main>
 
   const score = summary.score
@@ -124,28 +135,29 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
   const heatmapChecks: HeatmapCheck[] = CHECK_SLOTS.map(slot => ({
     key: slot.key, label: checkNames(slot.key), status: visualStatus(assessments[slot.key]), bucket: slot.bucket,
   }))
-  const r = (fullScan?.results ?? {}) as Record<string, unknown>
+  const r = fullScan?.results ?? {}
   const topIssueResults = summary.topIssueKey && summary.topIssueStatus
     ? { [summary.topIssueKey]: { status: summary.topIssueStatus, assessment: summary.topIssueStatus, collection: 'complete', applicability: 'applicable', message: 'public_summary' } }
     : {}
 
-  function focusSave() {
-    const card = document.getElementById('save')
-    card?.scrollIntoView({ block: 'start' })
-    const target = document.getElementById('account-unlock-email') ?? card
+  function focusSection(id: 'save' | 'fix-pack') {
+    const section = document.getElementById(id)
+    section?.scrollIntoView({ block: 'start' })
+    const target = id === 'save' ? document.getElementById('account-unlock-email') ?? section : section
     target?.focus({ preventScroll: true })
   }
 
-  // From the drawer, wait until it has closed and released focus; from the bar, go now.
-  function goToSave() {
-    if (openKey === null) { focusSave(); return }
+  function goToSection(id: 'save' | 'fix-pack') {
+    if (openKey === null) { focusSection(id); return }
     returnFocus.current = false
-    pendingSave.current = true
+    pendingAnchor.current = id
     setOpenKey(null)
   }
 
   function onDrawerClosed() {
-    if (pendingSave.current) { pendingSave.current = false; focusSave() }
+    const target = pendingAnchor.current
+    pendingAnchor.current = null
+    if (target) focusSection(target)
     else if (returnFocus.current) opener.current?.focus()
   }
 
@@ -158,22 +170,39 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
   const explanations = getCheckExplanations(locale)
   const renderOwnerRow = fullScan ? (key: string) => {
     const result = getResult(r, key)
-    if (!result) return null
+    const assessment = assessments[key] ?? 'unknown'
+    if (!result) return workspace ? (
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border py-3 text-sm">
+        <span className="font-medium">{checkNames(key)}</span><span className="text-muted-foreground">{evidence(`states.${assessment}`)}</span>
+      </div>
+    ) : null
+    const crawlerKind = key === 'c1_robots' ? 'policy' : key === 'c3_bot_access' ? 'probe' : null
     return (
       <ExpandableCheckItem
         label={checkNames(key)}
         result={result}
         message={catalogue && Object.hasOwn(catalogue, result.message) ? catalogue[result.message]! : result.message}
         explanation={explanations[key]}
+        assessment={workspace ? assessment : undefined}
         factualState={key === 'c18_factual_density' ? factualDensityState(r.c18_factual_density_data ?? r.c18, result.diagnostic) : undefined}
-      />
+      >
+        {crawlerKind && <CrawlerAccessEvidence entries={deriveCollectorAccess({ [key]: result })} kind={crawlerKind} />}
+      </ExpandableCheckItem>
     )
   } : undefined
 
   return (
-    <div className="min-h-screen bg-background">
-
-      <nav className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur sm:px-6">
+    <div className={workspace ? 'min-w-0 bg-background print:bg-white' : 'min-h-screen bg-background'}>
+      {workspace && brandHref && resultsHref ? (
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-6 print:hidden">
+          <Link href={resultsHref} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline underline-offset-4">{result('back_to_results')}</Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`${brandHref}?step=improve&${selectedScan}`} className="inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{result('improve_with_agents')}</Link>
+            {workspace.canShare && <Link href={`${brandHref}/reports/new?${selectedScan}`} className="inline-flex min-h-11 items-center rounded-md border border-border px-4 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{reports('create_share_report')}</Link>}
+            <PrintButton />
+          </div>
+        </div>
+      ) : <nav className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur sm:px-6">
         <Link href={`/${lang}`} className="flex shrink-0 items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-md bg-primary">
             <Zap aria-hidden="true" className="size-3.5 text-primary-foreground" />
@@ -181,17 +210,23 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
           <Wordmark className="whitespace-nowrap text-sm font-black text-foreground" accentClassName="text-primary-accessible" />
         </Link>
         <div className="flex items-center gap-2">
-          <ResultActions domain={summary.domain} score={score} grade={grade} onSave={owner ? undefined : goToSave} />
+          <ResultActions domain={summary.domain} score={score} grade={grade} onSave={owner ? undefined : () => goToSection('save')} />
           {owner && (
             <Link href={`/${lang}/pricing`} data-print-hide className="hidden min-h-9 items-center rounded-lg border border-border px-3 text-sm font-semibold text-foreground hover:bg-neutral-3 sm:inline-flex">
               {t('full_access')}
             </Link>
           )}
         </div>
-      </nav>
+      </nav>}
 
-      <main className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-8 sm:py-10">
-        <ClaimScanOnReturn scanId={summary.id} lang={lang} />
+      <main className={workspace ? 'mx-auto flex max-w-5xl flex-col gap-8 px-4 py-6 sm:px-6 print:max-w-none print:p-0' : 'mx-auto flex max-w-3xl flex-col gap-8 px-4 py-8 sm:py-10'}>
+        {workspace ? <>
+          <PrintThemeGuard />
+          <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+            <p className="font-semibold text-foreground">{t('workspace_label')}</p>
+            {summary.createdAt && <time className="text-muted-foreground" dateTime={summary.createdAt}>{t('scan_date', { date: formatDisplayDate(summary.createdAt, locale) })}</time>}
+          </div>
+        </> : <ClaimScanOnReturn scanId={summary.id} lang={lang} />}
 
         {/* 1. Score, grade and one line */}
         <section data-testid="result-score" className="flex flex-col gap-4">
@@ -211,7 +246,18 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
             {topFixes.length > 0 && <p className="text-sm text-muted-foreground">{t('fixes_subtitle')}</p>}
           </div>
           {topFixes.length > 0
-            ? <FixList fixes={topFixes} onSelect={openCheck} />
+            ? <FixList fixes={topFixes} onSelect={openCheck} renderDetail={workspace ? fix => {
+                const observed = getResult(r, fix.key)
+                const finding = observed?.status === fix.assessment && catalogue && Object.hasOwn(catalogue, observed.message)
+                  ? catalogue[observed.message] : visuals(`status.${fix.assessment}`)
+                const change = explanations[fix.key]?.fix[fix.assessment]
+                const verify = getCheckActionCopy(fix.key, locale)?.nextStep ?? t('verify_rescan')
+                return <dl className="grid gap-3 border-t border-border px-4 py-3 text-sm sm:grid-cols-3">
+                  <div><dt className="font-semibold">{t('fix_finding')}</dt><dd className="mt-1 break-words text-muted-foreground">{finding}</dd></div>
+                  <div><dt className="font-semibold">{t('drawer.how')}</dt><dd className="mt-1 break-words text-muted-foreground">{change}</dd></div>
+                  <div><dt className="font-semibold">{t('fix_verification')}</dt><dd className="mt-1 break-words text-muted-foreground">{verify}</dd></div>
+                </dl>
+              } : undefined} />
             : <TopIssueCard results={topIssueResults as ScanResults & Record<string, unknown>} failCount={0} priorityState={summary.priorityState} owner={owner} />}
         </section>
 
@@ -256,11 +302,9 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
           </>
         )}
 
-        <PlatformPanel summary={summary} locale={locale} />
-
-        {fullScan ? ownedBrandId ? (
+        {fullScan ? separateFixPackHref ? (
           <Link
-            href={`/${lang}/dashboard/${encodeURIComponent(ownedBrandId)}/result/${encodeURIComponent(fullScan.id)}#fix-pack`}
+            href={separateFixPackHref}
             data-testid="fix-pack-action"
             data-print-hide
             className="block rounded-2xl bg-foreground px-6 py-4 text-center text-sm font-bold text-background transition hover:bg-foreground/90"
@@ -268,14 +312,14 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
             {t('fix_pack')}
           </Link>
         ) : (
-          <section id="fix-pack" data-testid="fix-pack-action" data-print-hide className="scroll-mt-24 space-y-3">
+          <section id="fix-pack" tabIndex={-1} data-testid="fix-pack-action" data-print-hide className="scroll-mt-24 space-y-3 focus-visible:outline-2 focus-visible:outline-primary">
             <h2 className="font-semibold">{generated('packTitle')}</h2>
             <FixPackClient scanId={fullScan.id} fixCta={generated('packCta')} fixSubtitle={generated('draftNotice')}
               copyLabel={result('copy')} copiedLabel={result('copied')} />
-            <Link href={`/${lang}/onboarding?scan=${encodeURIComponent(fullScan.id)}`}
+            {!workspace && <Link href={`/${lang}/onboarding?scan=${encodeURIComponent(fullScan.id)}`}
               className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline underline-offset-4">
               {t('set_up_brand')}
-            </Link>
+            </Link>}
           </section>
         ) : (
           <div id="save" tabIndex={-1} className="scroll-mt-20 focus:outline-none" data-print-hide>
@@ -284,7 +328,7 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
         )}
 
         <div className="pb-4 text-center" data-print-hide>
-          <Link href={`/${lang}`} className="text-sm text-muted-foreground underline underline-offset-2 transition hover:text-foreground">
+          <Link href={workspace ? rescanHref : `/${lang}`} className="text-sm text-muted-foreground underline underline-offset-2 transition hover:text-foreground">
             {t('scan_another')}
           </Link>
         </div>
@@ -298,42 +342,11 @@ export function ResultClient({ lang, summary, fullScan, ownedBrandId, ownedEvide
         owner={owner}
         onClose={() => setOpenKey(null)}
         onClosed={onDrawerClosed}
-        onSignup={goToSave}
+        onSignup={() => goToSection('save')}
+        fixPackHref={separateFixPackHref}
+        onOpenFixPack={owner && !separateFixPackHref ? () => goToSection('fix-pack') : undefined}
         geoScale={geoScale(assessments)}
       />}
     </div>
-  )
-}
-
-/** Consumer exposure is not measured by a technical scan; crawler access is listed as collected. */
-function PlatformPanel({ summary, locale }: { summary: PublicResultSummary; locale: string }) {
-  const t = useTranslations('resultPage')
-  return (
-    <section aria-label={t('platforms_title')} className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="mb-1 text-sm font-bold text-foreground">{t('platforms_title')}</h2>
-      <p className="mb-3 text-xs text-muted-foreground">{t('platforms_note')}</p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {summary.teaser.platformVisibility.map(platform => (
-          <div key={platform.platform} className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium text-foreground">{platform.label}</span>
-            <span
-              data-status={platform.status}
-              aria-label={`${platform.label}: ${getPlatformStatusLabel(platform.status, t)}`}
-              className="rounded-full bg-neutral-3 px-2 py-0.5 text-xs font-semibold text-foreground"
-            >
-              {getPlatformStatusLabel(platform.status, t)}
-            </span>
-          </div>
-        ))}
-      </div>
-      {(summary.teaser.collectorAccess ?? []).length > 0 && <ul className="mt-4 space-y-2 text-xs text-muted-foreground" aria-label={t('crawler_label')}>
-        {summary.teaser.collectorAccess.map(collector => <li key={collector.crawler}>
-          {collector.crawler} · {locale === 'zh-HK'
-            ? ({ search: '搜尋', training: '訓練', user_triggered: '使用者觸發' }[collector.role]) : collector.role.replace('_', ' ')} · {locale === 'zh-HK'
-            ? `規則：${{ allowed: '允許', blocked: '封鎖', unknown: '未知' }[collector.policy]}；抓取：${{ reachable: '可存取', unreachable: '不可存取', not_measured: '未量度' }[collector.probe]}`
-            : `Policy: ${collector.policy}; fetch: ${collector.probe.replace('_', ' ')}`}
-        </li>)}
-      </ul>}
-    </section>
   )
 }

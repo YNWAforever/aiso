@@ -53,25 +53,46 @@ export default async function NewClientReportPage({
     )
   }
 
+  const domain = client.domain ? normalizeReportDomain(client.domain) : null
+  if (!domain) {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <h1 className="text-xl font-semibold">{t('website_required_title')}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{t('website_required_body')}</p>
+            <Button asChild variant="outline" className="mt-6 min-h-11">
+              <Link href={`/${locale}/dashboard/${clientId}?step=scan`}>{t('run_scan')}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    )
+  }
+
   const ownedScans = await loadOwnedScanChoices({ accountId: profile.account_id, clientId })
   const selectedScanAvailable = ownedScans.some(scan => scan.id === scanId)
-  if (query.scanId !== undefined && (!scanId || (!selectedScanAvailable && !await isOwnedWorkspaceScan({ accountId: profile.account_id, clientId, scanId })))) notFound()
-  // Reports compare scans for the brand's current domain. The scan tool can
-  // also hold explicitly associated scans of other domains; don't offer those
-  // as report sources only to reject them later in the store/service gate.
-  const scans = ownedScans.filter(scan => normalizeReportDomain(scan.domain) === normalizeReportDomain(client.domain))
+  const scans = ownedScans.filter(scan => normalizeReportDomain(scan.domain) === domain)
   const picker = <ScanPicker lang={locale} action={`/${locale}/dashboard/${clientId}/reports/new`} scans={scans} selectedScanId={scanId} />
+  const currentScan = scanId && scans.some(scan => scan.id === scanId)
+    ? await loadOwnedReportScan({ accountId: profile.account_id, scanId, clientId, clientDomain: domain })
+    : null
 
-  if (!scanId || !scans.some(scan => scan.id === scanId)) {
+  if (!scanId || !currentScan || currentScan.id !== scanId) {
+    const body = query.scanId === undefined ? 'scan_required_body'
+      : scans.some(scan => scan.id === scanId) ? 'scan_selection_unavailable'
+        : selectedScanAvailable ? 'scan_domain_mismatch'
+          : scanId && await isOwnedWorkspaceScan({ accountId: profile.account_id, clientId, scanId })
+            ? 'scan_collection_unavailable' : 'scan_selection_unavailable'
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
         <Card>
           <CardContent className="p-8 text-center">
             <h1 className="text-xl font-semibold">{t('scan_required_title')}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{t(!scanId ? 'scan_required_body' : selectedScanAvailable ? 'scan_domain_mismatch' : 'scan_collection_unavailable')}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{t(body)}</p>
             <div className="mt-6 text-left">{picker}</div>
             {!scans.length && <Button asChild variant="outline" className="mt-6 min-h-11">
-              <Link href={`/${locale}/dashboard/${clientId}?step=scan&url=${encodeURIComponent(`https://${normalizeReportDomain(client.domain)}`)}`}>{t('run_scan')}</Link>
+              <Link href={`/${locale}/dashboard/${clientId}?step=scan&url=${encodeURIComponent(`https://${domain}`)}`}>{t('run_scan')}</Link>
             </Button>}
           </CardContent>
         </Card>
@@ -79,19 +100,12 @@ export default async function NewClientReportPage({
     )
   }
 
-  const currentScan = await loadOwnedReportScan({
-    accountId: profile.account_id,
-    scanId,
-    clientDomain: client.domain,
-  })
-  if (!currentScan || currentScan.id !== scanId) notFound()
-
   const [previousScan, recommendations, branding] = await Promise.all([
     loadPreviousReportScan({ accountId: profile.account_id, currentScan }),
     loadReportRecommendations({
       accountId: profile.account_id,
       scanId,
-      clientDomain: client.domain,
+      clientDomain: domain,
     }),
     loadReportBranding({ accountId: profile.account_id }),
   ])
@@ -117,7 +131,7 @@ export default async function NewClientReportPage({
   const snapshot = buildClientReportSnapshot({
     locale,
     branding,
-    client,
+    client: { name: client.name, domain },
     currentScan,
     previousScan,
     recommendations,

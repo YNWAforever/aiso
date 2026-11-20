@@ -12,8 +12,11 @@ const dto = (row: ProgressRow) => ({ intentKey: row.intent_key, clientId: row.cl
       || (row.prompt_status === 'running' && row.lease_until !== null && new Date(row.lease_until).getTime() < Date.now()), errorCode: row.error_code,
   } })
 
-export async function ownedOnboardingScan(scope: OnboardingScope, scanId: string): Promise<boolean> {
-  const rows = await db()`select id from scans where id = ${scanId}::uuid and account_id = ${scope.accountId}`
+export async function ownedOnboardingScan(scope: OnboardingScope, scanId: string, clientId?: string): Promise<boolean> {
+  const rows = await db()`
+    select id from scans where id = ${scanId}::uuid and account_id = ${scope.accountId}
+      and (${clientId ?? null}::uuid is null or client_id = ${clientId ?? null}::uuid)
+  `
   return rows.length === 1
 }
 
@@ -46,7 +49,7 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
         and not exists(select 1 from locked_context)
         and not exists(select 1 from previous where request_hash is not null and request_hash <> ${onboardingInputHash(input)})
         and (${input.scanId}::uuid is null or exists (select 1 from scans where id = ${input.scanId}::uuid and account_id = ${scope.accountId}
-          and (client_id is null or client_id = coalesce((select client_id from previous), ${input.clientId}::uuid))))
+          and (client_id is null or client_id = (select id from existing))))
         and (${input.clientId}::uuid is null or exists (
           select 1 from clients where id = ${input.clientId}::uuid and account_id = ${scope.accountId}))
         and not exists (select 1 from previous where ${input.clientId}::uuid is not null and client_id <> ${input.clientId}::uuid)
@@ -70,9 +73,9 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
     ), updated_metadata as (
       update clients c set brand_name=${input.brandName},domain=${input.domain},industry=${input.industry},region=${input.region},description=${input.description},competitors=${input.competitors}::text[] from progress p where c.id=p.client_id and c.account_id=p.account_id and c.account_id=${scope.accountId} and c.id=${input.clientId}::uuid and p.prompt_status in ('pending','failed') and (p.draft-'intentKey'-'clientId')=(${JSON.stringify(input)}::jsonb-'intentKey'-'clientId') returning c.id
     ), associated as (
-      update scans set client_id = (select client_id from progress)
-      where id = ${input.scanId}::uuid and account_id = ${scope.accountId}
-        and (client_id is null or client_id = (select client_id from progress)) returning id
+      update scans s set client_id = p.client_id from progress p
+      where s.id = ${input.scanId}::uuid and s.account_id = p.account_id
+        and s.account_id = ${scope.accountId} and s.client_id is null returning s.id
     ) select to_jsonb(progress) as progress,trial.trial_ends_at,null::text as reason from progress join trial on true
     union all select null::jsonb,null::timestamptz,'intent_conflict' from previous where request_hash is not null and request_hash <> ${onboardingInputHash(input)}
     union all select null::jsonb,null::timestamptz,'intent_conflict' from locked_context`,

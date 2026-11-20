@@ -134,6 +134,13 @@ describe('report store tenant boundary', () => {
     expect(query?.values).toContain('client-1')
   })
 
+  it.each([null, '', 'ftp://example.com'])('keeps the owned brand when the website is unavailable: %s', async domain => {
+    queue([{ id: 'client-1', account_id: 'account-1', brand_name: 'Example', domain }])
+    expect(await loadOwnedReportClient({ accountId: 'account-1', clientId: 'client-1' })).toEqual({
+      id: 'client-1', accountId: 'account-1', name: 'Example', domain: null,
+    })
+  })
+
   it('rejects a current scan whose normalized domain does not match the owned client domain', async () => {
     queue([{ id: 'scan-1', account_id: 'account-1', domain: 'other.example', created_at: currentScan.createdAt, score: 80, grade: 'A', results: {} }])
 

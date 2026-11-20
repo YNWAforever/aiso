@@ -38,6 +38,7 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
 }) {
   const t = await getTranslations('today')
   const w = await getTranslations('workspaceHome')
+  const reports = await getTranslations('reports')
   const reasons = await getTranslations('runProgress.availabilityReasons')
   const view = buildTodayView(workspace, { lang, client_reports_online: clientReportsOnline })
   const base = `/${lang}/dashboard/${encodeURIComponent(workspace.client.id)}`
@@ -269,7 +270,7 @@ export async function BrandToday({ workspace, lang, chatEnabled, clientReportsOn
           <ul className="grid gap-2 sm:grid-cols-2">
             {([
               { key: 'scan', href: view.links.scan, label: w('scan'), Icon: ScanSearch },
-              { key: 'results', href: view.links.results ?? `${base}?step=results`, label: w('results'), Icon: ScanSearch },
+              { key: 'results', href: view.links.results ?? `${base}?step=results`, label: view.links.results ? reports('open_aeo_report') : w('results'), Icon: ScanSearch },
               { key: 'improve', href: view.links.improve, label: w('improve'), Icon: Sparkles },
               { key: 'reports', href: view.links.reports, label: w('reports'), Icon: FileText },
               { key: 'monitor', href: view.links.monitor, label: w('monitor'), Icon: Radio },

@@ -71,8 +71,8 @@ export default async function ClientReportsPage({
 }) {
   const { lang, clientId } = await params
   const query = await searchParams
-  const scanId = typeof query?.scanId === 'string' ? query.scanId : null
-  const scanQuery = scanId ? `?scanId=${encodeURIComponent(scanId)}` : ''
+  const scanId = typeof query?.scanId === 'string' ? query.scanId : ''
+  const scanQuery = query?.scanId === undefined ? '' : `?scanId=${encodeURIComponent(scanId)}`
   const requestedKind = typeof query?.kind === 'string' ? query.kind : ''
   const kind: ListKind = requestedKind === 'monthly' ? 'monthly' : 'scan'
   const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
@@ -91,9 +91,16 @@ export default async function ClientReportsPage({
             <LockKeyhole className="mx-auto size-8 text-muted-foreground" aria-hidden="true" />
             <h1 className="mt-4 text-xl font-semibold">{t('upgrade_title')}</h1>
             <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">{t('upgrade_body')}</p>
-            <Button asChild className="mt-6 min-h-11">
-              <Link href={`/${locale}/pricing`}>{t('upgrade_cta')}</Link>
-            </Button>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <Button asChild className="min-h-11">
+                <Link href={`/${locale}/pricing`}>{t('upgrade_cta')}</Link>
+              </Button>
+              <Button asChild variant="outline" className="min-h-11">
+                <Link href={`/${locale}/dashboard/${clientId}?step=${scanId || client.domain ? 'results' : 'scan'}${scanId ? `&scanId=${encodeURIComponent(scanId)}` : ''}`}>
+                  {t(scanId || client.domain ? 'empty_action' : 'run_scan')}
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </main>
@@ -120,7 +127,7 @@ export default async function ClientReportsPage({
     unavailable = true
   }
 
-  const tabHref = (next: ListKind) => `/${locale}/dashboard/${clientId}/reports${next === 'scan' ? '' : `?kind=${next}`}`
+  const tabHref = (next: ListKind) => `/${locale}/dashboard/${clientId}/reports${next === 'scan' ? scanQuery : `?kind=${next}${scanQuery ? `&${scanQuery.slice(1)}` : ''}`}`
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
@@ -132,7 +139,7 @@ export default async function ClientReportsPage({
         </div>
         <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline" className="min-h-11">
-          <Link href={`/${locale}/report/${clientId}/combined`}>
+          <Link href={`/${locale}/report/${clientId}/combined${scanQuery}`}>
             <FileDown aria-hidden="true" />
             {t('combined_pdf')}
           </Link>

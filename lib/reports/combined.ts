@@ -56,19 +56,23 @@ export async function loadCombinedReport(input: {
   accountId: string
   clientId: string
   locale: ReportLocale
+  scanId?: string | null
 }): Promise<CombinedReportData | null> {
   const client = await loadOwnedReportClient({ accountId: input.accountId, clientId: input.clientId })
   if (!client) return null
 
   const sql = db()
+  const selected = input.scanId !== undefined
+  const scanQuery = input.scanId === null ? Promise.resolve([]) : sql`
+    select id, domain, created_at, score::float8 as score, grade, results
+    from scans
+    where account_id = ${input.accountId} and client_id = ${input.clientId}
+      and (${input.scanId ?? null}::uuid is null or id = ${input.scanId ?? null}::uuid)
+    order by created_at desc, id desc
+    limit 1
+  `
   const [scanResult, pulseResult, brandingResult, activeResult] = await Promise.allSettled([
-    sql`
-      select id, domain, created_at, score::float8 as score, grade, results
-      from scans
-      where account_id = ${input.accountId} and client_id = ${input.clientId}
-      order by created_at desc
-      limit 1
-    `,
+    scanQuery,
     readShareOfVoice(sql, input.accountId, input.clientId),
     loadReportBranding({ accountId: input.accountId }),
     sql`
@@ -84,7 +88,7 @@ export async function loadCombinedReport(input: {
   let scan: CombinedScan = { state: 'unavailable' }
   if (scanResult.status === 'fulfilled') {
     const rows = scanResult.value as unknown[]
-    scan = rows.length === 0 ? { state: 'none' } : (() => {
+    scan = rows.length === 0 ? { state: selected ? 'selection-unavailable' : 'none' } : (() => {
       const source = scanSource(rows[0], input.accountId)
       return source ? buildCombinedScanView(source, input.locale) : { state: 'unavailable' }
     })()

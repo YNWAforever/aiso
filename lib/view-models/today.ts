@@ -2,6 +2,7 @@ import type { GettingStartedStep } from '@/lib/view-models/getting-started'
 import type { WorkspaceHome } from './workspace-home'
 import type { IllustrationName } from '@/components/ui/illustration'
 import { taskHref } from '@/lib/tasks/navigation'
+import { scanReportHref } from '@/lib/result/links'
 import type { TaskStatus } from '@/lib/tasks/status'
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 
@@ -179,7 +180,7 @@ export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; 
     setup,
     monthlyReport: workspace.monthlyReport ?? null,
     links: {
-      results: health ? `${brand}?step=results&scanId=${encodeURIComponent(health.scanId)}` : null,
+      results: health ? scanReportHref(input.lang, workspace.client.id, health.scanId) : null,
       monitor: `${brand}?step=monitor`,
       improve: `${brand}?step=improve`,
       reports: `${brand}/reports`,

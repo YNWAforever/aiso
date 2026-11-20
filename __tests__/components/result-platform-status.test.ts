@@ -1,31 +1,39 @@
-import { describe, expect, it, vi } from 'vitest'
-import { createTranslator } from 'next-intl'
-import { getPlatformStatusLabel } from '@/components/result/ResultClient'
-import en from '@/messages/en.json'
-import zh from '@/messages/zh-HK.json'
+import { createElement } from 'react'
+import { expect, it, vi } from 'vitest'
+import { ResultClient } from '@/components/result/ResultClient'
+import { buildPublicResultSummary } from '@/lib/result-access'
+import { buildScanEvidence } from '@/lib/scan-evidence'
+import type { Scan } from '@/lib/types'
+import { renderWithIntl } from '@/__tests__/helpers/intl'
 
-vi.mock('@/lib/auth-client', () => ({
-  authClient: {},
-  buildAuthCompleteUrl: vi.fn(),
-}))
+vi.mock('@/components/result/ClaimScanOnReturn', () => ({ ClaimScanOnReturn: () => null }))
+vi.mock('@/components/result/AccountUnlockCard', () => ({ AccountUnlockCard: () => null }))
 
-const translator = (locale: 'en' | 'zh-HK') =>
-  createTranslator({ locale, messages: locale === 'zh-HK' ? zh : en, namespace: 'resultPage' })
+const scan = {
+  id: 'scan-1', domain: 'example.com', score: 42.5, grade: 'F', industry: null, region: null,
+  url: 'https://example.com', created_at: '2026-11-18T08:00:00.000Z',
+  results: {
+    evidence: buildScanEvidence({ requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com',
+      industry: null, region: null, sitemapSource: 'fetched',
+      checks: { c1_robots: { assessment: 'pass', collection: 'complete' } },
+      observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: { origin: 'https://example.com' } }] }),
+    c1_robots: { status: 'pass', message: 'robots_ai_allowed', collectorAccess: [
+      { crawler: 'OAI-SearchBot', role: 'search', policy: 'allowed', probe: 'not_measured' },
+    ] },
+  },
+} as Scan
 
-describe('public platform status labels', () => {
-  it('renders readable English labels without changing the underlying status', () => {
-    const t = translator('en')
-    expect(getPlatformStatusLabel('visible', t)).toBe('Legacy technical estimate')
-    expect(getPlatformStatusLabel('partial', t)).toBe('Legacy technical estimate')
-    expect(getPlatformStatusLabel('blocked', t)).toBe('Legacy technical estimate')
-    expect(getPlatformStatusLabel('not_measured', t)).toBe('Not measured')
-  })
-
-  it('renders localized zh-HK labels', () => {
-    const t = translator('zh-HK')
-    expect(getPlatformStatusLabel('visible', t)).toBe('歷史技術估算')
-    expect(getPlatformStatusLabel('partial', t)).toBe('歷史技術估算')
-    expect(getPlatformStatusLabel('blocked', t)).toBe('歷史技術估算')
-    expect(getPlatformStatusLabel('not_measured', t)).toBe('未量度')
-  })
+it.each([
+  ['en', 'Recorded crawler rules', 'Consumer AI exposure'],
+  ['zh-HK', '已記錄的爬蟲規則', '消費者 AI 曝光'],
+] as const)('hides exposure placeholders publicly and keeps evidence available to the owner in %s', (lang, crawlerLabel, exposureLabel) => {
+  const summary = buildPublicResultSummary(scan)
+  const publicHtml = renderWithIntl(createElement(ResultClient, { lang, summary }), lang)
+  expect(publicHtml).not.toContain(exposureLabel)
+  expect(publicHtml).not.toContain('OAI-SearchBot')
+  expect(JSON.stringify(summary)).not.toContain('OAI-SearchBot')
+  const ownerHtml = renderWithIntl(createElement(ResultClient, { lang, summary, fullScan: scan, workspace: { clientId: 'owned-brand', canShare: false } }), lang)
+  expect(ownerHtml).toContain(crawlerLabel)
+  expect(ownerHtml).toContain('OAI-SearchBot')
+  expect(ownerHtml).not.toContain(exposureLabel)
 })

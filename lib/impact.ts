@@ -115,7 +115,7 @@ function derivePlatforms(results: Record<string, unknown>): PlatformVisibility[]
     status: 'not_measured', reason: 'Consumer exposure has not been measured by this technical scan' }))
 }
 
-function deriveCollectorAccess(results: Record<string, unknown>): CollectorAccess[] {
+export function deriveCollectorAccess(results: Record<string, unknown>): CollectorAccess[] {
   const merged = new Map<string, CollectorAccess>()
   for (const key of ['c1_robots', 'c3_bot_access']) {
     const entries = getCheck(results, key)?.collectorAccess

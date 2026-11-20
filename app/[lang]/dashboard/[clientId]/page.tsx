@@ -11,6 +11,7 @@ import type { MonthlyReportHomeEntry } from '@/lib/view-models/workspace-home'
 import { currentMonthReport } from '@/lib/monthly-report/report-entry'
 import { listMonthlyReports } from '@/lib/monthly-report/store'
 import { projectScanStatus } from '@/lib/view-models/scan-status'
+import { isScanId } from '@/lib/result/links'
 import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
@@ -99,12 +100,13 @@ export default async function DashboardPage({
   searchParams,
 }: {
   params: Promise<{ lang: string; clientId: string }>
-  searchParams: Promise<{ step?: string; scanId?: string }>
+  searchParams: Promise<{ step?: string; scanId?: string | string[] }>
 }) {
   const { lang, clientId } = await params
   // Read the raw step before defaulting: FEATURE ON must tell an absent/home
   // landing apart from the explicit `?step=overview` WorkspaceHome alias.
-  const { step: rawStep, scanId } = await searchParams
+  const { step: rawStep, scanId: requestedScan } = await searchParams
+  const scanId = isScanId(requestedScan) ? requestedScan : undefined
   const step = rawStep === 'overview' ? 'home' : rawStep ?? 'home'
   const t = await getTranslations('dashboard')
   const reportT = await getTranslations('reports')
@@ -237,7 +239,7 @@ export default async function DashboardPage({
       const specificScan = withNumericScore((specificRows[0] ?? null) as Scan | null)
 
       // Use specific scan if scanId was provided, otherwise use latest
-      const scan = (scanId ? specificScan : latestScan)
+      const scan = requestedScan === undefined ? latestScan : specificScan
 
       const scanHistory = (scanHistoryRows as unknown as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[])
         .map(withNumericScore)

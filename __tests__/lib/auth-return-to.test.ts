@@ -34,6 +34,13 @@ describe('validated return destination', () => {
   it.each(['scanId=one&scanId=two', 'scanId=bad%2Fid', 'scanId=', `scanId=${'a'.repeat(129)}`])('rejects ambiguous or invalid scan context: %s', query => {
     expect(safeReturnTo(`/en/dashboard/${client}?step=results&${query}`, 'en')).toBe(`/en/dashboard/${client}?step=results`)
   })
+  it.each(['en', 'zh-HK'] as const)('returns to the exact combined report after re-login in %s', lang => {
+    const report = `/${lang}/report/${client}/combined`
+    expect(normalizeAuthNext(lang, `${report}?scanId=${client}&access_token=secret`)).toBe(`${report}?scanId=${client}`)
+    expect(safeReturnTo(`${report}?scanId=bad%2Fid`, lang)).toBe(`${report}?scanId=`)
+    expect(safeReturnTo(`${report}?scanId=${client}&scanId=${client}`, lang)).toBe(`${report}?scanId=`)
+    expect(safeReturnTo(`/${lang}/report/not-a-brand/combined`, lang)).toBe(`/${lang}/dashboard`)
+  })
   it('restores a selected paid tier in the same locale', () => {
     expect(safeReturnTo('/zh-HK/pricing?plan=pro&extra=value#plan-pro', 'zh-HK')).toBe('/zh-HK/pricing?plan=pro#plan-pro')
     expect(safeReturnTo('/en/pricing?plan=basic&plan=pro', 'en')).toBe('/en/pricing')
