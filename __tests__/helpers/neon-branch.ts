@@ -19,8 +19,7 @@ import { redactSecrets } from '../../lib/security/redact-secrets.ts'
 // silently disable this file's two identity comparisons against it (real branch ids never
 // equal ''), rather than falling back to the real production id the guards exist to reject.
 //
-// The default is AISO, never the legacy project. createTestBranch() passes no
-// --parent, so a branch's parent is whatever the project's default branch is,
+// The default project is AISO. Ordinary test branches inherit the default branch,
 // and a Neon branch is a copy-on-write snapshot of its parent rather than an
 // empty database — resetPublicSchema() then drops and recreates public on that
 // copy. Defaulting to a project whose default branch holds customer data
@@ -36,8 +35,8 @@ export const PROJECT_ID = process.env.NEON_TEST_PROJECT_ID?.trim() || 'weathered
  * always move together. It is named here so the guards below can reject it by
  * identity rather than merely avoiding it by construction.
  *
- * This is a blocklist entry, not a parent selector: nothing passes it to
- * `branches create`. createTestBranch() additionally rejects any branch
+ * Schema-only runs also use this branch as the explicit schema source.
+ * createTestBranch() additionally rejects any branch
  * reporting `default` or `primary`, which catches the default branch
  * structurally even if this id were stale.
  */
@@ -124,11 +123,9 @@ function neonctl(args: string[]): string {
 }
 
 /**
- * `parentId` is the branch this one was cut from, taken from the same response
- * whose presence createTestBranch already requires as a proof of identity. It is
- * carried so a caller can blocklist the parent by its real id rather than
- * guessing one — delivery-attestations.test.ts treats C9E_PARENT_BRANCH_ID as a
- * refusal list, and a guessed value there silently protects nothing.
+ * `parentId` is the source branch ID for the destructive-suite blocklist.
+ * Ordinary branches report it in `parent_id`. A schema-only root has no stored
+ * parent, so its source is the explicit `--parent` passed at creation.
  */
 export type TestBranch = { id: string; parentId: string; connectionUri: string }
 
@@ -179,13 +176,15 @@ function productionHosts(): string[] {
 }
 
 export function createTestBranch(name: string): TestBranch {
+  const schemaOnly = process.env.NEON_TEST_SCHEMA_ONLY === 'true'
+  if (schemaOnly && !BRANCH_ID.test(PRODUCTION_BRANCH_ID)) throw new Error('A valid schema source branch is required')
   const expiresAt = new Date(Date.now() + BRANCH_TTL_MS).toISOString()
   const out = neonctl([
     'branches', 'create',
     '--project-id', PROJECT_ID,
     '--name', name,
     '--expires-at', expiresAt,
-    ...(process.env.NEON_TEST_SCHEMA_ONLY === 'true' ? ['--schema-only'] : []),
+    ...(schemaOnly ? ['--schema-only', '--parent', PRODUCTION_BRANCH_ID] : []),
   ])
 
   let parsed: {
@@ -214,10 +213,15 @@ export function createTestBranch(name: string): TestBranch {
   const identityProblems: string[] = []
   if (branch.project_id !== PROJECT_ID) identityProblems.push('project_id does not match')
   if (branch.name !== name) identityProblems.push(`name is ${String(branch.name)}, expected ${name}`)
-  if (typeof branch.parent_id !== 'string' || !branch.parent_id) identityProblems.push('it has no parent_id')
+  const sourceBranchId = schemaOnly ? PRODUCTION_BRANCH_ID : branch.parent_id
+  if (typeof sourceBranchId !== 'string' || !BRANCH_ID.test(sourceBranchId) || id === sourceBranchId) {
+    identityProblems.push('it has no distinct verified schema source')
+  }
+  if (schemaOnly && branch.parent_id) identityProblems.push('a schema-only root reported a parent')
+  if (branch.protected === true) identityProblems.push('it is protected')
   if (branch.default === true || branch.primary === true) identityProblems.push('it is the default branch')
   if (id === PRODUCTION_BRANCH_ID) identityProblems.push('it is the production branch')
-  if (identityProblems.length) {
+  if (identityProblems.length || typeof sourceBranchId !== 'string') {
     throw new Error(`Refusing unproven branch identity (${identityProblems.join('; ')}). No automatic cleanup is allowed; inspect the requested project.`)
   }
   // A safe child remains cleanable if retrieving its connection subsequently fails.
@@ -226,7 +230,7 @@ export function createTestBranch(name: string): TestBranch {
   // This receipt does not populate or replace the private creation registry.
   recordBranchProvenance({
     projectId: PROJECT_ID,
-    parentBranchId: branch.parent_id as string,
+    parentBranchId: sourceBranchId,
     branchId: id,
     branchName: name,
   })
@@ -263,9 +267,7 @@ export function createTestBranch(name: string): TestBranch {
   }
 
   created.set(id, uri)
-  // parent_id was already proved a non-empty string above, as part of this
-  // branch's identity; the cast records that rather than re-checking it.
-  return { id, parentId: branch.parent_id as string, connectionUri: uri }
+  return { id, parentId: sourceBranchId, connectionUri: uri }
 }
 
 /**

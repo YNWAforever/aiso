@@ -115,12 +115,24 @@ describe('createTestBranch', () => {
     expect(createTestBranch('test-branch').connectionUri).toBe(URI)
   })
 
-  it('requests a schema-only branch for the synthetic launch gate', async () => {
+  it('accepts a schema-only root and records its explicit source', async () => {
+    process.env.NEON_TEST_SCHEMA_ONLY = 'true'
+    mockNeonctl({ create: createResponse({ parent_id: null }) })
+    const { createTestBranch } = await load()
+    expect(createTestBranch('test-branch').parentId).toBe(PRODUCTION_BRANCH_ID)
+    const args = neonctlArgv(execFileSync.mock.calls[0][1] as string[])
+    expect(args.slice(args.indexOf('--schema-only'), args.indexOf('--schema-only') + 3))
+      .toEqual(['--schema-only', '--parent', PRODUCTION_BRANCH_ID])
+    expect(recordBranchProvenance).toHaveBeenCalledWith(expect.objectContaining({ parentBranchId: PRODUCTION_BRANCH_ID }))
+  })
+
+  it('rejects a branch with a parent on a schema-only run', async () => {
     process.env.NEON_TEST_SCHEMA_ONLY = 'true'
     mockNeonctl()
     const { createTestBranch } = await load()
-    createTestBranch('test-branch')
-    expect(neonctlArgv(execFileSync.mock.calls[0][1] as string[])).toContain('--schema-only')
+    expect(() => createTestBranch('test-branch')).toThrow(/schema-only root/)
+    expect(execFileSync).toHaveBeenCalledTimes(1)
+    expect(recordBranchProvenance).not.toHaveBeenCalled()
   })
 
   it('sets an expiry so a hard crash cannot leak the branch forever', async () => {
