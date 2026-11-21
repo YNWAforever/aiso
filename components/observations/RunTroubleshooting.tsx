@@ -7,7 +7,8 @@ import zh from '@/messages/zh-HK.json'
 const filters = ['all', 'failed', 'pending', 'unclassified'] as const
 
 export function RunTroubleshooting({ data, lang, clientId, selection, onOpenAnswer, error = false }: {
-  data: RunDto | null; lang: string; clientId: string; selection: ObservationSelection; onOpenAnswer?: (id: string) => void; error?: boolean
+  data: RunDto | null; lang: string; clientId: string; selection: ObservationSelection
+  onOpenAnswer?: (id: string, trigger: HTMLElement) => void; error?: boolean
 }) {
   const messages = lang === 'zh-HK' ? zh : en
   const copy = messages.maintenance
@@ -39,7 +40,7 @@ export function RunTroubleshooting({ data, lang, clientId, selection, onOpenAnsw
         {item.observationId && <a className="inline-flex min-h-11 items-center underline" onClick={event => {
           if (!onOpenAnswer || !item.observationId || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
           event.preventDefault()
-          onOpenAnswer(item.observationId)
+          onOpenAnswer(item.observationId, event.currentTarget)
         }} href={observationsHref(lang, clientId, {
           ...selection, observation: item.observationId,
         }, '#run-status')}>{messages.observations.smeViewAnswer}</a>}

@@ -66,16 +66,22 @@ export function ObservationDetailContent({observation:d,copy:c,smeCopilot=false,
     {technical}
   </div>
 }
-export function ObservationDetail({clientId,observationId,copy,onClose,smeCopilot=false,lang='en',selection}:{clientId:string;observationId:string;copy:ObservationCopy;onClose:()=>void;smeCopilot?:boolean;lang?:string;selection?:ObservationSelection}){
+export function ObservationDetail({clientId,observationId,copy,onClose,smeCopilot=false,lang='en',selection,restoreFocusTo}:{clientId:string;observationId:string;copy:ObservationCopy;onClose:()=>void;smeCopilot?:boolean;lang?:string;selection?:ObservationSelection;restoreFocusTo?:HTMLElement|null}){
   const run = selection?.run
   const login = `/${lang}/auth/login?${new URLSearchParams({next:observationsHref(lang, clientId, {...selection, observation:observationId})})}`
   const dialog=useRef<HTMLDialogElement>(null),closeButton=useRef<HTMLButtonElement>(null)
   const [observation,setObservation]=useState<ObservationDetailDto|null>(null),[error,setError]=useState<'unavailable' | 'sign-in' | null>(null),[retry,setRetry]=useState(0)
   useEffect(()=>{
-    const node=dialog.current,previous=document.activeElement instanceof HTMLElement?document.activeElement:null
+    const node = dialog.current
+    const previous = restoreFocusTo ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
     node?.showModal();closeButton.current?.focus()
-    return ()=>{node?.close();if(previous?.isConnected&&previous!==document.body)previous.focus();else document.querySelector<HTMLElement>('#sme-answers-title, #observation-heading')?.focus()}
-  },[])
+    return () => {
+      node?.close()
+      const target = previous?.isConnected && previous !== document.body
+        ? previous : document.querySelector<HTMLElement>('#sme-answers-title, #observation-heading')
+      target?.focus({ preventScroll: true })
+    }
+  }, [restoreFocusTo])
   useEffect(()=>{
     const controller=new AbortController();let current=true
     const timer=setTimeout(()=>controller.abort(),15_000)

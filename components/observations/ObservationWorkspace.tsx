@@ -64,6 +64,8 @@ function Workspace({
   const loaded = useRef(loadedKey)
   const selectionRef = useRef(filters)
   const openedWithHistory = useRef(false)
+  const [answerTrigger, setAnswerTrigger] = useState<HTMLElement | null>(null)
+  const answerReturn = useRef<HTMLElement | null>(null)
   const [platforms, setPlatforms] = useState(() => [
     ...new Set(
       [
@@ -86,6 +88,14 @@ function Workspace({
       setPlatformError(false)
       setDetailId(next.observation ?? null)
       openedWithHistory.current = false
+      if (!next.observation && answerReturn.current) {
+        const trigger = answerReturn.current
+        answerReturn.current = null
+        // Give the browser and App Router time to restore the previous hash and scroll position.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (trigger.isConnected) trigger.focus({ preventScroll: true })
+        }))
+      }
       if (loaded.current !== queryKey(next)) void load(next)
       else {
         cancelPending()
@@ -148,7 +158,9 @@ function Workspace({
     setFilters(next)
   }
 
-  function showAnswer(id: string) {
+  function showAnswer(id: string, trigger: HTMLElement) {
+    setAnswerTrigger(trigger)
+    answerReturn.current = trigger
     updateSelection(selectionRef.current, 'replace')
     openedWithHistory.current = true
     updateSelection({ ...selectionRef.current, observation: id })
@@ -202,7 +214,7 @@ function Workspace({
     <a className="inline-flex min-h-11 items-center underline" href={observationsHref(lang, clientId)}>{copy.browseWeeks}</a>
   </div>
   const detail = detailId && <ObservationDetail key={detailId} clientId={clientId} observationId={detailId}
-    copy={copy} lang={lang} selection={filters} smeCopilot={smeCopilot} onClose={closeAnswer} />
+    copy={copy} lang={lang} selection={filters} restoreFocusTo={answerTrigger} smeCopilot={smeCopilot} onClose={closeAnswer} />
   const weekLabel = (week: string) => formatDisplayDate(week, lang)
   const timeLabel = (date: string | null, fallback: string) => formatDisplayDate(date, lang, { withTime: true, zoneLabel: true }) || fallback
   const questionOptions = data.filterOptions?.questions
@@ -368,7 +380,7 @@ function Workspace({
                           </dl>
                         </details>
                       </div>
-                      <button type="button" className="min-h-11 rounded-lg border border-border px-4 text-sm font-medium" onClick={() => showAnswer(item.id)}>{item.hasAnswer ? copy.smeViewAnswer : copy.smeViewRecord}</button>
+                      <button type="button" className="min-h-11 rounded-lg border border-border px-4 text-sm font-medium" onClick={event => showAnswer(item.id, event.currentTarget)}>{item.hasAnswer ? copy.smeViewAnswer : copy.smeViewRecord}</button>
                     </li>
                   ))}
                 </ul>
@@ -572,7 +584,7 @@ function Workspace({
             <p>{item.model?`${copy.model}: ${item.model}`:copy.unknownModel}</p>
             <p>{item.market?`${copy.market}: ${item.market}`:copy.unknownMarket}</p>
             <p>{item.collectedAt?`${copy.collectedAt}: ${timeLabel(item.collectedAt, copy.unknownCollectionTime)}`:copy.unknownCollectionTime}</p>
-            <button type="button" className="min-h-11 rounded-lg border px-3" onClick={()=>showAnswer(item.id)}>{copy.viewDetails}</button>
+            <button type="button" className="min-h-11 rounded-lg border px-3" onClick={event => showAnswer(item.id, event.currentTarget)}>{copy.viewDetails}</button>
           </article>
         ))}
       </section>
