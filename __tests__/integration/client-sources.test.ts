@@ -5,7 +5,11 @@ import { approveSourceVersion, importSource, listSources, listAgentUsableSources
 import { buildSourcePack } from '@/lib/view-models/source-pack'
 import { listSourcePage } from '@/lib/sources/pagination'
 import { parseSourceQuery } from '@/lib/sources/query'
-import { loadOwnedOpportunitySources } from '@/lib/opportunities/store'
+import { loadOwnedOpportunitySources, loadSavedDraftMapping } from '@/lib/opportunities/store'
+import { deriveSuggestions } from '@/lib/opportunities/rules'
+import { buildScanEvidence } from '@/lib/scan-evidence'
+import { buildInitialDraftSnapshot } from '@/lib/work-items/snapshot'
+import { createDraftIfEvidenceCurrent, findOwnedDraft } from '@/lib/work-items/store'
 import { parseOpportunityQuery } from '@/lib/opportunities/query'
 import { previewSourceImport } from '@/lib/sources/import-preview'
 import { mergePreviewRetry } from '@/lib/sources/preview-state'
@@ -140,6 +144,40 @@ describe('T12 maintenance scale and complete imports',()=>{
   const first=await listSourcePage(scope,{limit:50,filter:'all',cursor:null})
   await sql`update client_sources set label='Changed',updated_at=clock_timestamp() where account_id=${ACCOUNT} and client_id=${clientId} and id=${first!.items[0].id}`
   await expect(listSourcePage(scope,parseSourceQuery(new URLSearchParams({cursor:first!.nextCursor!}),ACCOUNT,clientId))).rejects.toThrow('SOURCE_PAGE_CHANGED')
+ })
+ it('saves and reopens the failing check from an older scan after a later pass', async () => {
+  const clientId = await brand(ACCOUNT, 'Scan history')
+  const older = crypto.randomUUID(), later = crypto.randomUUID()
+  const check = 'c1_robots'
+  for (const [id, date, assessment] of [[older, '2026-10-01', 'fail'], [later, '2026-10-20', 'pass']] as const) {
+   const collectedAt = `${date}T08:00:00Z`
+   const origin = 'https://example.test'
+   const evidence = buildScanEvidence({ requestedUrl: origin, evaluatedUrl: origin, industry: null, region: 'HK', sitemapSource: 'unknown',
+    collectedAt, checks: { [check]: { assessment, collection: 'complete' } },
+    observations: [{ check: 'page', httpStatus: 200, collection: 'complete', target: { origin } }] })
+   await sql`insert into scans (id, account_id, client_id, url, domain, results, created_at)
+    values (${id}, ${ACCOUNT}, ${clientId}, ${origin}, 'example.test', ${JSON.stringify({evidence})}::jsonb, ${collectedAt})`
+  }
+  const scoped = await loadOwnedOpportunitySources(ACCOUNT, clientId, { cursor: null, selection: { scanId: older, check } })
+  const current = await loadOwnedOpportunitySources(ACCOUNT, clientId)
+  expect(current?.window.scanId).toBe(later)
+  expect(current!.sources.flatMap(deriveSuggestions)).toEqual([])
+  expect(scoped?.window.scanId).toBe(older)
+  const source = scoped!.sources[0]!, suggestion = deriveSuggestions(source)[0]!
+  expect(suggestion.source).toEqual({ kind: 'scan-check', id: older, checkKey: check })
+  const snapshot = buildInitialDraftSnapshot(suggestion, source, 'zh-HK')
+  try {
+   const draft = await createDraftIfEvidenceCurrent(ACCOUNT, clientId, null, { source: suggestion.source, ruleVersion: suggestion.ruleVersion,
+    fingerprint: suggestion.fingerprint, locale: 'zh-HK' }, snapshot, scoped!.evidenceVersions[0]!)
+   expect(draft?.created).toBe(true)
+   const saved = await loadSavedDraftMapping(ACCOUNT, clientId, [suggestion.key])
+   expect(saved.get(suggestion.key)).toBe(draft!.item.id)
+   expect((await findOwnedDraft(ACCOUNT, clientId, suggestion.key))?.evidenceSnapshot.source).toEqual(suggestion.source)
+   expect(await findOwnedDraft(OTHER, clientId, suggestion.key)).toBeNull()
+  } finally {
+   await sql`delete from work_item_sources where account_id=${ACCOUNT} and client_id=${clientId}`
+   await sql`delete from evidence_work_items where account_id=${ACCOUNT} and client_id=${clientId}`
+  }
  })
  it('all_250_observations_have_candidate_scope including null timestamps and same-time ties',async()=>{
   const clientId=await brand(ACCOUNT,'T12 observations')

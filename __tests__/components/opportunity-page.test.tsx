@@ -88,8 +88,15 @@ describe('opportunity page boundary', () => {
       }),
     )
     expect(h.auth).toHaveBeenCalledWith('zh-HK')
-    expect(h.load).toHaveBeenCalledWith('client')
+    expect(h.load).toHaveBeenCalledWith('client', new URLSearchParams())
     expect(html).toContain(zh.opportunities.savedDrafts)
+  })
+  it('passes the selected scan and check to the loader and the workspace', async () => {
+    const selection = { scanId: '00000000-0000-4000-8000-000000000002', check: 'c1_robots' }
+    h.load.mockResolvedValue(initial)
+    const page = await Page({ params: Promise.resolve({ lang: 'en', clientId: 'client' }), searchParams: Promise.resolve(selection) })
+    expect(h.load).toHaveBeenCalledWith('client', new URLSearchParams(selection))
+    expect(page.props.selection).toEqual(selection)
   })
   it.each(['CLIENT_NOT_FOUND', 'INVALID_OPPORTUNITY_QUERY'])(
     'hides %s',

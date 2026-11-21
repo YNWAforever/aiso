@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 import { notFound, redirect } from 'next/navigation'
 import { OpportunityWorkspace } from '@/components/opportunities/OpportunityWorkspace'
+import { isScanId, isCheckKey, selectionQuery, type ScanSelection } from '@/lib/result/links'
 import { requireAuth } from '@/lib/auth'
 import { isSmeCopilotUiEnabled } from '@/lib/flags'
 import { loadOwnedDraftClient } from '@/lib/work-items/store'
@@ -9,8 +10,9 @@ import {
   OpportunityServiceError,
 } from '@/lib/opportunities/service'
 export default async function OpportunitiesPage({
-  params,
+  params, searchParams,
 }: {
+  searchParams?: Promise<{scanId?: string | string[]; check?: string | string[]}>
   params: Promise<{ lang: string; clientId: string }>
 }) {
   const { lang: requestedLang, clientId } = await params
@@ -18,10 +20,17 @@ export default async function OpportunitiesPage({
   const profile = await requireAuth(lang)
   const smeCopilot = isSmeCopilotUiEnabled()
   const t = await getTranslations({ locale: lang, namespace: 'opportunities' })
-  const href = `/${lang}/dashboard/${encodeURIComponent(clientId)}/opportunities`
+  const { scanId, check } = await searchParams ?? {}
+  let selection: ScanSelection | undefined
+  if (scanId !== undefined || check !== undefined) {
+    if (!isScanId(scanId) || (check !== undefined && !isCheckKey(check))) notFound()
+    selection = {scanId:scanId.toLowerCase(), check}
+  }
+  const query = selection ? selectionQuery(selection) : ''
+  const href = `/${lang}/dashboard/${encodeURIComponent(clientId)}/opportunities${query ? `?${query}` : ''}`
   let initial
   try {
-    initial = await loadAuthenticatedOpportunities(clientId)
+    initial = await loadAuthenticatedOpportunities(clientId, new URLSearchParams(query))
   } catch (error) {
     const code = error instanceof OpportunityServiceError ? error.code : null
     if (code === 'UNAUTHENTICATED')
@@ -40,6 +49,7 @@ export default async function OpportunitiesPage({
         <OpportunityWorkspace
           clientId={clientId}
           smeCopilot={smeCopilot}
+          selection={selection}
           initial={null}
           initialError="unavailable"
         />
@@ -55,5 +65,5 @@ export default async function OpportunitiesPage({
       </main>
     )
   }
-  return <OpportunityWorkspace clientId={clientId} initial={initial} smeCopilot={smeCopilot} />
+  return <OpportunityWorkspace clientId={clientId} initial={initial} selection={selection} smeCopilot={smeCopilot} />
 }

@@ -18,12 +18,13 @@ vi.mock('next/navigation',()=>({useRouter:()=>({refresh:hooks.refresh}),useParam
 vi.mock('next-intl',async original=>{const actual=await original<typeof import('next-intl')>();return{...actual,
   useTranslations:(namespace:'dashboard'|'generatedWork')=>actual.createTranslator({locale:hooks.locale,messages:hooks.locale==='en'?en:zhHK,namespace})}})
 
+const scanDisplay = { state: 'unknown' as const, score: null, grade: null }
 const features=resolveCommercialEntitlement({plan:'enterprise',status:'active',stripe_subscription_id:'sub'}).features
 const check={status:'warn' as const,message:'Not evaluated by this render fixture'}
 const baseScan:Scan={id:'scan-a',url:'https://example.com',domain:'example.com',score:30,
   results:{c1_robots:check,c2_llms_txt:check,c3_bot_access:check,c4_structured_data:check,c5_extractability:check},
   account_id:'account-a',agent_status:null,created_at:'2026-10-15'}
-const recommendation={id:'rec',scan_id:'scan-a',platform:'gpt4o',category:'content',priority:'high' as const,recommendation:'Saved review action',impact_score:4,created_at:'2026-10-15'}
+const recommendation={id:'rec',scan_id:'scan-a',platform:'gpt4o',category:'c1_robots',priority:'high' as const,recommendation:'Saved review action',impact_score:4,created_at:'2026-10-15'}
 const receipt={version:1,producer:'native-improve.v1',token:'saved-token',state:'complete',fingerprint:'fingerprint',startedAt:'2026-10-15T00:00:00Z',leaseUntil:'2026-10-15T00:01:00Z',providerStarted:true,
   outcomes:{recommendations:'available',progress:'unavailable',competitors:'unavailable'},counts:{recommendations:1,progress:0,competitors:0},reasons:{progress:'no-classified-observations',competitors:'no-sourced-competitor-evidence'},sourceCheckIds:['c1_robots'],
   recommendationBasis:[{checkId:'c1_robots',assessment:'warn',action:'Review the saved crawler access check.',source:{scanId:'scan-a',checkId:'c1_robots'},limitations:['no-page-or-provider-excerpts','sampled-single-page']}]}
@@ -31,7 +32,7 @@ function response(scanId='scan-a',state='complete',status=200){return{ok:status<
 type Element=ReactElement<{children?:ReactNode;onClick?:()=>Promise<void>;disabled?:boolean}>
 function nodes(node:ReactNode):Element[]{return Children.toArray(node).flatMap(n=>isValidElement(n)?[n as Element,...nodes((n as Element).props.children)]:[])}
 function mount(getScan:()=>Scan=()=>baseScan){
-  const render=()=>{hooks.cursor=0;return ImproveStep({scan:getScan(),features,recommendations:[],progress:[],competitors:[]})}
+  const render=()=>{hooks.cursor=0;return ImproveStep({scanDisplay,scan:getScan(),features,recommendations:[],progress:[],competitors:[]})}
   return{html:()=>renderToStaticMarkup(render()),click:async()=>{const button=nodes(render()).find(n=>n.type==='button');expect(button).toBeDefined();await button!.props.onClick!()}}
 }
 beforeEach(()=>{hooks.slots=[];hooks.cursor=0;hooks.locale='en';hooks.clientId='client-a';hooks.refresh.mockReset();vi.stubGlobal('fetch',vi.fn())})
@@ -39,9 +40,9 @@ beforeEach(()=>{hooks.slots=[];hooks.cursor=0;hooks.locale='en';hooks.clientId='
 it.each(['en','zh-HK'] as const)('SME bridge is a separate localized read-only evidence link, not generated-text eligibility %s',lang=>{
   hooks.locale=lang
   const copy=(lang==='en'?en:zhHK).generatedWork
-  const props={scan:baseScan,features,recommendations:[],progress:[],competitors:[]}
+  const props={scanDisplay,scan:baseScan,features,recommendations:[],progress:[],competitors:[]}
   const html=renderToStaticMarkup(ImproveStep({...props,smeCopilot:true}))
-  expect(html).toContain(`href="/${lang}/dashboard/client-a/opportunities"`)
+  expect(html).toContain(`href="/${lang}/dashboard/client-a/opportunities?scanId=scan-a"`)
   expect(html).toContain(copy.reviewDraftEvidence)
   expect(html).toContain(copy.draftEvidenceNotice)
   expect(fetch).not.toHaveBeenCalled()
@@ -93,18 +94,18 @@ it.each(['pending','running','error',null])('keeps saved output visible under %s
 })
 it.each(['en','zh-HK'] as const)('shows honest native section receipts and actual %s translations',locale=>{
   hooks.locale=locale;hooks.cursor=0
-  const html=renderToStaticMarkup(ImproveStep({scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:receipt}},features,recommendations:[recommendation],progress:[],competitors:[]}))
+  const html=renderToStaticMarkup(ImproveStep({scanDisplay,scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:receipt}},features,recommendations:[recommendation],progress:[],competitors:[]}))
   const copy=(locale==='en'?en:zhHK).generatedWork
   expect(html).toContain('Saved review action');expect(html).toContain(copy.progressUnavailable);expect(html).toContain(copy.competitorsUnavailable);expect(html).toContain(copy.improveDraftNotice)
   expect(html).toContain(copy.websiteDraftsTitle);expect(html).toContain(copy.statusTitle);expect(html).toContain((locale==='en'?en:zhHK).checks.c1_robots);expect(html).not.toContain('>gpt4o<')
   expect(html).toContain('Review the saved crawler access check.');expect(html).toContain('c1_robots');expect(html).toContain(copy.basisNoExcerpts);expect(html).toContain(copy.basisSinglePage)
-  expect(html).toContain('?step=results&amp;scanId=scan-a')
+  expect(html.match(/\?step=results&amp;scanId=scan-a&amp;check=c1_robots#check-c1_robots/g)).toHaveLength(2)
   expect(html).not.toContain('native-improve.v1');expect(html).not.toContain('no-sourced-competitor-evidence')
 })
 it('keeps the selected scan, picker and actions in one panel',()=>{
   hooks.locale='en';hooks.cursor=0
   const scanChoices=[{id:'scan-a',domain:'example.com',score:30,grade:'C',created_at:'2026-10-15'}]
-  const html=renderToStaticMarkup(ImproveStep({scan:baseScan,features,recommendations:[],progress:[],competitors:[],scanChoices}))
+  const html=renderToStaticMarkup(ImproveStep({scanDisplay,scan:baseScan,features,recommendations:[],progress:[],competitors:[],scanChoices}))
   expect(html).toContain('workspace-scan-picker')
   expect(html).toContain('value="scan-a" selected=""')
   expect(html).toContain(en.generatedWork.actionTitle)
@@ -114,7 +115,7 @@ it('keeps the saved-scan picker visible when the action panel is locked',()=>{
   hooks.locale='en';hooks.cursor=0
   const free=resolveCommercialEntitlement({plan:'free',status:'active'}).features
   const scanChoices=[{id:'scan-a',domain:'example.com',score:30,grade:'C',created_at:'2026-10-15'}]
-  const html=renderToStaticMarkup(ImproveStep({scan:baseScan,features:free,recommendations:[],progress:[],competitors:[],scanChoices}))
+  const html=renderToStaticMarkup(ImproveStep({scanDisplay,scan:baseScan,features:free,recommendations:[],progress:[],competitors:[],scanChoices}))
   expect(html).toContain('workspace-scan-picker')
   expect(html).toContain('value="scan-a" selected=""')
   expect(html).not.toContain(en.generatedWork.actionTitle)
@@ -122,7 +123,7 @@ it('keeps the saved-scan picker visible when the action panel is locked',()=>{
 it('puts drafts before evidence and keeps both disclosures closed',()=>{
   hooks.locale='en';hooks.cursor=0
   const recommendations=Array.from({length:6},(_,index)=>({...recommendation,id:`rec-${index}`,recommendation:`Saved review action ${index+1}`}))
-  const html=renderToStaticMarkup(ImproveStep({scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:receipt}},features,recommendations,progress:[],competitors:[]}))
+  const html=renderToStaticMarkup(ImproveStep({scanDisplay,scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:receipt}},features,recommendations,progress:[],competitors:[]}))
   expect(html.indexOf(en.generatedWork.websiteDraftsTitle)).toBeLessThan(html.indexOf(en.generatedWork.basisTitle))
   expect((html.match(/<details/g)??[]).length).toBe(3)
   expect(html).not.toContain('open=""')
@@ -135,20 +136,34 @@ it.each((['en','zh-HK'] as const).flatMap(locale=>['gpt4o','gpt-4o','gemini-flas
   hooks.locale=locale;hooks.cursor=0
   const progress=[{id:'p',scan_id:'scan-a',platform,metric:'observed_mention_rate',current_value:40,previous_value:null,delta:null,created_at:'2026-10-15'}]
   const sampleReceipt={...receipt,outcomes:{...receipt.outcomes,progress:'available'},counts:{...receipt.counts,progress:1},progressSamples:[{platform,week:'2026-10-12',classified:5,mentioned:2}]}
-  const html=renderToStaticMarkup(ImproveStep({scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:sampleReceipt}},features,recommendations:[recommendation],progress,competitors:[]}))
+  const html=renderToStaticMarkup(ImproveStep({scanDisplay,scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:sampleReceipt}},features,recommendations:[recommendation],progress,competitors:[]}))
   expect(html).toContain('2 / 5');expect(html).toContain('2026-10-12');expect(html).toContain((locale==='en'?en:zhHK).generatedWork.progressSampleNotice)
   expect(html).not.toContain('+40');expect(html).not.toContain('100%')
 })
 it('withholds recommendation evidence from a different scan',()=>{
   hooks.cursor=0
   const foreign={...receipt,recommendationBasis:[{...receipt.recommendationBasis[0],action:'FOREIGN ACTION',source:{scanId:'foreign-scan',checkId:'c1_robots'}}]}
-  const html=renderToStaticMarkup(ImproveStep({scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:foreign}},features,recommendations:[recommendation],progress:[],competitors:[]}))
+  const html=renderToStaticMarkup(ImproveStep({scanDisplay,scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:foreign}},features,recommendations:[recommendation],progress:[],competitors:[]}))
   expect(html).not.toContain('FOREIGN ACTION')
 })
 it('renders Neon numeric strings at the Improve boundary without toFixed failures',()=>{
   hooks.cursor=0
   const progress=[{id:'progress',scan_id:'scan-a',platform:'gpt4o',metric:'mention_rate',current_value:'12.50',previous_value:null,delta:'1.25',created_at:'2026-10-15'}] as unknown as AgentProgress[]
   const competitors=[{id:'comp',scan_id:'scan-a',platform:'gpt4o',competitor_domain:'comp.example',competitor_name:'Competitor',mention_rate:'20.50',your_rate:'12.50',gap_analysis:'Saved comparison',created_at:'2026-10-15'}] as unknown as AgentCompetitor[]
-  const html=renderToStaticMarkup(ImproveStep({scan:{...baseScan,agent_status:'complete'},features,recommendations:[],progress,competitors}))
+  const html=renderToStaticMarkup(ImproveStep({scanDisplay,scan:{...baseScan,agent_status:'complete'},features,recommendations:[],progress,competitors}))
   expect(html).toContain('+1.3');expect(html).toContain('12.5');expect(html).toContain('Competitor');expect(html).not.toContain('NaN')
+})
+
+it.each(['failed','unknown'] as const)('hides the stored grade and score for %s collection',state=>{
+  const html=renderToStaticMarkup(ImproveStep({scan:{...baseScan,score:99,grade:'A'},scanDisplay:{state,score:null,grade:null},features,recommendations:[],progress:[],competitors:[]}))
+  expect(html).not.toContain('99 (A)')
+  expect(html).toContain(state === 'failed' ? en.portfolio.scanIncomplete : en.portfolio.scanUnknown)
+  expect(html).toContain('?step=scan&amp;scanId=scan-a')
+})
+
+it('links a legacy recommendation only to the selected scan',()=>{
+  const html=renderToStaticMarkup(ImproveStep({scanDisplay,scan:{...baseScan,agent_status:'complete',results:{...baseScan.results,_agent_generation:receipt}},features,recommendations:[{...recommendation,category:'content'}],progress:[],competitors:[]}))
+  const card=html.slice(html.indexOf('Saved review action'),html.indexOf('</li>',html.indexOf('Saved review action')))
+  expect(card).toContain('href="/en/dashboard/client-a?step=results&amp;scanId=scan-a"')
+  expect(card).not.toContain('#check-')
 })

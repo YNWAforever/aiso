@@ -27,7 +27,7 @@ for (const lang of ['en', 'zh-HK'] as const) for (const width of [320, 390, 768,
       empty: `${base}/opportunities`,
       dedup: `${base}/opportunities?draft=work-1`,
       long: `${base}/opportunities?draft=work-1`,
-      sitefix: `${base}?step=results&scanId=scan-a`,
+      sitefix: `${base}?step=results&scanId=scan-a&check=c1_robots#check-c1_robots`,
     }
     for (const state of states) {
       const html = readFileSync(`${directory}/${lang}-today-${state}.html`, 'utf8')

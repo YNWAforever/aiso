@@ -11,7 +11,8 @@ import type { MonthlyReportHomeEntry } from '@/lib/view-models/workspace-home'
 import { currentMonthReport } from '@/lib/monthly-report/report-entry'
 import { listMonthlyReports } from '@/lib/monthly-report/store'
 import { projectScanStatus } from '@/lib/view-models/scan-status'
-import { isScanId } from '@/lib/result/links'
+import { formatDisplayDate } from '@/lib/format/date'
+import { isCheckKey, isScanId, selectionQuery } from '@/lib/result/links'
 import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
@@ -100,12 +101,14 @@ export default async function DashboardPage({
   searchParams,
 }: {
   params: Promise<{ lang: string; clientId: string }>
-  searchParams: Promise<{ step?: string; scanId?: string | string[] }>
+  searchParams: Promise<{ step?: string | string[]; scanId?: string | string[]; check?: string | string[] }>
 }) {
   const { lang, clientId } = await params
   // Read the raw step before defaulting: FEATURE ON must tell an absent/home
   // landing apart from the explicit `?step=overview` WorkspaceHome alias.
-  const { step: rawStep, scanId: requestedScan } = await searchParams
+  const { step: requestedStep, scanId: requestedScan, check } = await searchParams
+  const rawStep = typeof requestedStep === 'string' ? requestedStep : undefined
+  const focusedCheck = isCheckKey(check) ? check : undefined
   const scanId = isScanId(requestedScan) ? requestedScan : undefined
   const step = rawStep === 'overview' ? 'home' : rawStep ?? 'home'
   const t = await getTranslations('dashboard')
@@ -120,13 +123,24 @@ export default async function DashboardPage({
   }
   const entitlement = resolveCommercialEntitlement(profile.accounts)
   const { features } = entitlement
+  function workspaceLoadError() {
+    const query = new URLSearchParams()
+    if (rawStep) query.set('step', rawStep)
+    for (const value of [requestedScan].flat()) {
+      if (value !== undefined) query.append('scanId', value)
+    }
+    if (focusedCheck) query.set('check', focusedCheck)
+    const anchor = focusedCheck && step === 'results' ? `#check-${focusedCheck}` : ''
+    const retryHref = `/${lang}/dashboard/${clientId}${query.size ? `?${query}` : ''}${anchor}`
+    return <LoadError title={t('workspace_load_error_title')} body={t('workspace_load_error_body')} retryHref={retryHref} backHref={`/${lang}/dashboard`} />
+  }
 
   if (step === 'home') {
     let owned
     try {
       owned = await loadOwnedWorkspace({ clientId, profile, scanId, withTaskCount: true, ...(smeCopilot ? { withSavedWork: true } : {}) })
     } catch {
-      return <LoadError title={t('workspace_load_error_title')} body={t('workspace_load_error_body')} retryHref={`/${lang}/dashboard/${clientId}`} backHref={`/${lang}/dashboard`} />
+      return workspaceLoadError()
     }
     if (!owned) notFound()
     // This month's deliverable, when one exists. Best-effort: a report read must
@@ -160,7 +174,7 @@ export default async function DashboardPage({
   if (step === 'monitor') {
     let owned
     try { owned = await loadOwnedPulse({ clientId, profile, withSignals: true }) } catch {
-      return <LoadError title={t('workspace_load_error_title')} body={t('workspace_load_error_body')} retryHref={`/${lang}/dashboard/${clientId}?step=monitor`} backHref={`/${lang}/dashboard`} />
+      return workspaceLoadError()
     }
     if (!owned) notFound()
     return <WhatAiSaysPage
@@ -318,11 +332,7 @@ export default async function DashboardPage({
 
   // A database failure must not look like a brand that does not exist.
   if (clientMissing) notFound()
-  if (loadError || !workspace) {
-    return (
-      <LoadError title={t('workspace_load_error_title')} body={t('workspace_load_error_body')} retryHref={`/${lang}/dashboard/${clientId}?step=${encodeURIComponent(step)}`} backHref={`/${lang}/dashboard`} />
-    )
-  }
+  if (loadError || !workspace) return workspaceLoadError()
 
   const {
     scan, scanHistory, summary, missed: _missed,
@@ -333,7 +343,7 @@ export default async function DashboardPage({
 
   const hasAggregatePulseBaseline = summary.some(row => !row.platform)
   const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
-  const scanDisplay = step === 'results' && scan ? projectScanStatus({ score: scan.score, grade: scan.grade ?? null, evidence: scan.results?.evidence }) : null
+  const scanDisplay = (step === 'results' || step === 'improve') && scan ? projectScanStatus({ score: scan.score, grade: scan.grade ?? null, evidence: scan.results?.evidence }) : null
 
   // Improve is its own review workspace, not a narrow legacy wizard step. It
   // owns one main landmark and one h1; the scan picker and report entry stay in
@@ -359,8 +369,10 @@ export default async function DashboardPage({
         </header>
 
         <div className="mt-6">
-          {scan ? (
+          {scan && scanDisplay ? (
             <ImproveStep
+              scanDisplay={scanDisplay}
+              focusedCheck={focusedCheck}
               smeCopilot={smeCopilot}
               scan={scan}
               features={features}
@@ -373,7 +385,7 @@ export default async function DashboardPage({
             <div className="space-y-4">
               {scanHistory.length > 0 ? (
                 <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-                  <ScanPicker lang={lang} action={`/${lang}/dashboard/${clientId}`} step="improve" scans={scanHistory} className="mb-0" />
+                  <ScanPicker lang={lang} action={`/${lang}/dashboard/${clientId}`} step="improve" focusedCheck={focusedCheck} scans={scanHistory} className="mb-0" />
                 </div>
               ) : null}
               <section className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
@@ -415,15 +427,15 @@ export default async function DashboardPage({
       <main className="flex-1 px-6 pb-10 max-w-3xl">
         {step === 'scan' && <ScanStep key={scan?.id ?? clientId} lang={lang} clientId={clientId} client={workspace.typedClient} scan={scan} scanHistory={scanHistory} quota={scanQuota} />}
 
-        {(step === 'results' || step === 'improve') && <ScanPicker lang={lang} action={`/${lang}/dashboard/${clientId}`} step={step} scans={scanHistory} selectedScanId={scan?.id} />}
+        {step === 'results' && <ScanPicker focusedCheck={focusedCheck} lang={lang} action={`/${lang}/dashboard/${clientId}`} step={step} scans={scanHistory} selectedScanId={scan?.id} />}
 
         {step === 'results' && scan && (scanDisplay?.score != null
-          ? <ResultsStep scan={scan} lang={lang} clientId={clientId} />
+          ? <ResultsStep focusedCheck={focusedCheck} scan={scan} lang={lang} clientId={clientId} />
           : <div className="space-y-4 rounded-xl border border-dash-border bg-dash-surface p-8">
-              <p className="break-all text-sm text-dash-muted">{scan.domain}</p>
+              <p className="break-all text-sm text-dash-muted">{scan.domain} · {formatDisplayDate(scan.created_at, lang, {withTime:true})}</p>
               <h2 className="text-lg font-semibold text-dash-text">{portfolioT(scanDisplay?.state === 'failed' ? 'scanIncomplete' : 'scanUnknown')}</h2>
               <p className="text-sm text-dash-muted">{t(scanDisplay?.state === 'failed' ? 'scan_collection_failed_body' : 'scan_collection_unknown_body')}</p>
-              <Link href={`/${lang}/dashboard/${clientId}?step=scan&scanId=${encodeURIComponent(scan.id)}`}
+              <Link href={`/${lang}/dashboard/${clientId}?step=scan&${selectionQuery({ scanId: scan.id, check: focusedCheck })}`}
                 className="inline-flex min-h-11 items-center rounded-lg border border-dash-border px-4 text-sm font-medium text-dash-text hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 {t('run_new_scan')}
               </Link>
@@ -439,24 +451,6 @@ export default async function DashboardPage({
             </Link>
           </div>
         )}
-
-        {step === 'improve' && scan && (
-          <ImproveStep
-            smeCopilot={smeCopilot}
-            scan={scan}
-            features={features}
-            recommendations={agentRecs}
-            progress={agentProg}
-            competitors={agentCompetitors}
-          />
-        )}
-        {step === 'improve' && !scan && (
-          <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
-            <p className="text-sm text-dash-text mb-1">{t('no_scan_yet')}</p>
-            <p className="text-xs text-dash-muted">{t('no_scan_yet_body')}</p>
-          </div>
-        )}
-
 
         {step === 'roi' && (
           <LocalTrustStep

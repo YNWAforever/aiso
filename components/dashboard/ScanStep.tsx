@@ -1,5 +1,6 @@
 'use client'
 
+import { findingHref, isCheckKey } from '@/lib/result/links'
 import { formatDisplayDate } from '@/lib/format/date'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -101,7 +102,9 @@ export function ScanStep({ lang, clientId, scan, scanHistory, client, quota = { 
         submitting.current = false
         return
       }
-      router.push(`/${lang}/dashboard/${clientId}?step=results&scanId=${data.id}`)
+      const brand = `/${lang}/dashboard/${clientId}`
+      const check = searchParams.get('check')
+      router.push(isCheckKey(check) ? findingHref(brand, data.id, check) : `${brand}?step=results&scanId=${encodeURIComponent(data.id)}`)
     } catch {
       setError(t('network_error'))
       setLoading(false)

@@ -38,7 +38,7 @@ const fixPriority = { checkKey: 'c3_bot_access', bucket: 'core', assessment: 'fa
 describe('buildTodayView', () => {
   it('retains the existing top observed website-fix priority ahead of monitoring', () => {
     const view = buildTodayView(home({ nextStep: { kind: 'confirm_prompts', href: '/en/dashboard/c1/prompts', labelKey: 'configure' }, priorities: { primaryAction: fixPriority }, health }), { lang: 'en' })
-    expect(view.action).toEqual({ kind: 'fix', href: '/en/dashboard/c1?step=results&scanId=s1', checkKey: 'c3_bot_access', points: 6 })
+    expect(view.action).toEqual({ kind: 'fix', href: '/en/dashboard/c1?step=results&scanId=s1&check=c3_bot_access#check-c3_bot_access', checkKey: 'c3_bot_access', points: 6 })
     expect(view.illustration).toBe('fixes')
   })
 
@@ -207,7 +207,7 @@ describe('Today saved-work continuation', () => {
     }
     const nextStep = { kind: 'start_run', labelKey: 'start', href: '/__locale__/dashboard/c1?step=monitor#first-monitoring' } as const
     const view = buildTodayView(home({ nextStep, priorities: { primaryAction: fixPriority }, health, savedWork: { status: 'ok', data: [savedTask()] } }), { lang: 'en' })
-    expect(view.action).toMatchObject({ kind: 'fix', checkKey: 'c3_bot_access', href: '/en/dashboard/c1?step=results&scanId=s1' })
+    expect(view.action).toMatchObject({ kind: 'fix', checkKey: 'c3_bot_access', href: '/en/dashboard/c1?step=results&scanId=s1&check=c3_bot_access#check-c3_bot_access' })
   })
 })
 

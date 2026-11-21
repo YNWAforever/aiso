@@ -2,6 +2,8 @@
 import {GroupedOpportunityCards} from './GroupedOpportunityCards'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { findingHref, selectionQuery, type ScanSelection } from '@/lib/result/links'
+import { formatDisplayDate } from '@/lib/format/date'
 import { EmptyState } from '@/components/ui/empty-state'
 import { scanOpportunityCopy } from '@/lib/opportunities/presentation'
 import { MaintenanceNextSteps,workflowCopyKeys,type WorkflowCopy } from '@/components/workspace/MaintenanceNextSteps'
@@ -9,21 +11,26 @@ import type { OpportunityResponse } from '@/lib/opportunities/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { DraftEditor } from '@/components/work-items/DraftEditor'
 import { EvidenceDetails } from './EvidenceDetails'
-type WorkspaceProps = { clientId: string; smeCopilot?: boolean } & (
+type WorkspaceProps = { clientId: string; smeCopilot?: boolean; selection?: ScanSelection } & (
   | { initial: OpportunityResponse; initialError?: never }
   | { initial: null; initialError: 'unavailable' }
 )
 export function OpportunityWorkspace(props: WorkspaceProps) {
-  return <OpportunityContent key={props.clientId} {...props} />
+  return <OpportunityContent key={`${props.clientId}:${props.selection ? selectionQuery(props.selection) : ''}`} {...props} />
 }
 function OpportunityContent({
   clientId,
   initial,
   initialError,
+  selection,
   smeCopilot = false,
 }: WorkspaceProps) {
   const t = useTranslations('opportunities'),
     locale = useLocale() === 'zh-HK' ? 'zh-HK' : 'en'
+  const checks = useTranslations('checks')
+  const brand = `/${locale}/dashboard/${encodeURIComponent(clientId)}`
+  const sourceHref = selection?.check ? findingHref(brand, selection.scanId, selection.check)
+    : selection ? `${brand}?step=results&${selectionQuery(selection)}` : undefined
   const [data, setData] = useState(initial),
     [refreshing, setRefreshing] = useState(false),
     [loadError, setLoadError] = useState(Boolean(initialError))
@@ -124,7 +131,8 @@ function OpportunityContent({
     setRefreshing(true)
     setLoadError(false)
     try {
-      const response = await fetch(`${base}/opportunities${more&&data?.window.nextCursor?`?cursor=${encodeURIComponent(data.window.nextCursor)}`:''}`, {
+      const query = selection ? selectionQuery(selection) : more && data?.window.nextCursor ? `cursor=${encodeURIComponent(data.window.nextCursor)}` : ''
+      const response = await fetch(`${base}/opportunities${query ? `?${query}` : ''}`, {
         cache: 'no-store',
         signal:AbortSignal.timeout(15000),
       })
@@ -333,7 +341,10 @@ function OpportunityContent({
     <main className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-4 text-foreground sm:p-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-bold">{t(smeCopilot ? 'sme.title' : 'title')}</h1>
-        <p>{t(smeCopilot ? 'sme.intro' : 'intro')}</p>
+        {selection ? <>
+          <p>{[selection.check && checks(selection.check), formatDisplayDate(data?.window.recordedAt, locale, {withTime:true})].filter(Boolean).join(' · ')}</p>
+          <a className="inline-flex min-h-11 items-center font-semibold text-primary-accessible underline" href={sourceHref}>{t('reviewSelectedScan')}</a>
+        </> : <p>{t(smeCopilot ? 'sme.intro' : 'intro')}</p>}
       </header>
       <div
         role="group"
@@ -368,7 +379,7 @@ function OpportunityContent({
         aria-busy={refreshing}
       >
         <div className="space-y-2 rounded-xl border border-border bg-card p-4">
-          {!smeCopilot ? windowDetails : <>
+          {selection ? (data?.sourceStates.scan === 'unavailable' && <p>{t('scan')}: {t('sourceStates.unavailable')}</p>) : !smeCopilot ? windowDetails : <>
             {data?.partial && <p>{t('partial')}</p>}
             {data?.window.pulseTruncated && <p>{t('pulseTruncated')}</p>}
             {data?.savedDraftsState === 'unavailable' && <p>{t('savedUnknown')}</p>}
@@ -387,7 +398,13 @@ function OpportunityContent({
             <p role="alert">{t(data ? 'loadError' : 'initialLoadError')}</p>
           )}
         </div>
-        {data && data.suggestions.length === 0 && (Object.values(data.sourceStates).includes('unavailable')
+        {selection && data?.suggestions.length === 0 && <>
+          {data.sourceStates.scan === 'ok' && <p>{t('noSelectedFinding')}</p>}
+          {data.sourceStates.scan === 'empty' && <p>{t('missingSelectedScan')}</p>}
+          {data.selectedDraftId && <button className={button} disabled={opening} onClick={() => open(data.selectedDraftId!)}>{t('openDraft')}</button>}
+          {data.savedDraftsState === 'unavailable' && <p>{t('savedUnknown')}</p>}
+        </>}
+        {!selection && data && data.suggestions.length === 0 && (Object.values(data.sourceStates).includes('unavailable')
           ? <p>{t('noAvailableSuggestions')}</p>
           : <EmptyState illustration="fixes" title={t('empty')} action={<a href={`/${locale}/dashboard/${clientId}?step=scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('emptyAction')}</a>} />)}
         {data?.groups&&<GroupedOpportunityCards clientId={clientId} smeCopilot={smeCopilot} groups={data.groups.filter(g=>g.context?.runId&&g.platforms.length>1)} suggestions={data.suggestions} onOpen={id=>void open(id)}/>}

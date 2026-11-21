@@ -135,10 +135,12 @@ export interface OpportunityWindow {
   pulseLimit: 200
   pulseTruncated: boolean
   scanId: string | null
+  recordedAt?: string | null
   nextCursor?:string|null
   asOf?:string
 }
 export interface OpportunityResponse {
+  selectedDraftId?: string | null
   groups?:OpportunityGroup[]
   schemaVersion: 1
   window: OpportunityWindow

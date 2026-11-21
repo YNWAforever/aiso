@@ -77,3 +77,23 @@ it('marks a derived but invalid snapshot as limited evidence rather than offerin
  expect(result.suggestions[0]).toMatchObject({saveAvailability:'limited-evidence',savedState:'unsaved'})
  expect(result.partial).toBe(true)
 })
+
+it('selects one historical check and can reopen its saved draft after the finding disappears', async () => {
+  const params = new URLSearchParams({scanId:id, check:'c1_robots'})
+  const envelope = buildScanEvidence({ requestedUrl:'https://example.test', evaluatedUrl:'https://example.test', industry:null, region:'HK', sitemapSource:null,
+    checks:{c1_robots:{assessment:'warn',collection:'complete'}, c11_faq:{assessment:'fail',collection:'complete'}}, collectedAt:'2026-09-02T10:00:00Z' })
+  const source = {kind:'scan-check', scanId:id, recordedAt:'2026-09-02T10:00:00Z', envelope}
+  mocks.load.mockResolvedValue({...sourceWindow('empty','ok'), sources:[source,{...source,scanId:client}]})
+  const result = await loadAuthenticatedOpportunities(client,params)
+  expect(result.suggestions).toHaveLength(1)
+  const suggestion = result.suggestions[0]!
+  expect(suggestion).toMatchObject({source:{id, checkKey:'c1_robots'}, savedState:'unsaved', saveAvailability:'available'})
+  mocks.saved.mockResolvedValue(new Map([[suggestion.key,'existing-draft']]))
+  mocks.load.mockResolvedValue({...sourceWindow('empty','unavailable'),sources:[]})
+  expect(await loadAuthenticatedOpportunities(client,params)).toMatchObject({suggestions:[],selectedDraftId:'existing-draft'})
+  expect(mocks.saved).toHaveBeenLastCalledWith('account',client,[suggestion.key])
+})
+it.each([`scanId=${id}&scanId=${id}`, `scanId=${id}&check=unknown`, `scanId=${id}&cursor=x`, 'check=c1_robots'])('rejects malformed finding selection %s',async query=>{
+  await expect(loadAuthenticatedOpportunities(client,new URLSearchParams(query))).rejects.toMatchObject({status:400})
+  expect(mocks.load).not.toHaveBeenCalled()
+})

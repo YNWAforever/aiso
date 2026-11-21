@@ -1,7 +1,15 @@
 import { useTranslations } from 'next-intl'
+import { isCheckKey } from '@/lib/result/links'
+import type { EvidenceCheckKey } from '@/lib/scan-evidence-versions'
 import type { AgentRecommendation } from '@/lib/types'
 
-type Props = { recommendations: AgentRecommendation[]; initialLimit?: number }
+type Props = {
+  recommendations: AgentRecommendation[]
+  scanId?: string
+  scanHref?: string
+  evidenceLinks?: Map<EvidenceCheckKey, string>
+  initialLimit?: number
+}
 
 /**
  * Saved review suggestions, in the order the server read them (priority, then
@@ -10,18 +18,25 @@ type Props = { recommendations: AgentRecommendation[]; initialLimit?: number }
  * The first three are visible; the rest are one native disclosure away so the
  * page stays scannable on a phone without hiding the saved output.
  */
-export function AgentRecommendations({ recommendations, initialLimit = 3 }: Props) {
+export function AgentRecommendations({ recommendations, scanId, scanHref, evidenceLinks, initialLimit = 3 }: Props) {
   const t = useTranslations('dashboard')
+  const generated = useTranslations('generatedWork')
+  const opportunity = useTranslations('opportunities')
   if (!recommendations.length) {
     return <p role="status" className="text-sm leading-relaxed text-muted-foreground">{t('recs_empty')}</p>
   }
 
-  const card = (r: AgentRecommendation, index: number) => (
+  const card = (r: AgentRecommendation, index: number) => {
+    const exact = isCheckKey(r.category) ? evidenceLinks?.get(r.category) : undefined
+    const href = r.scan_id === scanId ? exact ?? scanHref : undefined
+    return (
     <li key={r.id} className="min-w-0 rounded-xl border border-border bg-background p-4">
       <p className="text-xs font-bold tracking-[0.14em] text-muted-foreground">{String(index + 1).padStart(2, '0')}</p>
       <p className="mt-2 break-words text-sm leading-relaxed text-foreground">{r.recommendation}</p>
+      {href && <a className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline" href={href}>{exact ? generated('viewSourceScan') : opportunity('reviewSelectedScan')}</a>}
     </li>
-  )
+    )
+  }
   const visible = recommendations.slice(0, initialLimit)
   const rest = recommendations.slice(initialLimit)
 

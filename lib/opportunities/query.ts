@@ -1,8 +1,16 @@
+import { isScanId, isCheckKey, type ScanSelection } from '@/lib/result/links'
+
 export type OpportunityCursor={accountId:string;clientId:string;week:string;asOf:string;recordedAt:string|null;id:string}
-export type OpportunityQuery={cursor:OpportunityCursor|null}
+export type OpportunityQuery={cursor:OpportunityCursor|null; selection?:ScanSelection}
 export function encodeOpportunityCursor(cursor:OpportunityCursor){return Buffer.from(JSON.stringify(cursor)).toString('base64url')}
 export function parseOpportunityQuery(params:URLSearchParams,accountId:string,clientId:string):OpportunityQuery{
  const keys=[...params.keys()]
+ if(params.has('scanId')) {
+   const scanId = params.get('scanId'), check = params.get('check')
+   if (!isScanId(scanId) || (check !== null && !isCheckKey(check)) ||
+       keys.some(key => key !== 'scanId' && key !== 'check') || keys.length !== new Set(keys).size) throw new Error('INVALID_OPPORTUNITY_QUERY')
+   return {cursor:null, selection:{scanId:scanId.toLowerCase(), ...(check ? {check} : {})}}
+ }
  if(keys.length>1||keys.some(key=>key!=='cursor'))throw new Error('INVALID_OPPORTUNITY_QUERY')
  const raw=params.get('cursor')
  if(raw===null)return{cursor:null}

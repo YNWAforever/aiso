@@ -244,3 +244,11 @@ it('does not read monthly reports for a plan without online reports', async () =
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.project).toHaveBeenCalledWith(expect.anything(), null)
 })
+
+it.each(['results','improve','overview'])('retries the same scan and check after a %s load failure',async step=>{
+  const scanId = '00000000-0000-4000-8000-000000000002'
+  const load = step === 'overview' ? mocks.load : mocks.sql
+  load.mockRejectedValueOnce(new Error('fixture load failure'))
+  const error = await render({step,scanId,check:'c1_robots'})
+  expect(error.props.retryHref).toBe(`/en/dashboard/client-a?step=${step}&scanId=${scanId}&check=c1_robots${step === 'results' ? '#check-c1_robots' : ''}`)
+})

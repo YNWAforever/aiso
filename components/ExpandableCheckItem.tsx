@@ -19,14 +19,16 @@ interface Props {
   explanation?: CheckExplanation
   factualState?: FactualDensityState
   assessment?: CheckAssessment
+  anchorId?: string
+  initiallyOpen?: boolean
   children?: ReactNode
 }
 
-export function ExpandableCheckItem({ label, result, message, explanation, factualState, assessment, children }: Props) {
+export function ExpandableCheckItem({ label, result, message, explanation, factualState, assessment, anchorId, initiallyOpen = false, children }: Props) {
   const t = useTranslations('checkItem')
   const visuals = useTranslations('visuals')
   const evidence = useTranslations('scanEvidence')
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(initiallyOpen)
   const detailsId = useId()
   const topical = result.message.startsWith('topical_authority_') ? topicalAuthorityState(result) : null
   const legacy = topical === 'legacy' || factualState === 'legacy'
@@ -54,9 +56,9 @@ export function ExpandableCheckItem({ label, result, message, explanation, factu
   const rowClass = 'flex min-h-11 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 px-2 py-2 text-left text-sm'
   return (
     <div className="border-b border-border last:border-0">
-      {canExpand ? <button type="button" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(value => !value)}
+      {canExpand ? <button id={anchorId} type="button" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(value => !value)}
         className={`${rowClass} rounded-lg hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary`}>{header}</button>
-        : <div className={rowClass}>{header}</div>}
+        : <div id={anchorId} tabIndex={anchorId ? -1 : undefined} className={rowClass}>{header}</div>}
       {canExpand && <div id={detailsId} hidden={!open} className="mx-1 mb-3 space-y-3 rounded-lg border border-border bg-muted/40 p-4 text-sm">
         {explanation && status !== 'unknown' && <dl className="space-y-3">
           <div><dt className="font-semibold">{t('question')}</dt><dd className="mt-1 text-muted-foreground">{explanation.question}</dd></div>

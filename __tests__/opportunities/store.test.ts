@@ -78,3 +78,14 @@ it('reads the key from work_item_sources, filtering to live rows', async () => {
   expect(query).toContain('from work_item_sources s')
   expect(query).toContain('s.withdrawn_at is null')
 })
+
+it('looks up only the selected scan under the account and client', async () => {
+  sql.mockResolvedValueOnce([{id:client}]).mockResolvedValueOnce([{id, client_id:client, account_id:account, created_at:row.created_at, envelope}])
+  const result = await loadOwnedOpportunitySources(account, client, {cursor:null, selection:{scanId:id, check:'c1_robots'}})
+  expect(sql).toHaveBeenCalledTimes(2)
+  const [strings, ...values] = sql.mock.calls[1]!
+  expect(strings.join('?')).toContain('s.id = ?::uuid')
+  expect(values).toEqual([client, account, id, id])
+  expect(result?.window).toMatchObject({scanId:id, recordedAt:row.created_at})
+  expect(result?.sources).toHaveLength(1)
+})

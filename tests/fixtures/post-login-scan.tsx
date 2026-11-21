@@ -1,4 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl'
+import { OpportunityWorkspace } from '@/components/opportunities/OpportunityWorkspace'
+import type { OpportunityResponse } from '@/lib/opportunities/types'
+import { isCheckKey } from '@/lib/result/links'
 import { ScanPicker } from '@/components/dashboard/ScanPicker'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ScanStep } from '@/components/dashboard/ScanStep'
@@ -20,12 +23,16 @@ export const fixtureScans = [
 ].map(scan => ({ ...scan, account_id: 'synthetic-account', url: 'https://example.invalid/guide', domain: 'example.invalid', industry: 'technology', region: 'HK', grade: 'C', results: {} } as Scan))
 
 /** Presentation-only fixture: real components, synthetic navigation and API boundaries. */
-export function PostLoginScanFixture({ href }: { href: string }) {
+export type FindingFixture = { scans: Scan[]; opportunities: OpportunityResponse }
+export function PostLoginScanFixture({ href, finding }: { href: string; finding?: FindingFixture }) {
   const url = new URL(href)
   const lang = url.pathname.startsWith('/zh-HK/') ? 'zh-HK' : 'en'
   const base = `/${lang}/dashboard/${fixtureBrand}`
   const selected = url.searchParams.get('scanId')
-  const scan = fixtureScans.find(item => item.id === selected) ?? fixtureScans[0]!
+  const scans = finding?.scans.some(scan => scan.id === selected) ? finding.scans : fixtureScans
+  const scan = scans.find(item => item.id === selected) ?? scans[0]!
+  const check = url.searchParams.get('check')
+  const focusedCheck = isCheckKey(check) ? check : undefined
   const features = resolveCommercialEntitlement({ plan: 'pro', status: 'active', stripe_subscription_id: 'synthetic-subscription' }).features
   const step = url.searchParams.get('step') ?? 'results'
   const improveReceipt = {
@@ -40,7 +47,7 @@ export function PostLoginScanFixture({ href }: { href: string }) {
   }
   const improveScan = step === 'improve' ? { ...scan, results: { ...scan.results, _agent_generation: improveReceipt } } : scan
   const recommendations = step === 'improve'
-    ? [{ id: 'fixture-recommendation', scan_id: scan.id, platform: 'gpt4o', category: 'content', priority: 'high' as const,
+    ? [{ id: 'fixture-recommendation', scan_id: scan.id, platform: 'gpt4o', category: 'c1_robots', priority: 'high' as const,
       recommendation: 'Synthetic saved review action.', impact_score: 4, created_at: '2026-10-20T08:00:00Z' }]
     : []
   const nav = buildDashboardNav({ lang, clientId: fixtureBrand, features, scanId: selected })
@@ -53,14 +60,16 @@ export function PostLoginScanFixture({ href }: { href: string }) {
           <nav aria-label="Fixture workspace">{nav.filter(item => ['scan', 'reports'].includes(item.key)).flatMap<NavItem>(item => item.items.length ? item.items : [item]).map(item => <a key={item.key} href={item.href} className="mr-4 inline-flex min-h-11 items-center">{copy.dashboard[item.labelKey as keyof typeof copy.dashboard] as string}</a>)}
             <a href={`/${lang}/auth/logout?next=${encodeURIComponent(url.pathname + url.search)}`}>Fixture sign out</a>
           </nav>
-          {url.pathname.includes('/reports') ? <>
-            <ScanPicker lang={lang} action={`${base}/reports/new`} scans={fixtureScans} selectedScanId={selected} />
+          {url.pathname.endsWith('/opportunities') && finding ?
+            <OpportunityWorkspace clientId={fixtureBrand} initial={finding.opportunities} selection={{scanId:scan.id, check:focusedCheck}} smeCopilot />
+          : url.pathname.includes('/reports') ? <>
+            <ScanPicker lang={lang} action={`${base}/reports/new`} scans={scans} selectedScanId={selected} />
             {selected && <ReportBuilder key={selected} lang={lang} clientId={fixtureBrand} scanId={scan.id} initialReport={null}
               initialSnapshot={sampleReportSnapshot(lang, { agency: 'Synthetic agency', brand: 'Synthetic brand', summary: 'Synthetic saved scan summary.', method: 'Synthetic evidence only.' })} />}
-          </> : step === 'scan' ? <ScanStep lang={lang} clientId={fixtureBrand} scan={scan} scanHistory={fixtureScans} /> : step === 'improve' ?
-            <ImproveStep scan={improveScan} features={features} recommendations={recommendations} progress={[]} competitors={[]} scanChoices={fixtureScans} /> : <>
-              <ScanPicker lang={lang} action={base} step="results" scans={fixtureScans} selectedScanId={scan.id} />
-              <ResultsStep scan={scan} lang={lang} clientId={fixtureBrand} />
+          </> : step === 'scan' ? <ScanStep lang={lang} clientId={fixtureBrand} scan={scan} scanHistory={scans} /> : step === 'improve' ?
+            <ImproveStep focusedCheck={focusedCheck} scanDisplay={{state:'limited', score:scan.score, grade:scan.grade ?? null}} scan={improveScan} features={features} recommendations={recommendations} progress={[]} competitors={[]} scanChoices={scans} /> : <>
+              <ScanPicker lang={lang} action={base} focusedCheck={focusedCheck} step="results" scans={scans} selectedScanId={scan.id} />
+              <ResultsStep focusedCheck={focusedCheck} scan={scan} lang={lang} clientId={fixtureBrand} />
             </>}
         </>}
     </main>

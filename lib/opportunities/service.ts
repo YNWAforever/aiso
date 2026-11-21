@@ -1,3 +1,4 @@
+import { opportunityKey } from './fingerprint'
 import {groupOpportunities} from './groups'
 import { buildInitialDraftSnapshot } from '@/lib/work-items/snapshot'
 import 'server-only'
@@ -30,9 +31,11 @@ export async function loadAuthenticatedOpportunities(clientId: string,params=new
     const partial = Object.values(sourceStates).includes('unavailable')
     if (partial) diagnostic('sources')
     if (Object.values(sourceStates).every(state => state === 'unavailable')) throw new OpportunityServiceError('OPPORTUNITIES_UNAVAILABLE')
+    const selection = query.selection
+    const selectedKey = selection?.check ? opportunityKey('scan-check-gap.v1', {kind:'scan-check', id:selection.scanId, checkKey:selection.check}) : null
     const suggestions = snapshot.sources.filter(source =>
       (source.kind === 'pulse-metric' && sourceStates.pulse === 'ok') || (source.kind === 'scan-check' && sourceStates.scan === 'ok'),
-    ).flatMap(deriveSuggestions).sort((a, b) => {
+    ).flatMap(deriveSuggestions).filter(item => !selection || (item.source.kind === 'scan-check' && item.source.id === selection.scanId && (!selectedKey || item.key === selectedKey))).sort((a, b) => {
       const compare = (left: string, right: string) => left < right ? -1 : left > right ? 1 : 0
       // SQL projects UTC timestamps with six fractional digits; compare without losing microseconds.
       return compare(a.source.kind, b.source.kind)
@@ -54,9 +57,10 @@ export async function loadAuthenticatedOpportunities(clientId: string,params=new
     const limitedEvidence = suggestions.some(item => saveAvailability.get(item.key) !== 'available')
     let savedDraftsState: OpportunityResponse['savedDraftsState'] = 'ok'
     let saved = new Map<string, string>()
-    try { saved = await loadSavedDraftMapping(profile.account_id, clientId, suggestions.map(item => item.key)) }
+    try { saved = await loadSavedDraftMapping(profile.account_id, clientId, selectedKey ? [selectedKey] : suggestions.map(item => item.key)) }
     catch { savedDraftsState = 'unavailable'; diagnostic('saved-drafts') }
     return {
+      ...(selectedKey && {selectedDraftId:saved.get(selectedKey) ?? null}),
       groups:groupOpportunities(suggestions.map(s=>({...s,savedDraftId:saved.get(s.key)??null}))),
       schemaVersion: 1,
       window: { ...snapshot.window },

@@ -2,7 +2,7 @@ import type { GettingStartedStep } from '@/lib/view-models/getting-started'
 import type { WorkspaceHome } from './workspace-home'
 import type { IllustrationName } from '@/components/ui/illustration'
 import { taskHref } from '@/lib/tasks/navigation'
-import { scanReportHref } from '@/lib/result/links'
+import { findingHref, scanReportHref } from '@/lib/result/links'
 import type { TaskStatus } from '@/lib/tasks/status'
 import type { StudioHomeTemplate } from '@/lib/conversation-studio/home'
 
@@ -99,7 +99,7 @@ export function buildTodayView(workspace: WorkspaceHome, input: { lang: string; 
   let action: TodayAction
   let illustration: IllustrationName
   if (monitorBound && top && health) {
-    action = { kind: 'fix', href: `${brand}?step=results&scanId=${encodeURIComponent(health.scanId)}`, checkKey: top.checkKey, points: Number(top.pointsAtStake.toFixed(1)) }
+    action = { kind: 'fix', href: findingHref(brand, health.scanId, top.checkKey), checkKey: top.checkKey, points: Number(top.pointsAtStake.toFixed(1)) }
     illustration = 'fixes'
   } else if (step) {
     // The workspace projector is locale-neutral. Only replace its path prefix;

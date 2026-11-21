@@ -6,6 +6,7 @@ import { parseDraftEdit } from '@/lib/work-items/edit-input'
 import { EDIT_SPEC_DESCRIPTION_MAX, EDIT_SPEC_SCHEMA_TYPES, EDIT_SPEC_TITLE_MAX, type EditSpecSchemaType } from '@/lib/site-edit/edit-spec'
 import { specDirty as isSpecDirty, specFields, specRequest, type SpecFields, type SpecMode } from '@/lib/site-edit/editor'
 import type { WorkItem } from '@/lib/work-items/schema'
+import { findingHref, isCheckKey } from '@/lib/result/links'
 import { EvidenceDetails } from '@/components/opportunities/EvidenceDetails'
 export function DraftEditor({
   clientId,
@@ -127,6 +128,7 @@ export function DraftEditor({
       {t(smeCopilot ? 'sme.prepareReview' : 'versionHistory')}
     </a>
   )
+  const evidence = saved.evidenceSnapshot.evidence
   const savedEvidence = <>
     <p>{t('snapshotNotice')}</p>
     <p className="whitespace-pre-wrap break-words">{saved.evidenceSnapshot.initialTitle}</p>
@@ -144,6 +146,10 @@ export function DraftEditor({
     >
       <h2 className="text-xl font-semibold">{t(smeCopilot ? 'sme.editDraft' : 'savedDraft')}</h2>
       <p>{t('draftOnly')}</p>
+      {evidence.kind === 'scan-check' && isCheckKey(evidence.checkKey) && <a
+        href={findingHref(`/${lang}/dashboard/${encodeURIComponent(clientId)}`, evidence.scanId, evidence.checkKey)}
+        className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline"
+      >{t('compareFinding')}</a>}
       {smeCopilot && <div className="space-y-2 text-sm text-muted-foreground">
         <p>{t(saved.evidenceSnapshot.evidence.kind === 'pulse-metric' ? 'pulseUnknowns' : 'redacted')}</p>
         {saved.evidenceSnapshot.evidence.kind === 'scan-check' && saved.evidenceSnapshot.evidence.limited && <p>{t('limitedScan')}</p>}

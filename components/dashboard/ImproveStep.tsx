@@ -1,4 +1,7 @@
 'use client'
+import { findingHref, isCheckKey, selectionQuery } from '@/lib/result/links'
+import type { EvidenceCheckKey } from '@/lib/scan-evidence-versions'
+import type { projectScanStatus } from '@/lib/view-models/scan-status'
 import { formatDisplayDate } from '@/lib/format/date'
 import {useEffect,useRef,useState} from 'react'
 import { useTranslations } from 'next-intl'
@@ -18,6 +21,8 @@ import {runtimePlatformsFor} from '@/lib/pulse/platforms'
 
 type Props = {
   scan: Scan
+  scanDisplay: ReturnType<typeof projectScanStatus>
+  focusedCheck?: EvidenceCheckKey
   smeCopilot?: boolean
   features: import('@/lib/types').PlanFeatures
   recommendations: AgentRecommendation[]
@@ -33,10 +38,11 @@ const limitationCopy:Record<string,'basisOriginOnly'|'basisNoExcerpts'|'basisSin
   'origin-only-identity':'basisOriginOnly','no-page-or-provider-excerpts':'basisNoExcerpts',
   'sampled-single-page':'basisSinglePage','scan-record-retention':'basisRetention',
 }
+type Basis = NonNullable<AgentGenerationReceipt['recommendationBasis']>[number]
 function recommendationBasis(receipt:AgentGenerationReceipt|null,scanId:string){
-  return (Array.isArray(receipt?.recommendationBasis)?receipt.recommendationBasis:[]).filter(item=>
-    item&&typeof item.checkId==='string'&&receipt?.sourceCheckIds.includes(item.checkId)
-    &&['warn','fail'].includes(item.assessment)&&typeof item.action==='string'&&item.action.trim()
+  return (Array.isArray(receipt?.recommendationBasis)?receipt.recommendationBasis:[]).filter((item): item is Basis & {checkId: EvidenceCheckKey} =>
+    item != null && isCheckKey(item.checkId) && receipt?.sourceCheckIds.includes(item.checkId) === true
+    && ['warn','fail'].includes(item.assessment) && typeof item.action === 'string' && item.action.trim().length > 0
     &&item.source?.scanId===scanId&&item.source.checkId===item.checkId
     &&Array.isArray(item.limitations)&&item.limitations.every(value=>typeof value==='string'))
 }
@@ -48,10 +54,11 @@ function classifiedSamples(receipt:AgentGenerationReceipt|null,platforms:string[
     &&item.mentioned>=0&&item.mentioned<=item.classified)
 }
 
-export function ImproveStep({ scan, features, recommendations, progress, competitors, scanChoices, smeCopilot = false }: Props) {
+export function ImproveStep({ scan, scanDisplay, focusedCheck, features, recommendations, progress, competitors, scanChoices, smeCopilot = false }: Props) {
   const t = useTranslations('dashboard')
   const generated=useTranslations('generatedWork')
   const checks=useTranslations('checks')
+  const portfolio=useTranslations('portfolio')
   const {clientId,lang}=useParams<{clientId:string;lang:string}>()
   const router=useRouter()
   const key=`${clientId}:${scan.id}`
@@ -104,7 +111,11 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
   }
 
   const scanDate = formatDisplayDate(scan.created_at, lang, { withTime: true })
-  const scanScore = scan.score != null ? `${scan.score}${scan.grade ? ` (${scan.grade})` : ''}` : '—'
+  const brand = `/${lang}/dashboard/${encodeURIComponent(clientId)}`
+  const scanScore = scanDisplay.score !== null ? `${scanDisplay.score}${scanDisplay.grade ? ` (${scanDisplay.grade})` : ''}`
+    : portfolio(scanDisplay.state === 'failed' ? 'scanIncomplete' : 'scanUnknown')
+  const evidenceLinks = new Map(basis.map(item => [item.checkId, findingHref(brand, scan.id, item.checkId)]))
+  const scanHref = `${brand}?step=results&${selectionQuery({ scanId: scan.id })}`
 
   return (
     <div className="space-y-4">
@@ -116,10 +127,14 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
               <h2 id="improve-action-heading" className="mt-2 text-sm font-semibold text-muted-foreground">{generated('selectedScan')}</h2>
               <p className="mt-1 break-all text-lg font-bold text-foreground">{scan.domain}</p>
               <p className="mt-1 text-sm text-muted-foreground">{scanDate} · {scanScore}</p>
+               {scanDisplay.score === null && <>
+                 <p className="mt-2 text-sm text-muted-foreground">{t(scanDisplay.state === 'failed' ? 'scan_collection_failed_body' : 'scan_collection_unknown_body')}</p>
+                 <a className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline" href={`${brand}?step=scan&${selectionQuery({ scanId: scan.id, check: focusedCheck })}`}>{t('run_new_scan')}</a>
+               </>}
             </div>
             <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:flex-col">
               {smeCopilot ? (
-                <a className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground text-center focus-visible:outline-2 focus-visible:outline-offset-2" href={`/${lang === 'zh-HK' ? 'zh-HK' : 'en'}/dashboard/${encodeURIComponent(clientId)}/opportunities`}>{generated('reviewDraftEvidence')}</a>
+                <a className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground text-center focus-visible:outline-2 focus-visible:outline-offset-2" href={`${brand}/opportunities?${selectionQuery({scanId:scan.id, check:focusedCheck})}`}>{generated('reviewDraftEvidence')}</a>
               ) : null}
               {features.agent_recs ? (
                 <button type="button" onClick={generate} disabled={loading} className={smeCopilot ? 'min-h-11 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60' : 'min-h-11 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60'}>
@@ -136,7 +151,7 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
               <ScanPicker
                 lang={lang}
                 action={`/${lang}/dashboard/${encodeURIComponent(clientId)}`}
-                step="improve"
+                step="improve" focusedCheck={focusedCheck}
                 scans={scanChoices}
                 selectedScanId={scan.id}
                 className="mb-0"
@@ -150,7 +165,7 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
           <ScanPicker
             lang={lang}
             action={`/${lang}/dashboard/${encodeURIComponent(clientId)}`}
-            step="improve"
+            step="improve" focusedCheck={focusedCheck}
             scans={scanChoices}
             selectedScanId={scan.id}
             className="mb-0"
@@ -188,7 +203,7 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
                 <span className="text-xs text-muted-foreground">{generated('draftCount',{count:allowedRecs.length})}</span>
               </div>
               {allowedRecs.length
-                ? <div className="mt-4"><AgentRecommendations recommendations={allowedRecs} /></div>
+                ? <div className="mt-4"><AgentRecommendations recommendations={allowedRecs} scanId={scan.id} scanHref={scanHref} evidenceLinks={evidenceLinks} /></div>
                 : <p role="status" className="mt-3 text-sm leading-relaxed text-muted-foreground">{receipt?generated('recommendationsUnavailable'):t('recs_empty')}</p>}
             </section>
           ) : (
@@ -227,7 +242,7 @@ export function ImproveStep({ scan, features, recommendations, progress, competi
                           <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed text-muted-foreground">
                             {[...new Set(item.limitations.map(value=>limitationCopy[value]??'basisOtherLimitations'))].map(copy=><li key={copy}>{generated(copy)}</li>)}
                           </ul>
-                          <a className="inline-flex min-h-11 items-center text-xs font-semibold text-primary-accessible underline" href={`?step=results&scanId=${encodeURIComponent(scan.id)}`}>{generated('viewSourceScan')}</a>
+                          <a className="inline-flex min-h-11 items-center text-xs font-semibold text-primary-accessible underline" href={findingHref(brand, scan.id, item.checkId)}>{generated('viewSourceScan')}</a>
                         </div>
                       </details>
                     )
