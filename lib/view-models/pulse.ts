@@ -3,10 +3,11 @@ import { isoDate } from '@/lib/iso-date'
 import type { OwnedPulse } from '@/lib/workspace/load-owned-pulse'
 import type { ClientOverview } from '@/lib/types'
 export type {PulseDisplayState,PulseCoverageView} from '@/lib/pulse/observed-summary'
-export type PulsePoint={week:string;sov:number|null;state?:PulseDisplayState}
+export type PulsePoint={week:string;sov:number|null;state?:PulseDisplayState;collected?:number;classified?:number;cohort?:string}
+export type CanonicalCoverage = { id: string; week: string; succeeded: number; classified: number; pending: number; failed: number; blocked: number }
 export type PulseView={
  client:OwnedPulse['client']
- observations:{state:PulseDisplayState|'ready';coverage?:PulseCoverageView|null;latestKpi:ClientOverview['pulseKpi'];latestWeek:string|null;series:{platform:string|null;points:PulsePoint[]}[]}
+ observations:{state:PulseDisplayState|'ready';coverage?:PulseCoverageView|null;canonical?:CanonicalCoverage;latestKpi:ClientOverview['pulseKpi'];latestWeek:string|null;series:{platform:string|null;points:PulsePoint[]}[]}
  missed:{state:'ready'|'empty'|'error';data:OwnedPulse['missed']['data']}
  prompts:{state:'ready'|'empty'|'error';data:OwnedPulse['prompts']['data']}
  /** Monitor's extra panels; absent when the loader was not asked for them. */
@@ -21,10 +22,15 @@ export function buildPulseView(owned:OwnedPulse):PulseView{
  if(latest){const end=Date.parse(latest);const start=Math.max(Date.parse(dates[0]),end-39*7*86400000);for(let day=end;day>=start;day-=7*86400000)weeks.add(new Date(day).toISOString().slice(0,10));for(const week of weeks)if(Date.parse(week)<start)weeks.delete(week)}
  const ordered=[...weeks].sort().slice(-40)
  const platforms:(string|null)[]=[null,...new Set(rows.map(row=>row.platform).filter((p):p is string=>typeof p==='string'))]
- const series=platforms.map(platform=>({platform,points:ordered.map(week=>{const row=rows.find(row=>row.scan_week===week&&row.platform===platform);const projection=row?projectObservedSummary([{...row,platform:null}]):null;return{week,sov:projection?.kpi?.sovScore??null,state:projection?.state}})}))
+ const series=platforms.map(platform=>({platform,points:ordered.map(week=>{const row=rows.find(row=>row.scan_week===week&&row.platform===platform);const projection=row?projectObservedSummary([{...row,platform:null}]):null;return{week,sov:projection?.kpi?.sovScore??null,state:projection?.state,...(typeof row?.manifest_signature === 'string' && !row.mixed_legacy ? {cohort:row.manifest_signature} : {}),...(projection?.coverage ? {collected:projection.coverage.collected,classified:projection.coverage.classified} : {})}})}))
  const projection=projectObservedSummary(rows);const state=owned.observations.status==='error'?'error':projection.state??'empty'
- return{client:owned.client,observations:{state,coverage:state==='error'?null:projection.coverage,latestKpi:state==='error'?null:projection.kpi,latestWeek:latest,series:state==='error'?[]:series},
- missed:{state:owned.missed.status==='error'?'error':owned.missed.data.length?'ready':'empty',data:owned.missed.data.map(row=>({platform:row.platform,question:row.question,competitors_mentioned:Array.isArray(row.competitors_mentioned)?row.competitors_mentioned:[],scan_week:isoDate(row.scan_week,'')}))},
+ const latestRow = rows.find(row => row.scan_week === latest && row.platform === null)
+ const canonical = latestRow && typeof latestRow.run_id === 'string' && latest ? {
+  id: latestRow.run_id, week: latest, succeeded: Number(latestRow.succeeded_items), classified: Number(latestRow.classified_items),
+  pending: Number(latestRow.pending_items), failed: Number(latestRow.failed_items), blocked: Number(latestRow.blocked_items),
+ } : undefined
+ return{client:owned.client,observations:{state,coverage:state==='error'?null:projection.coverage,latestKpi:state==='error'?null:projection.kpi,latestWeek:latest,...(canonical && state !== 'error' ? {canonical} : {}),series:state==='error'?[]:series},
+ missed:{state:owned.missed.status==='error'?'error':owned.missed.data.length?'ready':'empty',data:owned.missed.data.map(row=>({platform:row.platform,question:row.question,...(row.prompt_id ? {prompt_id:row.prompt_id} : {}),competitors_mentioned:Array.isArray(row.competitors_mentioned)?row.competitors_mentioned:[],scan_week:isoDate(row.scan_week,'')}))},
  ...(owned.competitors?{competitors:{state:owned.competitors.status==='error'?'error' as const:'ready' as const,data:owned.competitors.data}}:{}),
  ...(owned.alerts?{alerts:{state:owned.alerts.status==='error'?'error' as const:'ready' as const,data:owned.alerts.data}}:{}),
  prompts:{state:owned.prompts.status==='error'?'error':owned.prompts.data.length?'ready':'empty',data:owned.prompts.data.map(row=>({id:row.id,question:row.question,category:row.category,language:row.language,is_active:row.is_active}))}}

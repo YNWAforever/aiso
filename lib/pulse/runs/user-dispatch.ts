@@ -10,6 +10,7 @@ import {isPromptLanguage,isPromptMarket} from '@/lib/prompts/context'
 import {currentScanWeek} from '@/lib/pulse/schedule'
 import {isoDate} from '@/lib/iso-date'
 import {derivePulseAvailability} from './availability'
+import { collectionReason } from './collection-reason'
 import {createOrResumeRun} from './store'
 import {coverageFromCounts,type PulseScope,type PulseIntent,type RunCoverage} from './schema'
 import {runPulseChunk} from './service'
@@ -57,7 +58,7 @@ export async function readUserPulseRun(scope:PulseScope,runId:string):Promise<Us
  if(coverage.status==='queued'&&Number(row.running)>0)coverage.status='running'
  // Safe categories only: never expose provider bodies, request IDs, credentials or arbitrary error strings.
  const codes=row.errors as string[]
- const reasons:string[]=[...new Set(codes.map(code=>code.includes('OUTCOME_UNKNOWN')?'outcome_unknown':code==='PROVIDER_NOT_CONFIGURED'?'provider_not_configured':code==='PLAN_HAS_NO_PLATFORMS'?'entitlement_changed':'collection_failed'))]
+  const reasons: string[] = [...new Set(codes.map(collectionReason))]
  if(coverage.classified<coverage.succeeded)reasons.push('classification_pending')
  return{id:String(row.id),week:isoDate(row.scan_week as string|Date,''),purpose:row.purpose as 'canonical'|'retest',sourceRunId:row.source_run_id as string|null,coverage,reasons,retryable:row.retryable===true,classificationRepairIds:repairRows.map(r=>String(r.id)),observedAt:row.updated_at instanceof Date?row.updated_at.toISOString():typeof row.updated_at==='string'?row.updated_at:null}
 }

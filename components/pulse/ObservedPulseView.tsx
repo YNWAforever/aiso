@@ -4,7 +4,7 @@ import {SovChart} from './SovChart'
 import type {PulseView} from '@/lib/view-models/pulse'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
-export function ObservedPulseView({view,lang,smeCopilot=false}:{view:PulseView;lang:string;smeCopilot?:boolean}){
+export function ObservedPulseView({view,lang,smeCopilot=false,requestedRun}:{view:PulseView;lang:string;smeCopilot?:boolean;requestedRun?:string}){
  const copy=(lang==='zh-HK'?zhHK:en).pulseView;const observed=view.observations
  const hasSamples=observed.state!=='error'&&observed.state!=='empty'&&observed.state!=='not_configured';const panel='min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6'
  const savedView = <>
@@ -22,7 +22,7 @@ export function ObservedPulseView({view,lang,smeCopilot=false}:{view:PulseView;l
   </section>
  </>
  return <div className="min-w-0 space-y-5 break-words">
-  <RunProgress clientId={view.client.id} lang={lang} smeCopilot={smeCopilot} brandName={view.client.brand_name}/>
+  <RunProgress clientId={view.client.id} lang={lang} smeCopilot={smeCopilot} requestedRun={requestedRun} brandName={view.client.brand_name}/>
   {smeCopilot ? <details><summary className="min-h-11 cursor-pointer py-3 text-sm">{(lang==='zh-HK'?zhHK:en).runProgress.sme.history}</summary><div className="space-y-5 pt-3">{savedView}</div></details> : savedView}
  </div>
 }

@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { formatDisplayDate } from '@/lib/format/date'
 import { VisibilityView } from '@/components/pulse/VisibilityView'
 import type { PulseView } from '@/lib/view-models/pulse'
 import en from '@/messages/en.json'
@@ -62,14 +63,15 @@ const render = (state: 'ready' | 'empty' | 'error' | 'partial', lang: string) =>
     </NextIntlClientProvider>,
   )
 
-it.each(['en', 'zh-HK'])('leads with the measured mention rate in %s', lang => {
+it.each(['en', 'zh-HK'])('shows the measured mention rate, evidence date and scoped answers in %s', lang => {
   const copy = (lang === 'en' ? en : zh).pulseView.visibility
   const html = render('ready', lang).replace(/&#x27;|&#39;/g, "'")
   expect(html).toContain(copy.mentionRate)
   expect(html).toContain('69.4%')
-  expect(html).toContain(copy.freshWeek.replace('{week}', '2026-11-16'))
+  expect(html).toContain(copy.freshWeek.replace('{week}', formatDisplayDate('2026-11-16', lang)))
   expect(html).toContain('id="first-monitoring"')
   expect(html).toContain(copy.viewAnswers)
+  expect(html).toContain('/observations?week=2026-11-16')
   expect(html).toContain(copy.missedTitle)
   // The freshness banner belongs to the legacy Monitor view; the hero owns it here.
   expect(html).not.toContain('data-testid="monitor-status"')

@@ -70,7 +70,7 @@ describe('observation page boundary', () => {
     expect(load.mock.calls[0][1].toString()).toBe(
       'promptId=p&platform=ChatGPT&week=2025-01-01&result=success',
     )
-    expect(html).toContain('selected="">2025-01-01')
+    expect(html).toContain('value="2025-01-01" selected="">2025年1月1日')
     expect(html).toContain('value="p" selected=""')
     expect(html).toContain('name="platform" value="ChatGPT"')
     expect(html).toContain('<option value="ChatGPT"></option>')

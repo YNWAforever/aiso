@@ -60,12 +60,17 @@ export async function loadAuthenticatedObservations(
   }
 }
 
-export async function loadAuthenticatedObservationDetail(clientId:string,observationId:string){
+export async function loadAuthenticatedObservationDetail(clientId: string, observationId: string, runId: string | null = null) {
   try{
     const profile=await getProfile()
     if(!profile)throw new ObservationServiceError('UNAUTHENTICATED')
-    if(!UUID.test(clientId)||!UUID.test(observationId))throw new ObservationServiceError('INVALID_OBSERVATION_QUERY')
-    const observation=await loadObservationDetail(profile.account_id,clientId,observationId)
+    if (!UUID.test(clientId) || !UUID.test(observationId) || (runId !== null && !UUID.test(runId))) {
+      throw new ObservationServiceError('INVALID_OBSERVATION_QUERY')
+    }
+    const scope = [profile.account_id, clientId, observationId] as const
+    const observation = runId === null
+      ? await loadObservationDetail(...scope)
+      : await loadObservationDetail(...scope, runId)
     if(!observation)throw new ObservationServiceError('CLIENT_NOT_FOUND')
     return observation
   }catch(error){

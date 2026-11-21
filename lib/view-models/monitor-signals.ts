@@ -43,8 +43,13 @@ export function buildPlatformGrid(series: PulseView['observations']['series']): 
     .map(s => ({ id: s.platform, name: PLATFORM_NAMES[s.platform] ?? s.platform }))
     .sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id))
   const cells = Object.fromEntries(perPlatform.map(s => [s.platform, weeks.map(week => {
-    const sov = s.points.find(p => p.week === week)?.sov ?? null
-    return (sov === null ? 'notRun' : sov > 0 ? 'mentioned' : 'absent') as PlatformCell
+    const point = s.points.find(p => p.week === week)
+    if (point?.sov != null) return (point.sov > 0 ? 'mentioned' : 'absent') as PlatformCell
+    if (point?.state === 'pending' || point?.state === 'running') return 'pending'
+    if (point?.state === 'failed' || point?.state === 'blocked') return 'collectionIssue'
+    if (point?.collected && !point.classified) return 'unclassified'
+    if (point?.state === 'partial' || point?.state === 'error') return 'unavailable'
+    return 'notRun'
   })]))
   return { platforms, weeks, cells }
 }
@@ -78,5 +83,5 @@ export type MonitorStatus = { state: 'fresh' | 'stale' | 'never'; lastWeek: stri
 export function monitorStatus(latestWeek: string | null, now: Date): MonitorStatus {
   if (!latestWeek) return { state: 'never', lastWeek: null }
   const age = now.getTime() - Date.parse(`${latestWeek}T00:00:00Z`)
-  return { state: Number.isFinite(age) && age <= 14 * 86_400_000 ? 'fresh' : 'stale', lastWeek: latestWeek }
+  return { state: Number.isFinite(age) && age >= 0 && age < 14 * 86_400_000 ? 'fresh' : 'stale', lastWeek: latestWeek }
 }

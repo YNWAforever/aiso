@@ -19,7 +19,7 @@ beforeAll(async () => {
   await state.pg.exec(`
     create table clients(id uuid primary key, account_id uuid);
     create table prompt_bank(id uuid, client_id uuid, question text, category text, language text, is_active boolean);
-    create table pulse_runs(id uuid, client_id uuid, account_id uuid, purpose text, manifest jsonb);
+    create table pulse_runs(id uuid, client_id uuid, account_id uuid, scan_week date, purpose text, manifest jsonb);
     create table pulse_run_items(id uuid, client_id uuid, account_id uuid, run_id uuid, accepted_attempt_id uuid, snapshot jsonb);
     create table pulse_item_attempts(id uuid, item_id uuid, client_id uuid, account_id uuid, raw_answer text,
       actual_model text, requested_model text, finished_at timestamptz, collector text, collector_version text,

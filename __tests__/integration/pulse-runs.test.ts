@@ -15,7 +15,11 @@ import {computeWeeklySummary} from '@/lib/pulse/summary'
 import {currentScanWeek} from '@/lib/pulse/schedule'
 import {claimClassifications,commitClassification,classifySavedAnswers} from '@/lib/pulse/runs/classification'
 import {naiveAnalysis,coerceAnalysis} from '@/lib/pulse/analysis-fallback'
-import {loadObservationDetail} from '@/lib/observations/store'
+import { loadObservationDetail, loadObservationSnapshot } from '@/lib/observations/store'
+import { encodeObservationCursor, parseObservationQuery } from '@/lib/observations/query'
+import { loadOwnedPulse } from '@/lib/workspace/load-owned-pulse'
+import { buildPulseView } from '@/lib/view-models/pulse'
+import { buildVisibilityOverview } from '@/lib/view-models/visibility-summary'
 import {projectPulseOpportunityInput} from '@/lib/opportunities/store'
 import {deriveSuggestions} from '@/lib/opportunities/rules'
 import {buildInitialDraftSnapshot} from '@/lib/work-items/snapshot'
@@ -94,6 +98,57 @@ describe('T05 guarded Neon run ledger',()=>{
     expect((await loadMaintenanceSnapshot(randomUUID(),scope.clientId,true)).latestRun).toBeNull()
     expect(await sql`select status,updated_at from pulse_runs where account_id=${scope.accountId} and id=${run.id}`).toEqual(before)
   }))
+  it('keeps a pinned run, diagnosis and filtered answers on the stored week', async () => fixture(async scope => {
+    const week = currentScanWeek()
+    const run = (await createOrResumeRun(scope, { scanWeek: week, manifest }))!
+    const snapshot = (params: Record<string, string>) => loadObservationSnapshot(scope.accountId, scope.clientId,
+      parseObservationQuery(new URLSearchParams(params)))
+    expect(await snapshot({ run: run.id, week: '2000-01-03' })).toMatchObject({
+      selectedWeek: week, selectedRun: { id: run.id, week, purpose: 'canonical' }, items: [], counts: { recordedRows: 0 },
+    })
+    const readPulse = async () => buildVisibilityOverview(buildPulseView((await loadOwnedPulse({ clientId: scope.clientId, profile: { account_id: scope.accountId }, withSignals: true }))!))
+    expect(await readPulse()).toMatchObject({ state: 'pending', runId: run.id, sov: null })
+    const [first, second, blocked, unchecked] = await claim(scope, run.id, 4)
+    expect(await readPulse()).toMatchObject({ state: 'running', runId: run.id })
+    for (const lease of [first, second, unchecked]) {
+      await commitAttempt(lease, { kind: 'succeeded', evidence })
+      if (lease !== unchecked) await recordClassification(lease, {
+        status: 'classified', method: 'fixture', version: 'fixture-v1', brandMentioned: false,
+        sentiment: 'neutral', mentionPosition: null, competitorsMentioned: [],
+      })
+    }
+    await commitAttempt(blocked, { kind: 'blocked', errorCode: 'PROVIDER_NOT_CONFIGURED' })
+    const raw = await snapshot({ run: run.id, week, mention: 'absent', limit: '1' })
+    expect(raw).toMatchObject({ counts: { recordedRows: 2, successfulRows: 2 }, items: [{ brandMentioned: false }] })
+    expect(raw?.filterOptions?.platforms).toHaveLength(3)
+    const next = await snapshot({ run: run.id, week, mention: 'absent', limit: '1', cursor: raw!.nextCursor! })
+    expect(next?.items[0]?.id).toBeDefined()
+    expect(next?.items[0]?.id).not.toBe(raw?.items[0]?.id)
+    const mismatch = await snapshot({ run: run.id, week: '2000-01-03', mention: 'absent', limit: '1',
+      cursor: encodeObservationCursor({ recordedAt: '2000-01-03T00:00:00Z', id: first.id }) })
+    expect(mismatch?.items).toEqual(raw?.items)
+    expect((await snapshot({ run: run.id, mention: 'unknown' }))?.items).toHaveLength(1)
+    const [observation] = raw!.items
+    expect(await loadObservationDetail(scope.accountId, scope.clientId, observation.id, run.id)).toMatchObject({ rawAnswer: evidence.answer })
+    expect(await loadObservationDetail(scope.accountId, scope.clientId, observation.id, randomUUID())).toBeNull()
+    expect(await loadObservationDetail(randomUUID(), scope.clientId, observation.id, run.id)).toBeNull()
+    const foreign = await loadObservationSnapshot(randomUUID(), scope.clientId, parseObservationQuery(new URLSearchParams({ run: run.id })))
+    expect(foreign).toBeNull()
+    expect((await loadRunTroubleshooting(scope.accountId, scope.clientId, run.id, 'failed'))?.items)
+      .toEqual([expect.objectContaining({ reason: 'provider_not_configured', observationId: null })])
+    expect((await loadRunTroubleshooting(scope.accountId, scope.clientId, run.id, 'all'))?.items.some(item => item.observationId === observation.id)).toBe(true)
+    expect(await readPulse()).toMatchObject({ state: 'partial', runId: run.id, sov: 0 })
+    await sql`update prompt_bank set question = 'Edited active question' where client_id = ${scope.clientId}`
+    expect((await snapshot({ run: run.id, question: observation.question }))?.items[0].currentPrompt?.question).toBe('Edited active question')
+    await sql`insert into pulse_metrics(client_id, question, platform, scan_week, raw_answer, brand_mentioned, classification_status)
+      values(${scope.clientId}, 'Archived question?', 'historic', ${week}, 'Older answer', false, 'classified')`
+    const mixed = await readPulse()
+    expect(mixed).toMatchObject({ state: 'partial', coverage: { provenance: 'mixed' } })
+    expect(mixed.runId).toBeUndefined()
+    expect((await snapshot({ week, question: 'Archived question?', mention: 'absent' }))?.items).toEqual([expect.objectContaining({ promptId: null })])
+    expect((await snapshot({ run: run.id, question: 'Archived question?', mention: 'absent' }))?.items).toEqual([])
+  }, 1))
+
   it('T11 context changes apply to new runs while original manifests remain frozen',async()=>fixture(async scope=>{
     await sql`update prompt_bank set language='zh-HK',market='HK' where client_id=${scope.clientId}`
     const original=(await createOrResumeRun(scope,{scanWeek:'2026-09-14',manifest:[manifest[0]]}))!

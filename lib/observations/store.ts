@@ -14,6 +14,8 @@ type ItemRow = Omit<PulseSourceRow, 'raw_answer' | 'scan_week'> & {
 interface SnapshotRow {
   owned: boolean
   selected_week: string | Date | null
+  selected_run?: ObservationResponse['selectedRun'] | null
+  filter_options?: ObservationResponse['filterOptions']
   weeks: (string | Date)[]
   questions: Question[]
   items: ItemRow[]
@@ -30,17 +32,22 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
   const sql = db()
   const cursor = query.cursor
   const rows = await sql`
-    with owned as (
-      select id, account_id from clients where id = ${clientId} and account_id = ${accountId} and (${query.runId??null}::uuid is null or exists(select 1 from pulse_runs selected_run where selected_run.id=${query.runId??null}::uuid and selected_run.client_id=clients.id and selected_run.account_id=${accountId}))
+    with selected_run as (
+      select id, scan_week, purpose from pulse_runs
+      where id = ${query.runId ?? null}::uuid and client_id = ${clientId} and account_id = ${accountId}
+    ), owned as (
+      select id, account_id from clients
+      where id = ${clientId} and account_id = ${accountId}
+        and (${query.runId ?? null}::uuid is null or exists(select 1 from selected_run))
     ), retained_weeks as (
       select distinct m.scan_week from pulse_metrics m join owned c on c.id = m.client_id and ((${query.runId??null}::uuid is null and m.run_item_id is null) or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=c.account_id and scope_run.client_id=c.id where scope_item.id=m.run_item_id and scope_item.account_id=c.account_id and scope_item.client_id=c.id and ((${query.runId??null}::uuid is null and scope_run.purpose='canonical') or scope_run.id=${query.runId??null}::uuid)))
       order by m.scan_week desc limit 40
     ), selected_week as (
-      select coalesce(${query.week}::date, max(scan_week)) as week from retained_weeks
-    ), filtered as (
+      select coalesce((select scan_week from selected_run), ${query.week}::date, max(scan_week)) as week from retained_weeks
+    ), evidence as (
       select m.id, m.prompt_id, m.question, m.platform, m.scan_week, m.created_at, m.brand_mentioned,
         coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer,
-        m.classification_status='classified' and m.brand_mentioned is not null as classified,
+        coalesce(m.classification_status='classified', false) and m.brand_mentioned is not null as classified,
         m.classification_status,coalesce(a.actual_model,m.actual_model) as actual_model,
         to_char(coalesce(a.finished_at,m.collected_at) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as collected_at,
         coalesce(i.snapshot,m.prompt_snapshot)->>'market' as market,
@@ -54,8 +61,21 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
       cross join selected_week w
       left join prompt_bank p on p.id = m.prompt_id and p.client_id = m.client_id and p.client_id = c.id
       where m.scan_week = w.week
-        and (${query.promptId}::uuid is null or m.prompt_id = ${query.promptId})
-        and (${query.platform}::text is null or m.platform = ${query.platform})
+    ), filtered as (
+      select * from evidence
+      where (${query.promptId}::uuid is null or prompt_id = ${query.promptId})
+        and (${query.question ?? null}::text is null or question = ${query.question ?? null})
+        and (${query.platform}::text is null or platform = ${query.platform})
+        and (${query.mention ?? null}::text is null
+          or (${query.mention ?? null} = 'mentioned' and has_answer and classified and brand_mentioned)
+          or (${query.mention ?? null} = 'absent' and has_answer and classified and not brand_mentioned)
+          or (${query.mention ?? null} = 'unknown' and not (has_answer and classified)))
+    ), platform_options as (
+      select distinct platform from evidence order by platform limit 100
+    ), question_options as (
+      select distinct prompt_id, question from evidence
+      where char_length(question) between 1 and 500 and btrim(question) <> ''
+      order by question, prompt_id limit 100
     ), counts as (
       select count(*) as recorded_rows,
         count(*) filter (where has_answer and classified) as successful_rows from filtered
@@ -65,6 +85,7 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
         or (${query.result} = 'success' and has_answer and classified)
         or (${query.result} = 'incomplete' and not (has_answer and classified)))
         and (${cursor === null}::boolean
+          or ${query.week}::date <> (select week from selected_week)
           or (${cursor?.recordedAt ?? null}::timestamptz is not null and (
             created_at < ${cursor?.recordedAt ?? null}::timestamptz
             or (created_at = ${cursor?.recordedAt ?? null}::timestamptz and id < ${cursor?.id ?? null}::uuid)
@@ -78,6 +99,12 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
     )
     select exists(select 1 from owned) as owned,
       (select week from selected_week) as selected_week,
+      (select jsonb_build_object('id', id, 'week', scan_week, 'purpose', purpose) from selected_run) as selected_run,
+      jsonb_build_object(
+        'platforms', coalesce((select jsonb_agg(platform order by platform) from platform_options), '[]'::jsonb),
+        'questions', coalesce((select jsonb_agg(jsonb_build_object('promptId', prompt_id, 'question', question)
+          order by question, prompt_id) from question_options), '[]'::jsonb)
+      ) as filter_options,
       coalesce((select jsonb_agg(scan_week order by scan_week desc) from retained_weeks), '[]'::jsonb) as weeks,
       coalesce((select jsonb_agg(jsonb_build_object(
         'id', q.id, 'question', q.question, 'category', q.category,
@@ -104,6 +131,8 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
     schemaVersion: 1,
     clientId,
     selectedWeek: row.selected_week === null ? null : isoDate(row.selected_week, ''),
+    ...(row.selected_run ? { selectedRun: row.selected_run } : {}),
+    ...(row.filter_options ? { filterOptions: row.filter_options } : {}),
     weeks: row.weeks.map(week => isoDate(week, '')),
     questionsTruncated: row.questions.length > MAX_PROMPTS,
     questions: row.questions.slice(0, MAX_PROMPTS).map(projectQuestion),
@@ -115,7 +144,7 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
   }
 }
 
-export async function loadObservationDetail(accountId:string,clientId:string,observationId:string){
+export async function loadObservationDetail(accountId: string, clientId: string, observationId: string, runId?: string) {
   const [row]=await db()`select m.id,m.prompt_id,m.question,m.platform,m.scan_week,
     to_char(m.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
     case when i.id is null then m.raw_answer else a.raw_answer end as raw_answer,m.brand_mentioned,m.classification_status,
@@ -127,6 +156,7 @@ export async function loadObservationDetail(accountId:string,clientId:string,obs
     left join pulse_run_items i on i.id=m.run_item_id and i.client_id=c.id and i.account_id=c.account_id
     left join pulse_runs r on r.id=i.run_id and r.client_id=c.id and r.account_id=c.account_id
     left join pulse_item_attempts a on a.id=i.accepted_attempt_id and a.item_id=i.id and a.client_id=c.id and a.account_id=c.account_id
-    where c.id=${clientId}::uuid and c.account_id=${accountId} and m.id=${observationId}::uuid`
+    where c.id=${clientId}::uuid and c.account_id=${accountId} and m.id=${observationId}::uuid
+      and (${runId ?? null}::uuid is null or r.id = ${runId ?? null}::uuid)`
   return row?projectObservationDetail({...row,scan_week:isoDate(row.scan_week as string|Date,'')} as ObservationDetailRow):null
 }

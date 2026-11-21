@@ -1,6 +1,6 @@
 import { isoDate } from '@/lib/iso-date'
 import type { ClientOverview, PulseWeeklySummary } from '@/lib/types'
-export type PulseDisplayState = 'not_configured'|'empty'|'pending'|'partial'|'complete'|'failed'|'blocked'|'error'
+export type PulseDisplayState = 'not_configured'|'empty'|'pending'|'running'|'partial'|'complete'|'failed'|'blocked'|'error'
 export type PulseCoverageView = {expected:number|null;recorded:number;collected:number;classified:number;mentioned:number;collectionRate:number|null;classificationRate:number|null;mentionRate:number|null;provenance:'ledger'|'legacy'|'mixed'}
 export type ObservedPulseSummary = {summary:PulseWeeklySummary[];kpi:ClientOverview['pulseKpi'];latestWeek:string|null;state?:PulseDisplayState;coverage?:PulseCoverageView|null}
 function count(value:unknown):number|null {if((typeof value!=='number'&&typeof value!=='string')||value==='')return null;const n=Number(value);return Number.isSafeInteger(n)&&n>=0?n:null}
@@ -17,9 +17,10 @@ export function projectObservedSummary(rows:Record<string,unknown>[]):ObservedPu
  const valid=!!coverage&&rollupConsistent
  let state:PulseDisplayState=!a?'empty':!valid?'partial':coverage!.recorded===0?'empty':coverage!.classified===coverage!.recorded?'complete':'partial'
  if(a?.mixed_legacy===true)state='partial'
- if(expected!==null){if(pending&&recorded===0)state='pending';else if(blocked===expected)state='blocked';else if(failed===expected&&succeeded===0)state='failed';else if(succeeded!==expected||classified!==expected)state='partial'}
+ if(expected!==null){if(pending&&recorded===0)state=count(a?.running_items)?'running':'pending';else if(blocked===expected)state='blocked';else if(failed===expected&&succeeded===0)state='failed';else if(succeeded!==expected||classified!==expected)state='partial'}
+ if (a?.ledger_mismatch === true) state = 'error'
  const platforms=count(a?.successful_platform_count)
- const kpi=valid&&coverage!.mentionRate!==null&&latestWeek&&platforms!==null&&platforms>0?{sovScore:100*coverage!.mentionRate,brandMentions:coverage!.mentioned,totalQueries:coverage!.classified,platformCount:platforms,scanWeek:latestWeek}:null
+ const kpi=state!=='error'&&valid&&coverage!.mentionRate!==null&&latestWeek&&platforms!==null&&platforms>0?{sovScore:100*coverage!.mentionRate,brandMentions:coverage!.mentioned,totalQueries:coverage!.classified,platformCount:platforms,scanWeek:latestWeek}:null
  const summary=ordered.filter(row=>row.total_queries!=null).map(row=>({...row})) as unknown as PulseWeeklySummary[]
  return {summary,kpi,latestWeek,state,coverage}
 }

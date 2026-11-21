@@ -4,12 +4,13 @@ import { MAX_PROMPTS } from '@/lib/pulse/limits'
 import { attachManifestCoverage } from '@/lib/pulse/runs/read-coverage'
 import type { ClientOverview, PromptBankItem } from '@/lib/types'
 export type PulseRead<T> = {status:'ok'|'error';data:T}
+type MissedObservation = ClientOverview['missedOpportunities'][number] & { prompt_id?: string | null }
 export type OwnedPulse = {
  client:{id:string;brand_name:string}
  /** The names Pulse matches: the identity display name and its configured aliases. */
  brandIdentity?:{name:string;aliases:string[]}
  observations:PulseRead<Record<string,unknown>[]>
- missed:PulseRead<ClientOverview['missedOpportunities']>
+ missed:PulseRead<MissedObservation[]>
  prompts:PulseRead<Pick<PromptBankItem,'id'|'question'|'category'|'language'|'is_active'>[]>
  /** Brand (name null) and each competitor: mentions in classified answers over the last four weeks with any. */
  competitors?:PulseRead<{name:string|null;mentions:number;answers:number}[]>
@@ -54,11 +55,11 @@ export async function loadOwnedPulse({clientId,profile,withSignals=false}:{clien
    left join observations o on o.scan_week=k.scan_week and o.platform is not distinct from k.platform order by k.scan_week,k.platform nulls first
   `),[]),
   read('missed',async()=>await sql`
-   select m.platform,m.question,m.competitors_mentioned,m.scan_week from pulse_metrics m join clients c on c.id=m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
+   select m.platform,m.question,m.prompt_id,m.competitors_mentioned,m.scan_week from pulse_metrics m join clients c on c.id=m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
    where c.id=${clientId} and c.account_id=${accountId} and m.brand_mentioned=false and m.raw_answer ~ '[^[:space:]]'
      and to_jsonb(m)->>'classification_status'='classified'
    order by m.scan_week desc,m.id desc limit 50
-  ` as ClientOverview['missedOpportunities'],[]),
+  ` as MissedObservation[],[]),
   read('prompts',async()=>await sql`
    select p.id,p.question,p.category,p.language,p.is_active from prompt_bank p join clients c on c.id=p.client_id
    where c.id=${clientId} and c.account_id=${accountId} order by p.id limit ${MAX_PROMPTS}
@@ -68,7 +69,8 @@ export async function loadOwnedPulse({clientId,profile,withSignals=false}:{clien
   read('competitors',async()=>(await sql`
    with recent as (
     select distinct m.scan_week from pulse_metrics m join clients c on c.id=m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
-    where c.id=${clientId} and c.account_id=${accountId} order by m.scan_week desc limit 4
+    where c.id=${clientId} and c.account_id=${accountId} and m.classification_status='classified'
+       and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null order by m.scan_week desc limit 4
    ), answers as (
     select m.brand_mentioned,m.competitors_mentioned from pulse_metrics m join clients c on c.id=m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
     join recent r on r.scan_week=m.scan_week
@@ -77,8 +79,9 @@ export async function loadOwnedPulse({clientId,profile,withSignals=false}:{clien
    ), total as (select count(*)::int as n from answers)
    select null::text as name,count(*) filter(where a.brand_mentioned)::int as mentions,(select n from total) as answers from answers a
    union all
-   select x.name,count(*)::int as mentions,(select n from total) as answers from answers a cross join lateral unnest(coalesce(a.competitors_mentioned,'{}'::text[])) as x(name)
-   group by x.name
+   select x.name,count(*)::int as mentions,(select n from total) as answers from answers a cross join lateral (select distinct name from unnest(coalesce(a.competitors_mentioned,'{}'::text[])) as names(name)) as x
+   where x.name is not null and btrim(x.name) <> ''
+    group by x.name
   `).map(row=>({name:typeof row.name==='string'?row.name:null,mentions:Number(row.mentions),answers:Number(row.answers)})),[]),
   read('alerts',async()=>{
    const [config]=await sql`select ac.enabled_sov,ac.enabled_wow from alert_configs ac join clients c on c.id=ac.client_id where c.id=${clientId} and c.account_id=${accountId} limit 1`

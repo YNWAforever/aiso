@@ -1,5 +1,12 @@
+import { observationQueryKeys } from './links'
+
+export const mentionFilters = ['mentioned', 'absent', 'unknown'] as const
+export type MentionFilter = (typeof mentionFilters)[number]
+
 export interface ObservationQuery {
-  runId?:string|null
+  runId?: string | null
+  question?: string
+  mention?: MentionFilter
   promptId: string | null
   platform: string | null
   week: string | null
@@ -8,7 +15,7 @@ export interface ObservationQuery {
   cursor: { recordedAt: string | null; id: string } | null
 }
 
-const QUERY_KEYS = new Set(['run', 'promptId', 'platform', 'week', 'result', 'limit', 'cursor'])
+const QUERY_KEYS = new Set<string>(observationQueryKeys)
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 const POSTGRES_TIMESTAMP = /^(\d{4}-\d{2}-\d{2})[T ](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
@@ -82,13 +89,17 @@ export function parseObservationQuery(params: URLSearchParams): ObservationQuery
   const platform = params.get('platform')
   const week = params.get('week')
   const result = params.get('result')
+  const question = params.get('question')
+  const mention = params.get('mention')
   const limitValue = params.get('limit')
   const cursorValue = params.get('cursor')
 
   if (platform !== null && (Array.from(platform).length < 1 || Array.from(platform).length > 80)) invalidQuery()
   if (week !== null && !isCanonicalDate(week)) invalidQuery()
   if (result !== null && result !== 'success' && result !== 'incomplete') invalidQuery()
-  if (cursorValue !== null && week === null) invalidQuery()
+  if (question !== null && (question.trim().length === 0 || Array.from(question).length > 500)) invalidQuery()
+  if (mention !== null && !mentionFilters.some(value => value === mention)) invalidQuery()
+  if (cursorValue !== null && week === null && !params.has('run')) invalidQuery()
 
   let limit = 50
   if (limitValue !== null) {
@@ -98,7 +109,9 @@ export function parseObservationQuery(params: URLSearchParams): ObservationQuery
   }
 
   return {
-    ...(params.has('run')?{runId:parseUuid(params.get('run'))}:{}),
+    ...(params.has('run') ? { runId: parseUuid(params.get('run')) } : {}),
+    ...(question === null ? {} : { question }),
+    ...(mention === null ? {} : { mention: mention as MentionFilter }),
     promptId: promptIdValue === null ? null : parseUuid(promptIdValue),
     platform,
     week,

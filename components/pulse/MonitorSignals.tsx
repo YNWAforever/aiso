@@ -73,7 +73,7 @@ export function MonitorSignals({ view, lang, now, showStatus = true }: { view: P
                   )
                 })}
               </ul>
-            : <p className="mt-3 text-sm text-muted-foreground">{copy.competitors.empty}</p>}
+            : <p className="mt-3 text-sm text-muted-foreground">{view.competitors.state === 'error' ? (lang === 'zh-HK' ? zhHK : en).pulseView.error : copy.competitors.empty}</p>}
         </section>
       )}
 

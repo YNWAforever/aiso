@@ -12,8 +12,8 @@ import type {PlanFeatures} from '@/lib/types'
 import type {PulseView} from '@/lib/view-models/pulse'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
-type Props={features:PlanFeatures;lang: string;clientId:string;view:PulseView;now:Date;brandIdentity:{name:string;aliases:string[]}}
-export function MonitorStep({features,lang,clientId,view,now,brandIdentity}:Props){
+type Props={features:PlanFeatures;lang: string;clientId:string;view:PulseView;now:Date;requestedRun?:string;brandIdentity:{name:string;aliases:string[]}}
+export function MonitorStep({features,lang,clientId,view,now,brandIdentity,requestedRun}:Props){
  const t=useTranslations('dashboard');const tp=useTranslations('pulse');const copy=(lang==='zh-HK'?zhHK:en).pulseView
  const sme=isSmeCopilotUiEnabled()
  const recognized=[brandIdentity.name,...brandIdentity.aliases].filter(Boolean).join(lang==='zh-HK'?'、':', ')
@@ -31,13 +31,13 @@ export function MonitorStep({features,lang,clientId,view,now,brandIdentity}:Prop
  </>
  const alerts=features.alerts?<section className="rounded-xl border border-border bg-card p-5"><AlertsTab clientId={clientId}/></section>:<LockedFeature feature={t('feature_alerts')} requiredPlan="Pro" price={`$${PLAN_CATALOG.pro.monthlyPriceUsd}/month`}/>
  if(sme)return <div className="min-w-0 space-y-6">
-  <VisibilityView view={view} lang={lang} now={now}/>
+  <VisibilityView view={view} lang={lang} now={now} requestedRun={requestedRun} syncRunProgress />
   {identity}
   <details className="rounded-2xl border border-border bg-card p-5 sm:p-6">
    <summary className="min-h-11 cursor-pointer text-sm font-semibold">{(lang==='zh-HK'?zhHK:en).runProgress.sme.otherTools}</summary>
    <div className="space-y-5 pt-3">{links}{alerts}</div>
   </details>
  </div>
- const secondary=<>{identity}{links}<MonitorSignals view={view} lang={lang} now={now}/><ObservedPulseView view={view} lang={lang}/>{alerts}</>
+ const secondary=<>{identity}{links}<MonitorSignals view={view} lang={lang} now={now}/><ObservedPulseView view={view} lang={lang} requestedRun={requestedRun}/>{alerts}</>
  return <div className="min-w-0 space-y-5">{secondary}</div>
 }

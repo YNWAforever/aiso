@@ -2,114 +2,78 @@ import { getTranslations } from 'next-intl/server'
 import { notFound, redirect } from 'next/navigation'
 import { ObservationWorkspace } from '@/components/observations/ObservationWorkspace'
 import { WhatAiSaysPage } from '@/components/dashboard/sme/WhatAiSaysPage'
-import { RunTroubleshooting } from '@/components/observations/RunTroubleshooting'
-import { loadRunTroubleshooting,type RunItemFilter,type RunTroubleshooting as RunDto } from '@/lib/observations/run-troubleshooting'
-import {
-  observationCopyKeys,
-  type ObservationCopy,
-} from '@/components/observations/copy'
+import { observationCopyKeys, type ObservationCopy } from '@/components/observations/copy'
 import { requireAuth } from '@/lib/auth'
 import { isSmeCopilotUiEnabled } from '@/lib/flags'
-import {
-  loadAuthenticatedObservations,
-  ObservationServiceError,
-} from '@/lib/observations/service'
+import { observationQueryKeys, observationSelection, observationsHref } from '@/lib/observations/links'
+import { loadRunTroubleshooting } from '@/lib/observations/run-troubleshooting'
+import { loadAuthenticatedObservations, ObservationServiceError } from '@/lib/observations/service'
 
-export default async function ObservationsPage({
-  params,
-  searchParams,
-}: {
+const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i
+const runFilters = ['all', 'failed', 'pending', 'unclassified'] as const
+
+export default async function ObservationsPage({ params, searchParams }: {
   params: Promise<{ lang: string; clientId: string }>
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { lang: requestedLang, clientId } = await params
   const lang = requestedLang === 'zh-HK' ? 'zh-HK' : 'en'
-  const profile=await requireAuth(lang)
+  const profile = await requireAuth(lang)
   const raw = await searchParams
-  let runData:RunDto|null=null,runError=false
-  const runId=typeof raw.run==='string'?raw.run:null
-  const runFilter=(typeof raw.runStatus==='string'?raw.runStatus:'all') as RunItemFilter
-  if(runId){try{runData=await loadRunTroubleshooting(profile.account_id,clientId,runId,runFilter,typeof raw.runCursor==='string'?raw.runCursor:null)}catch{runError=true}}
-  const href = `/${lang}/dashboard/${encodeURIComponent(clientId)}/observations`
   const query = new URLSearchParams()
-  for (const key of [
-    'run',
-    'promptId',
-    'platform',
-    'week',
-    'result',
-    'limit',
-    'cursor',
-  ]) {
+  for (const key of observationQueryKeys) {
     const value = raw[key]
     if (typeof value === 'string') query.set(key, value)
-    else if (Array.isArray(value))
-      for (const item of value) query.append(key, item)
+    else if (Array.isArray(value)) for (const item of value) query.append(key, item)
   }
+  const runFilter = runFilters.find(value => value === raw.runStatus)
+  const selection = {
+    ...observationSelection(query),
+    observation: typeof raw.observation === 'string' && uuid.test(raw.observation) ? raw.observation.toLowerCase() : undefined,
+    runStatus: runFilter,
+    runCursor: runFilter && typeof raw.runCursor === 'string' && uuid.test(raw.runCursor) ? raw.runCursor : undefined,
+  }
+  const href = observationsHref(lang, clientId, selection, runFilter ? '#run-status' : '')
   const t = await getTranslations({ locale: lang, namespace: 'observations' })
   let initial
   try {
     initial = await loadAuthenticatedObservations(clientId, query)
   } catch (error) {
     const code = error instanceof ObservationServiceError ? error.code : null
-    if (code === 'UNAUTHENTICATED')
-      redirect(`/${lang}/auth/login?next=${encodeURIComponent(href)}`)
-    if (code === 'INVALID_OBSERVATION_QUERY' || code === 'CLIENT_NOT_FOUND')
-      notFound()
-    return (
-      <main className="p-8">
-        <h1>{t('title')}</h1>
-        <p role="alert">{t('loadError')}</p>
-        {runId&&<RunTroubleshooting data={runData} error={runError} lang={lang} clientId={clientId} filter={runFilter}/>}
-        <a className="inline-flex min-h-11 items-center underline" href={href}>
-          {t('retry')}
-        </a>
-      </main>
-    )
+    if (code === 'UNAUTHENTICATED') redirect(`/${lang}/auth/login?next=${encodeURIComponent(href)}`)
+    if (code === 'INVALID_OBSERVATION_QUERY' || code === 'CLIENT_NOT_FOUND') notFound()
+    return <main className="mx-auto w-full min-w-0 max-w-6xl space-y-4 p-4 sm:p-6">
+      <h1 className="text-2xl font-bold">{t('title')}</h1>
+      <p role="alert">{t('loadError')}</p>
+      <a className="inline-flex min-h-11 items-center underline" href={href}>{t('retry')}</a>
+    </main>
   }
-  // Counts are substituted by the client after each response; preserve their placeholders.
-  const copy = Object.fromEntries(
-    observationCopyKeys.map((key) => [key, t.raw(key)]),
-  ) as ObservationCopy
+
+  if (initial.selectedRun && selection.week !== initial.selectedRun.week) {
+    redirect(observationsHref(lang, clientId, {
+      ...selection, run: initial.selectedRun.id, week: initial.selectedRun.week,
+      cursor: undefined, runCursor: undefined,
+    }, runFilter ? '#run-status' : ''))
+  }
+  const runData = initial.selectedRun ? await loadRunTroubleshooting(
+    profile.account_id, clientId, initial.selectedRun.id, runFilter ?? 'all', selection.runCursor ?? null, !!runFilter,
+  ).catch(() => null) : undefined
+  const copy = Object.fromEntries(observationCopyKeys.map(key => [key, t.raw(key)])) as ObservationCopy
   const smeCopilot = isSmeCopilotUiEnabled()
-  const workspace = (
-    <ObservationWorkspace
-      smeCopilot={smeCopilot}
-      embedded={smeCopilot}
-      initialObservationId={typeof raw.observation==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(raw.observation)?raw.observation:undefined}
-      clientId={clientId}
-      initial={initial}
-      copy={copy}
-      lang={lang}
-      runPanel={runId?<RunTroubleshooting data={runData} error={runError} lang={lang} clientId={clientId} filter={runFilter}/>:undefined}
-      initialFilters={{
-        run:runId??undefined,
-        promptId: typeof raw.promptId === 'string' ? raw.promptId : undefined,
-        platform: typeof raw.platform === 'string' ? raw.platform : undefined,
-        week: typeof raw.week === 'string' ? raw.week : undefined,
-        limit: typeof raw.limit === 'string' ? raw.limit : undefined,
-        result:
-          raw.result === 'success' || raw.result === 'incomplete'
-            ? raw.result
-            : undefined,
-      }}
-    />
-  )
+  const workspace = <ObservationWorkspace
+    key={href}
+    clientId={clientId}
+    lang={lang}
+    initial={initial}
+    initialFilters={selection}
+    smeCopilot={smeCopilot}
+    embedded={smeCopilot}
+    copy={copy}
+    runData={runData}
+  />
   if (!smeCopilot) return workspace
-  return (
-    <WhatAiSaysPage
-      title={t('smeTitle')}
-      description={t('smeDescription')}
-      actions={(
-        <a
-          className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-medium"
-          href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/prompts`}
-        >
-          {t('smeManageQuestions')}
-        </a>
-      )}
-    >
-      {workspace}
-    </WhatAiSaysPage>
-  )
+  return <WhatAiSaysPage title={t('smeTitle')} description={t('smeDescription')} actions={
+    <a className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-medium"
+      href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/prompts`}>{t('smeManageQuestions')}</a>
+  }>{workspace}</WhatAiSaysPage>
 }
