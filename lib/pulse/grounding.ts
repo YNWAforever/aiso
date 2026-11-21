@@ -16,7 +16,7 @@ type Sql = ReturnType<typeof db>
  */
 export type Grounding = 'native' | 'web' | 'none'
 
-const NATIVE_SEARCH = new Set(['perplexity-sonar', 'perplexity-sonar-pro'])
+const NATIVE_SEARCH = new Set(['perplexity-sonar', 'perplexity-sonar-pro', 'google-aio'])
 /** Platforms that would search if asked: everything that does not search by itself. */
 const SEARCHABLE_PLATFORMS = 3
 

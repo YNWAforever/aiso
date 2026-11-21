@@ -525,7 +525,7 @@ describe('POST /api/pulse/run — web search (062)', () => {
   it('asks without web search while FEATURE_PULSE_GROUNDING is off', async () => {
     llm.callMultiPlatform.mockResolvedValue(answer())
     await post({ clientId: 'client-1', limit: 1 })
-    expect(llm.callMultiPlatform.mock.calls.at(-1)?.[4]).toEqual({ webSearch: false })
+    expect(llm.callMultiPlatform.mock.calls.at(-1)?.[4]).toEqual({ webSearch: false, question: 'What is AcmeCo?', context: expect.any(Object) })
     expect(calls.some(c => /pulse_item_attempts/.test(c.text))).toBe(false)
   })
 
@@ -533,7 +533,7 @@ describe('POST /api/pulse/run — web search (062)', () => {
     vi.stubEnv('FEATURE_PULSE_GROUNDING', '1')
     llm.callMultiPlatform.mockResolvedValue(answer({ grounding: 'web' }))
     await post({ clientId: 'client-1', limit: 1 })
-    expect(llm.callMultiPlatform.mock.calls.at(-1)?.[4]).toEqual({ webSearch: true })
+    expect(llm.callMultiPlatform.mock.calls.at(-1)?.[4]).toEqual({ webSearch: true, question: 'What is AcmeCo?', context: expect.any(Object) })
     const usage = calls.find(c => /grounding = 'web'/.test(c.text))!
     expect(usage.params).toContain('account-1')
   })

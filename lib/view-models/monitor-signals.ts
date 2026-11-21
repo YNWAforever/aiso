@@ -4,7 +4,8 @@ import type { PulseView } from '@/lib/view-models/pulse'
 /**
  * Display names for the runtime platform keys stored in pulse_metrics.platform
  * (lib/pulse/platforms.ts, vocabulary 2). Product names, not translated. Gemini
- * is named as Gemini: it is the model Pulse asks, not Google's AI Overviews.
+ * is named as Gemini: it is the model Pulse asks. Google's AI Overviews are a
+ * separate platform (`google-aio`), collected from Google Search results.
  */
 const PLATFORM_NAMES: Record<string, string> = {
   'gpt-4o': 'ChatGPT',
@@ -12,6 +13,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   'perplexity-sonar-pro': 'Perplexity Pro',
   'gemini-flash': 'Gemini',
   'claude-haiku': 'Claude',
+  'google-aio': 'Google AI Overviews',
 }
 const ORDER = Object.keys(PLATFORM_NAMES)
 

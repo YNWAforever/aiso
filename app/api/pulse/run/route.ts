@@ -227,7 +227,7 @@ export async function POST(req: NextRequest) {
         pulseAnswerMaxTokens,
         missingPlatforms,
         undefined,
-        { webSearch },
+        { webSearch, question: prompt.question, context: { language: prompt.language, market: prompt.market } },
       ).catch(() => [])
 
       // No platform answered: nothing to write, and stored rows stay as they

@@ -35,7 +35,35 @@ competitor angles (`feat(pulse): suggest brand, market and competitor questions`
 **Run this on two or three real brands before Step 2.** If the AI Overview rate is
 low, keep Perplexity Pro or add AI Overviews alongside it instead.
 
-## Step 2: the swap (not built yet)
+## Step 2: the swap (built, off by default)
+
+Built on 2026-11-19 behind **`PULSE_GOOGLE_AIO=1`**, which is off unless set to exactly
+`1`. With the flag off, nothing changes. With it on, weekly Pulse runs for any plan that
+grants Perplexity Pro (Pro, Enterprise) check `google-aio` in its place. Plan
+definitions, pricing and Studio chat are unchanged.
+
+- `pulsePlatformsFor` swaps the runtime key. It is the weekly-run spend decision, so the
+  entitlement mapping that Studio chat reads is never touched.
+- Both producers collect `google-aio` through `lib/pulse/google-aio.ts`, using the raw
+  question:
+  - The run ledger's collector, which blocks with `PROVIDER_NOT_CONFIGURED` when
+    DataForSEO credentials are missing.
+  - The classic `pulse/run` route, which passes `question` to `callMultiPlatform`.
+- "No AI Overview" is saved as a fixed, non-blank answer that names no brand
+  (`GOOGLE_AIO_ABSENT_ANSWER`). It is classified "not mentioned" and is not re-collected
+  or re-billed. A failed request throws and follows each producer's existing failure rule.
+- Labels: "Google AI Overviews" / 「Google AI 概覽」. Citation key `google_aio`. Grounding
+  `native`.
+
+**To turn it on:**
+
+1. Run the probe on real brands and review the AI Overview rate.
+2. Set `PULSE_GOOGLE_AIO=1` in Vercel production.
+3. Update the pricing and feature copy that names Perplexity Pro.
+
+**To turn it off:** unset the variable. Rows already saved under `google-aio` stay as they are.
+
+### Original design notes
 
 1. **Vocabulary.** Add entitlement key `google-aio` → runtime key `google-aio` →
    citation key `google_aio` (already allowed by `ai_citation_log`'s CHECK). Update
