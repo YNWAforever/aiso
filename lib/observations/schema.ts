@@ -56,7 +56,7 @@ export function projectObservation(row: PulseSourceRow, currentPrompt: Question 
     market,
     result: hasAnswer && classified ? 'success' : 'incomplete',
     hasAnswer,
-    brandMentioned: classified ? row.brand_mentioned : null,
+    brandMentioned: hasAnswer && classified ? row.brand_mentioned : null,
     currentPrompt: linkedPrompt,
     limitations,
   }

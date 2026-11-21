@@ -24,10 +24,15 @@ export interface Observation {
   limitations: string[]
 }
 
+export type ObservationRun = { id: string; week: string; purpose: 'canonical' | 'retest' }
+export type HistoricalQuestion = { promptId: string | null; question: string }
+
 export interface ObservationResponse {
   schemaVersion: 1
   clientId: string
   selectedWeek: string | null
+  selectedRun?: ObservationRun
+  filterOptions?: { platforms: string[]; questions: HistoricalQuestion[] }
   weeks: string[]
   questionsTruncated: boolean
   questions: Question[]

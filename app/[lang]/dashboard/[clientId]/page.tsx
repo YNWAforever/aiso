@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { LoadError } from '@/components/dashboard/states/LoadError'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
 import { loadOwnedPulse } from '@/lib/workspace/load-owned-pulse'
+import { monitoringHref } from '@/lib/observations/links'
 import { buildPulseView } from '@/lib/view-models/pulse'
 import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
@@ -99,12 +100,12 @@ export default async function DashboardPage({
   searchParams,
 }: {
   params: Promise<{ lang: string; clientId: string }>
-  searchParams: Promise<{ step?: string; scanId?: string }>
+  searchParams: Promise<{ step?: string; scanId?: string; run?: string | string[] }>
 }) {
   const { lang, clientId } = await params
   // Read the raw step before defaulting: FEATURE ON must tell an absent/home
   // landing apart from the explicit `?step=overview` WorkspaceHome alias.
-  const { step: rawStep, scanId } = await searchParams
+  const { step: rawStep, scanId, run } = await searchParams
   const step = rawStep === 'overview' ? 'home' : rawStep ?? 'home'
   const t = await getTranslations('dashboard')
   const reportT = await getTranslations('reports')
@@ -156,16 +157,17 @@ export default async function DashboardPage({
   }
 
   if (step === 'monitor') {
+    const requestedRun = typeof run === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(run) ? run.toLowerCase() : undefined
     let owned
     try { owned = await loadOwnedPulse({ clientId, profile, withSignals: true }) } catch {
-      return <LoadError title={t('workspace_load_error_title')} body={t('workspace_load_error_body')} retryHref={`/${lang}/dashboard/${clientId}?step=monitor`} backHref={`/${lang}/dashboard`} />
+      return <LoadError title={t('workspace_load_error_title')} body={t('workspace_load_error_body')} retryHref={monitoringHref(lang, clientId, requestedRun)} backHref={`/${lang}/dashboard`} />
     }
     if (!owned) notFound()
     return <WhatAiSaysPage
       title={t(smeCopilot ? 'step_monitor_sme_title' : 'step_monitor_title')}
       description={smeCopilot ? t('step_monitor_sme_body') : t('step_monitor_body')}
     >
-      <MonitorStep features={features} lang={lang} clientId={clientId} view={buildPulseView(owned)} now={new Date()}
+      <MonitorStep features={features} lang={lang} clientId={clientId} view={buildPulseView(owned)} now={new Date()} requestedRun={requestedRun}
         brandIdentity={owned.brandIdentity ?? { name: owned.client.brand_name, aliases: [] }} />
     </WhatAiSaysPage>
   }

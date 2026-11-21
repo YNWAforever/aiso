@@ -46,6 +46,20 @@ describe('validated return destination', () => {
     expect(safeReturnTo(run,'en')).toBe(`/en/dashboard/${client}/observations?run=${client}&runCursor=${client}&runStatus=failed&week=2026-09-28#run-status`)
     expect(safeReturnTo(`/en/dashboard/${client}/sources?source=${client}&version=bad`,'en')).toBe(`/en/dashboard/${client}/sources`)
   })
+  it.each(['en', 'zh-HK'])('preserves run, both pagination cursors and an open answer in %s', lang => {
+    const scope = new URLSearchParams({ run: client, week: '2026-11-16', promptId: client,
+      question: '品牌有甚麼服務？', platform: 'gpt-4o', result: 'success', mention: 'absent', limit: '5',
+      cursor: 'cursor_123', observation: client, runStatus: 'failed', runCursor: client,
+    })
+    const path = `/${lang}/dashboard/${client}/observations`
+    const safe = normalizeAuthNext(lang, `${path}?${scope}&access_token=secret#run-status`)
+    const restored = new URL(safe, 'https://aiso.test')
+    expect(restored.pathname).toBe(path)
+    expect(restored.hash).toBe('#run-status')
+    expect(Object.fromEntries(restored.searchParams)).toEqual(Object.fromEntries(scope))
+    const monitor = `/${lang}/dashboard/${client}?step=monitor&run=${client}#first-monitoring`
+    expect(normalizeAuthNext(lang, monitor)).toBe(monitor)
+  })
   it.each([null, [], { next: '/en/dashboard' }, '/en/dashboard?step=monitor&step=roi', '/en/dashboard#access_token=secret'])('does not adopt ambiguous context %j', raw => {
     expect(safeReturnTo(raw, 'en')).toBe('/en/dashboard')
   })

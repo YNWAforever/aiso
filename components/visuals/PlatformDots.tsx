@@ -1,7 +1,7 @@
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 
-export type PlatformCell = 'cited' | 'mentioned' | 'absent' | 'notRun'
+export type PlatformCell = 'cited' | 'mentioned' | 'absent' | 'notRun' | 'pending' | 'collectionIssue' | 'unclassified' | 'unavailable'
 
 export interface PlatformDotsProps {
   /** Platform names are product names and pass through untranslated. */
@@ -19,9 +19,13 @@ const DOT: Record<PlatformCell, string> = {
   mentioned: 'size-3 bg-tone-info/70',
   absent: 'size-3 border-2 border-neutral-7 bg-transparent',
   notRun: 'size-1.5 bg-neutral-6',
+  pending: 'h-1.5 w-3 rounded-sm bg-tone-info',
+  collectionIssue: 'size-3 rounded-sm bg-tone-danger',
+  unclassified: 'size-2.5 rounded-sm border-2 border-tone-warning',
+  unavailable: 'size-2.5 border border-dashed border-neutral-8',
 }
 
-const LEGEND: readonly PlatformCell[] = ['cited', 'mentioned', 'absent', 'notRun']
+const LEGEND: readonly PlatformCell[] = ['cited', 'mentioned', 'absent', 'pending', 'collectionIssue', 'unclassified', 'unavailable', 'notRun']
 
 /**
  * AI platform × week, one dot per sample. A real table underneath, so screen
@@ -30,6 +34,7 @@ const LEGEND: readonly PlatformCell[] = ['cited', 'mentioned', 'absent', 'notRun
  */
 export function PlatformDots({ platforms, weeks, cells, caption, className }: PlatformDotsProps) {
   const t = useTranslations('visuals')
+  const used = new Set(Object.values(cells).flat())
   return (
     <div className={cn('flex flex-col gap-3', className)} data-testid="platform-dots">
       {/* Focusable so keyboard users can scroll it when the weeks overflow. `relative`
@@ -65,7 +70,7 @@ export function PlatformDots({ platforms, weeks, cells, caption, className }: Pl
         </table>
       </div>
       <ul aria-label={t('platformDots.legend')} className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        {LEGEND.map(cell => (
+        {LEGEND.filter(cell => used.has(cell) || cell === 'notRun').map(cell => (
           <li key={cell} className="inline-flex items-center gap-1.5">
             <span aria-hidden="true" className={cn('inline-block rounded-full', DOT[cell])} />
             {t(`platformDots.${cell}`)}

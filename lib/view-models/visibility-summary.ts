@@ -1,4 +1,4 @@
-import type { PulseCoverageView, PulsePoint, PulseView } from './pulse'
+import type { PulseCoverageView, PulseDisplayState, PulsePoint, PulseView } from './pulse'
 
 /**
  * What the first "What AI says" tab can say from the stored Pulse view.
@@ -13,6 +13,7 @@ import type { PulseCoverageView, PulsePoint, PulseView } from './pulse'
  */
 export type VisibilityMissedGroup = {
   question: string
+  promptId?: string
   platforms: string[]
   competitors: string[]
   week: string | null
@@ -20,8 +21,9 @@ export type VisibilityMissedGroup = {
 }
 
 export type VisibilityOverview = {
-  state: 'ready' | 'partial' | 'empty' | 'error'
+  state: 'ready' | Exclude<PulseDisplayState, 'complete'>
   latestWeek: string | null
+  runId?: string
   sov: number | null
   /** Percentage points vs the previous comparable week; null when incomparable. */
   delta: number | null
@@ -42,16 +44,17 @@ function groupMissed(view: PulseView, latestWeek: string | null): VisibilityMiss
   const groups = new Map<string, VisibilityMissedGroup>()
   for (const row of view.missed.data) {
     if (latestWeek !== null && row.scan_week !== latestWeek) continue
-    const question = row.question.trim()
-    if (!question) continue
-    const group = groups.get(question) ?? { question, platforms: [], competitors: [], week: null, count: 0 }
+    const question = row.question
+    if (!question.trim()) continue
+    const key = JSON.stringify([row.prompt_id ?? null, question])
+    const group = groups.get(key) ?? { question, ...(row.prompt_id ? { promptId: row.prompt_id } : {}), platforms: [], competitors: [], week: null, count: 0 }
     if (!group.platforms.includes(row.platform)) group.platforms.push(row.platform)
     for (const competitor of row.competitors_mentioned) {
       if (!group.competitors.includes(competitor)) group.competitors.push(competitor)
     }
     if (row.scan_week && (group.week === null || row.scan_week > group.week)) group.week = row.scan_week
     group.count += 1
-    groups.set(question, group)
+    groups.set(key, group)
   }
   return [...groups.values()].sort((a, b) => b.count - a.count || a.question.localeCompare(b.question))
 }
@@ -63,15 +66,10 @@ export function buildVisibilityOverview(view: PulseView): VisibilityOverview {
   const kpi = view.observations.latestKpi
   const coverage = view.observations.coverage ?? null
 
-  let state: VisibilityOverview['state'] =
-    view.observations.state === 'error' ? 'error'
-      : latestWeek === null || kpi === null ? 'empty'
-        : view.observations.state === 'partial' ? 'partial'
-          : 'ready'
-  if (state === 'ready' && view.observations.state !== 'complete') {
-    // pending / blocked / failed with a stored KPI are not a clean weekly sample.
-    state = 'partial'
-  }
+  const observedState = view.observations.state
+  let state: VisibilityOverview['state'] = observedState === 'complete' || observedState === 'ready'
+    ? kpi === null ? 'partial' : 'ready'
+    : observedState
   if (state === 'ready' && coverage !== null && coverage.recorded > 0 && coverage.classified < coverage.recorded) {
     state = 'partial'
   }
@@ -81,9 +79,9 @@ export function buildVisibilityOverview(view: PulseView): VisibilityOverview {
 
   let delta: number | null = null
   let previousWeek: string | null = null
-  if (latestWeek !== null && latestPoint !== undefined && comparable(latestPoint) && sov !== null) {
+  if (state === 'ready' && latestWeek !== null && latestPoint !== undefined && comparable(latestPoint) && sov !== null) {
     const index = trend.indexOf(latestPoint)
-    const previous = trend.slice(0, Math.max(0, index)).reverse().find(comparable)
+    const previous = trend.slice(0, Math.max(0, index)).reverse().find((point): point is PulsePoint & { sov: number } => comparable(point) && point.cohort === latestPoint.cohort)
     if (previous !== undefined && previous.sov !== null) {
       delta = Math.round((sov - previous.sov) * 10) / 10
       previousWeek = previous.week
@@ -102,6 +100,7 @@ export function buildVisibilityOverview(view: PulseView): VisibilityOverview {
   return {
     state,
     latestWeek,
+    ...(view.observations.canonical && coverage?.provenance === 'ledger' ? { runId: view.observations.canonical.id } : {}),
     sov,
     delta,
     previousWeek,

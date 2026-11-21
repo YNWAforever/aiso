@@ -6,9 +6,8 @@ import type { Observation } from './types'
  * rows under their question so the page can show one card per question and a
  * compact platform list underneath.
  *
- * The key prefers `promptId` because the same question wording can change while
- * the prompt stays the same, and falls back to the normalised question for
- * historical rows that no longer carry a prompt id.
+ * Keep each historical wording with its saved answers, even if the prompt was
+ * later edited. Historical rows without a prompt ID still group by wording.
  */
 export type ObservationGroup = {
   key: string
@@ -28,7 +27,7 @@ export function groupObservations(items: readonly Observation[]): ObservationGro
   const groups = new Map<string, ObservationGroup>()
   for (const item of items) {
     const key = item.promptId
-      ? `prompt:${item.promptId}`
+      ? JSON.stringify([item.promptId, item.question])
       : `question:${item.question.trim().replace(/\s+/g, ' ').toLocaleLowerCase()}`
     const group = groups.get(key) ?? {
       key,

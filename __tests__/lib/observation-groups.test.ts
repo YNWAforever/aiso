@@ -34,7 +34,6 @@ describe('groupObservations', () => {
     ])
     expect(groups).toHaveLength(1)
     expect(groups[0]).toMatchObject({
-      key: 'prompt:prompt-1',
       promptId: 'prompt-1',
       platforms: ['ChatGPT', 'Gemini', 'Perplexity'],
       mentioned: 1,
@@ -64,6 +63,14 @@ describe('groupObservations', () => {
     expect(groups).toHaveLength(1)
     expect(groups[0].promptId).toBeNull()
     expect(groups[0].key).toBe('question:fotomax 邊度有分店？')
+  })
+
+  it('separates edited wording for a single prompt', () => {
+    const groups = groupObservations([
+      item({ id: '1', platform: 'ChatGPT', question: 'Original wording?' }),
+      item({ id: '2', platform: 'Gemini', question: 'Edited wording?' }),
+    ])
+    expect(groups.map(group => group.question)).toEqual(['Original wording?', 'Edited wording?'])
   })
 
   it('returns no groups for an empty page', () => {

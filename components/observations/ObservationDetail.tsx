@@ -2,13 +2,16 @@
 import {useEffect,useRef,useState} from 'react'
 import type {ObservationDetailDto} from '@/lib/observations/types'
 import type {ObservationCopy} from './copy'
+import { observationsHref, type ObservationSelection } from '@/lib/observations/links'
+import { formatDisplayDate } from '@/lib/format/date'
+import { platformLabel } from '@/lib/view-models/monitor-signals'
 
-export function ObservationDetailContent({observation:d,copy:c,smeCopilot=false}:{observation:ObservationDetailDto;copy:ObservationCopy;smeCopilot?:boolean}){
+export function ObservationDetailContent({observation:d,copy:c,smeCopilot=false,lang='en'}:{observation:ObservationDetailDto;copy:ObservationCopy;smeCopilot?:boolean;lang?:string}){
   const status={classified:c.classified,fallback:c.fallback,failed:c.failed,legacy_unknown:c.legacyUnknown}[d.classification.status]
   const sentiment={positive:c.positive,neutral:c.neutral,negative:c.negative,unknown:c.unknown}[d.classification.sentiment]
   const fields=[
     [c.model,d.model],[c.requestedModel,d.requestedModel],[c.collector,d.collector],[c.market,d.market],
-    [c.collectedAt,d.collectedAt],[c.classification,status],[c.sentiment,sentiment],
+    [c.collectedAt,formatDisplayDate(d.collectedAt,lang,{withTime:true,zoneLabel:true})||null],[c.classification,status],[c.sentiment,sentiment],
     [c.method,d.classification.method],[c.version,d.classification.version],
     [c.providerFinishReason,d.providerFinishReason==='stop'?c.providerComplete:c.unknown],
     [c.searchExecution,d.searchEvidence?.execution==='confirmed'?c.searchConfirmed:c.searchUnknown],
@@ -39,8 +42,8 @@ export function ObservationDetailContent({observation:d,copy:c,smeCopilot=false}
     <section className="space-y-2">
       <h3 className="font-semibold">{c.smeKeyPoints}</h3>
       <div className="flex flex-wrap gap-2 text-xs">
-        <span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 font-medium">{d.platform}</span>
-        <span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 font-medium">{d.scanWeek}</span>
+        <span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 font-medium">{platformLabel(d.platform)}</span>
+        <span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 font-medium">{formatDisplayDate(d.scanWeek,lang)}</span>
         <span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 font-medium">{d.brandMentioned===null?c.smeMentionUnknown:d.brandMentioned?c.smeMentioned:c.smeNotMentioned}</span>
       </div>
     </section>
@@ -63,35 +66,44 @@ export function ObservationDetailContent({observation:d,copy:c,smeCopilot=false}
     {technical}
   </div>
 }
-export function ObservationDetail({clientId,observationId,copy,onClose,smeCopilot=false}:{clientId:string;observationId:string;copy:ObservationCopy;onClose:()=>void;smeCopilot?:boolean}){
+export function ObservationDetail({clientId,observationId,copy,onClose,smeCopilot=false,lang='en',selection}:{clientId:string;observationId:string;copy:ObservationCopy;onClose:()=>void;smeCopilot?:boolean;lang?:string;selection?:ObservationSelection}){
+  const run = selection?.run
+  const login = `/${lang}/auth/login?${new URLSearchParams({next:observationsHref(lang, clientId, {...selection, observation:observationId})})}`
   const dialog=useRef<HTMLDialogElement>(null),closeButton=useRef<HTMLButtonElement>(null)
-  const [observation,setObservation]=useState<ObservationDetailDto|null>(null),[error,setError]=useState(false),[retry,setRetry]=useState(0)
+  const [observation,setObservation]=useState<ObservationDetailDto|null>(null),[error,setError]=useState<'unavailable' | 'sign-in' | null>(null),[retry,setRetry]=useState(0)
   useEffect(()=>{
     const node=dialog.current,previous=document.activeElement instanceof HTMLElement?document.activeElement:null
     node?.showModal();closeButton.current?.focus()
-    return ()=>{node?.close();if(previous?.isConnected)previous.focus()}
+    return ()=>{node?.close();if(previous?.isConnected&&previous!==document.body)previous.focus();else document.querySelector<HTMLElement>('#sme-answers-title, #observation-heading')?.focus()}
   },[])
   useEffect(()=>{
     const controller=new AbortController();let current=true
     const timer=setTimeout(()=>controller.abort(),15_000)
     async function load(){
-      setError(false)
+      setError(null)
       try{
-        const response=await fetch(`/api/clients/${encodeURIComponent(clientId)}/observations/${encodeURIComponent(observationId)}`,{cache:'no-store',signal:controller.signal})
+        const scope = run ? `?${new URLSearchParams({run})}` : ''
+        const response = await fetch(`/api/clients/${encodeURIComponent(clientId)}/observations/${encodeURIComponent(observationId)}${scope}`, {cache:'no-store',signal:controller.signal})
+        if (response.status === 401) {
+          if (current) setError('sign-in')
+          return
+        }
         if(!response.ok)throw new Error('unavailable')
         const body=await response.json()
         if(body.observation?.id!==observationId||!body.observation?.classification)throw new Error('invalid')
         if(current)setObservation(body.observation)
-      }catch{if(current)setError(true)}finally{clearTimeout(timer)}
+      }catch{if(current)setError('unavailable')}finally{clearTimeout(timer)}
     }
     void load()
     return ()=>{current=false;clearTimeout(timer);controller.abort()}
-  },[clientId,observationId,retry])
-  return <dialog ref={dialog} aria-labelledby="observation-detail-title" onCancel={onClose}
+  },[clientId,observationId,retry,run,lang])
+  return <dialog ref={dialog} aria-labelledby="observation-detail-title" onCancel={event => { event.preventDefault(); onClose() }}
     className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-3xl overflow-y-auto rounded-xl border border-border bg-background p-4 text-foreground shadow-xl backdrop:bg-black/40 sm:p-6">
     <header className="mb-4 flex items-start justify-between gap-4"><h2 id="observation-detail-title" className="text-xl font-semibold">{copy.detailTitle}</h2>
       <button ref={closeButton} type="button" className="min-h-11 shrink-0 rounded-lg border px-3" onClick={onClose}>{copy.closeDetail}</button></header>
-    {error?<p role="alert">{copy.detailError} <button className="min-h-11 underline" type="button" onClick={()=>setRetry(n=>n+1)}>{copy.retry}</button></p>
-      :observation?<ObservationDetailContent observation={observation} copy={copy} smeCopilot={smeCopilot}/>:<p role="status">{copy.detailLoading}</p>}
+    {error?<p role="alert">{copy.detailError}{' '}{error === 'sign-in'
+      ? <a className="inline-flex min-h-11 items-center underline" href={login}>{copy.signInToContinue}</a>
+      : <button className="min-h-11 underline" type="button" onClick={()=>setRetry(n=>n+1)}>{copy.retry}</button>}</p>
+      :observation?<ObservationDetailContent observation={observation} copy={copy} smeCopilot={smeCopilot} lang={lang}/>:<p role="status">{copy.detailLoading}</p>}
   </dialog>
 }

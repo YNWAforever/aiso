@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { formatDisplayDate } from '@/lib/format/date'
+import { observationsHref, monitoringHref } from '@/lib/observations/links'
 import { derivePulseAvailability } from '@/lib/pulse/runs/availability'
 import type { UserPulseRun } from '@/lib/pulse/runs/user-dispatch'
 import type { MonitoringOptions } from '@/lib/pulse/runs/read-view'
@@ -14,6 +16,8 @@ type Props = {
   lang: string; clientId: string; brandName?: string
   options: Options | null; run: UserPulseRun | null; error: string | null; busy: boolean
   repairOutcome: { classified: number; unchanged: number; failed: number } | null
+  returnTo?: string
+  pinnedRun?: boolean
   refresh: () => void
   start: (kind: 'initial' | 'repair' | 'retest') => Promise<void>
   repair: (runId?: string) => Promise<void>
@@ -23,7 +27,7 @@ const fill = (text: string, values: Record<string, number | string>) =>
 const button = 'inline-flex min-h-11 items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-semibold disabled:opacity-50'
 
 /** Display and explicit confirmation only. All writes use the existing run controller. */
-export function GuidedRunProgress({ lang, clientId, brandName, options, run, error, busy, repairOutcome, refresh, start, repair }: Props) {
+export function GuidedRunProgress({ lang, clientId, brandName, options, run, error, busy, repairOutcome, refresh, start, repair, returnTo, pinnedRun = false }: Props) {
   const copy = (lang === 'zh-HK' ? zh : en).runProgress
   const c = copy.sme
   const base = `/${lang}/dashboard/${encodeURIComponent(clientId)}`
@@ -60,30 +64,51 @@ export function GuidedRunProgress({ lang, clientId, brandName, options, run, err
     else if (action === 'legacy') await repair()
     else await start(action)
   }
-  const results = run ? `${base}/observations?run=${encodeURIComponent(run.id)}&week=${encodeURIComponent(run.week)}` : `${base}/observations`
-  const currentResults = options?.currentCanonicalId ? `${base}/observations?run=${encodeURIComponent(options.currentCanonicalId)}&week=${encodeURIComponent(options.week)}` : `${base}/observations?result=incomplete`
+  const runScope = run ? { run: run.id, week: run.week } : {}
+  const results = observationsHref(lang, clientId, runScope)
+  const runStatus = observationsHref(lang, clientId, { ...runScope,
+    runStatus: run?.coverage.pending ? 'pending' : run?.coverage.failed || run?.coverage.blocked ? 'failed' : 'unclassified',
+  }, '#run-status')
+  const currentResults = options?.currentCanonicalId
+    ? observationsHref(lang, clientId, { run: options.currentCanonicalId, week: options.week })
+    : observationsHref(lang, clientId, { week: options?.week, result: 'incomplete' })
+  const login = returnTo ? `/${lang}/auth/login?${new URLSearchParams({ next: returnTo })}` : `/${lang}/auth/login`
   const changed = confirmation && (confirmation.signature !== signature || !eligible(confirmation.action))
   const visibleBlockers = availability?.reasons.filter(reason => reason !== 'paused' || options?.enabled !== false) ?? []
+  const canStartNew = availability?.canStart === true && !pinnedRun
   const refreshIsPrimary = !!options && !availability?.canStart && !run && availability?.action !== 'view_existing' && availability?.action !== 'edit_prompts'
 
   return <section id="first-monitoring" aria-labelledby="monitoring-heading" aria-busy={busy} className="my-6 space-y-4 rounded-2xl border border-border bg-card p-5 sm:p-6">
     <header><h2 ref={heading} tabIndex={-1} id="monitoring-heading" className="text-xl font-bold">{c.title}</h2>{brandName && <p className="mt-1 text-sm text-muted-foreground">{brandName}</p>}</header>
-    {error ? <div role="alert" className="space-y-3"><p>{error}</p>{error === c.planRequired && <Link className={button} href={`/${lang}/pricing`}>{c.viewPlans}</Link>}{error === c.signInRequired && <Link className={button} href={`/${lang}/auth/login`}>{c.signIn}</Link>}<button type="button" className={button} disabled={busy} onClick={refresh}>{copy.refresh}</button></div> : !options ? <p role="status">{copy.loading}</p> : <>
-      <p className="text-sm text-muted-foreground">{c.week}: {options.week}</p>
-      <p className="font-semibold">{!options.enabled ? c.paused : run ? c.states[run.coverage.status] : availability?.canStart ? c.ready : c.needsAttention}</p>
-      {visibleBlockers.length > 0 && <ul className="list-disc space-y-1 pl-5 text-sm" aria-label={copy.availabilityTitle}>{visibleBlockers.map(reason => <li key={reason}>{c.blockers[reason]}</li>)}</ul>}
+    {error ? <div role="alert" className="space-y-3">
+      <p>{error}</p>
+      {run && <p>{c.lastConfirmed} {formatDisplayDate(run.week, lang)} · {c.states[run.coverage.status]} · {fill(c.saved, { saved: run.coverage.succeeded, expected: run.coverage.expected })}</p>}
+      <div className="flex flex-wrap gap-2">
+        {error === c.planRequired && <Link className={button} href={`/${lang}/pricing`}>{c.viewPlans}</Link>}
+        {error === c.signInRequired && <Link className={button} href={login}>{c.signIn}</Link>}
+        {error === c.runUnavailable && <Link className={button} href={monitoringHref(lang, clientId)}>{c.showCurrentRun}</Link>}
+        <button type="button" className={button} disabled={busy} onClick={refresh}>{copy.refresh}</button>
+      </div>
+    </div> : !options ? <p role="status">{copy.loading}</p> : <>
+      <p className="text-sm text-muted-foreground">{c.week}: {formatDisplayDate(options.week, lang)}</p>
+      <p className="font-semibold">{run ? c.states[run.coverage.status] : !options.enabled ? c.paused : availability?.canStart ? c.ready : c.needsAttention}</p>
+      {!options.enabled && run && <p className="text-sm text-muted-foreground">{c.paused}</p>}
+       {visibleBlockers.length > 0 && <ul className="list-disc space-y-1 pl-5 text-sm" aria-label={copy.availabilityTitle}>{visibleBlockers.map(reason => <li key={reason}>{c.blockers[reason]}</li>)}</ul>}
       {run && <div className="space-y-2" aria-live="polite">
-        <p className="text-sm">{run.purpose === 'retest' ? c.retest : c.weekly}: {run.week}</p>
+        <p className="text-sm">{run.purpose === 'retest' ? c.retest : c.weekly}: {formatDisplayDate(run.week, lang)}</p>
         <p>{fill(c.saved, { saved: run.coverage.succeeded, expected: run.coverage.expected })}</p>
         <p className="text-sm text-muted-foreground">{fill(c.checked, { checked: run.coverage.classified, saved: run.coverage.succeeded })}</p>
         {run.reasons.map(reason => <p className="text-sm" key={reason}>{copy.reasons[reason as keyof typeof copy.reasons] ?? copy.unavailable}</p>)}
       </div>}
       <div className="flex flex-wrap gap-3">
-        {availability?.canStart ? <button type="button" className={button + ' bg-primary text-primary-foreground'} disabled={busy} onClick={e => request('initial', e.currentTarget)}>{c.start}</button>
-          : run ? <Link className={button + ' bg-primary text-primary-foreground'} href={results}>{c.viewAnswers}</Link>
+        {canStartNew ? <button type="button" className={button + ' bg-primary text-primary-foreground'} disabled={busy} onClick={e => request('initial', e.currentTarget)}>{c.start}</button>
+          : run ? <Link className={button + ' bg-primary text-primary-foreground'} href={run.coverage.succeeded ? results : runStatus}>{run.coverage.succeeded ? c.viewAnswers : c.viewRunStatus}</Link>
           : availability?.action === 'view_existing' ? <Link className={button} href={currentResults}>{copy.viewExisting}</Link>
           : availability?.action === 'edit_prompts' ? <Link className={button} href={`${base}/prompts`}>{copy.setup}</Link>
           : <button type="button" className={button} disabled={busy} onClick={refresh}>{copy.refresh}</button>}
+        {run && canStartNew && <Link className={button} href={run.coverage.succeeded ? results : runStatus}>{run.coverage.succeeded ? c.viewAnswers : c.viewRunStatus}</Link>}
+        {run && run.coverage.succeeded > 0 && run.coverage.status !== 'completed' &&
+          <Link className={button} href={runStatus}>{c.viewRunStatus}</Link>}
       </div>
       {confirmation && <section ref={panel} tabIndex={-1} onKeyDown={event => { if (event.key === 'Escape' && !busy) { event.preventDefault(); cancel() } }} aria-labelledby="monitor-confirm-heading" className="space-y-3 rounded-xl border border-primary p-4 focus-visible:outline-2 focus-visible:outline-offset-2">
         <h3 id="monitor-confirm-heading" className="font-semibold">{c.confirmTitle}</h3>
@@ -105,7 +130,8 @@ export function GuidedRunProgress({ lang, clientId, brandName, options, run, err
         {!!options.legacyObservationIds.length && <button type="button" className={button} disabled={!eligible('legacy')} onClick={e => request('legacy', e.currentTarget)}>{copy.repairLegacy}</button>}
         {run?.purpose === 'canonical' && run.coverage.status === 'completed' && <button type="button" className={button} disabled={busy} onClick={() => void repair(run.id)}>{copy.repairSummary}</button>}
         {run?.coverage.status === 'completed' && <button type="button" className={button} disabled={!retestReady || busy} onClick={e => request('retest', e.currentTarget)}>{copy.retest}</button>}
-        {options.latest && options.latest.id !== run?.id && <Link className={button} href={`${base}/observations?run=${encodeURIComponent(options.latest.id)}&week=${encodeURIComponent(options.latest.week)}`}>{c.latest}</Link>}
+        {options.latest && options.latest.id !== run?.id && <Link className={button} href={observationsHref(lang, clientId, { run: options.latest.id, week: options.latest.week })}>{c.latest}</Link>}
+        {pinnedRun && <Link className={button} href={monitoringHref(lang, clientId)}>{c.showCurrentRun}</Link>}
         {!refreshIsPrimary && <button type="button" className={button} disabled={busy} onClick={refresh}>{copy.refresh}</button>}
       </div></details>
     </>}
